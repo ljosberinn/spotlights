@@ -1,0 +1,48 @@
+## Interface: 120007, 120100
+## Title: Spotlights
+## DefaultState: Enabled
+## SavedVariables: SpotlightsSaved
+## Category: Unit Frames
+## Notes: Singles out individual raid members into their own draggable grid of frames
+## OptionalDeps: LibSharedMedia-3.0
+## Version: @project-version@
+## Author: Xephyris-Blackrock-EU
+## IconTexture: Interface\Icons\inv_misc_tolbaradsearchlight
+
+## X-Curse-Project-ID: 1640403
+## X-Wago-ID: rN4knMGD
+
+Libs\LibStub\LibStub.lua
+Libs\CallbackHandler-1.0\CallbackHandler-1.0.lua
+Libs\LibSharedMedia-3.0\lib.xml
+
+Enum.lua
+Utils.lua
+Events.lua
+Init.lua
+
+Localization\enUS.lua
+Localization\[TextLocale].lua [AllowLoadTextLocale deDE, frFR, zhCN, esES, esMX, koKR, ruRU, itIT, ptBR, zhTW]
+
+FrameConfig.lua
+Container.lua
+Auras.lua
+SlotHeader.lua
+Migration.lua
+Roster.lua
+Layout.lua
+Registry.lua
+Mover.lua
+Media.lua
+Preview.lua
+AuraPreview.lua
+Widgets.lua
+DragAssign.lua
+RosterList.lua
+ContextMenu.lua
+Settings.lua
+
+SpotlightsUnitFrameMixin.lua
+
+Templates\SpotlightsUnitFrameTemplate.xml
+Templates\SpotlightsSettingsTabsTemplate.xml

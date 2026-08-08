@@ -1,0 +1,110 @@
+---@type string, Spotlights
+local _, Private = ...
+
+---@class SpotlightsEnums
+Private.Enum = {}
+
+--- Grid fill direction. Horizontal fills across then wraps down; vertical fills down then wraps
+--- across. `stride` means columns when horizontal, rows when vertical.
+---@enum Orientation
+Private.Enum.Orientation = {
+	Horizontal = 1,
+	Vertical = 2,
+}
+
+--- Which way the grid grows from its anchor. Directions, not frame points: Layout maps them to an
+--- anchor corner, since growing right means anchoring left.
+---@enum GrowX
+Private.Enum.GrowX = {
+	Right = "RIGHT",
+	Left = "LEFT",
+}
+
+---@enum GrowY
+Private.Enum.GrowY = {
+	Down = "DOWN",
+	Up = "UP",
+}
+
+--- What a configured slot holds. `Blank` is a user-placed spacer that reserves its grid cell;
+--- `Retired` is a pooled header kept alive but hidden, since frames cannot be destroyed.
+---@enum SlotKind
+Private.Enum.SlotKind = {
+	Player = "player",
+	Blank = "blank",
+	Retired = "retired",
+}
+
+--- Work deferred past combat, and the throttle keys used out of combat. Both queues drain through
+--- the same ordered dispatch.
+---@enum DeferralKey
+Private.Enum.DeferralKey = {
+	Config = "config",
+	Build = "build",
+	Registry = "registry",
+	Geometry = "geometry",
+	Layout = "layout",
+	Position = "position",
+	Auras = "auras",
+}
+
+--- Drain order, and why the queue is a set not a list: geometry must never run against a roster
+--- the registry has not rebuilt. Config leads, because Build and Refresh read the option table it
+--- may have just changed.
+---
+--- Position is last of the geometry passes because clamping the container to the screen needs its
+--- *final* size, and Layout sizes it. The other order clamps against the previous slot count.
+---
+--- Auras is last outright, but not by ordering constraint: nothing it does is read by another pass
+--- and nothing it reads is written by one. A spotlight gains aura displays from the unit the secure
+--- header assigned it, which arrives by attribute, not this queue. It is here only so a pass blocked
+--- by combat resumes with everything else.
+Private.Enum.DeferralOrder = {
+	Private.Enum.DeferralKey.Config,
+	Private.Enum.DeferralKey.Build,
+	Private.Enum.DeferralKey.Registry,
+	Private.Enum.DeferralKey.Geometry,
+	Private.Enum.DeferralKey.Layout,
+	Private.Enum.DeferralKey.Position,
+	Private.Enum.DeferralKey.Auras,
+}
+
+--- The anchor points a saved position may name, as a set so a stored value can be validated before
+--- SetPoint -- which errors outright on an unrecognised point and takes the container pass with it.
+---
+--- Nine rather than WoW's full set: the only ones CalcPoint produces (a vertical half and a
+--- horizontal third combine into a corner, an edge midpoint, or the centre).
+---@type table<string, boolean>
+Private.Enum.AnchorPoints = {
+	TOPLEFT = true,
+	TOP = true,
+	TOPRIGHT = true,
+	LEFT = true,
+	CENTER = true,
+	RIGHT = true,
+	BOTTOMLEFT = true,
+	BOTTOM = true,
+	BOTTOMRIGHT = true,
+}
+
+--- The same nine points in dropdown order: reading order, top-left first.
+---
+--- Separate from `AnchorPoints` because that is a set (for validation) and `pairs` over it would
+--- reshuffle the menu between sessions.
+---@type AnchorPoint[]
+Private.Enum.AnchorPointOrder = {
+	"TOPLEFT",
+	"TOP",
+	"TOPRIGHT",
+	"LEFT",
+	"CENTER",
+	"RIGHT",
+	"BOTTOMLEFT",
+	"BOTTOM",
+	"BOTTOMRIGHT",
+}
+
+--- A name no player can hold, used as the `nameList` value for blank and retired slots. Never
+--- leave `nameList` nil: with `groupFilter` and `roleFilter` also nil, SecureGroupHeader_Update
+--- falls back to groupFilter "1,2,3,4,5,6,7,8" and renders the entire raid into one slot.
+Private.Enum.NameListSentinel = "\1"

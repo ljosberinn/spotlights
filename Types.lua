@@ -1,0 +1,324 @@
+---@meta
+
+---@class Spotlights
+--- Localised strings, grouped by module. Values are strings, except a group may hold an enum-keyed
+--- map of strings (the nine anchor points), looked up by value rather than named individually.
+---@field L table<string, table<string, string | table<string, string>>>
+---@field Enum SpotlightsEnums
+---@field Utils SpotlightsUtils
+---@field Events SpotlightsEvents
+---@field FrameConfig SpotlightsFrameConfig
+---@field Container SpotlightsContainer
+---@field Mover SpotlightsMover
+---@field Preview SpotlightsPreview
+---@field AuraPreview SpotlightsAuraPreviews
+---@field Media SpotlightsMedia
+---@field Widgets SpotlightsWidgets
+---@field RosterList SpotlightsRosterList
+---@field Settings SpotlightsSettings
+---@field ContextMenu SpotlightsContextMenu
+---@field DragAssign SpotlightsDragAssign
+---@field SlotHeader SpotlightsSlotHeader
+---@field Migration SpotlightsMigration
+---@field Roster SpotlightsRoster
+---@field Registry SpotlightsRegistry
+---@field Layout SpotlightsLayout
+---@field Auras SpotlightsAuras
+---@field SlashCommands SpotlightsSlashCommands
+---@field LoginFnQueue fun()[]
+---@field DB SpotlightsDB? nil until ADDON_LOADED has run the migration
+---@field IsTwelveDotOne boolean the aura container system exists only from 12.1 onwards
+
+--- One configured grid cell.
+---
+--- `guid` is the stable key and `name` is what the header matches on; either can be the only one
+--- present (a slot for someone outside the group has no GUID, as nothing resolves a name to one).
+--- Both self-heal on the next roster rebuild.
+---@class SpotlightsSlot
+---@field kind SlotKind
+---@field guid string?
+---@field name string? exactly as GetRaidRosterInfo spelled it — never synthesised
+
+---@class SpotlightsDB
+---@field version integer
+---@field slots SpotlightsSlot[]
+---@field layout SpotlightsLayoutConfig
+---@field position SpotlightsPositionConfig
+---@field appearance SpotlightsAppearanceConfig
+---@field auras SpotlightsAurasConfig
+
+--- How a spotlight looks. Uniform across all of them; no per-slot overrides.
+---
+--- `barTexture` and `nameFont` are LibSharedMedia **keys**, resolved to a path by `Private.Media` at
+--- apply time. Never store the resolved path: a key's path depends on what other addons registered,
+--- so a stored path is one session's answer frozen in.
+---
+--- The health bar and the name each carry a class-colour toggle and a static colour beside it. The
+--- static colour is stored whether or not it is in use, so toggling class colour off reveals the
+--- user's previous choice. The name also carries its own font, size and
+--- placement: `namePoint` is the point on the name *and* the point on the spotlight, with `nameX`/`nameY`
+--- the offset between them measured right and up -- the same convention the aura displays use.
+---@class SpotlightsAppearanceConfig
+---@field barTexture string
+---@field showAbsorb boolean
+---@field outOfRangeAlpha number
+---@field deadAlpha number
+---@field healthUseClassColor boolean
+---@field healthColorR number
+---@field healthColorG number
+---@field healthColorB number
+---@field healthBgColorR number
+---@field healthBgColorG number
+---@field healthBgColorB number
+---@field nameUseClassColor boolean
+---@field nameColorR number
+---@field nameColorG number
+---@field nameColorB number
+---@field nameFont string
+---@field nameFontSize number
+---@field namePoint AnchorPoint
+---@field nameX number
+---@field nameY number
+
+--- Both tracked auras. The two carry identical shapes on purpose: the feature is one customisation
+--- set pointed at either spell, so neither may grow a field the other lacks.
+---
+--- `cooldowns` and `custom` sit beside the two features rather than inside `sensePower` (the only
+--- feature that reads them), keeping that rule true: the spell pool is one list belonging to the
+--- aura block, not to a customisation set.
+---
+--- Both are **sparse**, holding only what the user changed. `cooldowns` overrides the built-in list
+--- in `Auras.lua` and is only ever written `false`; a built-in absent from it is on, so adding a
+--- spell to that list in a later version needs no migration. `custom` is the opposite -- empty until
+--- the user adds to it -- mapping each ID to its own toggle.
+---@class SpotlightsAurasConfig
+---@field prescience SpotlightsAuraFeatureConfig
+---@field sensePower SpotlightsAuraFeatureConfig
+---@field cooldowns table<integer, boolean> built-in overrides; only ever `false`, meaning "off"
+---@field custom table<integer, boolean> user-added spell IDs, each mapped to its enabled state
+
+--- One aura's two displays, independent of each other and both optional.
+---@class SpotlightsAuraFeatureConfig
+---@field bar SpotlightsAuraBarConfig
+---@field icon SpotlightsAuraIconConfig
+
+--- What every aura display shares, and the half of it that costs nothing to change.
+---
+--- These four are the fields that reach a live display through its **anchor frame**, which is ours
+--- and unrestricted -- unlike texture, colour and the icon toggles, which live below an
+--- access-restricted aura button and can only change by building a replacement. `enabled` looks
+--- drastic but is the cheapest: one `SetShown` on a frame we own.
+---
+--- `point` is the point on the display *and* on the spotlight, so the offset is measured from the
+--- same corner of both -- the same convention `SpotlightsPositionConfig` uses against UIParent. `x`
+--- and `y` always mean right and up.
+--- The border fields are the exception to that split but sit here because both displays draw one the
+--- same way. `borderTexture` is a LibSharedMedia **border** key; `None` (LSM's name for the empty
+--- path) means "no border", so there is no separate toggle. All five are build-time: a backdrop
+--- belongs to a frame under the aura button.
+---@class SpotlightsAuraDisplayConfig
+---@field enabled boolean
+---@field alpha number
+---@field point AnchorPoint
+---@field x number
+---@field y number
+---@field borderTexture string
+---@field borderSize number
+---@field borderR number
+---@field borderG number
+---@field borderB number
+
+--- A duration bar. Sized as a fraction of the spotlight, because the spotlight is resizable and a
+--- stored pixel width would stop matching it.
+---
+--- `texture` is a LibSharedMedia key, resolved by `Private.Media` at apply time -- see
+--- `SpotlightsAppearanceConfig.barTexture`.
+---
+--- `showIcon` puts the spell's icon inline at one end of the bar. Both it and `iconSide` are
+--- build-time: they shape regions below the aura button.
+---@class SpotlightsAuraBarConfig : SpotlightsAuraDisplayConfig
+---@field texture string
+---@field r number
+---@field g number
+---@field b number
+---@field widthPct number 0..1 of the spotlight's width
+---@field heightPct number 0..1 of the spotlight's height
+---@field showIcon boolean
+---@field iconSide "LEFT" | "RIGHT"
+
+--- A spell icon, optionally with a cooldown swipe and remaining duration across it.
+---
+--- Width and height are independent pixel dimensions.
+---
+--- `showSwipe` and `showText` are build-time like the bar's icon fields: they decide which regions
+--- exist under the button. `font` is a LibSharedMedia **font** key, resolved at apply time; both it
+--- and `fontSize` are build-time, as the font string lives under the aura button.
+---@class SpotlightsAuraIconConfig : SpotlightsAuraDisplayConfig
+---@field width number in pixels
+---@field height number in pixels
+---@field showSwipe boolean
+---@field showText boolean
+---@field font string
+---@field fontSize number
+
+--- Where the grid sits. A corner-relative anchor, never raw coordinates.
+---
+--- `point` is the frame point on the container *and* the point on UIParent it anchors to, so the
+--- offset is measured from the same corner of both -- which survives a resolution change. `x` and
+--- `y` are in UIParent units and always mean right and up.
+---@class SpotlightsPositionConfig
+---@field point AnchorPoint
+---@field x number
+---@field y number
+
+--- The nine points CalcPoint can produce. A subset of WoW's anchor points: the four corners,
+--- the four edge midpoints, and the centre.
+---@alias AnchorPoint
+---| "TOPLEFT"
+---| "TOP"
+---| "TOPRIGHT"
+---| "LEFT"
+---| "CENTER"
+---| "RIGHT"
+---| "BOTTOMLEFT"
+---| "BOTTOM"
+---| "BOTTOMRIGHT"
+
+--- The grid. `stride` is the user's single wrap control: *columns* when filling horizontally,
+--- *rows* when filling vertically, which is why it is named neither.
+---
+--- `allowGaps` governs both departure holes and user-placed spacers: on, slot i is grid cell i
+--- forever and nothing moves except by user edit; off, cells are filled by present players in slot
+--- order and spacers collapse with them.
+---@class SpotlightsLayoutConfig
+---@field orientation Orientation
+---@field stride integer
+---@field growX GrowX
+---@field growY GrowY
+---@field spacingX number
+---@field spacingY number
+---@field frameWidth number
+---@field frameHeight number
+---@field allowGaps boolean
+---@field clearOnLeave boolean wipe every configured slot on leaving a raid
+
+--- A header's child button. Every region is declared by our template and every method is the
+--- mixin's; nothing here comes from Blizzard but SecureUnitButtonTemplate's OnClick.
+---
+--- `unit` and `displayedUnit` are mirrored from the header's secure assignment and only ever read
+--- from the attribute -- never written back.
+---@class SpotlightsUnitFrame : Button
+---@field unit string?
+---@field displayedUnit string?
+---@field spotlightsInitialised boolean?
+---@field background Texture
+---@field name FontString
+---@field selectionHighlight Texture
+---@field healthBar StatusBar
+---@field tempMaxHealthLoss StatusBar
+---@field spotlightsAbsorbBar StatusBar?
+---@field spotlightsAuras table<string, table<string, SpotlightsAuraDisplay>>? feature key -> display key -> display, built lazily
+---@field OnEvent fun(self: SpotlightsUnitFrame, event: string)
+---@field OnUnitAttributeChanged fun(self: SpotlightsUnitFrame, value: string?)
+---@field UpdateAll fun(self: SpotlightsUnitFrame)
+---@field UpdateHealthValues fun(self: SpotlightsUnitFrame)
+---@field UpdateHealthColor fun(self: SpotlightsUnitFrame)
+---@field UpdateName fun(self: SpotlightsUnitFrame)
+---@field UpdateTexture fun(self: SpotlightsUnitFrame)
+---@field UpdateSelectionHighlight fun(self: SpotlightsUnitFrame)
+---@field UpdateAbsorb fun(self: SpotlightsUnitFrame)
+---@field UpdateTempMaxHealthLoss fun(self: SpotlightsUnitFrame)
+---@field UpdateRangeAlpha fun(self: SpotlightsUnitFrame)
+---@field CreateAbsorbBar fun(self: SpotlightsUnitFrame)
+---@field RegisterGlobalEvents fun(self: SpotlightsUnitFrame)
+
+--- The addon-callable surface of `CustomAuraContainerTemplate`, and only the part we use.
+---
+--- Declared here because the container is a **real API, not a frame to draw into**. Its mixins are
+--- sourced `secure` and split across public and forbidden partitions, so the callable list is narrow.
+--- `AddAuraSlot` has no inverse: there is no `UnregisterAuraSlot` and a slot key cannot be reused,
+--- so a slot added to a container is there for the session.
+---
+--- `SetAuraSlotCandidateFilters` is the exception, and why the spell pool can be edited at all: a
+--- slot's *identity* is fixed for the session, but its accept filters are not. It clears the slot's
+--- candidates, revalidates the given table and re-runs the container's aura pass, so the display
+--- catches up without a frame being built.
+---@class SpotlightsAuraContainer : Frame
+---@field GetUnit fun(self: SpotlightsAuraContainer): string
+---@field SetUnit fun(self: SpotlightsAuraContainer, unit: string) asserts on a non-string
+---@field AddAuraSlot fun(self: SpotlightsAuraContainer, slotKey: string, filterString: string, options: table): table
+---@field SetAuraSlotCandidateFilters fun(self: SpotlightsAuraContainer, slotKey: string, candidateFilters: table) asserts on an unknown slot key
+
+--- The drawable parts of one display, whichever kind it is.
+---
+--- Every field is optional and most are absent on any given display: a bar has no swipe and an icon
+--- has no status bar, and within a kind the optional regions exist only when the settings asked for
+--- them -- except on a preview, which builds all of its own so a toggle can flick without a rebuild.
+---
+--- One flat shape rather than one per kind, because the three functions that touch it (`Style`,
+--- `Register`, `Preview`) are dispatched per kind anyway.
+---@class SpotlightsAuraRegions
+---@field bar StatusBar?
+---@field barIcon Texture? the spell icon inline at one end of a bar
+---@field icon Texture?
+---@field swipe Cooldown?
+---@field text FontString?
+---@field border SpotlightsAuraBorder?
+
+--- A `Frame` inheriting `BackdropTemplate`, which the annotations model as two unrelated types
+--- rather than as a frame that gained two methods. Declared here so a border can be both hidden and
+--- given a backdrop without a cast at every call.
+---@class SpotlightsAuraBorder : Frame
+---@field SetBackdrop fun(self: SpotlightsAuraBorder, backdrop: table)
+---@field SetBackdropBorderColor fun(self: SpotlightsAuraBorder, r: number, g: number, b: number, a: number?)
+
+--- One fake display in the options preview: same anchor and regions as a live one, with nothing
+--- registered and nothing restricted.
+---
+--- Carries its own `feature` and `display` because a preview is restyled from settings on every
+--- control change, and the record is the only thing that knows which settings are its own.
+---@class SpotlightsAuraPreview
+---@field anchor Frame
+---@field regions SpotlightsAuraRegions
+---@field feature SpotlightsAuraFeature
+---@field display SpotlightsAuraKind
+
+--- One built display: a bar or an icon, for one aura, on one spotlight.
+---
+--- Three frames stacked in a line, drawn by where the **access boundary** falls.
+--- `AuraContainerUtil.ApplyAccessRestrictions` stamps `DenyTaintedAccessWhenAurasAreSecret` onto the
+--- button the instant `initializeFrame` returns, and that restriction reaches every descendant --
+--- not just the regions handed back through `SetDurationBar`, but plain frames of ours the container
+--- never saw. So `button` and everything under it is frozen for the session; there is no way to take
+--- a slot back off a container and add a better one.
+---
+--- `anchor` gives every display something above that boundary to hold onto. It is a plain frame of
+--- ours, so its point, size, alpha and visibility stay writable forever -- which turns most settings
+--- into a live write instead of a rebuild. One anchor per display, not per spotlight, because two
+--- displays that move independently need independent rectangles.
+---
+--- `container` is the only piece both ours to create and load-bearing for the aura API. It is pinned
+--- to the anchor by opposing corners, beating the `SetSize(1, 1)` its own flow layout would collapse
+--- it to.
+---
+--- `button` is listed only so a diagnostic can name it. Every widget call on it from our tainted
+--- code is refused while auras are secret -- including `HasAnyAccessRestrictions`.
+--- `builtHeight` is the anchor's height when the button was built. A bar's inline icon is square and
+--- a region cannot be told to be as wide as it is tall, so its width was measured then; comparing
+--- this against the live height tells a resize whether it invalidated that square.
+--- `unresolved` is the set of media keys (namespaced by type) LibSharedMedia could not resolve when
+--- the button was built, so the display wears a fallback for each. It lets a late registration
+--- rebuild only the displays it actually fixes: matching the *stored* key would instead rebuild
+--- displays built after the registration -- which were already right -- at the cost of a leaked
+--- container and a reload prompt for no visible change.
+---@class SpotlightsAuraDisplay
+---@field anchor Frame ours, unrestricted, and the only thing a settings change can reach
+---@field container SpotlightsAuraContainer
+---@field button table
+---@field builtHeight number
+---@field unresolved table<string, true>
+
+---@class SpotlightsSlashCommand
+---@field name string
+---@field descriptionKey string key into L.SlashCommands, resolved lazily at print time
+---@field handler fun(args: string)
