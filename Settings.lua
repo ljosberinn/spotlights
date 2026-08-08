@@ -9,10 +9,9 @@ Private.Settings = {}
 local Enum = Private.Enum
 local Widgets = Private.Widgets
 
---- The tab strip sits right of the portrait and runs the full width of the panel: six tabs capped at
---- `maxTabWidth` 72 reach 70 + 6 * 72 = 502px. At 420 the row bled out of the frame (Roster lost its
---- right edge, Diagnostics was entirely outside), so the panel grew until the row clears the right
---- border with room to spare.
+--- The tab strip's five tabs have 520 - 70 = 450px available, but the layout adds 1px between each
+--- pair. `maxTabWidth` 89 therefore uses 5 * 89 + 4 * 1 = 449px, leaving the final pixel inside the
+--- panel instead of clipping the right edge.
 local PANEL_WIDTH = 520
 
 --- The panel's height, now all content: the tab strip sits right of the portrait, so nothing above the
@@ -303,15 +302,13 @@ end
 
 ---@param content Frame
 ---@return SpotlightsWidget[]
-local function BuildPositionTab(content)
+local function BuildGeneralTab(content)
 	local L = Private.L.Settings
 
 	return {
-		Widgets.CreateButton(content, L.ToggleMover, function()
+		Widgets.CreateButtonPair(content, L.ToggleMover, function()
 			Private.Mover.SetUnlocked(not Private.Mover.IsUnlocked())
-		end, true),
-
-		Widgets.CreateButton(content, L.Recenter, function()
+		end, L.Recenter, function()
 			local position = Private.Container.GetPosition()
 
 			if not position or InCombatLockdown() then
@@ -321,7 +318,29 @@ local function BuildPositionTab(content)
 			position.point, position.x, position.y = "CENTER", 0, 0
 
 			Private.Container.Request()
-		end, true),
+		end),
+
+		Widgets.CreateCheckbox(content, L.ShowMinimapButton, function()
+			local minimap = Private.DB and Private.DB.minimap
+
+			return minimap and not minimap.hide or false
+		end, function(value)
+			local minimap = Private.DB and Private.DB.minimap
+
+			if not minimap then
+				return
+			end
+
+			minimap.hide = not value
+
+			local icon = LibStub("LibDBIcon-1.0")
+
+			if value then
+				icon:Show(addonName)
+			else
+				icon:Hide(addonName)
+			end
+		end, 160),
 	}
 end
 
@@ -1244,7 +1263,7 @@ local function Get()
 	panel:SetTabSystem(tabSystem)
 
 	local names = {
-		L.TabPosition,
+		L.TabGeneral,
 		L.TabAppearance,
 		L.TabGrid,
 		L.TabAuras,
@@ -1252,7 +1271,7 @@ local function Get()
 	}
 
 	builders = {
-		BuildPositionTab,
+		BuildGeneralTab,
 		BuildAppearanceTab,
 		BuildGridTab,
 		BuildAurasTab,

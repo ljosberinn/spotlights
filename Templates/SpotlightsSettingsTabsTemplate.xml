@@ -8,7 +8,7 @@
 	<Frame name="SpotlightsSettingsTabSystemTemplate" inherits="TabSystemTemplate" virtual="true">
 		<KeyValues>
 			<KeyValue key="tabTemplate" value="SpotlightsSettingsTabTemplate" type="string" />
-			<KeyValue key="maxTabWidth" value="72" type="number" />
+			<KeyValue key="maxTabWidth" value="89" type="number" />
 		</KeyValues>
 	</Frame>
 </Ui>

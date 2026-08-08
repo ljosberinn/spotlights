@@ -46,6 +46,10 @@
 ---@field position SpotlightsPositionConfig
 ---@field appearance SpotlightsAppearanceConfig
 ---@field auras SpotlightsAurasConfig
+---@field minimap SpotlightsMinimapConfig
+
+---@class SpotlightsMinimapConfig
+---@field hide boolean
 
 --- How a spotlight looks. Uniform across all of them; no per-slot overrides.
 ---

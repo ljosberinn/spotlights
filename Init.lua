@@ -106,6 +106,41 @@ EventUtil.ContinueOnAddOnLoaded(addonName, function()
 	SpotlightsSaved = db
 	Private.DB = db
 
+	do
+		local iconTexture = C_AddOns.GetAddOnMetadata(addonName, "IconTexture")
+
+		LibStub("LibDBIcon-1.0"):Register(addonName, LibStub("LibDataBroker-1.1"):NewDataObject(addonName, {
+			type = "launcher",
+			text = addonName,
+			icon = iconTexture,
+			OnClick = function()
+				Private.Settings.SetShown()
+			end,
+			OnTooltipShow = function(tooltip)
+				tooltip:AddLine(addonName)
+				tooltip:AddLine(Private.L.Settings.ClickToOpenSettings, 1, 1, 1)
+			end,
+		}), db.minimap)
+
+		if AddonCompartmentFrame then
+			AddonCompartmentFrame:RegisterAddon({
+				text = addonName,
+				icon = iconTexture,
+				func = function()
+					Private.Settings.SetShown()
+				end,
+				funcOnEnter = function(button)
+					GameTooltip:SetOwner(button, "ANCHOR_LEFT")
+					GameTooltip:AddLine(Private.L.Settings.ClickToOpenSettings)
+					GameTooltip:Show()
+				end,
+				funcOnLeave = function()
+					GameTooltip:Hide()
+				end,
+			})
+		end
+	end
+
 	if fresh then
 		Private.Utils.Print(Private.L.Registry.Empty)
 	end

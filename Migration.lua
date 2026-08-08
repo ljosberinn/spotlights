@@ -5,7 +5,7 @@ local _, Private = ...
 Private.Migration = {}
 
 --- Bump this and add the matching step whenever the shape of SpotlightsSaved changes.
-Private.Migration.CurrentVersion = 1
+Private.Migration.CurrentVersion = 2
 
 --- The layout defaults, and the shape version 2 introduced.
 ---
@@ -228,7 +228,11 @@ end
 --- steps for versions 2 through 10 were collapsed before release, since no wild database ever claimed
 --- those versions. `Repair` still fills any field a fresh install's blocks would have.
 ---@type table<integer, fun(db: SpotlightsDB)>
-local steps = {}
+local steps = {
+	[2] = function(db)
+		db.minimap = db.minimap or { hide = false }
+	end
+}
 
 --- Fills in every field `defaults` has and `target` lacks, returning what to store: `target` patched,
 --- or `defaults` outright if `target` is not a table.
@@ -306,6 +310,9 @@ local function Repair(db)
 	RepairBlock(db, "appearance", DefaultAppearance)
 	RepairBlock(db, "auras", DefaultAuras)
 	RepairPosition(db)
+	RepairBlock(db, "minimap", function()
+		return { hide = false }
+	end)
 end
 
 ---@return SpotlightsDB
@@ -317,6 +324,7 @@ local function CreateDefault()
 		position = DefaultPosition(),
 		appearance = DefaultAppearance(),
 		auras = DefaultAuras(),
+		minimap = { hide = false },
 	}
 end
 

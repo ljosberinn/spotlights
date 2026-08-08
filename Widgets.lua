@@ -66,15 +66,18 @@ end
 ---@param label string
 ---@param get fun(): boolean
 ---@param set fun(value: boolean)
+---@param labelWidth number?
 ---@return SpotlightsWidget
-function Private.Widgets.CreateCheckbox(parent, label, get, set)
+function Private.Widgets.CreateCheckbox(parent, label, get, set, labelWidth)
 	local row = CreateRow(parent) --[[@as SpotlightsWidget]]
+	labelWidth = labelWidth or LABEL_WIDTH
 
-	CreateLabel(row, label)
+	local labelWidget = CreateLabel(row, label)
+	labelWidget:SetWidth(labelWidth)
 
 	local check = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
 
-	check:SetPoint("LEFT", row, "LEFT", LABEL_WIDTH, 0)
+	check:SetPoint("LEFT", row, "LEFT", labelWidth, 0)
 	check:SetSize(ROW_HEIGHT, ROW_HEIGHT)
 
 	check:SetScript("OnClick", function(self)
@@ -258,6 +261,34 @@ function Private.Widgets.CreateButton(parent, label, onClick, center)
 	button:SetScript("OnClick", onClick)
 
 	-- Nothing to re-read, but the panel calls Refresh on everything it owns.
+	function row:Refresh() end
+
+	return row
+end
+
+---@param parent Frame
+---@param leftLabel string
+---@param leftClick fun()
+---@param rightLabel string
+---@param rightClick fun()
+---@return SpotlightsWidget
+function Private.Widgets.CreateButtonPair(parent, leftLabel, leftClick, rightLabel, rightClick)
+	local row = CreateRow(parent) --[[@as SpotlightsWidget]]
+	local gap = 4
+	local width = (parent:GetWidth() - gap) / 2
+
+	local left = CreateFrame("Button", nil, row, "UIPanelButtonTemplate")
+	left:SetSize(width, ROW_HEIGHT - 4)
+	left:SetPoint("LEFT", row, "LEFT")
+	left:SetText(leftLabel)
+	left:SetScript("OnClick", leftClick)
+
+	local right = CreateFrame("Button", nil, row, "UIPanelButtonTemplate")
+	right:SetSize(width, ROW_HEIGHT - 4)
+	right:SetPoint("RIGHT", row, "RIGHT")
+	right:SetText(rightLabel)
+	right:SetScript("OnClick", rightClick)
+
 	function row:Refresh() end
 
 	return row
