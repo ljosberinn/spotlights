@@ -3,6 +3,7 @@ ignore:
   - .vscode
   - .github
   - CHANGELOG.md
+  - README.md
 manual-changelog:
   filename: CHANGELOG.md
   markuptype: markdown
