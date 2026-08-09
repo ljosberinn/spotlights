@@ -224,7 +224,8 @@ local COOLDOWNS = {
 	},
 }
 
----@type table<integer, table<integer, true>>
+--- ids off by default are NOT considered Big Defenives by the game and added manually
+---@type table<integer, table<integer, boolean>>
 local DEFENSIVES = {
 	[Constants.UICharacterClasses.Warrior] = {
 		[871] = true, -- Shield Wall
@@ -238,6 +239,7 @@ local DEFENSIVES = {
 		[6940] = true, -- Blessing of Sacrifice
 		[31850] = true, -- Ardent Defender
 		[86659] = true, -- Guardian of Ancient Kings
+		[184662] = false, -- Shield of Vengeance
 		[199448] = true, -- Blessing of Sacrifice
 		[204018] = true, -- Blessing of Spellwarding
 		[212641] = true, -- Guardian of Ancient Kings
@@ -248,6 +250,7 @@ local DEFENSIVES = {
 		[264735] = true, -- Survival of the Fittest
 	},
 	[Constants.UICharacterClasses.Rogue] = {
+		[1966] = false, -- Feint
 		[31224] = true, -- Cloak of Shadows
 		[81549] = true, -- Cloak of Shadows
 	},
@@ -261,6 +264,7 @@ local DEFENSIVES = {
 		[48707] = true, -- Anti-Magic Shell
 		[48792] = true, -- Icebound Fortitude
 		[55233] = true, -- Vampiric Blood
+		[444741] = false, -- Anti-Magic Shell proc
 	},
 	[Constants.UICharacterClasses.Shaman] = {
 		[108271] = true, -- Astral Shift
@@ -293,6 +297,7 @@ local DEFENSIVES = {
 	[Constants.UICharacterClasses.Evoker] = {
 		[357170] = true, -- Time Dilation
 		[363916] = true, -- Obsidian Scales
+		[374227] = true, -- Zephyr
 	},
 }
 

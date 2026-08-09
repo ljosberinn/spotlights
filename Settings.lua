@@ -23,7 +23,10 @@ local CONTENT_INSET = 16
 --- tab system's own anchor and the scroll frames' top anchor, which follows the strip's bottom and has
 --- to know the strip's left edge to land content back at `CONTENT_INSET`.
 local TAB_STRIP_X = 70
+local BOTTOM_TAB_STRIP_X = 22
 
+-- The bottom Auras tab strip is 32px high, matching TabSystemButtonTemplate. Its art hangs below the
+-- system, as it does on PlayerSpellsFrame, so the scroll area reserves the strip plus the usual gutter.
 ---@type Frame?
 local panel
 
@@ -1003,22 +1006,8 @@ local function BuildAurasTab(content)
 	end
 
 	local widgets = {
-		Widgets.CreateSubTabs(content, {
-			{ value = "prescience", label = L.Prescience },
-			{ value = "sensePower", label = L.SensePower },
-		}, function()
-			return activeFeature
-		end, function(value)
-			activeFeature = value
-
-			-- Both, and in this order. `Refresh` re-reads every widget, which decides whether the spell
-			-- pool below is shown; `Relayout` then closes or opens the gap it left. Refreshing alone
-			-- would switch the controls over and leave several hundred pixels of blank scroll behind.
-			Private.Settings.Refresh()
-			Private.Settings.Relayout()
-		end),
-
-		-- Under the sub-tabs so it is plainly scoped to the selected feature, and above the first
+		-- The feature selector is the bottom tab strip, so the first content row can be the reset action.
+		-- Under the tabs it is plainly scoped to the selected feature, and above the first
 		-- heading so it never scrolls out of reach. Confirmed rather than immediate: a reset discards a
 		-- layout the user may have spent a while on, and a stray click on a top-of-tab button is the
 		-- accident a confirmation exists to catch.
@@ -1391,6 +1380,21 @@ local function OnPanelHidden()
 	MaybePromptReload()
 end
 
+---@param parent Frame
+---@param tabTemplate string
+---@param maxTabWidth number
+---@return SpotlightsTabSystemFrame
+local function CreateTabSystem(parent, tabTemplate, maxTabWidth)
+	-- Build this in Lua rather than XML so the tab pool sees the selected button template during OnLoad.
+	local tabSystem = CreateFrame("Frame", nil, parent, "HorizontalLayoutFrame") --[[@as SpotlightsTabSystemFrame]]
+	tabSystem.tabTemplate = tabTemplate
+	tabSystem.maxTabWidth = maxTabWidth
+	Mixin(tabSystem, TabSystemMixin)
+	TabSystemMixin.OnLoad(tabSystem)
+
+	return tabSystem
+end
+
 ---@type table<integer, fun(content: Frame): SpotlightsWidget[]>
 local builders = {}
 
@@ -1466,13 +1470,14 @@ local function Get()
 
 	panel:SetScript("OnHide", OnPanelHidden)
 
-	-- The tab system owns selection, visibility and keyboard/tooltip behaviour for the six tabs.
+	-- The tab system owns selection, visibility and keyboard/tooltip behaviour for the five tabs.
 	-- `TabSystemOwnerMixin` is mixed in here rather than inherited, because the mixin's `OnLoad` is not
 	-- run for a frame we create ourselves.
 	Mixin(panel, TabSystemOwnerMixin)
 	TabSystemOwnerMixin.OnLoad(panel)
 
-	local tabSystem = CreateFrame("Frame", nil, panel, "SpotlightsSettingsTabSystemTemplate")
+	local tabSystem = CreateTabSystem(panel, "TabSystemTopButtonTemplate", 89)
+	local auraTabSystem = CreateTabSystem(panel, "TabSystemButtonTemplate", 140)
 
 	-- Right of the portrait, the way SpellBook clears its own icon. This is what makes the change
 	-- reclaim space instead of costing it: the tab strip no longer sits below the 62px portrait, so no
@@ -1483,6 +1488,24 @@ local function Get()
 	-- reaching above the strip's rectangle, so the strip has to sit low enough that the emphasis clears
 	-- the title rather than leaking into it.
 	tabSystem:SetPoint("TOPLEFT", panel, "TOPLEFT", TAB_STRIP_X, -26)
+	-- Match PlayerSpellsFrame: the system begins at the panel's bottom edge and the default tab art hangs
+	-- below it, leaving the tabs outside rather than consuming panel content height.
+	auraTabSystem:SetPoint("TOPLEFT", panel, "BOTTOMLEFT", BOTTOM_TAB_STRIP_X, 2)
+	auraTabSystem:Hide()
+
+	local auraTabIDs = {
+		prescience = auraTabSystem:AddTab(L.Prescience),
+		sensePower = auraTabSystem:AddTab(L.SensePower),
+	}
+
+	auraTabSystem:SetTabSelectedCallback(function(tabID)
+		activeFeature = tabID == auraTabIDs.sensePower and "sensePower" or "prescience"
+
+		-- The selected feature changes which widgets are visible, so refresh before re-stacking the
+		-- current scroll child. The main tab callback performs the same work when entering Auras.
+		Private.Settings.Refresh()
+		Private.Settings.Relayout()
+	end)
 
 	panel:SetTabSystem(tabSystem)
 
@@ -1550,6 +1573,15 @@ local function Get()
 
 		panel:SetTabCallback(tabID, function()
 			activeTab = i
+			local isAuras = builders[i] == BuildAurasTab
+			local showAuraTabs = isAuras and Private.Auras.IsSupported
+
+			auraTabSystem:SetShown(showAuraTabs)
+
+			-- Re-anchor both points after tab switches because the scroll frame is shared by all pages.
+			scroll:ClearAllPoints()
+			scroll:SetPoint("TOPLEFT", tabSystem, "BOTTOMLEFT", CONTENT_INSET - TAB_STRIP_X, -8)
+			scroll:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -CONTENT_INSET - 22, CONTENT_INSET + 8)
 
 			-- Compared against the builder rather than against a tab number, so adding or reordering
 			-- a tab cannot silently point this at the wrong one.
@@ -1579,6 +1611,8 @@ local function Get()
 			widgets = {},
 		}
 	end
+
+	auraTabSystem:SetTab(auraTabIDs[activeFeature])
 
 	return panel
 end

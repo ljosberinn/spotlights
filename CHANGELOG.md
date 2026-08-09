@@ -5,3 +5,4 @@ v1.0.2
 - fixed a bug where unit range was not reliably asserted
 - exposed inputs for all sliders
 - default icon size was reduced
+- moved Prescience/Sense Power tabs to the bottom of the frame

@@ -30,6 +30,21 @@
 ---@field DB SpotlightsDB? nil until ADDON_LOADED has run the migration
 ---@field IsTwelveDotOne boolean the aura container system exists only from 12.1 onwards
 
+--- A button acquired by `TabSystemTemplate` for a top-oriented tab strip.
+---@class TabSystemTopButtonFrame : Button, TabSystemTopButtonTemplate
+
+--- A button acquired by `TabSystemTemplate` for a bottom-oriented tab strip.
+---@class TabSystemButtonFrame : Button, TabSystemButtonTemplate
+
+--- A Lua-created tab system. The button type is selected through `tabTemplate` before `OnLoad` builds
+--- the pool, so the two concrete button frame types above describe the pooled children.
+---@class SpotlightsTabSystemFrame : Frame, TabSystemTemplate
+---@field tabTemplate string
+---@field maxTabWidth number
+---@field AddTab fun(self: SpotlightsTabSystemFrame, tabText: string): integer
+---@field SetTabSelectedCallback fun(self: SpotlightsTabSystemFrame, callback: fun(tabID: integer, isUserAction: boolean?): boolean?)
+---@field SetTab fun(self: SpotlightsTabSystemFrame, tabID: integer, isUserAction: boolean?)
+
 ---@class SpotlightsNameStyle
 ---@field ApplyLayout fun(fontString: FontString, appearance: SpotlightsAppearanceConfig)
 
