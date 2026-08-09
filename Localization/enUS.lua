@@ -143,7 +143,7 @@ L.Settings.AurasEvokerOnly = "Aura tracking is an Evoker-only feature for Sense 
 L.Settings.Prescience = "Prescience"
 L.Settings.SensePower = "Sense Power"
 
-L.Settings.AuraBar = "Status bar"
+L.Settings.AuraBar = "Status Bar"
 L.Settings.AuraIcon = "Icon"
 L.Settings.AuraEnabled = "Show"
 L.Settings.AuraColor = "Bar color"
@@ -171,7 +171,7 @@ L.Settings.AuraReset = "Reset to defaults"
 L.Settings.AuraResetConfirm = "Reset"
 -- Names the feature so the prompt is unambiguous when both sub-tabs share one button, and stays
 -- silent about the tracked cooldown list because a reset does not touch it and Prescience has none.
-L.Settings.AuraResetPrompt = "Reset %s's status bar and icon to their default settings?"
+L.Settings.AuraResetPrompt = "Reset %s's Status Bar and icon to their default settings?"
 
 -- The one place the cost of the design is visible to the user, so it says what it costs rather than
 -- only that it costs something.

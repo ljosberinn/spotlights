@@ -388,13 +388,17 @@ local function BuildAppearanceTab(content)
 		Widgets.CreateHeading(content, L.FrameHeading),
 
 		Widgets.CreateSlider(content, L.Width, 40, 300, 1, function()
-			return Layout() and Layout().frameWidth or 90
+			local layout = Layout()
+
+			return layout and layout.frameWidth or 90
 		end, function(value)
 			SetLayout("frameWidth", value)
 		end),
 
 		Widgets.CreateSlider(content, L.Height, 20, 200, 1, function()
-			return Layout() and Layout().frameHeight or 40
+			local layout = Layout()
+
+			return layout and layout.frameHeight or 40
 		end, function(value)
 			SetLayout("frameHeight", value)
 		end),
@@ -668,13 +672,17 @@ local function BuildGridTab(content)
 			{ value = Enum.Orientation.Horizontal, label = L.Horizontal },
 			{ value = Enum.Orientation.Vertical,   label = L.Vertical },
 		}, function()
-			return Layout() and Layout().orientation
+			local layout = Layout()
+
+			return layout and layout.orientation
 		end, function(value)
 			SetLayout("orientation", value)
 		end),
 
 		Widgets.CreateSlider(content, L.Stride, 1, 40, 1, function()
-			return Layout() and Layout().stride or 5
+			local layout = Layout()
+
+			return layout and layout.stride or 5
 		end, function(value)
 			SetLayout("stride", value)
 		end),
@@ -683,7 +691,9 @@ local function BuildGridTab(content)
 			{ value = Enum.GrowX.Right, label = L.GrowRight },
 			{ value = Enum.GrowX.Left,  label = L.GrowLeft },
 		}, function()
-			return Layout() and Layout().growX
+			local layout = Layout()
+
+			return layout and layout.growX
 		end, function(value)
 			SetLayout("growX", value)
 		end),
@@ -692,19 +702,25 @@ local function BuildGridTab(content)
 			{ value = Enum.GrowY.Down, label = L.GrowDown },
 			{ value = Enum.GrowY.Up,   label = L.GrowUp },
 		}, function()
-			return Layout() and Layout().growY
+			local layout = Layout()
+
+			return layout and layout.growY
 		end, function(value)
 			SetLayout("growY", value)
 		end),
 
 		Widgets.CreateSlider(content, L.SpacingX, 0, 40, 1, function()
-			return Layout() and Layout().spacingX or 3
+			local layout = Layout()
+
+			return layout and layout.spacingX or 3
 		end, function(value)
 			SetLayout("spacingX", value)
 		end),
 
 		Widgets.CreateSlider(content, L.SpacingY, 0, 40, 1, function()
-			return Layout() and Layout().spacingY or 3
+			local layout = Layout()
+
+			return layout and layout.spacingY or 3
 		end, function(value)
 			SetLayout("spacingY", value)
 		end),
@@ -723,7 +739,9 @@ local function BuildRosterTab(content)
 
 	local widgets = {
 		Widgets.CreateCheckbox(content, L.AllowGaps, function()
-			return Layout() and Layout().allowGaps or false
+			local layout = Layout()
+
+			return layout and layout.allowGaps or false
 		end, function(value)
 			SetLayout("allowGaps", value)
 
@@ -735,7 +753,9 @@ local function BuildRosterTab(content)
 		Widgets.CreateText(content, L.AllowGapsHelp),
 
 		Widgets.CreateCheckbox(content, L.ClearOnLeave, function()
-			return Layout() and Layout().clearOnLeave or false
+			local layout = Layout()
+
+			return layout and layout.clearOnLeave or false
 		end, function(value)
 			-- Through the same writer as every other layout field, even though this one invalidates
 			-- nothing on screen: the pass it requests is coalesced and costs a click.
@@ -1035,15 +1055,21 @@ local function BuildAurasTab(content)
 		Widgets.CreateHeading(content, L.AuraBar),
 
 		Widgets.CreateCheckbox(content, L.AuraEnabled, function()
-			return Bar() and Bar().enabled or false
+			local bar = Bar()
+
+			return bar and bar.enabled or false
 		end, function(value)
 			SetAura("bar", "enabled", value)
 		end),
 
 		Widgets.CreateDropdown(content, L.BarTexture, function()
-			return TextureChoices(Bar() and Bar().texture)
+			local bar = Bar()
+
+			return TextureChoices(bar and bar.texture)
 		end, function()
-			return Bar() and Bar().texture
+			local bar = Bar()
+
+			return bar and bar.texture
 		end, function(value)
 			SetAura("bar", "texture", value)
 		end),
@@ -1066,43 +1092,57 @@ local function BuildAurasTab(content)
 		end),
 
 		Widgets.CreateSlider(content, L.AuraAlpha, 0.05, 1, 0.05, function()
-			return Bar() and Bar().alpha or 0.5
+			local bar = Bar()
+
+			return bar and bar.alpha or 0.5
 		end, function(value)
 			SetAura("bar", "alpha", value)
 		end),
 
 		Widgets.CreateSlider(content, L.AuraWidthPct, 0.05, 1, 0.05, function()
-			return Bar() and Bar().widthPct or 1
+			local bar = Bar()
+
+			return bar and bar.widthPct or 1
 		end, function(value)
 			SetAura("bar", "widthPct", value)
 		end),
 
 		Widgets.CreateSlider(content, L.AuraHeightPct, 0.05, 1, 0.05, function()
-			return Bar() and Bar().heightPct or 0.5
+			local bar = Bar()
+
+			return bar and bar.heightPct or 0.5
 		end, function(value)
 			SetAura("bar", "heightPct", value)
 		end),
 
 		Widgets.CreateDropdown(content, L.AuraAnchor, AnchorChoices, function()
-			return Bar() and Bar().point
+			local bar = Bar()
+
+			return bar and bar.point
 		end, function(value)
 			SetAura("bar", "point", value)
 		end),
 
 		Widgets.CreateSlider(content, L.AuraOffsetX, -200, 200, 1, function()
-			return Bar() and Bar().x or 0
+			local bar = Bar()
+
+			return bar and bar.x or 0
 		end, function(value)
 			SetAura("bar", "x", value)
 		end),
 
 		Widgets.CreateSlider(content, L.AuraOffsetY, -200, 200, 1, function()
-			return Bar() and Bar().y or 0
+			local bar = Bar()
+
+			return bar and bar.y or 0
 		end, function(value)
 			SetAura("bar", "y", value)
 		end),
 
 		Widgets.CreateCheckbox(content, L.AuraShowIcon, function()
-			return Bar() and Bar().showIcon or false
+			local bar = Bar()
+
+			return bar and bar.showIcon or false
 		end, function(value)
 			SetAura("bar", "showIcon", value)
 		end),
@@ -1111,7 +1151,9 @@ local function BuildAurasTab(content)
 			{ value = "LEFT",  label = L.AuraIconLeft },
 			{ value = "RIGHT", label = L.AuraIconRight },
 		}, function()
-			return Bar() and Bar().iconSide
+			local bar = Bar()
+
+			return bar and bar.iconSide
 		end, function(value)
 			SetAura("bar", "iconSide", value)
 		end),
@@ -1123,37 +1165,49 @@ local function BuildAurasTab(content)
 		Widgets.CreateHeading(content, L.AuraIcon),
 
 		Widgets.CreateCheckbox(content, L.AuraEnabled, function()
-			return Icon() and Icon().enabled or false
+			local icon = Icon()
+
+			return icon and icon.enabled or false
 		end, function(value)
 			SetAura("icon", "enabled", value)
 		end),
 
 		Widgets.CreateSlider(content, L.AuraIconWidth, 16, 128, 1, function()
-			return Icon() and Icon().width or 50
+			local icon = Icon()
+
+			return icon and icon.width or 25
 		end, function(value)
 			SetAura("icon", "width", value)
 		end),
 
 		Widgets.CreateSlider(content, L.AuraIconHeight, 16, 128, 1, function()
-			return Icon() and Icon().height or 50
+			local icon = Icon()
+
+			return icon and icon.height or 25
 		end, function(value)
 			SetAura("icon", "height", value)
 		end),
 
 		Widgets.CreateSlider(content, L.AuraAlpha, 0.05, 1, 0.05, function()
-			return Icon() and Icon().alpha or 1
+			local icon = Icon()
+
+			return icon and icon.alpha or 1
 		end, function(value)
 			SetAura("icon", "alpha", value)
 		end),
 
 		Widgets.CreateCheckbox(content, L.AuraShowSwipe, function()
-			return Icon() and Icon().showSwipe or false
+			local icon = Icon()
+
+			return icon and icon.showSwipe or false
 		end, function(value)
 			SetAura("icon", "showSwipe", value)
 		end),
 
 		Widgets.CreateCheckbox(content, L.AuraShowText, function()
-			return Icon() and Icon().showText or false
+			local icon = Icon()
+
+			return icon and icon.showText or false
 		end, function(value)
 			SetAura("icon", "showText", value)
 		end),
@@ -1171,25 +1225,33 @@ local function BuildAurasTab(content)
 		end),
 
 		Widgets.CreateSlider(content, L.AuraFontSize, 6, 32, 1, function()
-			return Icon() and Icon().fontSize or 16
+			local icon = Icon()
+
+			return icon and icon.fontSize or 16
 		end, function(value)
 			SetAura("icon", "fontSize", value)
 		end),
 
 		Widgets.CreateDropdown(content, L.AuraAnchor, AnchorChoices, function()
-			return Icon() and Icon().point
+			local icon = Icon()
+
+			return icon and icon.point
 		end, function(value)
 			SetAura("icon", "point", value)
 		end),
 
 		Widgets.CreateSlider(content, L.AuraOffsetX, -200, 200, 1, function()
-			return Icon() and Icon().x or 0
+			local icon = Icon()
+
+			return icon and icon.x or 0
 		end, function(value)
 			SetAura("icon", "x", value)
 		end),
 
 		Widgets.CreateSlider(content, L.AuraOffsetY, -200, 200, 1, function()
-			return Icon() and Icon().y or 0
+			local icon = Icon()
+
+			return icon and icon.y or 0
 		end, function(value)
 			SetAura("icon", "y", value)
 		end),

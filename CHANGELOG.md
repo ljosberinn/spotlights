@@ -4,3 +4,4 @@ v1.0.2
 - color pickers now allow opacity
 - fixed a bug where unit range was not reliably asserted
 - exposed inputs for all sliders
+- default icon size was reduced

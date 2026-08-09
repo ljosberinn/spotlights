@@ -203,7 +203,7 @@ end
 ---@return SpotlightsAuraFeatureConfig
 function Private.Migration.DefaultAuraFeature(featureKey)
 	if featureKey == "sensePower" then
-		local icon = DefaultAuraIcon(true, 50, 50)
+		local icon = DefaultAuraIcon(true, 25, 25)
 
 		icon.point = "RIGHT"
 
@@ -215,7 +215,7 @@ function Private.Migration.DefaultAuraFeature(featureKey)
 
 	return {
 		bar = DefaultAuraBar(true, "TOP", 1, 1, 0, -2),
-		icon = DefaultAuraIcon(false, 50, 50),
+		icon = DefaultAuraIcon(false, 25, 25),
 	}
 end
 
