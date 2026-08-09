@@ -97,6 +97,7 @@ local function Fill(preview, index, slot)
 	preview.name:SetText(
 		blank and "" or (name or string.format(Private.L.Preview.Label, index))
 	)
+	preview.healthText:SetText("")
 
 	local class = PREVIEW_CLASSES[(index - 1) % #PREVIEW_CLASSES + 1]
 	local classColor = RAID_CLASS_COLORS[class]
@@ -134,16 +135,34 @@ local function Fill(preview, index, slot)
 		end
 
 		Private.NameStyle.ApplyLayout(preview.name, appearance)
+		preview.healthText:SetFont(Private.Media.Font(appearance.healthTextFont), appearance.healthTextFontSize, "OUTLINE")
+		preview.healthText:ClearAllPoints()
+		preview.healthText:SetPoint(appearance.healthTextPoint, preview, appearance.healthTextPoint, appearance.healthTextX, appearance.healthTextY)
+		preview.healthText:SetJustifyH("CENTER")
+		preview.healthText:SetShown(appearance.healthTextEnabled)
+		if appearance.healthTextFormat == "percent" then
+			local percent = fraction * 100
+			preview.healthText:SetText(percent < 10 and string.format("%.1f%%", percent) or string.format("%.0f%%", percent))
+		elseif appearance.healthTextFormat == "absValueAbbreviated" then
+			preview.healthText:SetText(AbbreviateNumbers(fraction * 100000))
+		else
+			preview.healthText:SetText(string.format("%d", fraction * 100000))
+		end
 	end
 
 	preview.healthBar:SetStatusBarColor(healthR, healthG, healthB)
 	preview.background:SetVertexColor(bgR, bgG, bgB)
 	preview.name:SetVertexColor(nameR, nameG, nameB)
+	local textR, textG, textB = appearance and appearance.healthTextColorR or 0.5, appearance and appearance.healthTextColorG or 0.5, appearance and appearance.healthTextColorB or 0.5
+	if appearance and appearance.healthTextUseClassColor then
+		textR, textG, textB = classColor.r, classColor.g, classColor.b
+	end
+	preview.healthText:SetVertexColor(textR, textG, textB)
 
 	-- Dimmed as a whole so a preview is never mistaken for a live spotlight. Deliberately not
 	-- SetAlphaFromBoolean: there is no secret here, and the secret-safe setter would needlessly make
 	-- this frame's Alpha aspect secret.
-	preview:SetAlpha(blank and 0.25 or 0.7)
+	preview:SetAlpha((blank and 0.25 or 0.7) * (appearance and appearance.frameAlpha or 1))
 end
 
 --- Positions and fills the preview for one cell, and decides whether it belongs on screen.

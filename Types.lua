@@ -23,11 +23,15 @@
 ---@field Roster SpotlightsRoster
 ---@field Registry SpotlightsRegistry
 ---@field Layout SpotlightsLayout
+---@field NameStyle SpotlightsNameStyle
 ---@field Auras SpotlightsAuras
 ---@field SlashCommands SpotlightsSlashCommands
 ---@field LoginFnQueue fun()[]
 ---@field DB SpotlightsDB? nil until ADDON_LOADED has run the migration
 ---@field IsTwelveDotOne boolean the aura container system exists only from 12.1 onwards
+
+---@class SpotlightsNameStyle
+---@field ApplyLayout fun(fontString: FontString, appearance: SpotlightsAppearanceConfig)
 
 --- One configured grid cell.
 ---
@@ -65,6 +69,7 @@
 ---@class SpotlightsAppearanceConfig
 ---@field barTexture string
 ---@field showAbsorb boolean
+---@field frameAlpha number
 ---@field outOfRangeAlpha number
 ---@field deadAlpha number
 ---@field healthUseClassColor boolean
@@ -83,6 +88,17 @@
 ---@field namePoint AnchorPoint
 ---@field nameX number
 ---@field nameY number
+---@field healthTextEnabled boolean
+---@field healthTextFormat HealthTextFormat
+---@field healthTextUseClassColor boolean
+---@field healthTextColorR number
+---@field healthTextColorG number
+---@field healthTextColorB number
+---@field healthTextFont string
+---@field healthTextFontSize number
+---@field healthTextPoint AnchorPoint
+---@field healthTextX number
+---@field healthTextY number
 
 --- Both tracked auras. The two carry identical shapes on purpose: the feature is one customisation
 --- set pointed at either spell, so neither may grow a field the other lacks.
@@ -217,6 +233,7 @@
 ---@field spotlightsInitialised boolean?
 ---@field background Texture
 ---@field name FontString
+---@field healthText FontString
 ---@field selectionHighlight Texture
 ---@field healthBar StatusBar
 ---@field tempMaxHealthLoss StatusBar
@@ -228,6 +245,8 @@
 ---@field UpdateHealthValues fun(self: SpotlightsUnitFrame)
 ---@field UpdateHealthColor fun(self: SpotlightsUnitFrame)
 ---@field UpdateName fun(self: SpotlightsUnitFrame)
+---@field UpdateNameStyle fun(self: SpotlightsUnitFrame)
+---@field UpdateHealthText fun(self: SpotlightsUnitFrame)
 ---@field UpdateTexture fun(self: SpotlightsUnitFrame)
 ---@field UpdateSelectionHighlight fun(self: SpotlightsUnitFrame)
 ---@field UpdateAbsorb fun(self: SpotlightsUnitFrame)

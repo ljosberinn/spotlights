@@ -43,7 +43,7 @@ local function Layout()
 end
 
 ---@return SpotlightsAppearanceConfig?
-local function Appearance()
+local function GetCurrentAppearanceSettings()
 	return Private.DB and Private.DB.appearance
 end
 
@@ -80,6 +80,7 @@ local function ApplyAppearance()
 	Private.SlotHeader.ForEachChild(function(child)
 		child:UpdateTexture()
 		child:UpdateNameStyle()
+		child:UpdateHealthText()
 		child:UpdateRangeAlpha()
 	end)
 
@@ -92,7 +93,7 @@ end
 ---@param field string
 ---@param value any
 local function SetAppearance(field, value)
-	local appearance = Appearance()
+	local appearance = GetCurrentAppearanceSettings()
 
 	if not appearance then
 		return
@@ -116,7 +117,7 @@ end
 ---@param g number
 ---@param b number
 local function SetAppearanceColor(rField, gField, bField, r, g, b)
-	local appearance = Appearance()
+	local appearance = GetCurrentAppearanceSettings()
 
 	if not appearance then
 		return
@@ -144,6 +145,7 @@ end
 local FRAME_APPEARANCE_FIELDS = {
 	"barTexture",
 	"showAbsorb",
+	"frameAlpha",
 	"outOfRangeAlpha",
 	"deadAlpha",
 	"healthUseClassColor",
@@ -168,6 +170,20 @@ local NAME_APPEARANCE_FIELDS = {
 	"nameY",
 }
 
+local HEALTH_TEXT_APPEARANCE_FIELDS = {
+	"healthTextEnabled",
+	"healthTextFormat",
+	"healthTextUseClassColor",
+	"healthTextColorR",
+	"healthTextColorG",
+	"healthTextColorB",
+	"healthTextFont",
+	"healthTextFontSize",
+	"healthTextPoint",
+	"healthTextX",
+	"healthTextY",
+}
+
 --- Writes a list of appearance fields back to their shipped defaults.
 ---
 --- `Private.Migration.DefaultAppearance` is the one source of those defaults, freshly built, so a reset
@@ -175,7 +191,7 @@ local NAME_APPEARANCE_FIELDS = {
 --- swapped wholesale, so a section reset touches only its own fields.
 ---@param fields string[]
 local function ResetAppearanceFields(fields)
-	local appearance = Appearance()
+	local appearance = GetCurrentAppearanceSettings()
 
 	if not appearance then
 		return
@@ -344,6 +360,12 @@ local function BuildGeneralTab(content)
 	}
 end
 
+local function ResetHealthText()
+	ResetAppearanceFields(HEALTH_TEXT_APPEARANCE_FIELDS)
+	ApplyAppearance()
+	Private.Settings.Refresh()
+end
+
 ---@param content Frame
 ---@return SpotlightsWidget[]
 local function BuildAppearanceTab(content)
@@ -352,7 +374,7 @@ local function BuildAppearanceTab(content)
 	-- The two colour modes, shared by the health bar and the name. `true` is class colour, so the get
 	-- closures below hand the toggle straight back and the dropdown matches on it.
 	local colorModes = {
-		{ value = true, label = L.ColorClass },
+		{ value = true,  label = L.ColorClass },
 		{ value = false, label = L.ColorStatic },
 	}
 
@@ -374,15 +396,21 @@ local function BuildAppearanceTab(content)
 		-- Passed as a function, not its result: the list has to be re-read every time the menu
 		-- opens so media registered after the panel was built still appears.
 		Widgets.CreateDropdown(content, L.BarTexture, function()
-			return TextureChoices(Appearance() and Appearance().barTexture)
+			local appearance = GetCurrentAppearanceSettings()
+
+			return TextureChoices(appearance and appearance.barTexture)
 		end, function()
-			return Appearance() and Appearance().barTexture
+			local appearance = GetCurrentAppearanceSettings()
+
+			return appearance and appearance.barTexture
 		end, function(value)
 			SetAppearance("barTexture", value)
 		end),
 
 		Widgets.CreateDropdown(content, L.HealthColorMode, colorModes, function()
-			return Appearance() and Appearance().healthUseClassColor
+			local appearance = GetCurrentAppearanceSettings()
+
+			return appearance and appearance.healthUseClassColor
 		end, function(value)
 			SetColorMode("healthUseClassColor", value)
 		end),
@@ -392,7 +420,7 @@ local function BuildAppearanceTab(content)
 		-- the mode dropdown moved. The predicate re-reads the mode on each panel refresh, which
 		-- `SetColorMode` triggers.
 		Widgets.CreateColorPicker(content, L.HealthColor, function()
-			local appearance = Appearance()
+			local appearance = GetCurrentAppearanceSettings()
 
 			if not appearance then
 				return 0.1, 0.7, 0.1
@@ -402,13 +430,15 @@ local function BuildAppearanceTab(content)
 		end, function(r, g, b)
 			SetAppearanceColor("healthColorR", "healthColorG", "healthColorB", r, g, b)
 		end, function()
-			return Appearance() and not Appearance().healthUseClassColor
+			local appearance = GetCurrentAppearanceSettings()
+
+			return appearance and not appearance.healthUseClassColor
 		end),
 
 		-- The unfilled tail of the bar. Only meaningful in static mode (class mode derives it) so it
 		-- disables alongside the static bar colour above.
 		Widgets.CreateColorPicker(content, L.HealthBgColor, function()
-			local appearance = Appearance()
+			local appearance = GetCurrentAppearanceSettings()
 
 			if not appearance then
 				return 0.02, 0.14, 0.02
@@ -418,25 +448,40 @@ local function BuildAppearanceTab(content)
 		end, function(r, g, b)
 			SetAppearanceColor("healthBgColorR", "healthBgColorG", "healthBgColorB", r, g, b)
 		end, function()
-			return Appearance() and not Appearance().healthUseClassColor
+			local appearance = GetCurrentAppearanceSettings()
+
+			return appearance and not appearance.healthUseClassColor
 		end),
 
 		Widgets.CreateCheckbox(content, L.ShowAbsorb, function()
-			return Appearance() and Appearance().showAbsorb or false
+			local appearance = GetCurrentAppearanceSettings()
+
+			return appearance and appearance.showAbsorb or false
 		end, function(value)
 			SetAppearance("showAbsorb", value)
 		end),
 
 		Widgets.CreateSlider(content, L.OutOfRangeAlpha, 0.1, 1, 0.05, function()
-			return Appearance() and Appearance().outOfRangeAlpha or 0.45
+			local appearance = GetCurrentAppearanceSettings()
+			return appearance and appearance.outOfRangeAlpha or 0.45
 		end, function(value)
 			SetAppearance("outOfRangeAlpha", value)
 		end),
 
 		Widgets.CreateSlider(content, L.DeadAlpha, 0.1, 1, 0.05, function()
-			return Appearance() and Appearance().deadAlpha or 0.45
+			local appearance = GetCurrentAppearanceSettings()
+
+			return appearance and appearance.deadAlpha or 0.45
 		end, function(value)
 			SetAppearance("deadAlpha", value)
+		end),
+
+		Widgets.CreateSlider(content, L.FrameAlpha, 0.1, 1, 0.05, function()
+			local appearance = GetCurrentAppearanceSettings()
+
+			return appearance and appearance.frameAlpha or 1
+		end, function(value)
+			SetAppearance("frameAlpha", value)
 		end),
 
 		Widgets.CreateButton(content, L.ResetFrame, ResetFrame),
@@ -444,13 +489,15 @@ local function BuildAppearanceTab(content)
 		Widgets.CreateHeading(content, L.NameHeading),
 
 		Widgets.CreateDropdown(content, L.NameColorMode, colorModes, function()
-			return Appearance() and Appearance().nameUseClassColor
+			local appearance = GetCurrentAppearanceSettings()
+
+			return appearance and appearance.nameUseClassColor
 		end, function(value)
 			SetColorMode("nameUseClassColor", value)
 		end),
 
 		Widgets.CreateColorPicker(content, L.NameColor, function()
-			local appearance = Appearance()
+			local appearance = GetCurrentAppearanceSettings()
 
 			if not appearance then
 				return 1, 1, 1
@@ -460,42 +507,148 @@ local function BuildAppearanceTab(content)
 		end, function(r, g, b)
 			SetAppearanceColor("nameColorR", "nameColorG", "nameColorB", r, g, b)
 		end, function()
-			return Appearance() and not Appearance().nameUseClassColor
+			local appearance = GetCurrentAppearanceSettings()
+
+			return appearance and not appearance.nameUseClassColor
 		end),
 
 		Widgets.CreateDropdown(content, L.NameFont, function()
-			return FontChoices(Appearance() and Appearance().nameFont)
+			local appearance = GetCurrentAppearanceSettings()
+
+			return FontChoices(appearance and appearance.nameFont)
 		end, function()
-			return Appearance() and Appearance().nameFont
+			local appearance = GetCurrentAppearanceSettings()
+			return appearance and appearance.nameFont
 		end, function(value)
 			SetAppearance("nameFont", value)
 		end),
 
 		Widgets.CreateSlider(content, L.NameFontSize, 6, 32, 1, function()
-			return Appearance() and Appearance().nameFontSize or 10
+			local appearance = GetCurrentAppearanceSettings()
+
+			return appearance and appearance.nameFontSize or 10
 		end, function(value)
 			SetAppearance("nameFontSize", value)
 		end),
 
 		Widgets.CreateDropdown(content, L.NameAnchor, AnchorChoices, function()
-			return Appearance() and Appearance().namePoint
+			local appearance = GetCurrentAppearanceSettings()
+
+			return appearance and appearance.namePoint
 		end, function(value)
 			SetAppearance("namePoint", value)
 		end),
 
 		Widgets.CreateSlider(content, L.NameOffsetX, -100, 100, 1, function()
-			return Appearance() and Appearance().nameX or 0
+			local appearance = GetCurrentAppearanceSettings()
+
+			return appearance and appearance.nameX or 0
 		end, function(value)
 			SetAppearance("nameX", value)
 		end),
 
 		Widgets.CreateSlider(content, L.NameOffsetY, -100, 100, 1, function()
-			return Appearance() and Appearance().nameY or 0
+			local appearance = GetCurrentAppearanceSettings()
+
+			return appearance and appearance.nameY or 0
 		end, function(value)
 			SetAppearance("nameY", value)
 		end),
 
 		Widgets.CreateButton(content, L.ResetName, ResetName),
+
+		Widgets.CreateHeading(content, L.HealthTextHeading),
+
+		Widgets.CreateCheckbox(content, L.HealthTextEnabled, function()
+			local appearance = GetCurrentAppearanceSettings()
+
+			return appearance and appearance.healthTextEnabled or false
+		end, function(value)
+			SetAppearance("healthTextEnabled", value)
+			Private.Settings.Refresh()
+		end),
+
+		Widgets.CreateDropdown(content, L.HealthTextFormat, {
+			{ value = "percent",             label = L.HealthTextPercent },
+			{ value = "absValue",            label = L.HealthTextAbsValue },
+			{ value = "absValueAbbreviated", label = L.HealthTextAbsValueAbbreviated },
+		}, function()
+			local appearance = GetCurrentAppearanceSettings()
+
+			return appearance and appearance.healthTextFormat
+		end, function(value)
+			SetAppearance("healthTextFormat", value)
+		end),
+
+		Widgets.CreateDropdown(content, L.HealthTextColorMode, colorModes, function()
+			local appearance = GetCurrentAppearanceSettings()
+
+			return appearance and appearance.healthTextUseClassColor
+		end, function(value)
+			SetColorMode("healthTextUseClassColor", value)
+		end),
+
+		Widgets.CreateColorPicker(content, L.HealthTextColor, function()
+			local appearance = GetCurrentAppearanceSettings()
+
+			if not appearance then
+				return 0.5, 0.5, 0.5
+			end
+
+			return appearance.healthTextColorR, appearance.healthTextColorG, appearance.healthTextColorB
+		end, function(r, g, b)
+			SetAppearanceColor("healthTextColorR", "healthTextColorG", "healthTextColorB", r, g, b)
+		end, function()
+			local appearance = GetCurrentAppearanceSettings()
+
+			return appearance and not appearance.healthTextUseClassColor
+		end),
+
+		Widgets.CreateDropdown(content, L.HealthTextFont, function()
+			local appearance = GetCurrentAppearanceSettings()
+
+			return FontChoices(appearance and appearance.healthTextFont)
+		end, function()
+			local appearance = GetCurrentAppearanceSettings()
+
+			return appearance and appearance.healthTextFont
+		end, function(value)
+			SetAppearance("healthTextFont", value)
+		end),
+
+		Widgets.CreateSlider(content, L.HealthTextFontSize, 6, 32, 1, function()
+			local appearance = GetCurrentAppearanceSettings()
+
+			return appearance and appearance.healthTextFontSize or 10
+		end, function(value)
+			SetAppearance("healthTextFontSize", value)
+		end),
+
+		Widgets.CreateDropdown(content, L.HealthTextAnchor, AnchorChoices, function()
+			local appearance = GetCurrentAppearanceSettings()
+
+			return appearance and appearance.healthTextPoint
+		end, function(value)
+			SetAppearance("healthTextPoint", value)
+		end),
+
+		Widgets.CreateSlider(content, L.HealthTextOffsetX, -100, 100, 1, function()
+			local appearance = GetCurrentAppearanceSettings()
+
+			return appearance and appearance.healthTextX or 0
+		end, function(value)
+			SetAppearance("healthTextX", value)
+		end),
+
+		Widgets.CreateSlider(content, L.HealthTextOffsetY, -100, 100, 1, function()
+			local appearance = GetCurrentAppearanceSettings()
+
+			return appearance and appearance.healthTextY or 0
+		end, function(value)
+			SetAppearance("healthTextY", value)
+		end),
+
+		Widgets.CreateButton(content, L.ResetHealthText, ResetHealthText),
 	}
 end
 

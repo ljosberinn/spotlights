@@ -35,6 +35,11 @@ Private.Enum.SlotKind = {
 	Retired = "retired",
 }
 
+---@alias HealthTextFormat
+---| "percent"
+---| "absValue"
+---| "absValueAbbreviated"
+
 --- Work deferred past combat, and the throttle keys used out of combat. Both queues drain through
 --- the same ordered dispatch.
 ---@enum DeferralKey

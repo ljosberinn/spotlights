@@ -64,6 +64,7 @@ local function DefaultAppearance()
 	return {
 		barTexture = "Blizzard Raid Bar",
 		showAbsorb = false,
+		frameAlpha = 1,
 		outOfRangeAlpha = 0.45,
 		deadAlpha = 0.45,
 		healthUseClassColor = true,
@@ -82,6 +83,17 @@ local function DefaultAppearance()
 		namePoint = "TOPLEFT",
 		nameX = 3,
 		nameY = -3,
+		healthTextEnabled = false,
+		healthTextFormat = "percent",
+		healthTextUseClassColor = false,
+		healthTextColorR = 0.5,
+		healthTextColorG = 0.5,
+		healthTextColorB = 0.5,
+		healthTextFont = "Friz Quadrata TT",
+		healthTextFontSize = 10,
+		healthTextPoint = "CENTER",
+		healthTextX = 0,
+		healthTextY = 0,
 	}
 end
 
