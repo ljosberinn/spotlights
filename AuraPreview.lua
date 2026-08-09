@@ -80,8 +80,8 @@ function Private.AuraPreview.Place(index, point, x, y, config)
 	local overlay = Private.Mover.GetOverlay()
 
 	cell.host:ClearAllPoints()
-	cell.host:SetSize(config.frameWidth, config.frameHeight)
-	cell.host:SetPoint(point, overlay, point, x, y)
+	PixelUtil.SetSize(cell.host, config.frameWidth, config.frameHeight)
+	PixelUtil.SetPoint(cell.host, point, overlay, point, x, y)
 	cell.host:Show()
 
 	Private.Auras.StylePreviews(cell.previews)
@@ -108,6 +108,24 @@ function Private.AuraPreview.Restyle()
 	end
 
 	Private.Events.Request(Private.Enum.DeferralKey.Layout)
+end
+
+--- Rebuilds preview records after a specialization changes which aura features are active.
+---
+--- Frames cannot be destroyed, so the old records are hidden and replaced with new records under the
+--- existing cell hosts. This is only used for the rare specialization transition, not normal styling.
+function Private.AuraPreview.Rebuild()
+	for _, cell in pairs(cells) do
+		for i = 1, #cell.previews do
+			cell.previews[i].anchor:Hide()
+		end
+
+		cell.previews = Private.Auras.CreatePreviews(cell.host)
+	end
+
+	if shown then
+		Private.Events.Request(Private.Enum.DeferralKey.Layout)
+	end
 end
 
 --- Turns aura previewing on or off. Called only by the options frame.

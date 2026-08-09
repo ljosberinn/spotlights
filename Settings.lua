@@ -23,12 +23,14 @@ local CONTENT_INSET = 16
 --- tab system's own anchor and the scroll frames' top anchor, which follows the strip's bottom and has
 --- to know the strip's left edge to land content back at `CONTENT_INSET`.
 local TAB_STRIP_X = 70
-local BOTTOM_TAB_STRIP_X = 22
+local BOTTOM_TAB_STRIP_X = 6
 
 -- The bottom Auras tab strip is 32px high, matching TabSystemButtonTemplate. Its art hangs below the
 -- system, as it does on PlayerSpellsFrame, so the scroll area reserves the strip plus the usual gutter.
 ---@type Frame?
 local panel
+local auraTabSystem
+local auraTabIDs
 
 ---@class SpotlightsSettingsTab
 ---@field name string
@@ -457,7 +459,8 @@ local function BuildAppearanceTab(content)
 				return 0.02, 0.14, 0.02, 1
 			end
 
-			return appearance.healthBgColorR, appearance.healthBgColorG, appearance.healthBgColorB, appearance.healthBgColorA
+			return appearance.healthBgColorR, appearance.healthBgColorG, appearance.healthBgColorB,
+				appearance.healthBgColorA
 		end, function(r, g, b, a)
 			SetAppearanceColor("healthBgColorR", "healthBgColorG", "healthBgColorB", "healthBgColorA", r, g, b, a)
 		end, function()
@@ -608,7 +611,8 @@ local function BuildAppearanceTab(content)
 				return 0.5, 0.5, 0.5, 1
 			end
 
-			return appearance.healthTextColorR, appearance.healthTextColorG, appearance.healthTextColorB, appearance.healthTextColorA
+			return appearance.healthTextColorR, appearance.healthTextColorG, appearance.healthTextColorB,
+				appearance.healthTextColorA
 		end, function(r, g, b, a)
 			SetAppearanceColor("healthTextColorR", "healthTextColorG", "healthTextColorB", "healthTextColorA", r, g, b, a)
 		end, function()
@@ -785,7 +789,7 @@ end
 --- write plus the `RefreshActive` the panel already does — no widget is rebuilt and no second set
 --- exists.
 ---@type SpotlightsAuraFeatureKey
-local activeFeature = "prescience"
+local activeFeature = "cooldownAuras"
 
 ---@return SpotlightsAuraFeatureConfig?
 local function Feature()
@@ -875,33 +879,12 @@ local function BorderWidgets(content, displayKey, Get)
 	}
 end
 
---- The sub-tab the spell pool belongs to. Only Sense Power reads the pool, so only Sense Power shows it.
-local SENSE_POWER = "sensePower"
-
 local RESET_POPUP = "SPOTLIGHTS_AURA_RESET"
-
---- Every class that has cooldowns, in class-ID order.
----
---- Derived from `Constants.UICharacterClasses` rather than counted to thirteen, so a class added to the
---- game arrives here without this file being edited. Sorted because `pairs` over that map has no order.
----@return integer[]
-local function ClassOrder()
-	local order = {}
-
-	for _, classID in pairs(Constants.UICharacterClasses) do
-		order[#order + 1] = classID
-	end
-
-	table.sort(order)
-
-	return order
-end
 
 --- The built-in rows: a class heading, then that class's cooldowns, for every class that has any.
 ---
 --- Built once and kept, unlike the custom list beside it. The shipped table cannot change while the
---- game is running, so rebuilding this on every refresh would be thirteen sorts to reach the same
---- answer. The *toggles* are read per row by the widget, not baked in here.
+--- game is running. The *toggles* are read per row by the widget, not baked in here.
 ---@type { heading: string?, spellID: integer?, r: number?, g: number?, b: number? }[]?
 local cooldownEntries
 
@@ -912,12 +895,10 @@ local function CooldownEntries()
 	end
 
 	local cooldowns = Private.Auras.Cooldowns()
-	local order = ClassOrder()
 
 	cooldownEntries = {}
 
-	for i = 1, #order do
-		local classID = order[i]
+	for _, classID in pairs(Constants.UICharacterClasses) do
 		local spells = cooldowns[classID]
 
 		-- A class with no cooldowns left in the list gets no heading. Pruning the shipped table is
@@ -935,6 +916,7 @@ local function CooldownEntries()
 
 			cooldownEntries[#cooldownEntries + 1] = {
 				heading = info and info.className or tostring(classID),
+				spellIDs = spellIDs,
 				r = color and color.r or 1,
 				g = color and color.g or 1,
 				b = color and color.b or 1,
@@ -949,10 +931,84 @@ local function CooldownEntries()
 	return cooldownEntries
 end
 
+local function IsCooldownClassEnabled(entry)
+	for i = 1, #entry.spellIDs do
+		if not Private.Auras.IsCooldownEnabled(entry.spellIDs[i]) then
+			return false
+		end
+	end
+
+	return true
+end
+
+local function SetCooldownClassEnabled(entry, enabled)
+	for i = 1, #entry.spellIDs do
+		Private.Auras.SetCooldownEnabled(entry.spellIDs[i], enabled)
+	end
+end
+
+local function IsDefensiveClassEnabled(entry)
+	for i = 1, #entry.spellIDs do
+		if not Private.Auras.IsDefensiveEnabled(entry.spellIDs[i]) then
+			return false
+		end
+	end
+
+	return true
+end
+
+local function SetDefensiveClassEnabled(entry, enabled)
+	for i = 1, #entry.spellIDs do
+		Private.Auras.SetDefensiveEnabled(entry.spellIDs[i], enabled)
+	end
+end
+
+local defensiveEntries
+
+local function DefensiveEntries()
+	if defensiveEntries then
+		return defensiveEntries
+	end
+
+	local defensives = Private.Auras.Defensives()
+	defensiveEntries = {}
+
+	for _, classID in pairs(Constants.UICharacterClasses) do
+		local spells = defensives[classID]
+
+		if spells then
+			local info = C_CreatureInfo.GetClassInfo(classID)
+			local color = info and RAID_CLASS_COLORS[info.classFile]
+			local spellIDs = {}
+
+			for spellID in pairs(spells) do
+				spellIDs[#spellIDs + 1] = spellID
+			end
+
+			table.sort(spellIDs)
+			defensiveEntries[#defensiveEntries + 1] = {
+				heading = info and info.className or tostring(classID),
+				spellIDs = spellIDs,
+				r = color and color.r or 1,
+				g = color and color.g or 1,
+				b = color and color.b or 1,
+			}
+
+			for j = 1, #spellIDs do
+				defensiveEntries[#defensiveEntries + 1] = { spellID = spellIDs[j] }
+			end
+		end
+	end
+
+	return defensiveEntries
+end
+
 --- The custom rows, which are whatever the user has added.
 ---@return { spellID: integer }[]
 local function CustomEntries()
-	local spellIDs = Private.Auras.CustomCooldowns()
+	local spellIDs = activeFeature == "defensiveAuras"
+		and Private.Auras.CustomDefensives()
+		or Private.Auras.CustomCooldowns()
 	local entries = {}
 
 	for i = 1, #spellIDs do
@@ -962,7 +1018,7 @@ local function CustomEntries()
 	return entries
 end
 
---- Makes a widget belong to the Sense Power sub-tab alone.
+--- Makes a widget belong to the cooldown/defensive spell-pool sub-tabs alone.
 ---
 --- Wrapping `Refresh` rather than asking every widget to check for itself, because the check is the
 --- same for all of them and the widgets are shared with the other sub-tab's controls, which must not
@@ -971,11 +1027,12 @@ end
 --- the other sub-tab.
 ---@param widget SpotlightsWidget
 ---@return SpotlightsWidget
-local function SensePowerOnly(widget)
+local function AuraPoolOnly(widget)
 	local Refresh = widget.Refresh
 
 	function widget:Refresh()
-		local shown = activeFeature == SENSE_POWER
+		local shown = activeFeature == "sensePower" or activeFeature == "cooldownAuras" or
+			activeFeature == "defensiveAuras"
 
 		self:SetShown(shown)
 
@@ -985,6 +1042,84 @@ local function SensePowerOnly(widget)
 	end
 
 	return widget
+end
+
+local function AuraBarOnly(widget)
+	local Refresh = widget.Refresh
+
+	function widget:Refresh()
+		local shown = activeFeature == "prescience" or activeFeature == "shiftingSands" or activeFeature == "sensePower"
+
+		self:SetShown(shown)
+
+		if shown then
+			Refresh(self)
+		end
+	end
+
+	return widget
+end
+
+local function ConfigureAuraTab(tabID, enabled, tooltip)
+	local button = auraTabSystem:GetTabButton(tabID)
+
+	-- TabSystem changes selected visuals before its callback runs. Keep its original handler so an
+	-- unavailable tab can be made inert without letting a rejected click corrupt the current tab's art.
+	if not button.spotlightsTabClick then
+		button.spotlightsTabClick = button:GetScript("OnClick")
+	end
+
+	button:Enable()
+	button:SetAlpha(enabled and 1 or 0.5)
+	button:SetScript("OnClick", enabled and button.spotlightsTabClick or function() end)
+
+	button:SetScript("OnEnter", function(self)
+		if not tooltip or enabled then
+			return
+		end
+
+		GameTooltip:SetOwner(self, "ANCHOR_TOP")
+		GameTooltip:SetText(tooltip, nil, nil, nil, nil, true)
+		GameTooltip:Show()
+	end)
+	button:SetScript("OnLeave", GameTooltip_Hide)
+end
+
+---@param selectCurrent boolean?
+function Private.Settings.RefreshAuraTabs(selectCurrent)
+	if not auraTabSystem then
+		return false
+	end
+
+	local augmentation = Private.Utils.IsAugmentation()
+	local reason = Private.L.Settings.AuraAugmentationOnly
+
+	ConfigureAuraTab(auraTabIDs.prescience, augmentation, reason)
+	ConfigureAuraTab(auraTabIDs.shiftingSands, augmentation, reason)
+	ConfigureAuraTab(auraTabIDs.sensePower, augmentation, reason)
+	ConfigureAuraTab(auraTabIDs.cooldownAuras, not augmentation)
+	ConfigureAuraTab(auraTabIDs.defensiveAuras, not augmentation)
+
+	if not augmentation and (activeFeature == "prescience" or activeFeature == "shiftingSands" or activeFeature == "sensePower") then
+		activeFeature = "cooldownAuras"
+	elseif augmentation and (activeFeature == "cooldownAuras" or activeFeature == "defensiveAuras") then
+		activeFeature = "prescience"
+	end
+
+	local previewChanged = Private.Auras.SetPreviewFeature(activeFeature)
+
+	if selectCurrent and panel and panel:IsShown() then
+		auraTabSystem:SetTab(auraTabIDs[activeFeature])
+
+		-- SetTab updates the button states internally, so apply our specialization lock again after it.
+		ConfigureAuraTab(auraTabIDs.prescience, augmentation, reason)
+		ConfigureAuraTab(auraTabIDs.shiftingSands, augmentation, reason)
+		ConfigureAuraTab(auraTabIDs.sensePower, augmentation, reason)
+		ConfigureAuraTab(auraTabIDs.cooldownAuras, not augmentation)
+		ConfigureAuraTab(auraTabIDs.defensiveAuras, not augmentation)
+	end
+
+	return previewChanged
 end
 
 --- The Auras tab: one customisation set, pointed at either spell by the sub-tabs.
@@ -997,12 +1132,7 @@ local function BuildAurasTab(content)
 	local L = Private.L.Settings
 
 	if not Private.Auras.IsSupported then
-		return {
-			Widgets.CreateText(
-				content,
-				Private.IsTwelveDotOne and L.AurasEvokerOnly or L.AurasRequiresTwelveOne
-			),
-		}
+		return { Widgets.CreateText(content, L.AurasRequiresTwelveOne) }
 	end
 
 	local widgets = {
@@ -1018,7 +1148,11 @@ local function BuildAurasTab(content)
 			StaticPopupDialogs[RESET_POPUP] = {
 				text = string.format(
 					L.AuraResetPrompt,
-					activeFeature == SENSE_POWER and L.SensePower or L.Prescience
+					activeFeature == "shiftingSands" and L.ShiftingSands
+					or activeFeature == "sensePower" and L.SensePower
+					or activeFeature == "cooldownAuras" and L.Cooldowns
+					or activeFeature == "defensiveAuras" and L.Defensives
+					or L.Prescience
 				),
 				button1 = L.AuraResetConfirm,
 				button2 = CANCEL,
@@ -1088,20 +1222,20 @@ local function BuildAurasTab(content)
 			SetAura("bar", "alpha", value)
 		end),
 
-		Widgets.CreateSlider(content, L.AuraWidthPct, 0.05, 1, 0.05, function()
+		Widgets.CreateSlider(content, L.AuraWidth, 1, 500, 1, function()
 			local bar = Bar()
 
-			return bar and bar.widthPct or 1
+			return bar and bar.width or 100
 		end, function(value)
-			SetAura("bar", "widthPct", value)
+			SetAura("bar", "width", value)
 		end),
 
-		Widgets.CreateSlider(content, L.AuraHeightPct, 0.05, 1, 0.05, function()
+		Widgets.CreateSlider(content, L.AuraHeight, 1, 200, 1, function()
 			local bar = Bar()
 
-			return bar and bar.heightPct or 0.5
+			return bar and bar.height or 25
 		end, function(value)
-			SetAura("bar", "heightPct", value)
+			SetAura("bar", "height", value)
 		end),
 
 		Widgets.CreateDropdown(content, L.AuraAnchor, AnchorChoices, function()
@@ -1146,9 +1280,20 @@ local function BuildAurasTab(content)
 		end, function(value)
 			SetAura("bar", "iconSide", value)
 		end),
+
 	}
 
-	Append(widgets, BorderWidgets(content, "bar", Bar))
+	for i = 2, #widgets do
+		widgets[i] = AuraBarOnly(widgets[i])
+	end
+
+	local barBorders = BorderWidgets(content, "bar", Bar)
+
+	for i = 1, #barBorders do
+		barBorders[i] = AuraBarOnly(barBorders[i])
+	end
+
+	Append(widgets, barBorders)
 
 	Append(widgets, {
 		Widgets.CreateHeading(content, L.AuraIcon),
@@ -1175,6 +1320,14 @@ local function BuildAurasTab(content)
 			return icon and icon.height or 25
 		end, function(value)
 			SetAura("icon", "height", value)
+		end),
+
+		Widgets.CreateSlider(content, L.AuraGap, 0, 40, 1, function()
+			local icon = Icon()
+
+			return icon and icon.gap or 0
+		end, function(value)
+			SetAura("icon", "gap", value)
 		end),
 
 		Widgets.CreateSlider(content, L.AuraAlpha, 0.05, 1, 0.05, function()
@@ -1259,23 +1412,60 @@ local function BuildAurasTab(content)
 	--- Every one of these is wrapped: the aura tab is one set of widgets serving both sub-tabs, so a
 	--- section belonging to one has to hide itself rather than exist twice.
 	Append(widgets, {
-		SensePowerOnly(Widgets.CreateHeading(content, L.AuraBuiltinCooldowns)),
-		SensePowerOnly(Widgets.CreateText(content, L.AuraBuiltinCooldownsNote)),
+		AuraPoolOnly(Widgets.CreateHeading(content, function()
+			return activeFeature == "defensiveAuras" and (L.AuraBuiltinDefensives or L.AuraBuiltinCooldowns)
+				or L.AuraBuiltinCooldowns
+		end)),
+		AuraPoolOnly(Widgets.CreateText(content, function()
+			return activeFeature == "defensiveAuras" and (L.AuraBuiltinDefensivesNote or L.AuraBuiltinCooldownsNote)
+				or L.AuraBuiltinCooldownsNote
+		end)),
 
 		-- Both accessors passed straight through, no wrapper. Their `custom` parameter is the third and
 		-- the widget only ever passes two, so omitting it *is* saying "a shipped cooldown" -- which is
 		-- why the custom list below wraps them and this one does not.
-		SensePowerOnly(
+		AuraPoolOnly(
 			Widgets.CreateSpellList(
 				content,
-				CooldownEntries,
-				Private.Auras.IsCooldownEnabled,
-				Private.Auras.SetCooldownEnabled
+				function()
+					return activeFeature == "defensiveAuras" and DefensiveEntries() or CooldownEntries()
+				end,
+				function(spellID)
+					return activeFeature == "defensiveAuras" and Private.Auras.IsDefensiveEnabled(spellID)
+						or Private.Auras.IsCooldownEnabled(spellID)
+				end,
+				function(spellID, enabled)
+					if activeFeature == "defensiveAuras" then
+						Private.Auras.SetDefensiveEnabled(spellID, enabled)
+					else
+						Private.Auras.SetCooldownEnabled(spellID, enabled)
+					end
+				end,
+				nil,
+				function(entry)
+					if activeFeature == "cooldownAuras" or activeFeature == "sensePower" then
+						return IsCooldownClassEnabled(entry)
+					elseif activeFeature == "defensiveAuras" then
+						return IsDefensiveClassEnabled(entry)
+					else
+						return nil
+					end
+				end,
+				function(entry, enabled)
+					if activeFeature == "cooldownAuras" or activeFeature == "sensePower" then
+						SetCooldownClassEnabled(entry, enabled)
+					elseif activeFeature == "defensiveAuras" then
+						SetDefensiveClassEnabled(entry, enabled)
+					end
+				end
 			)
 		),
 
-		SensePowerOnly(Widgets.CreateHeading(content, L.AuraCustomCooldowns)),
-		SensePowerOnly(Widgets.CreateText(content, L.AuraCustomCooldownsNote)),
+		AuraPoolOnly(Widgets.CreateHeading(content, L.AuraCustomCooldowns)),
+		AuraPoolOnly(Widgets.CreateText(content, function()
+			return activeFeature == "defensiveAuras" and (L.AuraCustomDefensivesNote or L.AuraCustomCooldownsNote)
+				or L.AuraCustomCooldownsNote
+		end)),
 	})
 
 	--- Declared before the list so the input's Add can refresh it, and appended after so it draws above.
@@ -1285,13 +1475,22 @@ local function BuildAurasTab(content)
 	---@type SpotlightsWidget
 	local customList
 
-	customList = SensePowerOnly(
+	customList = AuraPoolOnly(
 		Widgets.CreateSpellList(content, CustomEntries, function(spellID)
-			return Private.Auras.IsCooldownEnabled(spellID, true)
+			return activeFeature == "defensiveAuras" and Private.Auras.IsDefensiveEnabled(spellID, true)
+				or Private.Auras.IsCooldownEnabled(spellID, true)
 		end, function(spellID, enabled)
-			Private.Auras.SetCooldownEnabled(spellID, enabled, true)
+			if activeFeature == "defensiveAuras" then
+				Private.Auras.SetDefensiveEnabled(spellID, enabled, true)
+			else
+				Private.Auras.SetCooldownEnabled(spellID, enabled, true)
+			end
 		end, function(spellID)
-			Private.Auras.RemoveCustomCooldown(spellID)
+			if activeFeature == "defensiveAuras" then
+				Private.Auras.RemoveCustomDefensive(spellID)
+			else
+				Private.Auras.RemoveCustomCooldown(spellID)
+			end
 
 			-- Refresh before relayout, because the row count is what the new height is derived from.
 			customList:Refresh()
@@ -1302,9 +1501,13 @@ local function BuildAurasTab(content)
 	Append(widgets, {
 		customList,
 
-		SensePowerOnly(
+		AuraPoolOnly(
 			Widgets.CreateSpellInput(content, L.AuraCustomSpellID, L.AuraCustomAdd, function(spellID)
-				if not Private.Auras.AddCustomCooldown(spellID) then
+				local added = activeFeature == "defensiveAuras"
+					and Private.Auras.AddCustomDefensive(spellID)
+					or Private.Auras.AddCustomCooldown(spellID)
+
+				if not added then
 					return false
 				end
 
@@ -1477,7 +1680,7 @@ local function Get()
 	TabSystemOwnerMixin.OnLoad(panel)
 
 	local tabSystem = CreateTabSystem(panel, "TabSystemTopButtonTemplate", 89)
-	local auraTabSystem = CreateTabSystem(panel, "TabSystemButtonTemplate", 140)
+	auraTabSystem = CreateTabSystem(panel, "TabSystemButtonTemplate", 140)
 
 	-- Right of the portrait, the way SpellBook clears its own icon. This is what makes the change
 	-- reclaim space instead of costing it: the tab strip no longer sits below the 62px portrait, so no
@@ -1493,18 +1696,43 @@ local function Get()
 	auraTabSystem:SetPoint("TOPLEFT", panel, "BOTTOMLEFT", BOTTOM_TAB_STRIP_X, 2)
 	auraTabSystem:Hide()
 
-	local auraTabIDs = {
+	auraTabIDs = {
 		prescience = auraTabSystem:AddTab(L.Prescience),
+		shiftingSands = auraTabSystem:AddTab(L.ShiftingSands),
 		sensePower = auraTabSystem:AddTab(L.SensePower),
+		cooldownAuras = auraTabSystem:AddTab(L.Cooldowns),
+		defensiveAuras = auraTabSystem:AddTab(L.Defensives),
 	}
 
 	auraTabSystem:SetTabSelectedCallback(function(tabID)
-		activeFeature = tabID == auraTabIDs.sensePower and "sensePower" or "prescience"
+		local augmentation = Private.Utils.IsAugmentation()
+
+		if
+			(augmentation and (tabID == auraTabIDs.cooldownAuras or tabID == auraTabIDs.defensiveAuras))
+			or (not augmentation and (tabID == auraTabIDs.prescience or tabID == auraTabIDs.shiftingSands or tabID == auraTabIDs.sensePower))
+		then
+			return false
+		end
+
+		if tabID == auraTabIDs.prescience then
+			activeFeature = "prescience"
+		elseif tabID == auraTabIDs.shiftingSands then
+			activeFeature = "shiftingSands"
+		elseif tabID == auraTabIDs.sensePower then
+			activeFeature = "sensePower"
+		elseif tabID == auraTabIDs.defensiveAuras then
+			activeFeature = "defensiveAuras"
+		else
+			activeFeature = "cooldownAuras"
+		end
 
 		-- The selected feature changes which widgets are visible, so refresh before re-stacking the
 		-- current scroll child. The main tab callback performs the same work when entering Auras.
 		Private.Settings.Refresh()
 		Private.Settings.Relayout()
+		if Private.Settings.RefreshAuraTabs() then
+			Private.AuraPreview.Rebuild()
+		end
 	end)
 
 	panel:SetTabSystem(tabSystem)
@@ -1612,6 +1840,9 @@ local function Get()
 		}
 	end
 
+	-- Resolve the specialization-specific default before selecting the initial sub-tab. Augmentation
+	-- starts on Prescience; other specializations retain Cooldowns.
+	Private.Settings.RefreshAuraTabs()
 	auraTabSystem:SetTab(auraTabIDs[activeFeature])
 
 	return panel

@@ -137,7 +137,8 @@ local function Fill(preview, index, slot)
 		Private.NameStyle.ApplyLayout(preview.name, appearance)
 		preview.healthText:SetFont(Private.Media.Font(appearance.healthTextFont), appearance.healthTextFontSize, "OUTLINE")
 		preview.healthText:ClearAllPoints()
-		preview.healthText:SetPoint(appearance.healthTextPoint, preview, appearance.healthTextPoint, appearance.healthTextX, appearance.healthTextY)
+		PixelUtil.SetPoint(preview.healthText, appearance.healthTextPoint, preview, appearance.healthTextPoint,
+			appearance.healthTextX, appearance.healthTextY)
 		preview.healthText:SetJustifyH("CENTER")
 		preview.healthText:SetShown(appearance.healthTextEnabled)
 		if appearance.healthTextFormat == "percent" then
@@ -198,7 +199,7 @@ function Private.Preview.Place(index, point, x, y, config, slot)
 	-- spotlight will.
 	preview:ClearAllPoints()
 	preview:SetSize(config.frameWidth, config.frameHeight)
-	preview:SetPoint(point, overlay, point, x, y)
+	PixelUtil.SetPoint(preview, point, overlay, point, x, y)
 
 	Fill(preview, index, slot)
 

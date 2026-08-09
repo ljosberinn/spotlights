@@ -140,7 +140,7 @@ local function PlaceHeader(header, index, config)
 	local point = AnchorPoint(config)
 	local x, y = Private.Layout.OffsetOf(index, config)
 
-	header:SetPoint(point, Private.Container.Get(), point, x, y)
+	PixelUtil.SetPoint(header, point, Private.Container.Get(), point, x, y)
 
 	if wasShown then
 		header:Show()

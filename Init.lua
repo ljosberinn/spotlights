@@ -3,10 +3,6 @@ local addonName, Private = ...
 
 Private.L = {}
 
---- Work that must wait for SavedVariables. Filled by modules at load, drained once.
----@type fun()[]
-Private.LoginFnQueue = {}
-
 ---@class SpotlightsSlashCommands
 Private.SlashCommands = {}
 
@@ -142,14 +138,4 @@ EventUtil.ContinueOnAddOnLoaded(addonName, function()
 	if fresh then
 		Private.Utils.Print(Private.L.Registry.Empty)
 	end
-
-	-- Non-frame work belongs here rather than on the first build, so a build blocked by a
-	-- mid-combat reload is one synchronous pass once combat ends.
-	local queue = Private.LoginFnQueue
-
-	for i = 1, #queue do
-		queue[i]()
-	end
-
-	table.wipe(queue)
 end)

@@ -15,11 +15,14 @@ local UNIT_EVENTS = {
 	"UNIT_MAX_HEALTH_MODIFIERS_CHANGED",
 	"UNIT_IN_RANGE_UPDATE",
 	"UNIT_PHASE",
+	"UNIT_FACTION",
+	"UNIT_FLAGS",
 }
 
 --- Not unit-filtered, so registered once per frame rather than re-registered by the mirror.
 local GLOBAL_EVENTS = {
 	"PLAYER_TARGET_CHANGED",
+	"PLAYER_FLAGS_CHANGED",
 }
 
 local DISCONNECTED_COLOR = { r = 0.5, g = 0.5, b = 0.5 }
@@ -87,8 +90,8 @@ Private.NameStyle = {}
 
 --- The horizontal justification implied by an anchor point.
 ---
---- A single-point anchor has no width to justify within, but justification decides which way the
---- text grows: a right-edge anchor reads correctly only if right-justified to grow leftward.
+--- The name spans the frame between opposed horizontal anchors, so `wordwrap=false` has a width to
+--- truncate against. Justification still decides how text sits within that span.
 ---@param point string
 ---@return string
 local function JustifyForPoint(point)
@@ -103,9 +106,9 @@ end
 
 --- Applies the font, size, placement and justification of the name, but not its colour.
 ---
---- Single-anchored rather than spanning both edges as the template's XML does, because the point is
---- now a setting: the name grows from wherever it is anchored. `wordwrap` stays false, so a name too
---- long runs off one edge rather than wrapping.
+--- The opposed anchors follow the selected row and preserve the selected point's offset. Keeping both
+--- edges is important: a single anchor leaves the FontString unconstrained and allows names to bleed
+--- outside the frame.
 ---
 --- The shadow is re-asserted after `SetFont`, which clears it.
 ---@param fontString FontString
@@ -114,16 +117,23 @@ function Private.NameStyle.ApplyLayout(fontString, appearance)
 	fontString:SetFont(Private.Media.Font(appearance.nameFont), appearance.nameFontSize, "")
 	fontString:SetShadowColor(0, 0, 0, 1)
 	fontString:SetShadowOffset(1, -1)
+	fontString:SetWordWrap(false)
+
+	local point = appearance.namePoint
+	local parent = fontString:GetParent()
+	local horizontal = point:find("LEFT") and "LEFT" or point:find("RIGHT") and "RIGHT" or "CENTER"
+	local vertical = point:find("TOP") and "TOP" or point:find("BOTTOM") and "BOTTOM" or "CENTER"
+	local firstPoint = vertical == "CENTER" and "LEFT" or vertical .. "LEFT"
+	local secondPoint = vertical == "CENTER" and "RIGHT" or vertical .. "RIGHT"
+	local firstX = horizontal == "RIGHT" and 0 or appearance.nameX
+	local secondX = horizontal == "LEFT" and 0 or appearance.nameX
+	local firstY = vertical == "BOTTOM" and 0 or appearance.nameY
+	local secondY = vertical == "TOP" and 0 or appearance.nameY
 
 	fontString:ClearAllPoints()
-	fontString:SetPoint(
-		appearance.namePoint,
-		fontString:GetParent(),
-		appearance.namePoint,
-		appearance.nameX,
-		appearance.nameY
-	)
-	fontString:SetJustifyH(JustifyForPoint(appearance.namePoint))
+	PixelUtil.SetPoint(fontString, firstPoint, parent, firstPoint, firstX, firstY)
+	PixelUtil.SetPoint(fontString, secondPoint, parent, secondPoint, secondX, secondY)
+	fontString:SetJustifyH(JustifyForPoint(point))
 end
 
 --- Blizzard's own opt-out for the temporary maximum-health-loss bar, cached rather than asked for
@@ -223,7 +233,8 @@ end
 local function HealthTextLayout(fontString, appearance)
 	fontString:SetFont(Private.Media.Font(appearance.healthTextFont), appearance.healthTextFontSize, "OUTLINE")
 	fontString:ClearAllPoints()
-	fontString:SetPoint(
+	PixelUtil.SetPoint(
+		fontString,
 		appearance.healthTextPoint,
 		fontString:GetParent(),
 		appearance.healthTextPoint,
@@ -369,7 +380,8 @@ function SpotlightsUnitFrameMixin:UpdateTempMaxHealthLoss()
 	-- to change -- reading it back would compound the inset on every update.
 	local fullWidth = self:GetWidth() - (HEALTH_BAR_INSET * 2)
 
-	self.healthBar:SetPoint(
+	PixelUtil.SetPoint(
+		self.healthBar,
 		"BOTTOMRIGHT",
 		self,
 		"BOTTOMRIGHT",
@@ -509,6 +521,18 @@ local EVENT_HANDLERS = {
 
 	PLAYER_TARGET_CHANGED = function(frame)
 		frame:UpdateSelectionHighlight()
+	end,
+
+	UNIT_FACTION = function(frame)
+		Private.Auras.UpdateAssistability(frame)
+	end,
+
+	UNIT_FLAGS = function(frame)
+		Private.Auras.UpdateAssistability(frame)
+	end,
+
+	PLAYER_FLAGS_CHANGED = function(frame)
+		Private.Auras.UpdateAssistability(frame)
 	end,
 }
 

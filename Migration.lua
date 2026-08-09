@@ -5,7 +5,7 @@ local _, Private = ...
 Private.Migration = {}
 
 --- Bump this and add the matching step whenever the shape of SpotlightsSaved changes.
-Private.Migration.CurrentVersion = 2
+Private.Migration.CurrentVersion = 3
 
 --- The layout defaults, and the shape version 2 introduced.
 ---
@@ -49,7 +49,7 @@ local function DefaultPosition()
 	}
 end
 
---- How a spotlight looks, and the shape version 4 introduced.
+--- How a spotlight looks, and the shape version 3 introduced.
 ---
 --- `barTexture` is a LibSharedMedia **key**, never a resolved path: the path a key maps to depends
 --- on which addons are loaded, so storing the path breaks when a media pack is removed. Resolution
@@ -115,14 +115,13 @@ local BORDER_NONE = "None"
 
 --- One aura display drawn as a duration bar, and the shape version 5 introduced.
 ---
---- The parameters are exactly the fields the two features disagree on; everything else about a bar is
+--- The parameters are exactly the fields the feature defaults disagree on; everything else about a bar is
 --- the same for both.
 ---
---- The defaults reproduce the adjacent Prescience addon: full width at *half* the frame's height,
---- pinned to the top, gold at half alpha. Half height also keeps the bar off the player's name.
+--- The defaults reproduce the adjacent Prescience addon for the default 100x50 frame: 100px wide by
+--- 25px high, pinned to the top, gold at half alpha. The fixed height keeps the bar off the player's name.
 ---
---- `widthPct` and `heightPct` are fractions of the spotlight rather than pixels, because the
---- spotlight is resizable: a stored pixel size would stop matching the first time a slider moved.
+--- Width and height are independent pixel dimensions, like the icon display.
 ---
 --- `texture` is a LibSharedMedia key like `appearance.barTexture`. `Solid` is LSM's name for
 --- `Interface\Buttons\WHITE8X8`, which is what Prescience draws.
@@ -141,8 +140,8 @@ local function DefaultAuraBar(enabled, point, r, g, b, y)
 		g = g,
 		b = b,
 		alpha = 0.5,
-		widthPct = 1,
-		heightPct = 0.5,
+		width = 100,
+		height = 25,
 		point = point,
 		x = 0,
 		y = y,
@@ -180,11 +179,12 @@ local function DefaultAuraIcon(enabled, width, height)
 		font = "Friz Quadrata TT",
 		fontSize = 16,
 
-		point = "CENTER",
+		point = "BOTTOMRIGHT",
 		x = 0,
 		y = 0,
-		borderTexture = BORDER_NONE,
-		borderSize = 12,
+		gap = 0,
+		borderTexture = "Blizzard Tooltip",
+		borderSize = 4,
 		borderR = 0,
 		borderG = 0,
 		borderB = 0,
@@ -202,7 +202,7 @@ end
 ---@param featureKey SpotlightsAuraFeatureKey
 ---@return SpotlightsAuraFeatureConfig
 function Private.Migration.DefaultAuraFeature(featureKey)
-	if featureKey == "sensePower" then
+	if featureKey == "sensePower" or featureKey == "shiftingSands" then
 		local icon = DefaultAuraIcon(true, 25, 25)
 
 		icon.point = "RIGHT"
@@ -210,6 +210,13 @@ function Private.Migration.DefaultAuraFeature(featureKey)
 		return {
 			bar = DefaultAuraBar(false, "BOTTOM", 0.2, 0.8, 1, 0),
 			icon = icon,
+		}
+	end
+
+	if featureKey == "cooldownAuras" or featureKey == "defensiveAuras" then
+		return {
+			bar = DefaultAuraBar(false, "CENTER", 1, 1, 1, 0),
+			icon = DefaultAuraIcon(true, 25, 25),
 		}
 	end
 
@@ -227,13 +234,18 @@ end
 local function DefaultAuras()
 	return {
 		prescience = Private.Migration.DefaultAuraFeature("prescience"),
+		shiftingSands = Private.Migration.DefaultAuraFeature("shiftingSands"),
 		sensePower = Private.Migration.DefaultAuraFeature("sensePower"),
+		cooldownAuras = Private.Migration.DefaultAuraFeature("cooldownAuras"),
+		defensiveAuras = Private.Migration.DefaultAuraFeature("defensiveAuras"),
 
 		-- Both empty until the user touches something. `cooldowns` records only the built-ins turned
 		-- *off*, so an empty table means "every shipped cooldown is on" -- which is why nothing has to
 		-- reconcile this against the list in `Auras.lua` when that list grows.
 		cooldowns = {},
 		custom = {},
+		defensives = {},
+		defensiveCustom = {},
 	}
 end
 
@@ -248,7 +260,36 @@ end
 local steps = {
 	[2] = function(db)
 		db.minimap = db.minimap or { hide = false }
-	end
+	end,
+	[3] = function(db)
+		local layout = db.layout or {}
+		local width = layout.frameWidth or 100
+		local height = layout.frameHeight or 50
+		local features = { "prescience", "shiftingSands", "sensePower", "cooldownAuras", "defensiveAuras" }
+
+		for i = 1, #features do
+			local feature = db.auras and db.auras[features[i]]
+			local bar = feature and feature.bar
+
+			if bar then
+				if bar.widthPct ~= nil then
+					bar.width = math.max(1, width * bar.widthPct)
+				end
+
+				if bar.heightPct ~= nil then
+					bar.height = math.max(1, height * bar.heightPct)
+				end
+
+				bar.widthPct = nil
+				bar.heightPct = nil
+			end
+		end
+
+		local auras = db.auras or {}
+		auras.defensives = auras.defensives or {}
+		auras.defensiveCustom = auras.defensiveCustom or {}
+		db.auras = auras
+	end,
 }
 
 --- Fills in every field `defaults` has and `target` lacks, returning what to store: `target` patched,

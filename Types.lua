@@ -26,7 +26,6 @@
 ---@field NameStyle SpotlightsNameStyle
 ---@field Auras SpotlightsAuras
 ---@field SlashCommands SpotlightsSlashCommands
----@field LoginFnQueue fun()[]
 ---@field DB SpotlightsDB? nil until ADDON_LOADED has run the migration
 ---@field IsTwelveDotOne boolean the aura container system exists only from 12.1 onwards
 
@@ -119,10 +118,10 @@
 ---@field healthTextX number
 ---@field healthTextY number
 
---- Both tracked auras. The two carry identical shapes on purpose: the feature is one customisation
+--- Tracked auras. They carry identical shapes on purpose: the feature is one customisation
 --- set pointed at either spell, so neither may grow a field the other lacks.
 ---
---- `cooldowns` and `custom` sit beside the two features rather than inside `sensePower` (the only
+--- `cooldowns` and `custom` sit beside the tracked features rather than inside `sensePower` (the only
 --- feature that reads them), keeping that rule true: the spell pool is one list belonging to the
 --- aura block, not to a customisation set.
 ---
@@ -132,9 +131,14 @@
 --- the user adds to it -- mapping each ID to its own toggle.
 ---@class SpotlightsAurasConfig
 ---@field prescience SpotlightsAuraFeatureConfig
+---@field shiftingSands SpotlightsAuraFeatureConfig
 ---@field sensePower SpotlightsAuraFeatureConfig
+---@field cooldownAuras SpotlightsAuraFeatureConfig
+---@field defensiveAuras SpotlightsAuraFeatureConfig
 ---@field cooldowns table<integer, boolean> built-in overrides; only ever `false`, meaning "off"
 ---@field custom table<integer, boolean> user-added spell IDs, each mapped to its enabled state
+---@field defensives table<integer, boolean> defensive overrides; absent means the shipped default
+---@field defensiveCustom table<integer, boolean> user-added defensive spell IDs
 
 --- One aura's two displays, independent of each other and both optional.
 ---@class SpotlightsAuraFeatureConfig
@@ -167,9 +171,9 @@
 ---@field borderG number
 ---@field borderB number
 ---@field borderA number
+---@field gap number?
 
---- A duration bar. Sized as a fraction of the spotlight, because the spotlight is resizable and a
---- stored pixel width would stop matching it.
+--- A duration bar with independent pixel dimensions.
 ---
 --- `texture` is a LibSharedMedia key, resolved by `Private.Media` at apply time -- see
 --- `SpotlightsAppearanceConfig.barTexture`.
@@ -181,8 +185,8 @@
 ---@field r number
 ---@field g number
 ---@field b number
----@field widthPct number 0..1 of the spotlight's width
----@field heightPct number 0..1 of the spotlight's height
+---@field width number in pixels
+---@field height number in pixels
 ---@field showIcon boolean
 ---@field iconSide "LEFT" | "RIGHT"
 
@@ -200,6 +204,7 @@
 ---@field showText boolean
 ---@field font string
 ---@field fontSize number
+---@field gap number in pixels between multiple icons
 
 --- Where the grid sits. A corner-relative anchor, never raw coordinates.
 ---
@@ -289,7 +294,11 @@
 ---@class SpotlightsAuraContainer : Frame
 ---@field GetUnit fun(self: SpotlightsAuraContainer): string
 ---@field SetUnit fun(self: SpotlightsAuraContainer, unit: string) asserts on a non-string
+---@field AddAuraGroup fun(self: SpotlightsAuraContainer, groupKey: string, filterString: string, options: table)
 ---@field AddAuraSlot fun(self: SpotlightsAuraContainer, slotKey: string, filterString: string, options: table): table
+---@field SetAuraGroupCandidateFilters fun(self: SpotlightsAuraContainer, groupKey: string, candidateFilters: table)
+---@field SetAuraGroupMaxFrameCount fun(self: SpotlightsAuraContainer, groupKey: string, maxFrameCount: number)
+---@field SetAuraGroupLayout fun(self: SpotlightsAuraContainer, groupKey: string, layoutOptions: table)
 ---@field SetAuraSlotCandidateFilters fun(self: SpotlightsAuraContainer, slotKey: string, candidateFilters: table) asserts on an unknown slot key
 
 --- The drawable parts of one display, whichever kind it is.

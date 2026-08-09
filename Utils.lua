@@ -11,6 +11,12 @@ local PREFIX = "|cff33ff99Spotlights|r: "
 --- it exists, so anything touching it must ask first. Read once: build number is restart-stable.
 Private.IsTwelveDotOne = select(4, GetBuildInfo()) >= 120100
 
+---@return boolean
+function Private.Utils.IsAugmentation()
+	return select(3, UnitClass("player")) == Constants.UICharacterClasses.Evoker
+		and PlayerUtil.GetCurrentSpecID() == 1473
+end
+
 ---@param message string
 function Private.Utils.Print(message)
 	DEFAULT_CHAT_FRAME:AddMessage(PREFIX .. message)

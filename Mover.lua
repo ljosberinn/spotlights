@@ -161,7 +161,7 @@ function Private.Mover.Sync()
 	end
 
 	overlay:ClearAllPoints()
-	overlay:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", left, bottom)
+	PixelUtil.SetPoint(overlay, "BOTTOMLEFT", UIParent, "BOTTOMLEFT", left, bottom)
 	overlay:SetSize(container:GetSize())
 end
 

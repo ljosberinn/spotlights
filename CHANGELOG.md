@@ -6,3 +6,13 @@ v1.0.2
 - exposed inputs for all sliders
 - default icon size was reduced
 - moved Prescience/Sense Power tabs to the bottom of the frame
+- enabled Auras system on 12.1 for non-Evokers
+- non-Augmentation Evokers now can customize "Cooldowns & Custom Auras" and "Defensives"
+  - "Cooldowns & Custom Auras" uses the same list the Sense Power feature uses
+    - these are all _trackable_ major cooldowns except for summons such as Demonic Tyrant as those are not trackable via aura
+  - "Defensives" uses the games own list for defensive auras, amended with a couple spells the default ui currently does not consider as such
+  - these additional auras are off by default
+- fixed a bug where the available raid members to spotlight would not update instantly upon roster changes when the frame was open
+- fixed a bug where player names were leaking out of the frame
+- added a checkbox per-class in order to toggle inclusion of all of that specs abilities
+- added Shifting Sands as dedicatedly trackable and customizable aura

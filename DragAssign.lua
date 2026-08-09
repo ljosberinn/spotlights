@@ -178,7 +178,7 @@ local function GetHint()
 		local x, y = GetCursorPosition()
 
 		self:ClearAllPoints()
-		self:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", x / scale + 16, y / scale - 24)
+		PixelUtil.SetPoint(self, "BOTTOMLEFT", UIParent, "BOTTOMLEFT", x / scale + 16, y / scale - 24)
 	end)
 
 	return hint

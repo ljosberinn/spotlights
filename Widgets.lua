@@ -460,7 +460,7 @@ end
 --- A section heading. Not a control and not body text: a tab with two independent groups of controls
 --- needs the boundary between them visible, and indentation cannot express it in a single column.
 ---@param parent Frame
----@param text string
+---@param text string|function
 ---@return SpotlightsWidget
 function Private.Widgets.CreateHeading(parent, text)
 	local row = CreateRow(parent) --[[@as SpotlightsWidget]]
@@ -469,9 +469,11 @@ function Private.Widgets.CreateHeading(parent, text)
 
 	heading:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 0, 2)
 	heading:SetJustifyH("LEFT")
-	heading:SetText(text)
+	heading:SetText(type(text) == "function" and text() or text)
 
-	function row:Refresh() end
+	function row:Refresh()
+		heading:SetText(type(text) == "function" and text() or text)
+	end
 
 	return row
 end
@@ -479,7 +481,7 @@ end
 --- A block of explanatory text. Not a control, but it takes part in the same layout and the
 --- combat-reload limitation has to be documented *somewhere* the user will see it.
 ---@param parent Frame
----@param text string
+---@param text string|function
 ---@return SpotlightsWidget
 function Private.Widgets.CreateText(parent, text)
 	local row = CreateRow(parent) --[[@as SpotlightsWidget]]
@@ -496,13 +498,16 @@ function Private.Widgets.CreateText(parent, text)
 	body:SetWidth(parent:GetWidth())
 	body:SetJustifyH("LEFT")
 	body:SetSpacing(2)
-	body:SetText(text)
+	body:SetText(type(text) == "function" and text() or text)
 
 	-- Height comes from the wrapped text rather than ROW_HEIGHT, the one widget whose height is not
 	-- known until the string is set.
 	row:SetHeight(body:GetStringHeight() + 8)
 
-	function row:Refresh() end
+	function row:Refresh()
+		body:SetText(type(text) == "function" and text() or text)
+		row:SetHeight(body:GetStringHeight() + 8)
+	end
 
 	return row
 end
@@ -633,8 +638,11 @@ end
 ---@param IsEnabled fun(spellID: integer): boolean
 ---@param SetEnabled fun(spellID: integer, enabled: boolean)
 ---@param OnRemove fun(spellID: integer)? when absent, no row is removable
+---@param IsHeadingEnabled fun(entry: table): boolean? when absent, headings have no checkbox
+---@param SetHeadingEnabled fun(entry: table, enabled: boolean)?
 ---@return SpotlightsWidget
-function Private.Widgets.CreateSpellList(parent, Entries, IsEnabled, SetEnabled, OnRemove)
+function Private.Widgets.CreateSpellList(parent, Entries, IsEnabled, SetEnabled, OnRemove, IsHeadingEnabled,
+										 SetHeadingEnabled)
 	local list = CreateFrame("Frame", nil, parent) --[[@as SpotlightsWidget]]
 
 	---@type table[]
@@ -651,24 +659,35 @@ function Private.Widgets.CreateSpellList(parent, Entries, IsEnabled, SetEnabled,
 			local entry = entries[i]
 			local row = AcquireSpellRow(list, rows, i)
 			local heading = entry.heading
+			local headingEnabled = heading and IsHeadingEnabled and IsHeadingEnabled(entry)
 
 			row:ClearAllPoints()
 			row:SetPoint("TOPLEFT", list, "TOPLEFT", 0, -offset)
 			row:SetPoint("TOPRIGHT", list, "TOPRIGHT", 0, -offset)
 			row:SetHeight(heading and CLASS_ROW_HEIGHT or SPELL_ROW_HEIGHT)
 			row:Show()
+			row.check:ClearAllPoints()
+			row.check:SetPoint("RIGHT", row, "RIGHT", -REMOVE_WIDTH, heading and -2 or 0)
 
 			-- Set every time rather than only when it changes, because the rows are pooled: the frame
 			-- that is a heading now was a spell row a rebuild ago.
 			row.heading:SetShown(heading ~= nil)
 			row.icon:SetShown(heading == nil)
 			row.label:SetShown(heading == nil)
-			row.check:SetShown(heading == nil)
+			row.check:SetShown(heading == nil or headingEnabled ~= nil)
 			row.remove:SetShown(heading == nil and OnRemove ~= nil)
 
 			if heading then
 				row.heading:SetText(heading)
 				row.heading:SetTextColor(entry.r or 1, entry.g or 1, entry.b or 1)
+
+				if headingEnabled ~= nil then
+					row.check:SetChecked(headingEnabled)
+					row.check:SetScript("OnClick", function(check)
+						SetHeadingEnabled(entry, check:GetChecked() and true or false)
+						list:Refresh()
+					end)
+				end
 			else
 				local spellID = entry.spellID --[[@as integer]]
 				local label, texture = SpellDisplay(spellID)
@@ -681,6 +700,7 @@ function Private.Widgets.CreateSpellList(parent, Entries, IsEnabled, SetEnabled,
 				-- handler closed over the spell this frame showed last time would toggle the wrong one.
 				row.check:SetScript("OnClick", function(check)
 					SetEnabled(spellID, check:GetChecked() and true or false)
+					list:Refresh()
 				end)
 
 				row.remove:SetScript("OnClick", function()
