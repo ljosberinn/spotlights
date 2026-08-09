@@ -32,6 +32,19 @@ local HEALTH_BAR_INSET = 1
 --- The absorb overlay's opacity.
 local ABSORB_ALPHA = 0.6
 
+-- Round to one decimal below 10%, then to whole percentages. The curve keeps the secret health
+-- percentage opaque while still giving the FontString a single, safe value to format.
+local healthPercentCurve = C_CurveUtil.CreateCurve()
+healthPercentCurve:SetType(Enum.LuaCurveType.Step)
+healthPercentCurve:AddPoint(0, 0)
+for tenth = 1, 100 do
+	local threshold = tenth / 10
+	healthPercentCurve:AddPoint((threshold - 0.05) / 100, threshold)
+end
+for whole = 11, 100 do
+	healthPercentCurve:AddPoint((whole - 0.5) / 100, whole)
+end
+
 --- The appearance block, or nil before the database has loaded.
 ---
 --- Read per call rather than cached: every value is a setting the options frame can change at any
@@ -237,6 +250,53 @@ function SpotlightsUnitFrameMixin:UpdateName()
 	self.name:SetText(UnitName(unit))
 end
 
+local function HealthTextLayout(fontString, appearance)
+	fontString:SetFont(Private.Media.Font(appearance.healthTextFont), appearance.healthTextFontSize, "OUTLINE")
+	fontString:ClearAllPoints()
+	fontString:SetPoint(
+		appearance.healthTextPoint,
+		fontString:GetParent(),
+		appearance.healthTextPoint,
+		appearance.healthTextX,
+		appearance.healthTextY
+	)
+	fontString:SetJustifyH(JustifyForPoint(appearance.healthTextPoint))
+end
+
+function SpotlightsUnitFrameMixin:UpdateHealthText()
+	local unit = self.displayedUnit
+	local appearance = Appearance()
+
+	if not unit or not appearance then
+		return
+	end
+
+	HealthTextLayout(self.healthText, appearance)
+
+	local r, g, b = appearance.healthTextColorR, appearance.healthTextColorG, appearance.healthTextColorB
+	if appearance.healthTextUseClassColor then
+		local _, classFilename = UnitClass(unit)
+		local color = classFilename and RAID_CLASS_COLORS[classFilename]
+		if color then
+			r, g, b = color.r, color.g, color.b
+		end
+	end
+	self.healthText:SetVertexColor(r, g, b)
+	self.healthText:SetShown(appearance.healthTextEnabled)
+
+	if not appearance.healthTextEnabled then
+		return
+	end
+
+	if appearance.healthTextFormat == "percent" then
+		self.healthText:SetFormattedText("%g%%", UnitHealthPercent(unit, true, healthPercentCurve))
+	elseif appearance.healthTextFormat == "absValueAbbreviated" then
+		self.healthText:SetText(AbbreviateNumbers(UnitHealth(unit)))
+	else
+		self.healthText:SetFormattedText("%d", UnitHealth(unit))
+	end
+end
+
 --- The name's font, size, placement and colour -- everything about it except the text.
 ---
 --- Split from `UpdateName` because the two change on different beats: the text follows
@@ -376,11 +436,11 @@ function SpotlightsUnitFrameMixin:UpdateRangeAlpha()
 	-- A plain boolean, so it can gate which fade applies. `deadAlpha` in both slots so a dead unit
 	-- reads the same whether or not it is also in range.
 	if UnitIsDead(unit) then
-		self:SetAlphaFromBoolean(false, 1.0, appearance.deadAlpha)
+		self:SetAlphaFromBoolean(false, appearance.frameAlpha, appearance.frameAlpha * appearance.deadAlpha)
 		return
 	end
 
-	self:SetAlphaFromBoolean(IsInRange(unit), 1.0, appearance.outOfRangeAlpha)
+	self:SetAlphaFromBoolean(IsInRange(unit), appearance.frameAlpha, appearance.frameAlpha * appearance.outOfRangeAlpha)
 end
 
 --- Bar art and the absorb overlay's visibility. Not per-unit, so safe on a child with nothing
@@ -424,6 +484,7 @@ function SpotlightsUnitFrameMixin:UpdateAll()
 	self:UpdateRangeAlpha()
 	self:UpdateName()
 	self:UpdateNameStyle()
+	self:UpdateHealthText()
 	self:UpdateSelectionHighlight()
 end
 
@@ -435,6 +496,7 @@ local EVENT_HANDLERS = {
 	UNIT_HEALTH = function(frame)
 		frame:UpdateHealthValues()
 		frame:UpdateHealthColor()
+		frame:UpdateHealthText()
 		frame:UpdateRangeAlpha()
 	end,
 
@@ -443,11 +505,13 @@ local EVENT_HANDLERS = {
 		frame:UpdateHealthValues()
 		frame:UpdateAbsorb()
 		frame:UpdateTempMaxHealthLoss()
+		frame:UpdateHealthText()
 	end,
 
 	UNIT_CONNECTION = function(frame)
 		frame:UpdateHealthValues()
 		frame:UpdateHealthColor()
+		frame:UpdateHealthText()
 	end,
 
 	UNIT_NAME_UPDATE = function(frame)
