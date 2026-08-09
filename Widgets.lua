@@ -162,6 +162,48 @@ function Private.Widgets.CreateSlider(parent, label, minimum, maximum, step, get
 		set(value)
 	end)
 
+	local editBox = CreateFrame("EditBox", nil, row, "InputBoxTemplate")
+	editBox:SetPoint("TOPLEFT", slider.RightText)
+	editBox:SetPoint("BOTTOMLEFT", slider.RightText)
+	editBox:SetPoint("RIGHT", slider.RightText, 5, 0)
+	editBox:SetAutoFocus(false)
+	editBox:SetJustifyH("CENTER")
+
+	editBox:SetScript("OnEditFocusGained", function(self)
+		slider:Hide()
+
+		self:ClearAllPoints()
+		self:SetPoint("RIGHT", slider.RightText, 5, 0)
+		self:SetPoint("TOPLEFT", slider)
+		self:SetPoint("BOTTOMLEFT", slider)
+		self:SetText(slider.Slider:GetValue())
+		self:SetCursorPosition(0)
+	end)
+
+	local function ResetEditBox(self)
+		slider:Show()
+		self:SetText("")
+		self:ClearFocus()
+
+		self:ClearAllPoints()
+		self:SetPoint("RIGHT", slider.RightText, 5, 0)
+		self:SetPoint("TOPLEFT", slider.RightText)
+		self:SetPoint("BOTTOMLEFT", slider.RightText)
+	end
+
+	editBox:SetScript("OnEnterPressed", function(self)
+		local minimumValue, maximumValue = slider.Slider:GetMinMaxValues()
+		local value = tonumber(self:GetText())
+
+		if value then
+			slider:SetValue(math.min(math.max(value, minimumValue), maximumValue))
+		end
+
+		self:ClearFocus()
+	end)
+	editBox:SetScript("OnEscapePressed", ResetEditBox)
+	editBox:SetScript("OnEditFocusLost", ResetEditBox)
+
 	-- Guards the write, not the read. `Refresh` re-reads a value a slash command may have changed behind
 	-- the panel's back; `SetValue` fires the same event a drag does, and re-arming the guard keeps the
 	-- re-draw from writing the value back.
