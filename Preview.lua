@@ -120,18 +120,18 @@ local function Fill(preview, index, slot)
 
 	-- The same static-or-class choice the live frame makes. A preview never disconnects or dies, so
 	-- that branch of the live path has no counterpart here.
-	local healthR, healthG, healthB = classColor.r, classColor.g, classColor.b
-	local bgR, bgG, bgB = classColor.r * 0.2, classColor.g * 0.2, classColor.b * 0.2
-	local nameR, nameG, nameB = classColor.r, classColor.g, classColor.b
+	local healthR, healthG, healthB, healthA = classColor.r, classColor.g, classColor.b, 1
+	local bgR, bgG, bgB, bgA = classColor.r * 0.2, classColor.g * 0.2, classColor.b * 0.2, 1
+	local nameR, nameG, nameB, nameA = classColor.r, classColor.g, classColor.b, 1
 
 	if appearance then
 		if not appearance.healthUseClassColor then
-			healthR, healthG, healthB = appearance.healthColorR, appearance.healthColorG, appearance.healthColorB
-			bgR, bgG, bgB = appearance.healthBgColorR, appearance.healthBgColorG, appearance.healthBgColorB
+			healthR, healthG, healthB, healthA = appearance.healthColorR, appearance.healthColorG, appearance.healthColorB, appearance.healthColorA
+			bgR, bgG, bgB, bgA = appearance.healthBgColorR, appearance.healthBgColorG, appearance.healthBgColorB, appearance.healthBgColorA
 		end
 
 		if not appearance.nameUseClassColor then
-			nameR, nameG, nameB = appearance.nameColorR, appearance.nameColorG, appearance.nameColorB
+			nameR, nameG, nameB, nameA = appearance.nameColorR, appearance.nameColorG, appearance.nameColorB, appearance.nameColorA
 		end
 
 		Private.NameStyle.ApplyLayout(preview.name, appearance)
@@ -150,14 +150,14 @@ local function Fill(preview, index, slot)
 		end
 	end
 
-	preview.healthBar:SetStatusBarColor(healthR, healthG, healthB)
-	preview.background:SetVertexColor(bgR, bgG, bgB)
-	preview.name:SetVertexColor(nameR, nameG, nameB)
-	local textR, textG, textB = appearance and appearance.healthTextColorR or 0.5, appearance and appearance.healthTextColorG or 0.5, appearance and appearance.healthTextColorB or 0.5
+	preview.healthBar:SetStatusBarColor(healthR, healthG, healthB, healthA)
+	preview.background:SetVertexColor(bgR, bgG, bgB, bgA)
+	preview.name:SetVertexColor(nameR, nameG, nameB, nameA)
+	local textR, textG, textB, textA = appearance and appearance.healthTextColorR or 0.5, appearance and appearance.healthTextColorG or 0.5, appearance and appearance.healthTextColorB or 0.5, appearance and appearance.healthTextColorA or 1
 	if appearance and appearance.healthTextUseClassColor then
-		textR, textG, textB = classColor.r, classColor.g, classColor.b
+		textR, textG, textB, textA = classColor.r, classColor.g, classColor.b, 1
 	end
-	preview.healthText:SetVertexColor(textR, textG, textB)
+	preview.healthText:SetVertexColor(textR, textG, textB, textA)
 
 	-- Dimmed as a whole so a preview is never mistaken for a live spotlight. Deliberately not
 	-- SetAlphaFromBoolean: there is no secret here, and the secret-safe setter would needlessly make

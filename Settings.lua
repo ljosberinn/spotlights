@@ -104,9 +104,9 @@ local function SetAppearance(field, value)
 	ApplyAppearance()
 end
 
---- Writes the three channels of a colour in one go, then applies once.
+--- Writes all four channels of a colour in one go, then applies once.
 ---
---- A colour picker fires continuously while dragged, and three `SetAppearance` calls per frame would
+--- A colour picker fires continuously while dragged, and four `SetAppearance` calls per frame would
 --- sweep the whole grid three times for one visual change. Writing the fields directly and sweeping
 --- once collapses that to a single pass, the way the aura colour pickers lean on `SetSetting`'s
 --- debounce.
@@ -116,14 +116,16 @@ end
 ---@param r number
 ---@param g number
 ---@param b number
-local function SetAppearanceColor(rField, gField, bField, r, g, b)
+---@param aField string
+---@param a number
+local function SetAppearanceColor(rField, gField, bField, aField, r, g, b, a)
 	local appearance = GetCurrentAppearanceSettings()
 
 	if not appearance then
 		return
 	end
 
-	appearance[rField], appearance[gField], appearance[bField] = r, g, b
+	appearance[rField], appearance[gField], appearance[bField], appearance[aField] = r, g, b, a
 
 	ApplyAppearance()
 end
@@ -152,9 +154,11 @@ local FRAME_APPEARANCE_FIELDS = {
 	"healthColorR",
 	"healthColorG",
 	"healthColorB",
+	"healthColorA",
 	"healthBgColorR",
 	"healthBgColorG",
 	"healthBgColorB",
+	"healthBgColorA",
 }
 
 --- The appearance fields the Name section owns.
@@ -163,6 +167,7 @@ local NAME_APPEARANCE_FIELDS = {
 	"nameColorR",
 	"nameColorG",
 	"nameColorB",
+	"nameColorA",
 	"nameFont",
 	"nameFontSize",
 	"namePoint",
@@ -177,6 +182,7 @@ local HEALTH_TEXT_APPEARANCE_FIELDS = {
 	"healthTextColorR",
 	"healthTextColorG",
 	"healthTextColorB",
+	"healthTextColorA",
 	"healthTextFont",
 	"healthTextFontSize",
 	"healthTextPoint",
@@ -423,12 +429,12 @@ local function BuildAppearanceTab(content)
 			local appearance = GetCurrentAppearanceSettings()
 
 			if not appearance then
-				return 0.1, 0.7, 0.1
+				return 0.1, 0.7, 0.1, 1
 			end
 
-			return appearance.healthColorR, appearance.healthColorG, appearance.healthColorB
-		end, function(r, g, b)
-			SetAppearanceColor("healthColorR", "healthColorG", "healthColorB", r, g, b)
+			return appearance.healthColorR, appearance.healthColorG, appearance.healthColorB, appearance.healthColorA
+		end, function(r, g, b, a)
+			SetAppearanceColor("healthColorR", "healthColorG", "healthColorB", "healthColorA", r, g, b, a)
 		end, function()
 			local appearance = GetCurrentAppearanceSettings()
 
@@ -441,12 +447,12 @@ local function BuildAppearanceTab(content)
 			local appearance = GetCurrentAppearanceSettings()
 
 			if not appearance then
-				return 0.02, 0.14, 0.02
+				return 0.02, 0.14, 0.02, 1
 			end
 
-			return appearance.healthBgColorR, appearance.healthBgColorG, appearance.healthBgColorB
-		end, function(r, g, b)
-			SetAppearanceColor("healthBgColorR", "healthBgColorG", "healthBgColorB", r, g, b)
+			return appearance.healthBgColorR, appearance.healthBgColorG, appearance.healthBgColorB, appearance.healthBgColorA
+		end, function(r, g, b, a)
+			SetAppearanceColor("healthBgColorR", "healthBgColorG", "healthBgColorB", "healthBgColorA", r, g, b, a)
 		end, function()
 			local appearance = GetCurrentAppearanceSettings()
 
@@ -500,12 +506,12 @@ local function BuildAppearanceTab(content)
 			local appearance = GetCurrentAppearanceSettings()
 
 			if not appearance then
-				return 1, 1, 1
+				return 1, 1, 1, 1
 			end
 
-			return appearance.nameColorR, appearance.nameColorG, appearance.nameColorB
-		end, function(r, g, b)
-			SetAppearanceColor("nameColorR", "nameColorG", "nameColorB", r, g, b)
+			return appearance.nameColorR, appearance.nameColorG, appearance.nameColorB, appearance.nameColorA
+		end, function(r, g, b, a)
+			SetAppearanceColor("nameColorR", "nameColorG", "nameColorB", "nameColorA", r, g, b, a)
 		end, function()
 			local appearance = GetCurrentAppearanceSettings()
 
@@ -592,12 +598,12 @@ local function BuildAppearanceTab(content)
 			local appearance = GetCurrentAppearanceSettings()
 
 			if not appearance then
-				return 0.5, 0.5, 0.5
+				return 0.5, 0.5, 0.5, 1
 			end
 
-			return appearance.healthTextColorR, appearance.healthTextColorG, appearance.healthTextColorB
-		end, function(r, g, b)
-			SetAppearanceColor("healthTextColorR", "healthTextColorG", "healthTextColorB", r, g, b)
+			return appearance.healthTextColorR, appearance.healthTextColorG, appearance.healthTextColorB, appearance.healthTextColorA
+		end, function(r, g, b, a)
+			SetAppearanceColor("healthTextColorR", "healthTextColorG", "healthTextColorB", "healthTextColorA", r, g, b, a)
 		end, function()
 			local appearance = GetCurrentAppearanceSettings()
 
@@ -833,14 +839,15 @@ local function BorderWidgets(content, displayKey, Get)
 			local config = Get()
 
 			if not config then
-				return 0, 0, 0
+				return 0, 0, 0, 1
 			end
 
-			return config.borderR, config.borderG, config.borderB
-		end, function(r, g, b)
+			return config.borderR, config.borderG, config.borderB, config.borderA
+		end, function(r, g, b, a)
 			SetAura(displayKey, "borderR", r)
 			SetAura(displayKey, "borderG", g)
 			SetAura(displayKey, "borderB", b)
+			SetAura(displayKey, "borderA", a)
 		end),
 	}
 end
@@ -1045,16 +1052,17 @@ local function BuildAurasTab(content)
 			local bar = Bar()
 
 			if not bar then
-				return 1, 1, 1
+				return 1, 1, 1, 1
 			end
 
-			return bar.r, bar.g, bar.b
-		end, function(r, g, b)
+			return bar.r, bar.g, bar.b, bar.alpha
+		end, function(r, g, b, a)
 			-- Three writes rather than one, which costs nothing extra. Each may queue a rebuild, but
 			-- all three name the same display, so they collapse into one entry and one timer.
 			SetAura("bar", "r", r)
 			SetAura("bar", "g", g)
 			SetAura("bar", "b", b)
+			SetAura("bar", "alpha", a)
 		end),
 
 		Widgets.CreateSlider(content, L.AuraAlpha, 0.05, 1, 0.05, function()

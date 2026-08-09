@@ -340,9 +340,10 @@ end
 
 --- A colour swatch that opens Blizzard's colour picker.
 ---
---- `get` and `set` deal in three numbers rather than a colour object, because that is how the setting
---- is stored — three fields, so a database written by one build reads on another without a metatable in
+--- `get` and `set` deal in separate channel numbers rather than a colour object, because that is how the
+--- setting is stored — fields, so a database written by one build reads on another without a metatable in
 --- the way.
+--- They deal in a fourth alpha number as well.
 ---
 --- `swatchFunc` fires continuously while the wheel is dragged, so this writes on every move rather than
 --- on confirm. That is safe for an expensive setting: `Private.Auras.SetSetting` debounces what it has
@@ -358,8 +359,8 @@ end
 --- that owns the mode has to `Refresh` the panel when it changes for this to re-evaluate.
 ---@param parent Frame
 ---@param label string
----@param get fun(): number, number, number
----@param set fun(r: number, g: number, b: number)
+---@param get fun(): number, number, number, number
+---@param set fun(r: number, g: number, b: number, a: number)
 ---@param enabled fun(): boolean|nil
 ---@return SpotlightsWidget
 function Private.Widgets.CreateColorPicker(parent, label, get, set, enabled)
@@ -378,22 +379,24 @@ function Private.Widgets.CreateColorPicker(parent, label, get, set, enabled)
 	swatch:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -6, 4)
 
 	button:SetScript("OnClick", function()
-		local r, g, b = get()
+		local r, g, b, a = get()
 
 		ColorPickerFrame:SetupColorPickerAndShow({
 			r = r,
 			g = g,
 			b = b,
-			hasOpacity = false,
+			hasOpacity = true,
+			opacity = 1 - a,
 			swatchFunc = function()
 				local newR, newG, newB = ColorPickerFrame:GetColorRGB()
+				local newA = ColorPickerFrame:GetColorAlpha()
 
 				swatch:SetColorTexture(newR, newG, newB)
-				set(newR, newG, newB)
+				set(newR, newG, newB, newA)
 			end,
 			cancelFunc = function()
 				swatch:SetColorTexture(r, g, b)
-				set(r, g, b)
+				set(r, g, b, a)
 			end,
 		})
 	end)

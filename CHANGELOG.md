@@ -1,5 +1,4 @@
-v1.0.1
+v1.0.2
 
-- added a minimap button
-  - you can toggle it in the settings
-- adjusted size of the tabs so they use the available space better
+- added Health Text customization to Frame settings
+- color pickers now allow opacity

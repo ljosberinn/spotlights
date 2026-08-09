@@ -76,13 +76,16 @@
 ---@field healthColorR number
 ---@field healthColorG number
 ---@field healthColorB number
+---@field healthColorA number
 ---@field healthBgColorR number
 ---@field healthBgColorG number
 ---@field healthBgColorB number
+---@field healthBgColorA number
 ---@field nameUseClassColor boolean
 ---@field nameColorR number
 ---@field nameColorG number
 ---@field nameColorB number
+---@field nameColorA number
 ---@field nameFont string
 ---@field nameFontSize number
 ---@field namePoint AnchorPoint
@@ -94,6 +97,7 @@
 ---@field healthTextColorR number
 ---@field healthTextColorG number
 ---@field healthTextColorB number
+---@field healthTextColorA number
 ---@field healthTextFont string
 ---@field healthTextFontSize number
 ---@field healthTextPoint AnchorPoint
@@ -147,6 +151,7 @@
 ---@field borderR number
 ---@field borderG number
 ---@field borderB number
+---@field borderA number
 
 --- A duration bar. Sized as a fraction of the spotlight, because the spotlight is resizable and a
 --- stored pixel width would stop matching it.

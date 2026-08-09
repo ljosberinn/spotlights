@@ -465,7 +465,7 @@ local function StyleBorder(regions, config)
 		edgeFile = Private.Media.Border(config.borderTexture),
 		edgeSize = config.borderSize,
 	})
-	border:SetBackdropBorderColor(config.borderR, config.borderG, config.borderB)
+	border:SetBackdropBorderColor(config.borderR, config.borderG, config.borderB, config.borderA)
 	border:Show()
 end
 

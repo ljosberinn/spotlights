@@ -205,15 +205,15 @@ function SpotlightsUnitFrameMixin:UpdateHealthColor()
 	end
 
 	local appearance = Appearance()
-	local r, g, b
-	local bgR, bgG, bgB
+	local r, g, b, a
+	local bgR, bgG, bgB, bgA
 
 	if not UnitIsConnected(unit) or UnitIsDead(unit) then
-		r, g, b = DISCONNECTED_COLOR.r, DISCONNECTED_COLOR.g, DISCONNECTED_COLOR.b
-		bgR, bgG, bgB = r * BACKGROUND_MULTIPLIER, g * BACKGROUND_MULTIPLIER, b * BACKGROUND_MULTIPLIER
+		r, g, b, a = DISCONNECTED_COLOR.r, DISCONNECTED_COLOR.g, DISCONNECTED_COLOR.b, 1
+		bgR, bgG, bgB, bgA = r * BACKGROUND_MULTIPLIER, g * BACKGROUND_MULTIPLIER, b * BACKGROUND_MULTIPLIER, 1
 	elseif appearance and not appearance.healthUseClassColor then
-		r, g, b = appearance.healthColorR, appearance.healthColorG, appearance.healthColorB
-		bgR, bgG, bgB = appearance.healthBgColorR, appearance.healthBgColorG, appearance.healthBgColorB
+		r, g, b, a = appearance.healthColorR, appearance.healthColorG, appearance.healthColorB, appearance.healthColorA
+		bgR, bgG, bgB, bgA = appearance.healthBgColorR, appearance.healthBgColorG, appearance.healthBgColorB, appearance.healthBgColorA
 	else
 		local _, classFilename = UnitClass(unit)
 		local color = classFilename and RAID_CLASS_COLORS[classFilename]
@@ -222,15 +222,15 @@ function SpotlightsUnitFrameMixin:UpdateHealthColor()
 			return
 		end
 
-		r, g, b = color.r, color.g, color.b
-		bgR, bgG, bgB = r * BACKGROUND_MULTIPLIER, g * BACKGROUND_MULTIPLIER, b * BACKGROUND_MULTIPLIER
+		r, g, b, a = color.r, color.g, color.b, 1
+		bgR, bgG, bgB, bgA = r * BACKGROUND_MULTIPLIER, g * BACKGROUND_MULTIPLIER, b * BACKGROUND_MULTIPLIER, 1
 	end
 
-	self.healthBar:SetStatusBarColor(r, g, b)
+	self.healthBar:SetStatusBarColor(r, g, b, a)
 
 	-- `raidframe-hp-bg-white` is a white texture meant to be tinted, and this is the only thing that
 	-- tints it. Without this the frame reads as an empty white box.
-	self.background:SetVertexColor(bgR, bgG, bgB)
+	self.background:SetVertexColor(bgR, bgG, bgB, bgA)
 end
 
 --- The unit's name.
@@ -273,15 +273,15 @@ function SpotlightsUnitFrameMixin:UpdateHealthText()
 
 	HealthTextLayout(self.healthText, appearance)
 
-	local r, g, b = appearance.healthTextColorR, appearance.healthTextColorG, appearance.healthTextColorB
+	local r, g, b, a = appearance.healthTextColorR, appearance.healthTextColorG, appearance.healthTextColorB, appearance.healthTextColorA
 	if appearance.healthTextUseClassColor then
 		local _, classFilename = UnitClass(unit)
 		local color = classFilename and RAID_CLASS_COLORS[classFilename]
 		if color then
-			r, g, b = color.r, color.g, color.b
+			r, g, b, a = color.r, color.g, color.b, 1
 		end
 	end
-	self.healthText:SetVertexColor(r, g, b)
+	self.healthText:SetVertexColor(r, g, b, a)
 	self.healthText:SetShown(appearance.healthTextEnabled)
 
 	if not appearance.healthTextEnabled then
@@ -315,7 +315,7 @@ function SpotlightsUnitFrameMixin:UpdateNameStyle()
 
 	Private.NameStyle.ApplyLayout(self.name, appearance)
 
-	local r, g, b = appearance.nameColorR, appearance.nameColorG, appearance.nameColorB
+	local r, g, b, a = appearance.nameColorR, appearance.nameColorG, appearance.nameColorB, appearance.nameColorA
 	local unit = self.displayedUnit
 
 	if appearance.nameUseClassColor and unit then
@@ -323,13 +323,13 @@ function SpotlightsUnitFrameMixin:UpdateNameStyle()
 		local color = classFilename and RAID_CLASS_COLORS[classFilename]
 
 		if color then
-			r, g, b = color.r, color.g, color.b
+			r, g, b, a = color.r, color.g, color.b, 1
 		end
 	end
 
 	-- SetVertexColor rather than SetTextColor, matching Blizzard's own name updater: it colours a
 	-- FontString whose Text aspect may be secret, and the vertex colour is not that aspect.
-	self.name:SetVertexColor(r, g, b)
+	self.name:SetVertexColor(r, g, b, a)
 end
 
 --- The outline shown while this unit is the player's target.

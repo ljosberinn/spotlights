@@ -71,13 +71,16 @@ local function DefaultAppearance()
 		healthColorR = 0.1,
 		healthColorG = 0.7,
 		healthColorB = 0.1,
+		healthColorA = 1,
 		healthBgColorR = 0.02,
 		healthBgColorG = 0.14,
 		healthBgColorB = 0.02,
+		healthBgColorA = 1,
 		nameUseClassColor = false,
 		nameColorR = 1,
 		nameColorG = 1,
 		nameColorB = 1,
+		nameColorA = 1,
 		nameFont = "Friz Quadrata TT",
 		nameFontSize = 10,
 		namePoint = "TOPLEFT",
@@ -89,6 +92,7 @@ local function DefaultAppearance()
 		healthTextColorR = 0.5,
 		healthTextColorG = 0.5,
 		healthTextColorB = 0.5,
+		healthTextColorA = 1,
 		healthTextFont = "Friz Quadrata TT",
 		healthTextFontSize = 10,
 		healthTextPoint = "CENTER",
@@ -149,6 +153,7 @@ local function DefaultAuraBar(enabled, point, r, g, b, y)
 		borderR = 0,
 		borderG = 0,
 		borderB = 0,
+		borderA = 1,
 	}
 end
 
@@ -352,8 +357,6 @@ function Private.Migration.Run(saved)
 		return CreateDefault(), true
 	end
 
-	-- Version 0 stands in for "saved before the field existed", walking the same upgrade path as any
-	-- other version.
 	local version = type(saved.version) == "number" and saved.version or 0
 
 	if version > Private.Migration.CurrentVersion then
