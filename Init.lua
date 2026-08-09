@@ -122,23 +122,21 @@ EventUtil.ContinueOnAddOnLoaded(addonName, function()
 			end,
 		}), db.minimap)
 
-		if AddonCompartmentFrame then
-			AddonCompartmentFrame:RegisterAddon({
-				text = addonName,
-				icon = iconTexture,
-				func = function()
-					Private.Settings.SetShown()
-				end,
-				funcOnEnter = function(button)
-					GameTooltip:SetOwner(button, "ANCHOR_LEFT")
-					GameTooltip:AddLine(Private.L.Settings.ClickToOpenSettings)
-					GameTooltip:Show()
-				end,
-				funcOnLeave = function()
-					GameTooltip:Hide()
-				end,
-			})
-		end
+		AddonCompartmentFrame:RegisterAddon({
+			text = addonName,
+			icon = iconTexture,
+			func = function()
+				Private.Settings.SetShown()
+			end,
+			funcOnEnter = function(button)
+				GameTooltip:SetOwner(button, "ANCHOR_LEFT")
+				GameTooltip:AddLine(Private.L.Settings.ClickToOpenSettings)
+				GameTooltip:Show()
+			end,
+			funcOnLeave = function()
+				GameTooltip:Hide()
+			end,
+		})
 	end
 
 	if fresh then
