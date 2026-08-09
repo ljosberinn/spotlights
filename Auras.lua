@@ -125,7 +125,7 @@ local ANY_FILTER = AuraUtil.CreateFilterString(AuraUtil.AuraFilters.Helpful)
 --- One tracked aura: which config block is its own, which spell it watches for, and what its slot is
 --- allowed to show.
 ---@class SpotlightsAuraFeature
----@field key string indexes `SpotlightsAurasConfig`, and names the slot inside its container
+---@field key SpotlightsAuraFeatureKey indexes `SpotlightsAurasConfig`, and names the slot inside its container
 ---@field spellID integer the spell the display is *about*: its icon, and its preview
 ---@field filter string the aura filter string its slot parses with
 ---@field Candidates fun(): table<integer, true> every spell its slot may show, `spellID` included
@@ -138,7 +138,7 @@ local ANY_FILTER = AuraUtil.CreateFilterString(AuraUtil.AuraFilters.Helpful)
 --- untouchable, while a preview runs `Create`/`Preview` once and `Style` on every settings change.
 --- Sharing `Style` is what makes a preview show what will ship.
 ---@class SpotlightsAuraKind
----@field key string
+---@field key SpotlightsAuraDisplayKey
 ---@field Create fun(host: Frame|table, config: table, spellID: integer, everything: boolean): SpotlightsAuraRegions
 ---@field Style fun(regions: SpotlightsAuraRegions, anchor: Frame, config: table)
 ---@field Register fun(button: table, regions: SpotlightsAuraRegions)
@@ -363,8 +363,8 @@ local settled = false
 ---
 --- Restart-on-change: the timer is cancelled and replaced on every write, so a drag of any length
 --- costs one rebuild, at the end. The drain runs through `Apply`, which handles combat.
----@param featureKey string
----@param displayKey string
+---@param featureKey SpotlightsAuraFeatureKey
+---@param displayKey SpotlightsAuraDisplayKey
 local function RequestRebuild(featureKey, displayKey)
 	pending[featureKey .. "." .. displayKey] = true
 
@@ -1383,8 +1383,8 @@ end)
 --- between a leak and none: re-picking the current texture from a dropdown, or a `RefreshActive`
 --- echoing a widget's own value back, would otherwise cost a container and a button on every assigned
 --- spotlight for no visible change. A caller that means "rebuild regardless" wants `RequestRebuild`.
----@param featureKey string
----@param displayKey string
+---@param featureKey SpotlightsAuraFeatureKey
+---@param displayKey SpotlightsAuraDisplayKey
 ---@param field string
 ---@param value any
 ---@return boolean applied
@@ -1432,7 +1432,7 @@ end
 ---
 --- `Private.Migration.DefaultAuraFeature` hands back a freshly built pair every call, so the values
 --- read here are never aliased to the database being written.
----@param featureKey string
+---@param featureKey SpotlightsAuraFeatureKey
 function Private.Auras.ResetFeature(featureKey)
 	local defaults = Private.Migration.DefaultAuraFeature(featureKey)
 
