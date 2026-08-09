@@ -224,6 +224,78 @@ local COOLDOWNS = {
 	},
 }
 
+---@type table<integer, table<integer, true>>
+local DEFENSIVES = {
+	[Constants.UICharacterClasses.Warrior] = {
+		[871] = true, -- Shield Wall
+		[118038] = true, -- Die by the Sword
+		[184364] = true, -- Enraged Regeneration
+	},
+	[Constants.UICharacterClasses.Paladin] = {
+		[498] = true, -- Divine Protection
+		[642] = true, -- Divine Shield
+		[1022] = true, -- Blessing of Protection
+		[6940] = true, -- Blessing of Sacrifice
+		[31850] = true, -- Ardent Defender
+		[86659] = true, -- Guardian of Ancient Kings
+		[199448] = true, -- Blessing of Sacrifice
+		[204018] = true, -- Blessing of Spellwarding
+		[212641] = true, -- Guardian of Ancient Kings
+	},
+	[Constants.UICharacterClasses.Hunter] = {
+		[53480] = true, -- Roar of Sacrifice
+		[186265] = true, -- Aspect of the Turtle
+		[264735] = true, -- Survival of the Fittest
+	},
+	[Constants.UICharacterClasses.Rogue] = {
+		[31224] = true, -- Cloak of Shadows
+		[81549] = true, -- Cloak of Shadows
+	},
+	[Constants.UICharacterClasses.Priest] = {
+		[19236] = true, -- Desperate Prayer
+		[33206] = true, -- Pain Suppression
+		[47585] = true, -- Dispersion
+		[47788] = true, -- Guardian Spirit
+	},
+	[Constants.UICharacterClasses.DeathKnight] = {
+		[48707] = true, -- Anti-Magic Shell
+		[48792] = true, -- Icebound Fortitude
+		[55233] = true, -- Vampiric Blood
+	},
+	[Constants.UICharacterClasses.Shaman] = {
+		[108271] = true, -- Astral Shift
+	},
+	[Constants.UICharacterClasses.Mage] = {
+		[45438] = true, -- Ice Block
+		[342246] = true, -- Alter Time
+		[414658] = true, -- Ice Cold
+	},
+	[Constants.UICharacterClasses.Warlock] = {
+		[104773] = true, -- Unending Resolve
+	},
+	[Constants.UICharacterClasses.Monk] = {
+		[115203] = true, -- Fortifying Brew
+		[116849] = true, -- Life Cocoon
+		[120954] = true, -- Fortifying Brew
+		[125174] = true, -- Touch of Karma
+		[243435] = true, -- Fortifying Brew
+	},
+	[Constants.UICharacterClasses.Druid] = {
+		[22812] = true, -- Barkskin
+		[50322] = true, -- Survival Instincts
+		[61336] = true, -- Survival Instincts
+		[102342] = true, -- Ironbark
+	},
+	[Constants.UICharacterClasses.DemonHunter] = {
+		[207771] = true, -- Fiery Brand
+		[212800] = true, -- Blur
+	},
+	[Constants.UICharacterClasses.Evoker] = {
+		[357170] = true, -- Time Dilation
+		[363916] = true, -- Obsidian Scales
+	},
+}
+
 --- The current aura settings, or nil before the migration has run.
 ---
 --- Ahead of the feature list below because a function referencing it has to be declared after it --
@@ -407,7 +479,7 @@ local DURATION_FORMATTER = C_StringUtil.CreateNumericRuleFormatter()
 
 DURATION_FORMATTER:SetBreakpoints({
 	{ threshold = 0, step = 0.1, rounding = Enum.NumericRuleFormatRounding.Down, format = "%.1f" },
-	{ threshold = 3, step = 1, rounding = Enum.NumericRuleFormatRounding.Up, format = "%.0f" },
+	{ threshold = 3, step = 1,   rounding = Enum.NumericRuleFormatRounding.Up,   format = "%.0f" },
 })
 
 --- Creation and styling are separate throughout this section, and the preview is why.
