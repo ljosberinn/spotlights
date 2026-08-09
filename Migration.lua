@@ -194,7 +194,7 @@ end
 ---
 --- Public and split out from `DefaultAuras` so the Reset button has one feature's defaults to write
 --- back. Fresh tables every call, so a reset cannot alias one feature's block onto another's.
----@param featureKey string
+---@param featureKey SpotlightsAuraFeatureKey
 ---@return SpotlightsAuraFeatureConfig
 function Private.Migration.DefaultAuraFeature(featureKey)
 	if featureKey == "sensePower" then

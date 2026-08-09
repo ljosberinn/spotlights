@@ -755,6 +755,7 @@ end
 --- Every widget in the kit reads and writes through closures, so a sub-tab switch is one variable
 --- write plus the `RefreshActive` the panel already does — no widget is rebuilt and no second set
 --- exists.
+---@type SpotlightsAuraFeatureKey
 local activeFeature = "prescience"
 
 ---@return SpotlightsAuraFeatureConfig?
@@ -784,7 +785,7 @@ end
 --- between a next-frame reapply and a debounced rebuild from the field name, and that decision has to
 --- live with the frames: a settings file that knew which fields are frozen would be a second copy of a
 --- list that can only be wrong.
----@param displayKey "bar" | "icon"
+---@param displayKey SpotlightsAuraDisplayKey
 ---@param field string
 ---@param value any
 local function SetAura(displayKey, field, value)
@@ -801,7 +802,7 @@ end
 --- A border is the one piece of styling that does not care whether it is around a bar or an icon, so
 --- writing these twice would duplicate the same thing.
 ---@param content Frame
----@param displayKey "bar" | "icon"
+---@param displayKey SpotlightsAuraDisplayKey
 ---@param Get fun(): SpotlightsAuraDisplayConfig?
 ---@return SpotlightsWidget[]
 local function BorderWidgets(content, displayKey, Get)

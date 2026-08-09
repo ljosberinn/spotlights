@@ -323,7 +323,7 @@ function Private.RosterList.Build(content)
 				local slot = slots[i]
 				local index = i
 
-				local blank = slot.kind == Private.Enum.SlotKind.Blank
+				local blank = slot.kind == "blank"
 				local label = blank and L.BlankSlot or (slot.name or L.UnknownSlot)
 
 				-- Coloured by the slot's own player: the GUID is the input because a slot holds the

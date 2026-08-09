@@ -91,7 +91,7 @@ end
 ---@param index integer
 ---@param slot SpotlightsSlot?
 local function Fill(preview, index, slot)
-	local blank = slot and slot.kind == Private.Enum.SlotKind.Blank
+	local blank = slot and slot.kind == "blank"
 	local name = slot and slot.name
 
 	preview.name:SetText(

@@ -211,7 +211,7 @@
 --- forever and nothing moves except by user edit; off, cells are filled by present players in slot
 --- order and spacers collapse with them.
 ---@class SpotlightsLayoutConfig
----@field orientation Orientation
+---@field orientation SpotlightsOrientation
 ---@field stride integer
 ---@field growX GrowX
 ---@field growY GrowY

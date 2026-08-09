@@ -60,7 +60,7 @@ local function SlotLabel(index)
 		return L.UnknownSlot
 	end
 
-	if slot.kind == Private.Enum.SlotKind.Blank then
+	if slot.kind == "blank" then
 		return L.BlankSlot
 	end
 
