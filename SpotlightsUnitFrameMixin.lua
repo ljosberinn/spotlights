@@ -54,23 +54,13 @@ local function Appearance()
 	return Private.DB and Private.DB.appearance
 end
 
---- Prescience. A single fixed ID rather than a per-class table: `C_Spell.IsSpellInRange` answers
---- non-nil only when the spell is known and castable, so a player who cannot cast this falls through
---- to the fallback path.
-local RANGE_SPELL = 409311
-
---- CheckInteractDistance index 4, "follow", at 28 yards. Shorter than the 40 of most friendly
---- spells, so it only answers when the spell itself does not.
-local FOLLOW_DISTANCE_INDEX = 4
-
 --- Whether `unit` is close enough to matter, for alpha purposes only.
 ---
---- **The return may be a secret value.** Pipe it into `SetAlphaFromBoolean`; never compare it, cache
---- it as a plain bool, or store it in a table we later iterate.
+--- **The return may be a secret value.** Pipe it directly into `SetAlphaFromBoolean`; never compare
+--- it, cache it as a plain bool, or store it in a table we later iterate. The companion validity
+--- return cannot be tested from tainted addon code, so the API's primary result is the only value
+--- used here.
 ---
---- Ordering is load-bearing: every step before the last answers with a plain boolean, keeping the
---- frame's Alpha aspect non-secret, and is skipped when its source turns out secret. Only
---- `UnitInRange` is unconditionally secret, and it is the last resort.
 ---@param unit string
 ---@return boolean inRange
 local function IsInRange(unit)
@@ -86,27 +76,6 @@ local function IsInRange(unit)
 		return false
 	end
 
-	-- Plain booleans, measured: the primary source. nil means the spell cannot be cast on this unit
-	-- at all -- not the same answer as out of range -- so it falls through instead of resolving.
-	local inSpellRange = C_Spell.IsSpellInRange(RANGE_SPELL, unit)
-
-	if inSpellRange ~= nil then
-		return inSpellRange
-	end
-
-	if not InCombatLockdown() then
-		local canInteract = CheckInteractDistance(unit, FOLLOW_DISTANCE_INDEX)
-
-		if not issecretvalue(canInteract) and canInteract ~= nil then
-			-- Normalised rather than returned as-is: SetAlphaFromBoolean type-checks its first
-			-- argument, and this API has returned a truthy number historically.
-			return canInteract ~= false
-		end
-	end
-
-	-- Unconditionally SecretReturns, and the only option left once we are in combat. Its second
-	-- return is deliberately dropped: comparing checkedRange against inRange is what makes
-	-- CompactUnitFrame_UpdateInRange throw.
 	local inRange = UnitInRange(unit)
 
 	return inRange
@@ -213,7 +182,8 @@ function SpotlightsUnitFrameMixin:UpdateHealthColor()
 		bgR, bgG, bgB, bgA = r * BACKGROUND_MULTIPLIER, g * BACKGROUND_MULTIPLIER, b * BACKGROUND_MULTIPLIER, 1
 	elseif appearance and not appearance.healthUseClassColor then
 		r, g, b, a = appearance.healthColorR, appearance.healthColorG, appearance.healthColorB, appearance.healthColorA
-		bgR, bgG, bgB, bgA = appearance.healthBgColorR, appearance.healthBgColorG, appearance.healthBgColorB, appearance.healthBgColorA
+		bgR, bgG, bgB, bgA = appearance.healthBgColorR, appearance.healthBgColorG, appearance.healthBgColorB,
+			appearance.healthBgColorA
 	else
 		local _, classFilename = UnitClass(unit)
 		local color = classFilename and RAID_CLASS_COLORS[classFilename]
@@ -273,7 +243,8 @@ function SpotlightsUnitFrameMixin:UpdateHealthText()
 
 	HealthTextLayout(self.healthText, appearance)
 
-	local r, g, b, a = appearance.healthTextColorR, appearance.healthTextColorG, appearance.healthTextColorB, appearance.healthTextColorA
+	local r, g, b, a = appearance.healthTextColorR, appearance.healthTextColorG, appearance.healthTextColorB,
+		appearance.healthTextColorA
 	if appearance.healthTextUseClassColor then
 		local _, classFilename = UnitClass(unit)
 		local color = classFilename and RAID_CLASS_COLORS[classFilename]
@@ -641,40 +612,8 @@ function SpotlightsUnitFrameMixin:OnUnitAttributeChanged(value)
 	end
 
 	self:UpdateAll()
-
-	-- Range is the one thing UpdateAll cannot get right on the first try, and it needs a second
-	-- attempt rather than a better first one.
-	--
-	-- configureChildren assigns the unit at :213 and only calls Show() at :224, so this runs against
-	-- a unit the client has had no frame to answer range questions about yet -- and
-	-- UNIT_IN_RANGE_UPDATE is edge-triggered, so a premature answer here is never revisited.
-	--
-	-- One deferred re-assert closes that window. It fires once per changed unit, which the early-out
-	-- above makes true. UpdateRangeAlpha re-reads displayedUnit, so a unit that changed again or was
-	-- released in the meantime is handled by the same call.
-	RunNextFrame(function()
-		self:UpdateRangeAlpha()
-	end)
 end
 
---- Keeps the cached CVar current, and redraws on the change.
----
---- This puts a tainted closure of ours into a registry Blizzard owns and every addon shares -- the
---- exact shape WU-5b was written to escape. **CVarCallbackRegistry is built to take tainted
---- registrants.** `RegisterCallback` routes the event-key insert through an attribute delegate,
---- commented in Blizzard's source as a "taint barrier" (`CallbackRegistry.lua:106-126`), and
---- `TriggerEvent` dispatches every callback through `securecallfunction` inside a
---- `secureexecuterange` (`CallbackRegistry.lua:198-204`) -- so our taint cannot reach the iteration
---- or any other registrant. `standardIconAnchor` was a bare module-level table handed straight to a
---- C function, with no barrier.
----
---- The rule: **sharing state with Blizzard is safe exactly where Blizzard wrote a barrier for it,
---- and nowhere else.**
----
---- The discarded first parameter is the **owner**, not the value: the dispatch is
---- `securecallfunction(func, owner, ...)` (`CallbackRegistry.lua:209-210`), and omitting `owner` at
---- registration means it is a generated numeric ID rather than nil. Taking `value` as the first
---- parameter would silently compare that ID against "0" and leave the feature permanently enabled.
 CVarCallbackRegistry:RegisterCallback(TEMP_MAX_HEALTH_LOSS_CVAR, function(_, value)
 	-- Blizzard's own conversion (`CvarUtil.lua:158-161`), not `not not value`: CVAR_UPDATE carries
 	-- the value as a *string*, so "0" is the disabled case and is truthy in Lua.
