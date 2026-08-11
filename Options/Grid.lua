@@ -13,7 +13,7 @@ local _, Private = ...
 local COLUMN_LABEL_WIDTH = 100
 local FILL_ORDER_WIDTH = 280
 
-local STRIDE_MIN, STRIDE_MAX = 1, 40
+local STRIDE_MIN, STRIDE_MAX = 1, 29
 local SPACING_MIN, SPACING_MAX = 0, 40
 
 local Orientation = Private.Enum.Orientation

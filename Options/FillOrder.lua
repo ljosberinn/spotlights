@@ -9,10 +9,12 @@ Private.FillOrder = {}
 --- `Private.Layout.Extent`), so the two can never disagree about what a given orientation, stride,
 --- growX and growY combination produces.
 ---
---- A cell is one of three things: **filled** (a configured slot, numbered), **next** (where slot
---- `#slots + 1` would land, greyed), or **unused** (dashed). The rectangle shown is exactly big
---- enough to hold the next slot -- no padding row added purely to have something to dash, so a
---- config that fills a rectangle exactly shows no unused cells at all.
+--- A cell is one of three things: **filled** (a configured slot), **next** (where slot
+--- `#slots + 1` would land, greyed), or **unused** (dashed). Every cell carries its own ordinal --
+--- the pane's whole point is showing the *order* -- with kind read off opacity rather than off
+--- whether a number is there at all. The rectangle shown is exactly big enough to hold the next
+--- slot -- no padding row added purely to have something to dash, so a config that fills a rectangle
+--- exactly shows no unused cells at all.
 
 local Orientation = Private.Enum.Orientation
 local GrowX = Private.Enum.GrowX
@@ -38,15 +40,13 @@ end
 ---@field row integer 1-based, top-left origin of the drawn rectangle
 ---@field column integer
 
----@class FillOrderCell
----@field frame Frame
+--- A cell acquired from the pool below. The extra regions are stashed directly on the frame --
+--- `postCreate` builds them once, the pool only ever hides and repositions the frame itself.
+---@class FillOrderCellFrame : Frame
 ---@field fill Texture
 ---@field solid Texture[] four continuous edges, shown for filled/next cells
 ---@field dashes Texture[] segments along all four edges, shown for unused cells
 ---@field number FontString
-
----@type FillOrderCell[]
-local cells = {}
 
 ---@param parent Frame
 ---@return Texture
@@ -58,19 +58,10 @@ local function CreateEdge(parent)
 	return edge
 end
 
----@param index integer
----@param parent Frame
----@return FillOrderCell
-local function Acquire(index, parent)
-	local cell = cells[index]
-
-	if cell then
-		return cell
-	end
-
-	local frame = CreateFrame("Frame", nil, parent)
-
-	local fill = frame:CreateTexture(nil, "ARTWORK")
+--- Builds a cell's regions once, the first time the pool hands out a frame it has not seen before.
+---@param cell FillOrderCellFrame
+local function PostCreateCell(cell)
+	local fill = cell:CreateTexture(nil, "ARTWORK")
 
 	fill:SetColorTexture(1, 1, 1, 1)
 
@@ -78,52 +69,42 @@ local function Acquire(index, parent)
 	local dashes = {}
 
 	for _ = 1, 4 do
-		solid[#solid + 1] = CreateEdge(frame)
+		solid[#solid + 1] = CreateEdge(cell)
 	end
 
 	for _ = 1, DASH_COUNT * 4 do
-		dashes[#dashes + 1] = CreateEdge(frame)
+		dashes[#dashes + 1] = CreateEdge(cell)
 	end
 
-	local number = frame:CreateFontString(nil, "OVERLAY", NUMBER_FONT)
+	local number = cell:CreateFontString(nil, "OVERLAY", NUMBER_FONT)
 
-	number:SetPoint("CENTER", frame, "CENTER", 0, 0)
+	number:SetPoint("CENTER", cell, "CENTER", 0, 0)
 
-	cell = { frame = frame, fill = fill, solid = solid, dashes = dashes, number = number }
-	cells[index] = cell
-
-	return cell
-end
-
----@param first integer
-local function HideFrom(first)
-	for i = first, #cells do
-		cells[i].frame:Hide()
-	end
+	cell.fill, cell.solid, cell.dashes, cell.number = fill, solid, dashes, number
 end
 
 --- Positions the four continuous edges and the dashed segments for the current cell size. Both sets
 --- exist on every cell regardless of state -- only their `Show`/`Hide` differs -- so a cell that
 --- changes kind between passes never has to build geometry it lacked.
----@param cell FillOrderCell
+---@param cell FillOrderCellFrame
 ---@param size number
 local function LayoutEdges(cell, size)
 	local top, bottom, left, right = cell.solid[1], cell.solid[2], cell.solid[3], cell.solid[4]
 
 	top:ClearAllPoints()
-	top:SetPoint("TOPLEFT", cell.frame, "TOPLEFT", 0, 0)
+	top:SetPoint("TOPLEFT", cell, "TOPLEFT", 0, 0)
 	top:SetSize(size, BORDER_THICKNESS)
 
 	bottom:ClearAllPoints()
-	bottom:SetPoint("BOTTOMLEFT", cell.frame, "BOTTOMLEFT", 0, 0)
+	bottom:SetPoint("BOTTOMLEFT", cell, "BOTTOMLEFT", 0, 0)
 	bottom:SetSize(size, BORDER_THICKNESS)
 
 	left:ClearAllPoints()
-	left:SetPoint("TOPLEFT", cell.frame, "TOPLEFT", 0, 0)
+	left:SetPoint("TOPLEFT", cell, "TOPLEFT", 0, 0)
 	left:SetSize(BORDER_THICKNESS, size)
 
 	right:ClearAllPoints()
-	right:SetPoint("TOPRIGHT", cell.frame, "TOPRIGHT", 0, 0)
+	right:SetPoint("TOPRIGHT", cell, "TOPRIGHT", 0, 0)
 	right:SetSize(BORDER_THICKNESS, size)
 
 	local dashLength = math.max((size - (DASH_COUNT - 1) * DASH_GAP) / DASH_COUNT, 1)
@@ -134,36 +115,36 @@ local function LayoutEdges(cell, size)
 		local dashTop = cell.dashes[i]
 
 		dashTop:ClearAllPoints()
-		dashTop:SetPoint("TOPLEFT", cell.frame, "TOPLEFT", offset, 0)
+		dashTop:SetPoint("TOPLEFT", cell, "TOPLEFT", offset, 0)
 		dashTop:SetSize(dashLength, BORDER_THICKNESS)
 
 		local dashBottom = cell.dashes[DASH_COUNT + i]
 
 		dashBottom:ClearAllPoints()
-		dashBottom:SetPoint("BOTTOMLEFT", cell.frame, "BOTTOMLEFT", offset, 0)
+		dashBottom:SetPoint("BOTTOMLEFT", cell, "BOTTOMLEFT", offset, 0)
 		dashBottom:SetSize(dashLength, BORDER_THICKNESS)
 
 		local dashLeft = cell.dashes[DASH_COUNT * 2 + i]
 
 		dashLeft:ClearAllPoints()
-		dashLeft:SetPoint("TOPLEFT", cell.frame, "TOPLEFT", 0, -offset)
+		dashLeft:SetPoint("TOPLEFT", cell, "TOPLEFT", 0, -offset)
 		dashLeft:SetSize(BORDER_THICKNESS, dashLength)
 
 		local dashRight = cell.dashes[DASH_COUNT * 3 + i]
 
 		dashRight:ClearAllPoints()
-		dashRight:SetPoint("TOPRIGHT", cell.frame, "TOPRIGHT", 0, -offset)
+		dashRight:SetPoint("TOPRIGHT", cell, "TOPRIGHT", 0, -offset)
 		dashRight:SetSize(BORDER_THICKNESS, dashLength)
 	end
 
 	cell.fill:ClearAllPoints()
-	cell.fill:SetPoint("TOPLEFT", cell.frame, "TOPLEFT", BORDER_THICKNESS, -BORDER_THICKNESS)
-	cell.fill:SetPoint("BOTTOMRIGHT", cell.frame, "BOTTOMRIGHT", -BORDER_THICKNESS, BORDER_THICKNESS)
+	cell.fill:SetPoint("TOPLEFT", cell, "TOPLEFT", BORDER_THICKNESS, -BORDER_THICKNESS)
+	cell.fill:SetPoint("BOTTOMRIGHT", cell, "BOTTOMRIGHT", -BORDER_THICKNESS, BORDER_THICKNESS)
 end
 
 --- Applies a cell's kind to its regions. Colour and text are not size-dependent, so this runs from
 --- `Refresh` -- geometry runs from `Layout`, once the width (and so the cell size) is known.
----@param cell FillOrderCell
+---@param cell FillOrderCellFrame
 ---@param state FillOrderCellState
 ---@param index integer
 local function ApplyCellState(cell, state, index)
@@ -177,6 +158,9 @@ local function ApplyCellState(cell, state, index)
 		cell.dashes[i]:SetShown(dashed)
 	end
 
+	cell.number:SetText(tostring(index))
+	cell.number:Show()
+
 	if state.kind == "filled" then
 		cell.fill:Show()
 		cell.fill:SetColorTexture(1, 1, 1, 0.18)
@@ -185,8 +169,7 @@ local function ApplyCellState(cell, state, index)
 			cell.solid[i]:SetAlpha(0.5)
 		end
 
-		cell.number:SetText(tostring(index))
-		cell.number:Show()
+		cell.number:SetAlpha(1)
 	elseif state.kind == "next" then
 		cell.fill:Show()
 		cell.fill:SetColorTexture(1, 1, 1, 0.06)
@@ -195,7 +178,7 @@ local function ApplyCellState(cell, state, index)
 			cell.solid[i]:SetAlpha(0.25)
 		end
 
-		cell.number:Hide()
+		cell.number:SetAlpha(0.6)
 	else
 		cell.fill:Hide()
 
@@ -203,7 +186,7 @@ local function ApplyCellState(cell, state, index)
 			cell.dashes[i]:SetAlpha(0.15)
 		end
 
-		cell.number:Hide()
+		cell.number:SetAlpha(0.35)
 	end
 end
 
@@ -274,60 +257,265 @@ local function Caption()
 	return string.format(L.FillOrderCaption, orientationLabel, config.stride, growXLabel, growYLabel)
 end
 
+--- The viewport's height caps here rather than fixing here: a config that fits in fewer rows gets a
+--- shorter pane instead of empty space below it, and only a config tall enough to hit the cap asks
+--- to scroll vertically. Width is not capped at all -- it takes whatever the `Split` beside the Fill
+--- column gives it, 280 in practice -- and scrolls horizontally the moment it does not fit.
+local VIEWPORT_MAX_HEIGHT = 150
+
+--- What each custom scrollbar (see below) costs the viewport's own content area.
+local SCROLLBAR_THICKNESS = 6
+local SCROLLBAR_GAP = 3
+local SCROLLBAR_RESERVE = SCROLLBAR_THICKNESS + SCROLLBAR_GAP
+
+--- Screen pixels of scroll per wheel notch. Blizzard's own scroll frames default to the same
+--- distance (`ScrollUtil.lua`'s `SetPanExtent(30)`), which is why sliders and lists across the game
+--- feel the same under the wheel regardless of what is inside them.
+local WHEEL_STEP = 30
+
+--- One axis's worth of a scrollbar: a track that jumps to wherever it is clicked, and a thumb sized
+--- and positioned from the scroll frame's own range. Both drawn with `SetColorTexture`, matching
+--- every other region in this pane -- a real `MinimalScrollBar` only ships vertical art, and this
+--- pane needs both axes to agree in style as much as in behaviour.
+---@param viewport Frame
+---@param scrollFrame ScrollFrame
+---@param horizontal boolean
+---@return Frame track, Frame thumb, fun() Update
+local function CreateScrollbar(viewport, scrollFrame, horizontal)
+	local track = CreateFrame("Frame", nil, viewport)
+
+	track:EnableMouse(true)
+
+	local trackTexture = track:CreateTexture(nil, "BACKGROUND")
+
+	trackTexture:SetAllPoints(track)
+	trackTexture:SetColorTexture(1, 1, 1, 0.05)
+
+	local thumb = CreateFrame("Frame", nil, track)
+
+	local thumbTexture = thumb:CreateTexture(nil, "ARTWORK")
+
+	thumbTexture:SetAllPoints(thumb)
+	thumbTexture:SetColorTexture(1, 1, 1, 0.35)
+
+	local function Range()
+		return horizontal and scrollFrame:GetHorizontalScrollRange() or scrollFrame:GetVerticalScrollRange()
+	end
+
+	local function Scroll()
+		return horizontal and scrollFrame:GetHorizontalScroll() or scrollFrame:GetVerticalScroll()
+	end
+
+	local function SetScroll(value)
+		if horizontal then
+			scrollFrame:SetHorizontalScroll(value)
+		else
+			scrollFrame:SetVerticalScroll(value)
+		end
+	end
+
+	--- Sizes and places the thumb from the current range -- called after every wheel step and
+	--- whenever the content's own size changes the range in the first place.
+	local function Update()
+		local range = Range()
+
+		-- Hidden outright rather than left empty: a bar nobody can move reads as broken, not as
+		-- "nothing to scroll".
+		if range <= 0 then
+			track:Hide()
+
+			return
+		end
+
+		track:Show()
+		thumb:Show()
+
+		local extent = horizontal and track:GetWidth() or track:GetHeight()
+
+		if extent <= 0 then
+			return
+		end
+
+		local viewExtent = horizontal and scrollFrame:GetWidth() or scrollFrame:GetHeight()
+		local contentExtent = viewExtent + range
+
+		-- Ten floors the thumb the way `minThumbExtent` does on the real templates: below it there
+		-- is nothing left to grab.
+		local thumbExtent = math.max(extent * (viewExtent / contentExtent), 10)
+		local travel = extent - thumbExtent
+		local fraction = Scroll() / range
+
+		if horizontal then
+			thumb:SetWidth(thumbExtent)
+			thumb:ClearAllPoints()
+			thumb:SetPoint("LEFT", track, "LEFT", fraction * travel, 0)
+		else
+			thumb:SetHeight(thumbExtent)
+			thumb:ClearAllPoints()
+			thumb:SetPoint("TOP", track, "TOP", 0, -fraction * travel)
+		end
+	end
+
+	--- Clicking anywhere on the track jumps to that fraction of the range, rather than paging by one
+	--- screenful -- the pane is a diagram a few hundred pixels wide, not a document.
+	track:SetScript("OnMouseDown", function(self)
+		local scale = self:GetEffectiveScale()
+		local range = Range()
+
+		if range <= 0 then
+			return
+		end
+
+		local fraction
+
+		if horizontal then
+			local left, width = self:GetLeft(), self:GetWidth()
+			local cursorX = GetCursorPosition()
+
+			fraction = width > 0 and Clamp((cursorX / scale - left) / width, 0, 1) or 0
+		else
+			local top, height = self:GetTop(), self:GetHeight()
+			local _, cursorY = GetCursorPosition()
+
+			fraction = height > 0 and Clamp((top - cursorY / scale) / height, 0, 1) or 0
+		end
+
+		SetScroll(fraction * range)
+		Update()
+	end)
+
+	return track, thumb, Update
+end
+
 ---@param page Frame
 ---@return SpotlightsNode
 function Private.FillOrder.Build(page)
 	local L = Private.L.Settings
 
-	local canvas = CreateFrame("Frame", nil, page) --[[@as SpotlightsNode]]
+	local viewport = CreateFrame("Frame", nil, page) --[[@as SpotlightsNode]]
+	local scrollFrame = CreateFrame("ScrollFrame", nil, viewport)
 
-	function canvas:Refresh()
-		Recompute()
+	scrollFrame:EnableMouseWheel(true)
 
-		for i = 1, computed.total do
-			local cell = Acquire(i, canvas)
+	local canvas = CreateFrame("Frame", nil, scrollFrame)
 
-			cell.frame:Show()
-			ApplyCellState(cell, computed.cells[i], i)
-		end
+	canvas:SetSize(1, 1)
+	scrollFrame:SetScrollChild(canvas)
 
-		HideFrom(computed.total + 1)
+	-- Every cell is the same kind of frame with the same regions, reused rather than rebuilt: the
+	-- pool hides and clears the anchor of whatever it takes back, and `PostCreateCell` runs once per
+	-- frame the pool has never handed out before.
+	local pool = CreateFramePool("Frame", canvas, nil, nil, nil, PostCreateCell)
+
+	---@type FillOrderCellFrame[]
+	local active = {}
+
+	local vTrack, _, UpdateVertical = CreateScrollbar(viewport, scrollFrame, false)
+	local hTrack, _, UpdateHorizontal = CreateScrollbar(viewport, scrollFrame, true)
+
+	local function UpdateBars()
+		UpdateVertical()
+		UpdateHorizontal()
 	end
 
-	function canvas:Layout(width)
-		self:SetWidth(width)
+	scrollFrame:SetScript("OnScrollRangeChanged", UpdateBars)
 
-		if computed.total == 0 or computed.columns == 0 then
-			self:SetHeight(1)
+	--- Shift turns the wheel sideways, the same convention the game's own horizontal lists use (the
+	--- Auction House's browse results among them) -- there is no second wheel to dedicate to the
+	--- second axis.
+	scrollFrame:SetScript("OnMouseWheel", function(self, delta)
+		if IsShiftKeyDown() then
+			local range = self:GetHorizontalScrollRange()
 
-			return 0
+			self:SetHorizontalScroll(Clamp(self:GetHorizontalScroll() - delta * WHEEL_STEP, 0, range))
+		else
+			local range = self:GetVerticalScrollRange()
+
+			self:SetVerticalScroll(Clamp(self:GetVerticalScroll() - delta * WHEEL_STEP, 0, range))
 		end
 
-		local size = math.min(math.max((width - (computed.columns - 1) * CELL_GAP) / computed.columns,
-			CELL_MIN), CELL_MAX)
+		UpdateBars()
+	end)
+
+	function viewport:Refresh()
+		Recompute()
+
+		pool:ReleaseAll()
 
 		for i = 1, computed.total do
-			local cell = cells[i]
-			local state = computed.cells[i]
+			local cell = pool:Acquire() --[[@as FillOrderCellFrame]]
 
-			cell.frame:ClearAllPoints()
-			cell.frame:SetPoint("TOPLEFT", self, "TOPLEFT", (state.column - 1) * (size + CELL_GAP),
-				-(state.row - 1) * (size + CELL_GAP))
-			cell.frame:SetSize(size, size)
-
-			LayoutEdges(cell, size)
+			cell:Show()
+			ApplyCellState(cell, computed.cells[i], i)
+			active[i] = cell
 		end
 
-		local height = computed.rows * size + (computed.rows - 1) * CELL_GAP
+		for i = computed.total + 1, #active do
+			active[i] = nil
+		end
+	end
 
-		self:SetHeight(math.max(height, 1))
+	function viewport:Layout(width)
+		-- Cell size depends only on width, so it -- and the content rectangle it implies -- can be
+		-- worked out before this frame's own height is decided.
+		local scrollWidth = math.max(width - SCROLLBAR_RESERVE, 1)
+		local size = CELL_MAX
+		local contentWidth, contentHeight = 1, 1
+		local hasCells = computed.total > 0 and computed.columns > 0
+
+		if hasCells then
+			-- Shrunk to fit first, floored at `CELL_MIN` -- only a config that still does not fit at
+			-- the floor asks the viewport to scroll horizontally rather than the cells to shrink
+			-- further.
+			size = math.min(math.max((scrollWidth - (computed.columns - 1) * CELL_GAP) / computed.columns,
+				CELL_MIN), CELL_MAX)
+
+			contentWidth = math.max(computed.columns * size + (computed.columns - 1) * CELL_GAP, 1)
+			contentHeight = math.max(computed.rows * size + (computed.rows - 1) * CELL_GAP, 1)
+		end
+
+		local height = math.min(contentHeight, VIEWPORT_MAX_HEIGHT)
+
+		self:SetSize(width, height)
+
+		scrollFrame:ClearAllPoints()
+		scrollFrame:SetPoint("TOPLEFT", self, "TOPLEFT", 0, 0)
+		scrollFrame:SetPoint("BOTTOMRIGHT", self, "BOTTOMRIGHT", -SCROLLBAR_RESERVE, SCROLLBAR_RESERVE)
+
+		vTrack:ClearAllPoints()
+		vTrack:SetPoint("TOPRIGHT", self, "TOPRIGHT", 0, 0)
+		vTrack:SetPoint("BOTTOMRIGHT", self, "BOTTOMRIGHT", 0, SCROLLBAR_RESERVE)
+		vTrack:SetWidth(SCROLLBAR_THICKNESS)
+
+		hTrack:ClearAllPoints()
+		hTrack:SetPoint("BOTTOMLEFT", self, "BOTTOMLEFT", 0, 0)
+		hTrack:SetPoint("BOTTOMRIGHT", self, "BOTTOMRIGHT", -SCROLLBAR_RESERVE, 0)
+		hTrack:SetHeight(SCROLLBAR_THICKNESS)
+
+		if hasCells then
+			for i = 1, computed.total do
+				local cell = active[i]
+				local state = computed.cells[i]
+
+				cell:ClearAllPoints()
+				cell:SetPoint("TOPLEFT", canvas, "TOPLEFT", (state.column - 1) * (size + CELL_GAP),
+					-(state.row - 1) * (size + CELL_GAP))
+				cell:SetSize(size, size)
+
+				LayoutEdges(cell, size)
+			end
+		end
+
+		canvas:SetSize(contentWidth, contentHeight)
+
+		UpdateBars()
 
 		return height
 	end
 
 	return Private.Node.Column(page, {
 		Private.Controls.SubHeading(page, L.FillOrderHeading),
-		canvas,
+		viewport,
 		Private.Controls.Paragraph(page, Caption),
 	})
 end
