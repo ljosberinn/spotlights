@@ -127,6 +127,12 @@ L.Settings.HealthTextOffsetX = "Health Offset X"
 L.Settings.HealthTextOffsetY = "Health Offset Y"
 L.Settings.ResetHealthText = "Reset Health Settings"
 
+L.Settings.PreviewHeading = "Preview"
+
+-- The size the previewed frame really is, then what the pane had to shrink it by to fit -- so a
+-- preview that reads smaller than its own numbers is explained rather than misleading.
+L.Settings.PreviewCaption = "%d × %d · shown at %d%%"
+
 L.Settings.Orientation = "Fill Direction"
 L.Settings.Horizontal = "Across, Then Down"
 L.Settings.Vertical = "Down, Then Across"

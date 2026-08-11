@@ -47,6 +47,8 @@ Options\Node.lua
 Options\Controls.lua
 Options\Panel.lua
 Options\General.lua
+Options\PreviewPane.lua
+Options\Appearance.lua
 Options\FillOrder.lua
 Options\Grid.lua
 Options\Profile.lua

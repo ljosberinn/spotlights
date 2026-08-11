@@ -47,11 +47,45 @@ local PREVIEW_CLASSES = {
 --- one frame ends and the next begins while dragging.
 local PREVIEW_HEALTH = { 1.0, 0.72, 0.94, 0.45, 0.83, 0.61, 1.0, 0.29 }
 
---- One preview frame, created on first use and never destroyed.
+--- What a grid preview keeps of the configured frame opacity, and what a spacer keeps instead of it.
+---
+--- Dimming is how a stand-in on screen is told apart from a live spotlight, and a spacer is dimmer
+--- still so it reads as a hole. Neither is a question the options pane has: it passes no dimming and
+--- shows the opacity setting as it is.
+local GRID_DIM = 0.7
+local BLANK_DIM = 0.25
+
+--- The fabricated absorb, as a fraction of maximum health. Enough of the bar to read as a shield
+--- rather than an artefact at the left edge.
+local PREVIEW_ABSORB = 0.2
+
+--- An inert spotlight: the real template with nothing behind it.
 ---
 --- No events, no attribute mirror, no unit. Every mixin updater early-outs on a nil `displayedUnit`,
 --- so inheriting them is free and none can fire on a unitless frame -- which lets this reuse the
 --- template wholesale.
+---
+--- Exported alongside `Fill` for the options frame's preview pane, which needs the same frame in a
+--- different parent. Everything switched off below is switched off for a reason, and one copy of
+--- those reasons is the point.
+---@param parent Frame
+---@return SpotlightsUnitFrame
+function Private.Preview.CreateFrame(parent)
+	local frame = CreateFrame("Button", nil, parent, "SpotlightsUnitFrameTemplate") --[[@as SpotlightsUnitFrame]]
+
+	-- Not clickable, not hoverable. The template inherits SecureUnitButtonTemplate's OnClick and
+	-- declares UnitFrame_OnEnter, both of which read a unit this frame will never have.
+	frame:EnableMouse(false)
+	frame:RegisterForClicks()
+
+	-- Nothing here ever calls UpdateSelectionHighlight, so hide the outline the XML left showing.
+	frame.selectionHighlight:SetAlpha(0)
+	frame.tempMaxHealthLoss:Hide()
+
+	return frame
+end
+
+--- One preview frame for a grid cell, created on first use and never destroyed.
 ---@param index integer
 ---@return SpotlightsUnitFrame
 local function Acquire(index)
@@ -61,51 +95,42 @@ local function Acquire(index)
 		return preview
 	end
 
-	preview = CreateFrame(
-		"Button",
-		nil,
-		Private.Mover.GetOverlay(),
-		"SpotlightsUnitFrameTemplate"
-	) --[[@as SpotlightsUnitFrame]]
-
-	-- Not clickable, not hoverable. The template inherits SecureUnitButtonTemplate's OnClick and
-	-- declares UnitFrame_OnEnter, both of which read a unit this frame will never have.
-	preview:EnableMouse(false)
-	preview:RegisterForClicks()
-
-	-- Nothing here ever calls UpdateSelectionHighlight, so hide the outline the XML left showing.
-	preview.selectionHighlight:SetAlpha(0)
-	preview.tempMaxHealthLoss:Hide()
-
+	preview = Private.Preview.CreateFrame(Private.Mover.GetOverlay())
 	previews[index] = preview
 
 	return preview
 end
 
---- Fills one preview with plausible contents.
+--- Fills one preview frame with plausible contents.
 ---
 --- Prefers the slot's *configured* name, so previewing a populated grid shows the people who will
 --- be in it. An unassigned slot falls back to a fabricated label; a spacer is left blank to read
 --- as a hole.
----@param preview SpotlightsUnitFrame
----@param index integer
+---
+--- Exported rather than kept local: the options frame's preview pane renders the very same
+--- appearance block onto the very same template (`Options/PreviewPane.lua`), and a second copy of
+--- this would be exactly the kind of thing that drifts from the original the first time either one
+--- changes. `dim` is the only thing the two disagree about -- see `GRID_DIM`.
+---@param frame SpotlightsUnitFrame
+---@param index integer decides the fabricated class and health, so a given cell reads the same twice
 ---@param slot SpotlightsSlot?
-local function Fill(preview, index, slot)
+---@param dim number? multiplied into the configured frame opacity; 1 when omitted
+function Private.Preview.Fill(frame, index, slot, dim)
 	local blank = slot and slot.kind == "blank"
 	local name = slot and slot.name
 
-	preview.name:SetText(
+	frame.name:SetText(
 		blank and "" or (name or string.format(Private.L.Preview.Label, index))
 	)
-	preview.healthText:SetText("")
+	frame.healthText:SetText("")
 
 	local class = PREVIEW_CLASSES[(index - 1) % #PREVIEW_CLASSES + 1]
 	local classColor = RAID_CLASS_COLORS[class]
 	local fraction = blank and 0 or PREVIEW_HEALTH[(index - 1) % #PREVIEW_HEALTH + 1]
 
 	-- Plain numbers on a 0..1 scale; nothing secret reaches a preview.
-	preview.healthBar:SetMinMaxValues(0, 1)
-	preview.healthBar:SetValue(fraction)
+	frame.healthBar:SetMinMaxValues(0, 1)
+	frame.healthBar:SetValue(fraction)
 
 	-- Texture before colour: SetStatusBarTexture resets the region's vertex colour to white, the
 	-- same trap UpdateTexture documents on the real frames.
@@ -114,8 +139,24 @@ local function Fill(preview, index, slot)
 	if appearance then
 		local path = Private.Media.StatusBar(appearance.barTexture)
 
-		preview.healthBar:SetStatusBarTexture(path)
-		preview.background:SetTexture(path)
+		frame.healthBar:SetStatusBarTexture(path)
+		frame.background:SetTexture(path)
+	end
+
+	--- `showAbsorb` is an appearance setting like the others, so a preview that answers for the
+	--- appearance block has to draw one rather than leave that checkbox with nothing to show.
+	---
+	--- The overlay a live absorb draws is the same shape: the bar spans the health bar's rectangle
+	--- and fills from its own left edge, so a fabricated fraction on the 0..1 scale the health value
+	--- already uses reads exactly as a real shield of that size would.
+	frame:CreateAbsorbBar()
+
+	local absorbBar = frame.spotlightsAbsorbBar
+
+	if absorbBar then
+		absorbBar:SetMinMaxValues(0, 1)
+		absorbBar:SetValue(PREVIEW_ABSORB)
+		absorbBar:SetShown(appearance ~= nil and appearance.showAbsorb)
 	end
 
 	-- The same static-or-class choice the live frame makes. A preview never disconnects or dies, so
@@ -134,36 +175,35 @@ local function Fill(preview, index, slot)
 			nameR, nameG, nameB, nameA = appearance.nameColorR, appearance.nameColorG, appearance.nameColorB, appearance.nameColorA
 		end
 
-		Private.NameStyle.ApplyLayout(preview.name, appearance)
-		preview.healthText:SetFont(Private.Media.Font(appearance.healthTextFont), appearance.healthTextFontSize, "OUTLINE")
-		preview.healthText:ClearAllPoints()
-		PixelUtil.SetPoint(preview.healthText, appearance.healthTextPoint, preview, appearance.healthTextPoint,
+		Private.NameStyle.ApplyLayout(frame.name, appearance)
+		frame.healthText:SetFont(Private.Media.Font(appearance.healthTextFont), appearance.healthTextFontSize, "OUTLINE")
+		frame.healthText:ClearAllPoints()
+		PixelUtil.SetPoint(frame.healthText, appearance.healthTextPoint, frame, appearance.healthTextPoint,
 			appearance.healthTextX, appearance.healthTextY)
-		preview.healthText:SetJustifyH("CENTER")
-		preview.healthText:SetShown(appearance.healthTextEnabled)
+		frame.healthText:SetJustifyH("CENTER")
+		frame.healthText:SetShown(appearance.healthTextEnabled)
 		if appearance.healthTextFormat == "percent" then
 			local percent = fraction * 100
-			preview.healthText:SetText(percent < 10 and string.format("%.1f%%", percent) or string.format("%.0f%%", percent))
+			frame.healthText:SetText(percent < 10 and string.format("%.1f%%", percent) or string.format("%.0f%%", percent))
 		elseif appearance.healthTextFormat == "absValueAbbreviated" then
-			preview.healthText:SetText(AbbreviateNumbers(fraction * 100000))
+			frame.healthText:SetText(AbbreviateNumbers(fraction * 100000))
 		else
-			preview.healthText:SetText(string.format("%d", fraction * 100000))
+			frame.healthText:SetText(string.format("%d", fraction * 100000))
 		end
 	end
 
-	preview.healthBar:SetStatusBarColor(healthR, healthG, healthB, healthA)
-	preview.background:SetVertexColor(bgR, bgG, bgB, bgA)
-	preview.name:SetVertexColor(nameR, nameG, nameB, nameA)
+	frame.healthBar:SetStatusBarColor(healthR, healthG, healthB, healthA)
+	frame.background:SetVertexColor(bgR, bgG, bgB, bgA)
+	frame.name:SetVertexColor(nameR, nameG, nameB, nameA)
 	local textR, textG, textB, textA = appearance and appearance.healthTextColorR or 0.5, appearance and appearance.healthTextColorG or 0.5, appearance and appearance.healthTextColorB or 0.5, appearance and appearance.healthTextColorA or 1
 	if appearance and appearance.healthTextUseClassColor then
 		textR, textG, textB, textA = classColor.r, classColor.g, classColor.b, 1
 	end
-	preview.healthText:SetVertexColor(textR, textG, textB, textA)
+	frame.healthText:SetVertexColor(textR, textG, textB, textA)
 
-	-- Dimmed as a whole so a preview is never mistaken for a live spotlight. Deliberately not
-	-- SetAlphaFromBoolean: there is no secret here, and the secret-safe setter would needlessly make
-	-- this frame's Alpha aspect secret.
-	preview:SetAlpha((blank and 0.25 or 0.7) * (appearance and appearance.frameAlpha or 1))
+	-- Deliberately not SetAlphaFromBoolean: there is no secret here, and the secret-safe setter would
+	-- needlessly make this frame's Alpha aspect secret.
+	frame:SetAlpha((blank and BLANK_DIM or (dim or 1)) * (appearance and appearance.frameAlpha or 1))
 end
 
 --- Positions and fills the preview for one cell, and decides whether it belongs on screen.
@@ -201,7 +241,7 @@ function Private.Preview.Place(index, point, x, y, config, slot)
 	preview:SetSize(config.frameWidth, config.frameHeight)
 	PixelUtil.SetPoint(preview, point, overlay, point, x, y)
 
-	Fill(preview, index, slot)
+	Private.Preview.Fill(preview, index, slot, GRID_DIM)
 
 	-- Occupancy is decided by the header's *child*, and by `IsVisible` rather than `IsShown`. The
 	-- header is `Show()`n at creation and stays so forever, so `header:IsShown()` is true even out

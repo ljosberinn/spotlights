@@ -16,6 +16,7 @@
 ---@field Widgets SpotlightsWidgets
 ---@field Node SpotlightsNodeKit
 ---@field Controls SpotlightsControls
+---@field PreviewPane SpotlightsPreviewPane
 ---@field Options SpotlightsOptions
 ---@field Profile SpotlightsProfile
 ---@field RosterList SpotlightsRosterList
@@ -45,9 +46,12 @@
 ---@class SpotlightsTabSystemFrame : Frame, TabSystemTemplate
 ---@field tabTemplate string
 ---@field maxTabWidth number
+---@field minTabWidth number
+---@field spacing number between one tab and the next, read by the layout frame under the mixin
 ---@field AddTab fun(self: SpotlightsTabSystemFrame, tabText: string): integer
 ---@field SetTabSelectedCallback fun(self: SpotlightsTabSystemFrame, callback: fun(tabID: integer, isUserAction: boolean?): boolean?)
----@field SetTab fun(self: SpotlightsTabSystemFrame, tabID: integer, isUserAction: boolean?)
+---@field SetTab fun(self: SpotlightsTabSystemFrame, tabID: integer, isUserAction: boolean?) runs the selection callback
+---@field SetTabVisuallySelected fun(self: SpotlightsTabSystemFrame, tabID: integer) paints the selection without running the callback
 
 --- The reworked options window.
 ---

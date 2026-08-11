@@ -33,6 +33,18 @@ local SECTION_BODY_GAP = 6
 local SECTION_ARROW_X = 2
 local SECTION_TITLE_GAP = 10
 
+--- `TabSystemButtonTemplate`'s own height, and what the selected tab's art reaches above its
+--- rectangle -- the same emphasis the panel's own strip is nudged down for. Reserved above the strip
+--- rather than let overlap whatever the sub-tabs sit under.
+local SUBTAB_HEIGHT = 32
+local SUBTAB_TOP_PAD = 3
+
+--- Where a sub-tab strip starts, and the narrowest a tab may be. Blizzard's own inner strips are
+--- inset from the pane they head rather than flush with it, and a one-word tab sized to its text
+--- alone reads as a fragment of a strip rather than as a tab.
+local SUBTAB_INSET = 4
+local SUBTAB_MIN_WIDTH = 90
+
 --- What a `ScrollPane` reserves at its right edge for the scrollbar.
 ---
 --- `MinimalScrollBar` is eight pixels wide; the rest is the gap either side of it, so a control laid out
@@ -458,6 +470,118 @@ function Private.Node.Section(parent, Title, Summary, body, startOpen)
 	end
 
 	return section
+end
+
+--- One sub-tab: the name on its button, and the node it shows.
+---@class SpotlightsSubTab
+---@field name string
+---@field node SpotlightsNode
+
+--- A strip of tabs and the pages behind it, handed back as **two nodes** rather than one.
+---
+--- Two, because the strip and the page it selects do not always sit one directly above the other: the
+--- Appearance tab runs its strip across the full content width and pairs the page with a preview pane
+--- beside it, so the caller composes them -- `Column { strip, Split(pages, pane) }` -- and only the
+--- selection is shared.
+---
+--- `TabSystemTopButtonTemplate` rather than the bottom-oriented `TabSystemButtonTemplate`: a top tab
+--- carries its art on its *lower* edge, which is what makes a strip read as sitting on the page under
+--- it. Blizzard's own inner strips (`Blizzard_HousingDashboardHouseInfoContent.xml`) are that one for
+--- the same reason; the bottom variant is for tabs hanging off a frame, as the old panel's aura strip
+--- does.
+---
+--- The page nodes are built by the caller before this is called, and all of them up front rather than
+--- on first selection: a page here is a handful of controls whose dropdowns already resolve their
+--- lists per menu-open, so there is nothing left for deferring to save. Only the selected page is
+--- shown and refreshed, so the others cost nothing per pass.
+---
+--- `OnSelected` runs after a click has changed the selection, and has to be whatever re-reads and
+--- re-lays-out the tree -- the page that just became visible has never been refreshed, or was
+--- refreshed against a state that has since moved on. `Relayout` alone would not do: visibility is
+--- decided in `Refresh`.
+---@param parent Frame
+---@param tabs SpotlightsSubTab[]
+---@param OnSelected fun()
+---@return SpotlightsNode strip, SpotlightsNode pages
+function Private.Node.SubTabs(parent, tabs, OnSelected)
+	local strip = CreateFrame("Frame", nil, parent) --[[@as SpotlightsNode]]
+	local pages = CreateFrame("Frame", nil, parent) --[[@as SpotlightsNode]]
+
+	local selected = 1
+
+	---@type SpotlightsNode[]
+	local nodes = {}
+
+	for i = 1, #tabs do
+		nodes[i] = tabs[i].node
+	end
+
+	Adopt(pages, nodes)
+
+	-- Built in Lua rather than XML so the tab pool sees the button template during `OnLoad`, as both
+	-- panels' own strips are. The frame sizes itself from its children, so nothing here may set its
+	-- width or height.
+	local tabSystem = CreateFrame("Frame", nil, strip, "HorizontalLayoutFrame") --[[@as SpotlightsTabSystemFrame]]
+
+	tabSystem.tabTemplate = "TabSystemTopButtonTemplate"
+	tabSystem.minTabWidth = SUBTAB_MIN_WIDTH
+
+	-- `TabSystemTemplate`'s own default, which a frame created without its KeyValues does not inherit.
+	tabSystem.spacing = 1
+
+	Mixin(tabSystem, TabSystemMixin)
+	TabSystemMixin.OnLoad(tabSystem)
+
+	tabSystem:SetPoint("TOPLEFT", strip, "TOPLEFT", SUBTAB_INSET, -SUBTAB_TOP_PAD)
+
+	for i = 1, #tabs do
+		tabSystem:AddTab(tabs[i].name)
+	end
+
+	--- Painted directly rather than through `SetTab`, which would run the callback -- and the callback
+	--- refreshes a tree that is still being built.
+	tabSystem:SetTabVisuallySelected(selected)
+
+	tabSystem:SetTabSelectedCallback(function(tabID)
+		selected = tabID
+
+		OnSelected()
+	end)
+
+	function strip:Refresh() end
+
+	function strip:Layout(width)
+		local height = SUBTAB_TOP_PAD + SUBTAB_HEIGHT
+
+		self:SetSize(width, height)
+
+		return height
+	end
+
+	function pages:Refresh()
+		for i = 1, #nodes do
+			nodes[i]:SetShown(i == selected)
+		end
+
+		nodes[selected]:Refresh()
+	end
+
+	function pages:Layout(width)
+		self:SetWidth(width)
+
+		local node = nodes[selected]
+
+		node:ClearAllPoints()
+		node:SetPoint("TOPLEFT", self, "TOPLEFT", 0, 0)
+
+		local height = LayoutChild(self, node, width)
+
+		self:SetHeight(math.max(height, 1))
+
+		return height
+	end
+
+	return strip, pages
 end
 
 --- A fixed-height window onto a node that may be taller than it.
