@@ -257,150 +257,23 @@ local function Caption()
 	return string.format(L.FillOrderCaption, orientationLabel, config.stride, growXLabel, growYLabel)
 end
 
---- The viewport's height caps here rather than fixing here: a config that fits in fewer rows gets a
---- shorter pane instead of empty space below it, and only a config tall enough to hit the cap asks
---- to scroll vertically. Width is not capped at all -- it takes whatever the `Split` beside the Fill
---- column gives it, 280 in practice -- and scrolls horizontally the moment it does not fit.
-local VIEWPORT_MAX_HEIGHT = 150
+--- What the heading above the pane and the caption below it cost the page's height between them --
+--- the two gaps `Column` adds plus a two-line allowance for the caption, which wraps in most
+--- locales at 280px. The scroll pane gets whatever is left, so it fills the tab rather than a guess
+--- at how tall the grid "usually" is.
+local HEADING_RESERVE = 20 + 6
+local CAPTION_RESERVE = 28 + 6
 
---- What each custom scrollbar (see below) costs the viewport's own content area.
-local SCROLLBAR_THICKNESS = 6
-local SCROLLBAR_GAP = 3
-local SCROLLBAR_RESERVE = SCROLLBAR_THICKNESS + SCROLLBAR_GAP
-
---- Screen pixels of scroll per wheel notch. Blizzard's own scroll frames default to the same
---- distance (`ScrollUtil.lua`'s `SetPanExtent(30)`), which is why sliders and lists across the game
---- feel the same under the wheel regardless of what is inside them.
-local WHEEL_STEP = 30
-
---- One axis's worth of a scrollbar: a track that jumps to wherever it is clicked, and a thumb sized
---- and positioned from the scroll frame's own range. Both drawn with `SetColorTexture`, matching
---- every other region in this pane -- a real `MinimalScrollBar` only ships vertical art, and this
---- pane needs both axes to agree in style as much as in behaviour.
----@param viewport Frame
----@param scrollFrame ScrollFrame
----@param horizontal boolean
----@return Frame track, Frame thumb, fun() Update
-local function CreateScrollbar(viewport, scrollFrame, horizontal)
-	local track = CreateFrame("Frame", nil, viewport)
-
-	track:EnableMouse(true)
-
-	local trackTexture = track:CreateTexture(nil, "BACKGROUND")
-
-	trackTexture:SetAllPoints(track)
-	trackTexture:SetColorTexture(1, 1, 1, 0.05)
-
-	local thumb = CreateFrame("Frame", nil, track)
-
-	local thumbTexture = thumb:CreateTexture(nil, "ARTWORK")
-
-	thumbTexture:SetAllPoints(thumb)
-	thumbTexture:SetColorTexture(1, 1, 1, 0.35)
-
-	local function Range()
-		return horizontal and scrollFrame:GetHorizontalScrollRange() or scrollFrame:GetVerticalScrollRange()
-	end
-
-	local function Scroll()
-		return horizontal and scrollFrame:GetHorizontalScroll() or scrollFrame:GetVerticalScroll()
-	end
-
-	local function SetScroll(value)
-		if horizontal then
-			scrollFrame:SetHorizontalScroll(value)
-		else
-			scrollFrame:SetVerticalScroll(value)
-		end
-	end
-
-	--- Sizes and places the thumb from the current range -- called after every wheel step and
-	--- whenever the content's own size changes the range in the first place.
-	local function Update()
-		local range = Range()
-
-		-- Hidden outright rather than left empty: a bar nobody can move reads as broken, not as
-		-- "nothing to scroll".
-		if range <= 0 then
-			track:Hide()
-
-			return
-		end
-
-		track:Show()
-		thumb:Show()
-
-		local extent = horizontal and track:GetWidth() or track:GetHeight()
-
-		if extent <= 0 then
-			return
-		end
-
-		local viewExtent = horizontal and scrollFrame:GetWidth() or scrollFrame:GetHeight()
-		local contentExtent = viewExtent + range
-
-		-- Ten floors the thumb the way `minThumbExtent` does on the real templates: below it there
-		-- is nothing left to grab.
-		local thumbExtent = math.max(extent * (viewExtent / contentExtent), 10)
-		local travel = extent - thumbExtent
-		local fraction = Scroll() / range
-
-		if horizontal then
-			thumb:SetWidth(thumbExtent)
-			thumb:ClearAllPoints()
-			thumb:SetPoint("LEFT", track, "LEFT", fraction * travel, 0)
-		else
-			thumb:SetHeight(thumbExtent)
-			thumb:ClearAllPoints()
-			thumb:SetPoint("TOP", track, "TOP", 0, -fraction * travel)
-		end
-	end
-
-	--- Clicking anywhere on the track jumps to that fraction of the range, rather than paging by one
-	--- screenful -- the pane is a diagram a few hundred pixels wide, not a document.
-	track:SetScript("OnMouseDown", function(self)
-		local scale = self:GetEffectiveScale()
-		local range = Range()
-
-		if range <= 0 then
-			return
-		end
-
-		local fraction
-
-		if horizontal then
-			local left, width = self:GetLeft(), self:GetWidth()
-			local cursorX = GetCursorPosition()
-
-			fraction = width > 0 and Clamp((cursorX / scale - left) / width, 0, 1) or 0
-		else
-			local top, height = self:GetTop(), self:GetHeight()
-			local _, cursorY = GetCursorPosition()
-
-			fraction = height > 0 and Clamp((top - cursorY / scale) / height, 0, 1) or 0
-		end
-
-		SetScroll(fraction * range)
-		Update()
-	end)
-
-	return track, thumb, Update
-end
+--- Floor for the scroll pane itself, in case a future tab makes `page` shorter than this pane's
+--- chrome costs -- better a cramped pane than a negative height Blizzard errors on.
+local MIN_SCROLL_HEIGHT = 80
 
 ---@param page Frame
 ---@return SpotlightsNode
 function Private.FillOrder.Build(page)
 	local L = Private.L.Settings
 
-	local viewport = CreateFrame("Frame", nil, page) --[[@as SpotlightsNode]]
-	local scrollFrame = CreateFrame("ScrollFrame", nil, viewport)
-
-	scrollFrame:EnableMouseWheel(true)
-
-	local canvas = CreateFrame("Frame", nil, scrollFrame)
-
-	canvas:SetSize(1, 1)
-	scrollFrame:SetScrollChild(canvas)
+	local canvas = CreateFrame("Frame", nil, page) --[[@as SpotlightsNode]]
 
 	-- Every cell is the same kind of frame with the same regions, reused rather than rebuilt: the
 	-- pool hides and clears the anchor of whatever it takes back, and `PostCreateCell` runs once per
@@ -410,34 +283,7 @@ function Private.FillOrder.Build(page)
 	---@type FillOrderCellFrame[]
 	local active = {}
 
-	local vTrack, _, UpdateVertical = CreateScrollbar(viewport, scrollFrame, false)
-	local hTrack, _, UpdateHorizontal = CreateScrollbar(viewport, scrollFrame, true)
-
-	local function UpdateBars()
-		UpdateVertical()
-		UpdateHorizontal()
-	end
-
-	scrollFrame:SetScript("OnScrollRangeChanged", UpdateBars)
-
-	--- Shift turns the wheel sideways, the same convention the game's own horizontal lists use (the
-	--- Auction House's browse results among them) -- there is no second wheel to dedicate to the
-	--- second axis.
-	scrollFrame:SetScript("OnMouseWheel", function(self, delta)
-		if IsShiftKeyDown() then
-			local range = self:GetHorizontalScrollRange()
-
-			self:SetHorizontalScroll(Clamp(self:GetHorizontalScroll() - delta * WHEEL_STEP, 0, range))
-		else
-			local range = self:GetVerticalScrollRange()
-
-			self:SetVerticalScroll(Clamp(self:GetVerticalScroll() - delta * WHEEL_STEP, 0, range))
-		end
-
-		UpdateBars()
-	end)
-
-	function viewport:Refresh()
+	function canvas:Refresh()
 		Recompute()
 
 		pool:ReleaseAll()
@@ -455,67 +301,48 @@ function Private.FillOrder.Build(page)
 		end
 	end
 
-	function viewport:Layout(width)
-		-- Cell size depends only on width, so it -- and the content rectangle it implies -- can be
-		-- worked out before this frame's own height is decided.
-		local scrollWidth = math.max(width - SCROLLBAR_RESERVE, 1)
-		local size = CELL_MAX
-		local contentWidth, contentHeight = 1, 1
-		local hasCells = computed.total > 0 and computed.columns > 0
+	function canvas:Layout(width)
+		self:SetWidth(width)
 
-		if hasCells then
-			-- Shrunk to fit first, floored at `CELL_MIN` -- only a config that still does not fit at
-			-- the floor asks the viewport to scroll horizontally rather than the cells to shrink
-			-- further.
-			size = math.min(math.max((scrollWidth - (computed.columns - 1) * CELL_GAP) / computed.columns,
-				CELL_MIN), CELL_MAX)
+		if computed.total == 0 or computed.columns == 0 then
+			self:SetHeight(1)
 
-			contentWidth = math.max(computed.columns * size + (computed.columns - 1) * CELL_GAP, 1)
-			contentHeight = math.max(computed.rows * size + (computed.rows - 1) * CELL_GAP, 1)
+			return 0
 		end
 
-		local height = math.min(contentHeight, VIEWPORT_MAX_HEIGHT)
+		-- Shrunk to fit first, floored at `CELL_MIN` -- a config that still does not fit at the floor
+		-- is left for the scroll pane to clip rather than the grid to shrink past legibility.
+		local size = math.min(math.max((width - (computed.columns - 1) * CELL_GAP) / computed.columns,
+			CELL_MIN), CELL_MAX)
 
-		self:SetSize(width, height)
+		for i = 1, computed.total do
+			local cell = active[i]
+			local state = computed.cells[i]
 
-		scrollFrame:ClearAllPoints()
-		scrollFrame:SetPoint("TOPLEFT", self, "TOPLEFT", 0, 0)
-		scrollFrame:SetPoint("BOTTOMRIGHT", self, "BOTTOMRIGHT", -SCROLLBAR_RESERVE, SCROLLBAR_RESERVE)
+			cell:ClearAllPoints()
+			cell:SetPoint("TOPLEFT", self, "TOPLEFT", (state.column - 1) * (size + CELL_GAP),
+				-(state.row - 1) * (size + CELL_GAP))
+			cell:SetSize(size, size)
 
-		vTrack:ClearAllPoints()
-		vTrack:SetPoint("TOPRIGHT", self, "TOPRIGHT", 0, 0)
-		vTrack:SetPoint("BOTTOMRIGHT", self, "BOTTOMRIGHT", 0, SCROLLBAR_RESERVE)
-		vTrack:SetWidth(SCROLLBAR_THICKNESS)
-
-		hTrack:ClearAllPoints()
-		hTrack:SetPoint("BOTTOMLEFT", self, "BOTTOMLEFT", 0, 0)
-		hTrack:SetPoint("BOTTOMRIGHT", self, "BOTTOMRIGHT", -SCROLLBAR_RESERVE, 0)
-		hTrack:SetHeight(SCROLLBAR_THICKNESS)
-
-		if hasCells then
-			for i = 1, computed.total do
-				local cell = active[i]
-				local state = computed.cells[i]
-
-				cell:ClearAllPoints()
-				cell:SetPoint("TOPLEFT", canvas, "TOPLEFT", (state.column - 1) * (size + CELL_GAP),
-					-(state.row - 1) * (size + CELL_GAP))
-				cell:SetSize(size, size)
-
-				LayoutEdges(cell, size)
-			end
+			LayoutEdges(cell, size)
 		end
 
-		canvas:SetSize(contentWidth, contentHeight)
+		local height = computed.rows * size + (computed.rows - 1) * CELL_GAP
 
-		UpdateBars()
+		self:SetHeight(math.max(height, 1))
 
 		return height
 	end
 
+	-- `ScrollPane` is the same fixed-viewport-plus-`MinimalScrollBar` pattern the old panel's tabs
+	-- scroll with (`Settings.lua:1920-2005`) and the rest of this kit already reuses -- one scrollbar
+	-- style across the whole panel rather than a second one invented for this pane alone.
+	local scrollHeight = math.max(page:GetHeight() - HEADING_RESERVE - CAPTION_RESERVE, MIN_SCROLL_HEIGHT)
+	local scrollPane = Private.Node.ScrollPane(page, canvas, scrollHeight)
+
 	return Private.Node.Column(page, {
 		Private.Controls.SubHeading(page, L.FillOrderHeading),
-		viewport,
+		scrollPane,
 		Private.Controls.Paragraph(page, Caption),
 	})
 end
