@@ -49,6 +49,8 @@ Options\Panel.lua
 Options\General.lua
 Options\FillOrder.lua
 Options\Grid.lua
+Options\Profile.lua
+Options\ImportExport.lua
 
 Settings.lua
 

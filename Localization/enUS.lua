@@ -61,6 +61,7 @@ L.Settings.ImportError = "Import failed: %s"
 L.Settings.ImportErrorPrefix = "the string does not start with SPOTLIGHTS!"
 L.Settings.ImportErrorDecode = "the string could not be decoded"
 L.Settings.ImportErrorPayload = "the decoded data is not a settings table"
+L.Settings.Copy = "Copy"
 
 L.Settings.ToggleMover = "Unlock / Lock"
 L.Settings.Recenter = "Return To Center"

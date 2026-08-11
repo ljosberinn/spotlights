@@ -340,7 +340,10 @@
     "SEARCH",
     "NORMAL_FONT_COLOR",
     "HIGHLIGHT_FONT_COLOR",
-    "BLACK_FONT_COLOR"
+    "BLACK_FONT_COLOR",
+    "ScrollFrame_OnLoad",
+    "GameTooltip_AddHighlightLine",
+    "Lerp"
   ],
   "Lua.workspace.ignoreDir": ["Libs"]
 }

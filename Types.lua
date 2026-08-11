@@ -17,6 +17,7 @@
 ---@field Node SpotlightsNodeKit
 ---@field Controls SpotlightsControls
 ---@field Options SpotlightsOptions
+---@field Profile SpotlightsProfile
 ---@field RosterList SpotlightsRosterList
 ---@field Settings SpotlightsSettings
 ---@field ContextMenu SpotlightsContextMenu

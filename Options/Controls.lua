@@ -754,6 +754,91 @@ function Private.Controls.ActionButton(parent, label, onClick, destructive)
 	return row
 end
 
+--- A scrolling multi-line text box: the Import/Export tab's read-only export pane and paste-in import
+--- pane.
+---
+--- `set` absent is what makes a box read-only -- `EditBox` has no such flag, so a keystroke is undone
+--- in `OnTextChanged` by resetting the text to `get()` whenever the two disagree, the trick the old
+--- `StaticPopup`'s read-only edit box used (`Settings.lua`'s `EditBoxOnTextChanged`). Selecting and
+--- copying still work; typing does not stick.
+---
+--- `InputScrollFrameTemplate` sizes its `EditBox` once, in its own `OnLoad`, against whatever width the
+--- frame happened to have at creation -- one pixel, since nothing has laid it out yet. `Layout` restates
+--- it every pass instead of relying on that.
+---@class SpotlightsTextAreaNode : SpotlightsNode
+---@field SetText fun(self: SpotlightsTextAreaNode, text: string)
+---@field Highlight fun(self: SpotlightsTextAreaNode) focuses the box and selects everything, for a Copy button
+---@param parent Frame
+---@param height number
+---@param get fun(): string
+---@param set (fun(value: string))? absent for a read-only box
+---@return SpotlightsTextAreaNode
+function Private.Controls.TextArea(parent, height, get, set)
+	local row = CreateFrame("Frame", nil, parent) --[[@as SpotlightsTextAreaNode]]
+
+	row.span = true
+
+	local scroll = CreateFrame("ScrollFrame", nil, row, "InputScrollFrameTemplate")
+
+	scroll:SetPoint("TOPLEFT", row, "TOPLEFT", 0, 0)
+
+	-- The template only reads `hideCharCount` in its own `OnLoad`, before this box has been told
+	-- anything -- hidden here instead, once, since nothing after this ever wants it shown.
+	scroll.CharCount:Hide()
+
+	local editBox = scroll.EditBox
+
+	editBox:SetAutoFocus(false)
+
+	if set then
+		editBox:SetScript("OnTextChanged", function(self)
+			set(self:GetText())
+		end)
+	else
+		editBox:SetScript("OnTextChanged", function(self)
+			local text = self:GetText()
+			local expected = get()
+
+			if text ~= expected then
+				self:SetText(expected)
+			end
+		end)
+
+		-- The design's own words for a read-only box: selected as soon as it is focused, not only
+		-- through the Copy button beside it.
+		editBox:SetScript("OnEditFocusGained", function(self)
+			self:HighlightText()
+		end)
+	end
+
+	function row:SetText(text)
+		editBox:SetText(text)
+	end
+
+	function row:Highlight()
+		editBox:SetFocus()
+		editBox:HighlightText()
+	end
+
+	function row:Refresh()
+		local text = get()
+
+		if editBox:GetText() ~= text then
+			editBox:SetText(text)
+		end
+	end
+
+	function row:Layout(width)
+		self:SetSize(width, height)
+		scroll:SetSize(width, height)
+		editBox:SetWidth(math.max(width - 18, 1))
+
+		return height
+	end
+
+	return row
+end
+
 --- A search box, for filtering a list beside it.
 ---
 --- `SearchBoxTemplate` drives its own clear button and instruction text from `OnTextChanged`, so the

@@ -42,7 +42,6 @@ local tabs = {}
 
 local activeTab = 1
 
-local EXPORT_PREFIX = "SPOTLIGHTS!"
 local EXPORT_POPUP = "SPOTLIGHTS_EXPORT"
 local IMPORT_POPUP = "SPOTLIGHTS_IMPORT"
 local IMPORT_ERROR_POPUP = "SPOTLIGHTS_IMPORT_ERROR"
@@ -51,59 +50,6 @@ local AURA_RELOAD_POPUP = "SPOTLIGHTS_AURA_RELOAD"
 
 local ShowImportPopup
 local ShowExportPopup
-
-local function CopyExportData()
-	local db = Private.DB
-	local payload = {}
-
-	if not db then
-		return payload
-	end
-
-	for key, value in pairs(db) do
-		if key ~= "position" and key ~= "slots" then
-			payload[key] = value
-		end
-	end
-
-	return payload
-end
-
-local function ExportString()
-	return EXPORT_PREFIX ..
-		C_EncodingUtil.EncodeBase64(C_EncodingUtil.CompressString(C_EncodingUtil.SerializeCBOR(CopyExportData())))
-end
-
----@param text string
----@return boolean, string?
-local function ImportString(text)
-	if string.sub(text, 1, #EXPORT_PREFIX) ~= EXPORT_PREFIX then
-		return false, "prefix"
-	end
-
-	local encoded = string.sub(text, #EXPORT_PREFIX + 1)
-	local ok, payload = pcall(function()
-		return C_EncodingUtil.DeserializeCBOR(C_EncodingUtil.DecompressString(C_EncodingUtil.DecodeBase64(encoded)))
-	end)
-
-	if not ok then
-		return false, "decode"
-	end
-
-	if type(payload) ~= "table" then
-		return false, "payload"
-	end
-
-	local current = Private.DB
-	payload.slots = current and current.slots or {}
-	payload.position = current and current.position or nil
-
-	local migrated = Private.Migration.Run(payload)
-	Private.DB = migrated
-	SpotlightsSaved = migrated
-
-	return true
-end
 
 local function ShowImportError(reason)
 	local L = Private.L.Settings
@@ -171,7 +117,7 @@ local function CreateWritablePopup()
 		hideOnEscape = true,
 		whileDead = true,
 		OnAccept = function(popup)
-			local success, reason = ImportString(strtrim(popup:GetEditBox():GetText()))
+			local success, reason = Private.Profile.ImportString(strtrim(popup:GetEditBox():GetText()))
 			if not success then
 				StaticPopup_Hide(IMPORT_POPUP)
 				ShowImportError(reason)
@@ -201,7 +147,7 @@ ShowImportPopup = function()
 end
 
 ShowExportPopup = function()
-	StaticPopupDialogs[EXPORT_POPUP] = CreateReadOnlyPopup(Private.L.Settings.Export, ExportString())
+	StaticPopupDialogs[EXPORT_POPUP] = CreateReadOnlyPopup(Private.L.Settings.Export, Private.Profile.ExportString())
 	StaticPopup_Hide(EXPORT_POPUP)
 	StaticPopup_Show(EXPORT_POPUP)
 end
