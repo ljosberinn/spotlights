@@ -104,6 +104,13 @@ L.Settings.GrowDown = "Abajo"
 L.Settings.GrowUp = "Arriba"
 L.Settings.SpacingX = "Espaciado horizontal"
 L.Settings.SpacingY = "Espaciado vertical"
+
+L.Settings.FillHeading = "Relleno"
+L.Settings.Spacing = "Espaciado"
+L.Settings.SpacingHorizontalShort = "H"
+L.Settings.SpacingVerticalShort = "V"
+L.Settings.FillOrderHeading = "Orden de relleno"
+L.Settings.FillOrderCaption = "%s · ajusta cada %d · crece %s, %s"
 L.Settings.AllowGaps = "Mostrar celdas vacías"
 L.Settings.AllowGapsHelp =
 "Activado, un jugador que abandona la banda deja su celda vacía y nada más se mueve. Desactivado, los destacados restantes cierran el hueco en cuanto salgas de combate."

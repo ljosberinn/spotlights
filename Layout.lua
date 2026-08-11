@@ -26,10 +26,14 @@ end
 ---
 --- `stride` is the user's single control and means columns when filling horizontally, rows when
 --- filling vertically -- which is why it cannot simply be called "columns".
+---
+--- Exported rather than kept local: the Grid tab's fill-order preview places the same indices the
+--- same way, and a second copy of this arithmetic is exactly the kind of thing that drifts from the
+--- original the first time either one changes.
 ---@param index integer
 ---@param config SpotlightsLayoutConfig
 ---@return integer row, integer column
-local function CellOf(index, config)
+function Private.Layout.CellOf(index, config)
 	local offset = index - 1
 	local major = math.floor(offset / config.stride) + 1
 	local minor = offset % config.stride + 1
@@ -41,11 +45,12 @@ local function CellOf(index, config)
 	return minor, major
 end
 
---- How many rows and columns a given number of cells occupies.
+--- How many rows and columns a given number of cells occupies. Exported for the same reason as
+--- `CellOf`: the fill-order preview's bounding box has to agree with the container's.
 ---@param count integer
 ---@param config SpotlightsLayoutConfig
 ---@return integer rows, integer columns
-local function Extent(count, config)
+function Private.Layout.Extent(count, config)
 	if count < 1 then
 		return 0, 0
 	end
@@ -79,7 +84,7 @@ end
 ---@param config SpotlightsLayoutConfig
 ---@return number x, number y
 function Private.Layout.OffsetOf(index, config)
-	local row, column = CellOf(index, config)
+	local row, column = Private.Layout.CellOf(index, config)
 
 	local x = (column - 1) * (config.frameWidth + config.spacingX)
 	local y = (row - 1) * (config.frameHeight + config.spacingY)
@@ -98,7 +103,7 @@ end
 ---@param config SpotlightsLayoutConfig
 ---@return number width, number height
 function Private.Layout.ContainerSize(count, config)
-	local rows, columns = Extent(count, config)
+	local rows, columns = Private.Layout.Extent(count, config)
 
 	if rows < 1 then
 		-- A zero-size frame is not a legal anchor target, and an empty grid still has to be

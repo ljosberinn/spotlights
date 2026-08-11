@@ -139,6 +139,13 @@ L.Settings.GrowUp = "Up"
 L.Settings.SpacingX = "Horizontal Spacing"
 L.Settings.SpacingY = "Vertical Spacing"
 
+L.Settings.FillHeading = "Fill"
+L.Settings.Spacing = "Spacing"
+L.Settings.SpacingHorizontalShort = "H"
+L.Settings.SpacingVerticalShort = "V"
+L.Settings.FillOrderHeading = "Fill Order"
+L.Settings.FillOrderCaption = "%s · wraps every %d · grows %s, %s"
+
 L.Settings.AllowGaps = "Render Empty Cells"
 L.Settings.AllowGapsHelp =
 "On, a player who leaves the raid leaves their cell empty and nothing else moves. Off, the remaining spotlights close the gap once you are out of combat."

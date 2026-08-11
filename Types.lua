@@ -26,6 +26,7 @@
 ---@field Roster SpotlightsRoster
 ---@field Registry SpotlightsRegistry
 ---@field Layout SpotlightsLayout
+---@field FillOrder SpotlightsFillOrder
 ---@field NameStyle SpotlightsNameStyle
 ---@field Auras SpotlightsAuras
 ---@field SlashCommands SpotlightsSlashCommands

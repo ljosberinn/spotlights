@@ -104,6 +104,13 @@ L.Settings.GrowDown = "Basso"
 L.Settings.GrowUp = "Alto"
 L.Settings.SpacingX = "Spaziatura orizzontale"
 L.Settings.SpacingY = "Spaziatura verticale"
+
+L.Settings.FillHeading = "Riempimento"
+L.Settings.Spacing = "Spaziatura"
+L.Settings.SpacingHorizontalShort = "H"
+L.Settings.SpacingVerticalShort = "V"
+L.Settings.FillOrderHeading = "Ordine di riempimento"
+L.Settings.FillOrderCaption = "%s · a capo ogni %d · si espande %s, %s"
 L.Settings.AllowGaps = "Mostra celle vuote"
 L.Settings.AllowGapsHelp =
 "Attivo, un giocatore che lascia il raid lascia la sua cella vuota e nient'altro si sposta. Disattivo, gli spotlight rimanenti chiudono lo spazio una volta fuori dal combattimento."

@@ -47,6 +47,8 @@ Options\Node.lua
 Options\Controls.lua
 Options\Panel.lua
 Options\General.lua
+Options\FillOrder.lua
+Options\Grid.lua
 
 Settings.lua
 

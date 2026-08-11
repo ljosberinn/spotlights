@@ -105,6 +105,13 @@ L.Settings.GrowDown = "Baixo"
 L.Settings.GrowUp = "Cima"
 L.Settings.SpacingX = "Espaçamento horizontal"
 L.Settings.SpacingY = "Espaçamento vertical"
+
+L.Settings.FillHeading = "Preenchimento"
+L.Settings.Spacing = "Espaçamento"
+L.Settings.SpacingHorizontalShort = "H"
+L.Settings.SpacingVerticalShort = "V"
+L.Settings.FillOrderHeading = "Ordem de preenchimento"
+L.Settings.FillOrderCaption = "%s · quebra a cada %d · cresce %s, %s"
 L.Settings.AllowGaps = "Renderizar células vazias"
 L.Settings.AllowGapsHelp =
 "Ativado, um jogador que sai da raide deixa sua célula vazia e nada mais se move. Desativado, os destaques restantes fecham o espaço assim que você sair do combate."

@@ -104,6 +104,13 @@ L.Settings.GrowDown = "Вниз"
 L.Settings.GrowUp = "Вверх"
 L.Settings.SpacingX = "Горизонтальный интервал"
 L.Settings.SpacingY = "Вертикальный интервал"
+
+L.Settings.FillHeading = "Заполнение"
+L.Settings.Spacing = "Интервал"
+L.Settings.SpacingHorizontalShort = "H"
+L.Settings.SpacingVerticalShort = "V"
+L.Settings.FillOrderHeading = "Порядок заполнения"
+L.Settings.FillOrderCaption = "%s · перенос каждые %d · растёт %s, %s"
 L.Settings.AllowGaps = "Отображать пустые ячейки"
 L.Settings.AllowGapsHelp =
 "Включено: игрок, покинувший рейд, оставляет свою ячейку пустой, и ничего больше не сдвигается. Выключено: оставшиеся выделения закроют промежуток, как только вы выйдете из боя."

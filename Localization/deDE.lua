@@ -106,6 +106,13 @@ L.Settings.GrowDown = "Abwärts"
 L.Settings.GrowUp = "Aufwärts"
 L.Settings.SpacingX = "Horizontaler Abstand"
 L.Settings.SpacingY = "Vertikaler Abstand"
+
+L.Settings.FillHeading = "Füllung"
+L.Settings.Spacing = "Abstand"
+L.Settings.SpacingHorizontalShort = "H"
+L.Settings.SpacingVerticalShort = "V"
+L.Settings.FillOrderHeading = "Füllreihenfolge"
+L.Settings.FillOrderCaption = "%s · Umbruch alle %d · wächst %s, %s"
 L.Settings.AllowGaps = "Leere Zellen darstellen"
 L.Settings.AllowGapsHelp =
 "An: Ein Spieler, der den Schlachtzug verlässt, lässt seine Zelle leer und nichts anderes verschiebt sich. Aus: Die verbleibenden Hervorhebungen schließen die Lücke, sobald du außerhalb des Kampfes bist."
