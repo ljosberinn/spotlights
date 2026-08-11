@@ -53,6 +53,12 @@ L.Settings.TabAuras = "Auras"
 L.Settings.TabRoster = "Roster"
 L.Settings.ShowMinimapButton = "Show Minimap Button"
 L.Settings.ClickToOpenSettings = "Click To Open Settings"
+L.Settings.Import = "Import"
+L.Settings.Export = "Export"
+L.Settings.ImportError = "Import failed: %s"
+L.Settings.ImportErrorPrefix = "the string does not start with SPOTLIGHTS!"
+L.Settings.ImportErrorDecode = "the string could not be decoded"
+L.Settings.ImportErrorPayload = "the decoded data is not a settings table"
 
 L.Settings.ToggleMover = "Unlock / Lock"
 L.Settings.Recenter = "Return To Center"
@@ -204,6 +210,7 @@ L.Settings.ReloadPrompt =
 "Some aura settings replaced their displays rather than changing them, and the originals stay in memory until you reload.\n\nReload now?"
 L.Settings.ReloadNow = "Reload now"
 L.Settings.ReloadLater = "Later"
+L.Settings.ImportReloadPrompt = "Spotlights settings were imported. Reload the UI now?"
 
 L.Settings.Anchors = {
 	TOPLEFT = "Top left",

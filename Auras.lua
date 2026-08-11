@@ -1066,7 +1066,7 @@ end
 ---@param display SpotlightsAuraKind
 ---@param config SpotlightsAuraDisplayConfig
 ---@param anchor Frame
----@return SpotlightsAuraContainer container, table button
+---@return SpotlightsAuraContainer container
 local function AttachContainer(child, feature, display, config, anchor)
 	---@type SpotlightsAuraContainer
 	local container = CreateFrame("AuraContainer", nil, anchor, "CustomAuraContainerTemplate")
@@ -1131,7 +1131,7 @@ local function AttachContainer(child, feature, display, config, anchor)
 		})
 	end
 
-	return container, nil
+	return container
 end
 
 --- Namespaces a media key by its type, because the two together are the identity: LibSharedMedia
@@ -1188,15 +1188,32 @@ local function CreateDisplay(child, feature, display, config)
 
 	ApplyAnchor(anchor, child, display, config, Private.FrameConfig.Get())
 
-	local container, button = AttachContainer(child, feature, display, config, anchor)
+	local container = AttachContainer(child, feature, display, config, anchor)
 
 	return {
 		anchor = anchor,
 		container = container,
-		button = button,
 		builtHeight = anchor:GetHeight(),
 		unresolved = UnresolvedMedia(config),
 	}
+end
+
+--- Shows one live aura container only while its unit is assistable by the player.
+---
+--- Blizzard deliberately skips identity candidate filters for non-assistable units, so a container
+--- left visible on one would parse and display helpful auras these displays exist to hide. That makes
+--- this a privacy gate rather than a cosmetic one, and the reason it is a function of its own: every
+--- path that puts a container on screen has to pass through it, the relationship sweep and the
+--- replacement a frozen setting forces alike.
+---
+--- Deliberately not folded into `ApplyAnchor`. User enablement belongs to the anchor; assistability
+--- belongs to the container's lifetime, and a rebuild replaces the container while keeping the anchor.
+---@param container SpotlightsAuraContainer
+---@param child SpotlightsUnitFrame
+local function ApplyAssistability(container, child)
+	local unit = child.unit
+
+	container:SetShown(unit ~= nil and UnitCanAssist("player", unit))
 end
 
 --- Replaces a display's container and button with a fresh pair styled from the current settings.
@@ -1218,13 +1235,17 @@ end
 ---@param config SpotlightsAuraDisplayConfig
 ---@param record SpotlightsAuraDisplay
 local function RebuildDisplay(child, feature, display, config, record)
-	local container, button = AttachContainer(child, feature, display, config, record.anchor)
+	local container = AttachContainer(child, feature, display, config, record.anchor)
 
 	record.container:Hide()
 
 	record.container = container
-	record.button = button
 	record.builtHeight = record.anchor:GetHeight()
+
+	-- A fresh container is shown. `Apply` settles assistability before this loop runs, so it settled it
+	-- on the container being replaced -- without this the replacement stays visible on a non-assistable
+	-- unit until some later faction, flag or roster event happens to sweep again.
+	ApplyAssistability(container, child)
 
 	-- Recomputed, not carried over. The usual reason to be here is that the key this display fell back
 	-- on has just been registered, so the new button resolved it properly. Keeping the stale set would
@@ -1282,17 +1303,14 @@ local function ApplyGroupLayout(featureKey, displayKey, gap)
 	end)
 end
 
---- Shows a spotlight's aura containers only while its unit is assistable by the player.
+--- Brings every one of a spotlight's built containers in line with the current relationship.
 ---
---- Blizzard deliberately skips identity candidate filters for non-assistable units. Hiding the
---- containers as the relationship changes keeps those displays from exposing unrelated helpful auras.
+--- The iterator only. What "in line" means lives in `ApplyAssistability`, which a rebuild calls for a
+--- single replacement container without a record to iterate over yet.
 ---@param child SpotlightsUnitFrame
 function Private.Auras.UpdateAssistability(child)
-	local unit = child.unit
-	local assistable = unit ~= nil and UnitCanAssist("player", unit)
-
 	ForEachDisplay(child, function(record)
-		record.container:SetShown(assistable)
+		ApplyAssistability(record.container, child)
 	end)
 end
 

@@ -42,6 +42,170 @@ local tabs = {}
 
 local activeTab = 1
 
+local EXPORT_PREFIX = "SPOTLIGHTS!"
+local EXPORT_POPUP = "SPOTLIGHTS_EXPORT"
+local IMPORT_POPUP = "SPOTLIGHTS_IMPORT"
+local IMPORT_ERROR_POPUP = "SPOTLIGHTS_IMPORT_ERROR"
+local IMPORT_RELOAD_POPUP = "SPOTLIGHTS_IMPORT_RELOAD"
+local AURA_RELOAD_POPUP = "SPOTLIGHTS_AURA_RELOAD"
+
+local ShowImportPopup
+local ShowExportPopup
+
+local function CopyExportData()
+	local db = Private.DB
+	local payload = {}
+
+	if not db then
+		return payload
+	end
+
+	for key, value in pairs(db) do
+		if key ~= "position" and key ~= "slots" then
+			payload[key] = value
+		end
+	end
+
+	return payload
+end
+
+local function ExportString()
+	return EXPORT_PREFIX ..
+		C_EncodingUtil.EncodeBase64(C_EncodingUtil.CompressString(C_EncodingUtil.SerializeCBOR(CopyExportData())))
+end
+
+---@param text string
+---@return boolean, string?
+local function ImportString(text)
+	if string.sub(text, 1, #EXPORT_PREFIX) ~= EXPORT_PREFIX then
+		return false, "prefix"
+	end
+
+	local encoded = string.sub(text, #EXPORT_PREFIX + 1)
+	local ok, payload = pcall(function()
+		return C_EncodingUtil.DeserializeCBOR(C_EncodingUtil.DecompressString(C_EncodingUtil.DecodeBase64(encoded)))
+	end)
+
+	if not ok then
+		return false, "decode"
+	end
+
+	if type(payload) ~= "table" then
+		return false, "payload"
+	end
+
+	local current = Private.DB
+	payload.slots = current and current.slots or {}
+	payload.position = current and current.position or nil
+
+	local migrated = Private.Migration.Run(payload)
+	Private.DB = migrated
+	SpotlightsSaved = migrated
+
+	return true
+end
+
+local function ShowImportError(reason)
+	local L = Private.L.Settings
+	local details = reason == "prefix" and L.ImportErrorPrefix
+		or reason == "decode" and L.ImportErrorDecode
+		or L.ImportErrorPayload
+
+	StaticPopupDialogs[IMPORT_ERROR_POPUP] = {
+		text = string.format(L.ImportError, details),
+		button1 = ACCEPT,
+		timeout = 0,
+		whileDead = true,
+		hideOnEscape = true,
+		preferredIndex = 3,
+	}
+	StaticPopup_Show(IMPORT_ERROR_POPUP)
+end
+
+local function CreateReadOnlyPopup(title, text)
+	return {
+		text = title,
+		button1 = ACCEPT,
+		hasEditBox = true,
+		hasWideEditBox = true,
+		editBoxWidth = 350,
+		hideOnEscape = true,
+		whileDead = true,
+		OnShow = function(popup)
+			local editBox = popup:GetEditBox()
+			editBox:SetText(text)
+			editBox:HighlightText()
+
+			local ctrlDown = false
+			editBox:SetScript("OnKeyDown", function(_, key)
+				if key == "LCTRL" or key == "RCTRL" or key == "LMETA" or key == "RMETA" then
+					ctrlDown = true
+				end
+			end)
+			editBox:SetScript("OnKeyUp", function(_, key)
+				if ctrlDown and (key == "C" or key == "X") then
+					StaticPopup_Hide(EXPORT_POPUP)
+				end
+				ctrlDown = false
+			end)
+		end,
+		EditBoxOnEscapePressed = function(popup)
+			popup:GetParent():Hide()
+		end,
+		EditBoxOnTextChanged = function(popup)
+			if popup:GetText() ~= "" and popup:GetText() ~= text then
+				popup:SetText(text)
+			end
+		end,
+	}
+end
+
+local function CreateWritablePopup()
+	return {
+		text = Private.L.Settings.Import,
+		button1 = Private.L.Settings.Import,
+		button2 = CLOSE,
+		hasEditBox = true,
+		hasWideEditBox = true,
+		editBoxWidth = 350,
+		hideOnEscape = true,
+		whileDead = true,
+		OnAccept = function(popup)
+			local success, reason = ImportString(strtrim(popup:GetEditBox():GetText()))
+			if not success then
+				StaticPopup_Hide(IMPORT_POPUP)
+				ShowImportError(reason)
+				return
+			end
+
+			StaticPopup_Hide(IMPORT_POPUP)
+			StaticPopupDialogs[IMPORT_RELOAD_POPUP] = {
+				text = Private.L.Settings.ImportReloadPrompt,
+				button1 = Private.L.Settings.ReloadNow,
+				button2 = Private.L.Settings.ReloadLater,
+				timeout = 0,
+				whileDead = true,
+				hideOnEscape = true,
+				preferredIndex = 3,
+				OnAccept = ReloadUI,
+			}
+			StaticPopup_Show(IMPORT_RELOAD_POPUP)
+		end,
+	}
+end
+
+ShowImportPopup = function()
+	StaticPopupDialogs[IMPORT_POPUP] = CreateWritablePopup()
+	StaticPopup_Hide(IMPORT_POPUP)
+	StaticPopup_Show(IMPORT_POPUP)
+end
+
+ShowExportPopup = function()
+	StaticPopupDialogs[EXPORT_POPUP] = CreateReadOnlyPopup(Private.L.Settings.Export, ExportString())
+	StaticPopup_Hide(EXPORT_POPUP)
+	StaticPopup_Show(EXPORT_POPUP)
+end
+
 ---@return SpotlightsLayoutConfig?
 local function Layout()
 	return Private.DB and Private.DB.layout
@@ -368,6 +532,8 @@ local function BuildGeneralTab(content)
 				icon:Hide(addonName)
 			end
 		end, 160),
+
+		Widgets.CreateButtonPair(content, L.Import, ShowImportPopup, L.Export, ShowExportPopup),
 	}
 end
 
@@ -1522,8 +1688,6 @@ local function BuildAurasTab(content)
 	return widgets
 end
 
-local RELOAD_POPUP = "SPOTLIGHTS_AURA_RELOAD"
-
 --- Offers a reload if aura frames have been abandoned, and asks at most once per abandonment.
 ---
 --- **An aura display cannot be restyled, only replaced**, and WoW cannot destroy the one it replaces —
@@ -1546,7 +1710,7 @@ local function MaybePromptReload()
 	local L = Private.L.Settings
 
 	-- Registered at show time rather than at load, so the localisation table is filled by now.
-	StaticPopupDialogs[RELOAD_POPUP] = {
+	StaticPopupDialogs[AURA_RELOAD_POPUP] = {
 		text = L.ReloadPrompt,
 		button1 = L.ReloadNow,
 		button2 = L.ReloadLater,
@@ -1570,7 +1734,7 @@ local function MaybePromptReload()
 		end,
 	}
 
-	StaticPopup_Show(RELOAD_POPUP)
+	StaticPopup_Show(AURA_RELOAD_POPUP)
 end
 
 --- Everything the panel owes the rest of the addon when it goes away, by whichever route it went.

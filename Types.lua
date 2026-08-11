@@ -366,7 +366,6 @@
 ---@class SpotlightsAuraDisplay
 ---@field anchor Frame ours, unrestricted, and the only thing a settings change can reach
 ---@field container SpotlightsAuraContainer
----@field button table
 ---@field builtHeight number
 ---@field unresolved table<string, true>
 

@@ -16,3 +16,4 @@ v1.0.2
 - fixed a bug where player names were leaking out of the frame
 - added a checkbox per-class in order to toggle inclusion of all of that specs abilities
 - added Shifting Sands as dedicatedly trackable and customizable aura
+- added tentative Import / Export support
