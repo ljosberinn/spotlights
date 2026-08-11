@@ -335,7 +335,12 @@
     "CompactUnitFrame_UpdateSelectionHighlight",
     "GameTooltipTextLeft1",
     "STANDARD_TEXT_FONT",
-    "TabSystemMixin"
+    "TabSystemMixin",
+    "CLOSE",
+    "SEARCH",
+    "NORMAL_FONT_COLOR",
+    "HIGHLIGHT_FONT_COLOR",
+    "BLACK_FONT_COLOR"
   ],
   "Lua.workspace.ignoreDir": ["Libs"]
 }

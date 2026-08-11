@@ -42,6 +42,10 @@ Widgets.lua
 DragAssign.lua
 RosterList.lua
 ContextMenu.lua
+
+Options\Node.lua
+Options\Controls.lua
+
 Settings.lua
 
 SpotlightsUnitFrameMixin.lua

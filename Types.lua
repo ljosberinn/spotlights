@@ -14,6 +14,8 @@
 ---@field AuraPreview SpotlightsAuraPreviews
 ---@field Media SpotlightsMedia
 ---@field Widgets SpotlightsWidgets
+---@field Node SpotlightsNodeKit
+---@field Controls SpotlightsControls
 ---@field RosterList SpotlightsRosterList
 ---@field Settings SpotlightsSettings
 ---@field ContextMenu SpotlightsContextMenu
