@@ -11,6 +11,7 @@ L.SlashCommands.Add = "依名稱聚焦一名團隊成員"
 L.SlashCommands.List = "列出已設定的欄位"
 L.SlashCommands.Rescan = "強制所有佔用的欄位重新比對名單"
 L.SlashCommands.Options = "開啟設定面板"
+L.SlashCommands.OptionsPreview = "開啟仍在製作中的新版設定面板"
 
 L.Migration.FromTheFuture = "已儲存的設定版本為 %d，但此版本僅支援 %d——它們維持原樣，而非降級"
 
@@ -42,6 +43,22 @@ L.Settings.TabAppearance = "外觀"
 L.Settings.TabGrid = "網格"
 L.Settings.TabAuras = "光環"
 L.Settings.TabRoster = "名單"
+L.Settings.TabImportExport = "匯入 / 匯出"
+
+L.Settings.HowThisWorks = "使用說明"
+
+L.Settings.HelpGeneral =
+"網格所在的位置以及它在戰鬥之外的表現：畫面上的位置、縮放，以及整個插件的介面選項。"
+L.Settings.HelpAppearance =
+"單個 spotlight 的繪製方式——邊框、名稱文字和生命條。控制項旁的預覽會顯示效果。"
+L.Settings.HelpGrid =
+"spotlight 的排列方式：每列幾個、新的往哪個方向增長，以及彼此之間的間距。預覽會顯示欄位被填滿的順序。"
+L.Settings.HelpAuras =
+"spotlight 追蹤哪些光環以及它們的顯示方式。每項功能都可以單獨關閉，追蹤的法術依職業分類列出。"
+L.Settings.HelpRoster =
+"每個欄位聚焦哪名團隊成員。將名字從團隊列表拖到欄位上，或清空某個欄位，在網格中留下空缺。"
+L.Settings.HelpImportExport =
+"以文字字串在角色之間轉移這些設定。匯入會取代除了網格位置及其欄位以外的所有內容。"
 L.Settings.ShowMinimapButton = "顯示小地圖按鈕"
 L.Settings.ClickToOpenSettings = "點擊以開啟設定"
 L.Settings.Import = "匯入"

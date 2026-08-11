@@ -45,6 +45,7 @@ ContextMenu.lua
 
 Options\Node.lua
 Options\Controls.lua
+Options\Panel.lua
 
 Settings.lua
 

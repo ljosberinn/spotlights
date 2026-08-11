@@ -1,0 +1,409 @@
+---@type string, Spotlights
+local addonName, Private = ...
+
+---@class SpotlightsOptions
+Private.Options = {}
+
+--- The window the layout kit lives in.
+---
+--- Window management -- `UISpecialFrames`, the combat close, the reload offer, lazy tab building -- is
+--- lifted from `Settings.lua` rather than rethought: those behaviours encode bugs that are already fixed,
+--- and their reasons are carried over with them. What is new here is the shape: a fixed content rectangle
+--- handed to one node per tab, instead of a scroll child every widget anchors itself into.
+
+--- 780 leaves 710 right of the portrait for the tab strip, and the layout frame puts a pixel between each
+--- pair of tabs: 6 * 117 + 5 * 1 = 707, so six tabs fit with the remainder inside the panel rather than
+--- clipping its right edge.
+local PANEL_WIDTH = 780
+local PANEL_HEIGHT = 560
+local MAX_TAB_WIDTH = 117
+
+local CONTENT_INSET = 16
+
+--- Where the tab strip starts relative to the panel's left edge, right of the portrait. The help strip
+--- follows the tab system's bottom and so has to know this to land back at `CONTENT_INSET`.
+local TAB_STRIP_X = 70
+local TAB_STRIP_Y = -26
+
+--- What every tab lays out against. Two ~350 columns with a 26 gutter, or a 196 rail beside a 536 pane.
+local CONTENT_WIDTH = PANEL_WIDTH - CONTENT_INSET * 2
+
+local HELP_STRIP_GAP = 8
+local HELP_TEXT_GAP = 6
+local HELP_TOGGLE_HEIGHT = 22
+local HELP_TOGGLE_PADDING = 30
+
+--- Shared with the old panel deliberately. Both panels offer the same reload for the same reason, and
+--- `StaticPopup_Show` reuses the dialog already on screen for a given key -- two keys would stack two
+--- identical prompts when combat closes both panels in the same frame.
+local AURA_RELOAD_POPUP = "SPOTLIGHTS_AURA_RELOAD"
+
+---@type SpotlightsOptionsFrame?
+local panel
+
+--- One top-level tab: what it is called, what its help paragraph says, and the page and node behind it.
+---@class SpotlightsOptionsTab
+---@field name string
+---@field help string
+---@field page Frame the fixed content rectangle this tab draws into
+---@field root SpotlightsNode? nil until the tab is first selected
+
+---@type SpotlightsOptionsTab[]
+local tabs = {}
+
+local activeTab = 1
+local helpShown = false
+
+---@type Frame
+local helpStrip
+
+---@type FontString
+local helpText
+
+--- Stand-in content. The six content issues replace these builders one tab at a time; until then a tab
+--- proves it was built and reused by naming itself.
+---@param page Frame
+---@param name string
+---@return SpotlightsNode
+local function BuildStub(page, name)
+	return Private.Node.Column(page, { Private.Controls.SubHeading(page, name) })
+end
+
+--- Sizes the help strip to whatever it is currently showing.
+---
+--- The content host is anchored to this strip's bottom and to the panel's, so growing the strip is what
+--- pushes the content down and shortens it -- there is no second place that restates the content height.
+local function LayoutHelp()
+	local tab = tabs[activeTab]
+
+	if helpShown and tab then
+		helpText:SetText(tab.help)
+		helpText:Show()
+
+		-- `GetStringHeight` wraps against the width the font string was given, which is why it is set here
+		-- rather than left to an anchor the layout has not resolved yet.
+		helpStrip:SetHeight(HELP_TOGGLE_HEIGHT + HELP_TEXT_GAP + helpText:GetStringHeight())
+	else
+		helpText:Hide()
+		helpStrip:SetHeight(HELP_TOGGLE_HEIGHT)
+	end
+end
+
+--- Lays the active tab out. Nothing else: the other tabs are hidden, and a hidden node's `Layout` would
+--- anchor children against a rectangle the user is not looking at.
+local function LayoutActive()
+	-- Unconditionally, and before the node: the strip has a height whether or not a tab has been built
+	-- yet, and the content rectangle is anchored to its bottom.
+	LayoutHelp()
+
+	local tab = tabs[activeTab]
+
+	if tab and tab.root then
+		tab.root:Layout(CONTENT_WIDTH)
+	end
+end
+
+--- Offers a reload if aura frames have been abandoned, and asks at most once per abandonment.
+---
+--- **An aura display cannot be restyled, only replaced**, and WoW cannot destroy the one it replaces --
+--- so a texture or colour change leaves a container and a button behind on every assigned spotlight, for
+--- the session. A reload is the only thing that reclaims them, and the only honest moment to mention it
+--- is when the user has finished editing.
+---
+--- On `OnHide` rather than from `SetShown`, because the panel closes three ways and only one goes through
+--- `SetShown`: it is in `UISpecialFrames` so Escape hides it directly, and the `PLAYER_REGEN_DISABLED`
+--- handler calls `panel:Hide()`. `OnHide` catches all three, and catching the combat one is deliberate --
+--- a fight starting is not a reason to silently drop the offer.
+---
+--- `Private.Auras` owns the "has anything been abandoned" question rather than this file counting its own
+--- writes, because the answer includes rebuilds still inside the debounce window.
+local function MaybePromptReload()
+	if not Private.Auras.NeedsReload() then
+		return
+	end
+
+	local L = Private.L.Settings
+
+	-- Registered at show time rather than at load, so the localisation table is filled by now.
+	StaticPopupDialogs[AURA_RELOAD_POPUP] = {
+		text = L.ReloadPrompt,
+		button1 = L.ReloadNow,
+		button2 = L.ReloadLater,
+		timeout = 0,
+		whileDead = true,
+		hideOnEscape = true,
+
+		-- Above Blizzard's own dialogs rather than under them, since this can appear as combat starts and
+		-- something else may already be on screen.
+		preferredIndex = 3,
+
+		OnAccept = function()
+			Private.Auras.AcknowledgeReload()
+			ReloadUI()
+		end,
+
+		-- Both answers acknowledge. Escape routes here too, and a dismissal that left the prompt armed
+		-- would re-ask on every subsequent close without anything having changed.
+		OnCancel = function()
+			Private.Auras.AcknowledgeReload()
+		end,
+	}
+
+	StaticPopup_Show(AURA_RELOAD_POPUP)
+end
+
+--- The aura previews are *not* taken down here, unlike the old panel's `OnHide`. Both panels can be open
+--- at once while the rework is being built, and this one shows no previews yet -- hiding them on its close
+--- would clear the previews the old panel is still displaying. Issue 07 adds it back with the previews.
+local function OnPanelHidden()
+	MaybePromptReload()
+end
+
+---@param parent Frame
+---@param tabTemplate string
+---@param maxTabWidth number
+---@return SpotlightsTabSystemFrame
+local function CreateTabSystem(parent, tabTemplate, maxTabWidth)
+	-- Built in Lua rather than XML so the tab pool sees the selected button template during OnLoad.
+	local tabSystem = CreateFrame("Frame", nil, parent, "HorizontalLayoutFrame") --[[@as SpotlightsTabSystemFrame]]
+	tabSystem.tabTemplate = tabTemplate
+	tabSystem.maxTabWidth = maxTabWidth
+	Mixin(tabSystem, TabSystemMixin)
+	TabSystemMixin.OnLoad(tabSystem)
+
+	return tabSystem
+end
+
+---@return SpotlightsOptionsFrame
+local function Get()
+	if panel then
+		return panel
+	end
+
+	local L = Private.L.Settings
+
+	--- `PortraitFrameTemplate`, the same window the old panel uses and what `PlayerSpellsFrame` and the
+	--- rest of the modern panels are built from: a `NineSlicePanelTemplate` whose `layoutType` the game
+	--- resolves itself, so the borders follow Blizzard's current panel art rather than the build we were
+	--- written against.
+	panel = CreateFrame("Frame", "SpotlightsOptions", UIParent, "PortraitFrameTemplate") --[[@as SpotlightsOptionsFrame]]
+	panel:SetSize(PANEL_WIDTH, PANEL_HEIGHT)
+	panel:SetPoint("CENTER")
+	panel:SetFrameStrata("DIALOG")
+	panel:Hide()
+	panel:EnableMouse(true)
+	panel:SetMovable(true)
+	panel:RegisterForDrag("LeftButton")
+	panel:SetScript("OnDragStart", panel.StartMoving)
+	panel:SetScript("OnDragStop", panel.StopMovingOrSizing)
+	panel:SetClampedToScreen(true)
+
+	-- `SetTitle` rather than reaching for the font string: `TitledPanelMixin` keeps it at
+	-- `TitleContainer.TitleText`, and depending on where it lives today is how that breaks.
+	panel:SetTitle(L.Title)
+
+	--- The portrait, read from the TOC rather than repeated here, so the panel cannot wear a different
+	--- face than the addon list and the compartment already show.
+	local icon = C_AddOns.GetAddOnMetadata(addonName, "IconTexture")
+
+	if icon then
+		panel:SetPortraitToAsset(icon)
+	end
+
+	-- UISpecialFrames closes the panel on Escape, the behaviour every other options frame has.
+	table.insert(UISpecialFrames, "SpotlightsOptions")
+
+	panel:SetScript("OnHide", OnPanelHidden)
+
+	-- The tab system owns selection, visibility and keyboard/tooltip behaviour. `TabSystemOwnerMixin` is
+	-- mixed in here rather than inherited, because the mixin's `OnLoad` is not run for a frame we create
+	-- ourselves.
+	Mixin(panel, TabSystemOwnerMixin)
+	TabSystemOwnerMixin.OnLoad(panel)
+
+	local tabSystem = CreateTabSystem(panel, "TabSystemTopButtonTemplate", MAX_TAB_WIDTH)
+
+	-- Right of the portrait, the way SpellBook clears its own icon, and nudged down from the plain 19: the
+	-- *selected* tab is drawn emphasised, with its on-top art reaching above the strip's rectangle, so the
+	-- strip has to sit low enough that the emphasis clears the title rather than leaking into it.
+	tabSystem:SetPoint("TOPLEFT", panel, "TOPLEFT", TAB_STRIP_X, TAB_STRIP_Y)
+	panel:SetTabSystem(tabSystem)
+
+	--- The help strip: a toggle, and the paragraph it reveals.
+	---
+	--- Between the tab strip and the content rather than over the content, because it is about the tab as a
+	--- whole. Its top follows the tab system's bottom instead of restating the strip's height, so a change
+	--- to the tab art cannot leave everything below it in the wrong place.
+	helpStrip = CreateFrame("Frame", nil, panel)
+
+	helpStrip:SetPoint("TOPLEFT", tabSystem, "BOTTOMLEFT", CONTENT_INSET - TAB_STRIP_X, -HELP_STRIP_GAP)
+	helpStrip:SetWidth(CONTENT_WIDTH)
+	helpStrip:SetHeight(HELP_TOGGLE_HEIGHT)
+
+	local helpToggle = CreateFrame("Button", nil, helpStrip, "UIPanelButtonTemplate")
+
+	helpToggle:SetPoint("TOPRIGHT", helpStrip, "TOPRIGHT", 0, 0)
+	helpToggle:SetHeight(HELP_TOGGLE_HEIGHT)
+	helpToggle:SetText(L.HowThisWorks)
+
+	-- Sized to its own caption: every translation spells this differently, and a fixed width is either
+	-- clipped in German or a gap in English.
+	helpToggle:SetWidth(helpToggle:GetTextWidth() + HELP_TOGGLE_PADDING)
+
+	helpText = helpStrip:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
+
+	helpText:SetPoint("TOPLEFT", helpStrip, "TOPLEFT", 0, -(HELP_TOGGLE_HEIGHT + HELP_TEXT_GAP))
+	helpText:SetWidth(CONTENT_WIDTH)
+	helpText:SetJustifyH("LEFT")
+	helpText:SetSpacing(2)
+	helpText:Hide()
+
+	helpToggle:SetScript("OnClick", function()
+		helpShown = not helpShown
+
+		-- Only the geometry changed, so this is a `Layout` without a `Refresh`: no node has been told to
+		-- reconsider whether it is shown.
+		LayoutActive()
+	end)
+
+	--- The content rectangle every tab draws into.
+	---
+	--- Anchored to the help strip above and the panel below rather than given a height, which is what makes
+	--- the help paragraph push the content down and shorten it in one move.
+	local contentHost = CreateFrame("Frame", nil, panel)
+
+	contentHost:SetPoint("TOPLEFT", helpStrip, "BOTTOMLEFT", 0, -HELP_STRIP_GAP)
+	contentHost:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -CONTENT_INSET, CONTENT_INSET)
+
+	local definitions = {
+		{ name = L.TabGeneral, help = L.HelpGeneral },
+		{ name = L.TabAppearance, help = L.HelpAppearance },
+		{ name = L.TabGrid, help = L.HelpGrid },
+		{ name = L.TabAuras, help = L.HelpAuras },
+		{ name = L.TabRoster, help = L.HelpRoster },
+		{ name = L.TabImportExport, help = L.HelpImportExport },
+	}
+
+	for i = 1, #definitions do
+		local page = CreateFrame("Frame", nil, contentHost)
+
+		page:SetAllPoints(contentHost)
+
+		tabs[i] = {
+			name = definitions[i].name,
+			help = definitions[i].help,
+			page = page,
+		}
+
+		local tabID = panel:AddNamedTab(definitions[i].name, page)
+
+		panel:SetTabCallback(tabID, function()
+			activeTab = i
+
+			local tab = tabs[i]
+
+			--- Built on first selection rather than at panel creation, and reused afterwards. Deferring is
+			--- what lets a dropdown read LibSharedMedia's list at open time, so a media pack that loads
+			--- after us is still listed.
+			if not tab.root then
+				tab.root = BuildStub(tab.page, tab.name)
+
+				-- The one anchor the kit does not set for itself: a container positions its children and
+				-- sizes itself, so the root of a tree has to be told where its page begins.
+				tab.root:SetPoint("TOPLEFT", tab.page, "TOPLEFT", 0, 0)
+			end
+
+			-- Refresh before laying out, over the whole tree, on every selection rather than only the
+			-- first: `Refresh` is what decides whether a node is shown, and a tab left in one state and
+			-- returned to in another has stale answers to lay out against.
+			tab.root:Refresh()
+			LayoutActive()
+		end)
+	end
+
+	--- How a node that changed its own height -- a section the user collapsed -- asks for a fresh pass
+	--- without knowing which panel or which pane owns it.
+	Private.Node.SetRelayoutHook(Private.Options.Relayout)
+
+	return panel
+end
+
+--- Opens or closes the panel.
+---
+--- Refuses to open in combat rather than opening masked. A panel whose every control is disabled is worse
+--- than no panel: it invites the user to conclude the settings are broken, and there is no way to tell
+--- "masked because combat" from "masked because bug" by looking at it.
+---@param shown boolean?
+function Private.Options.SetShown(shown)
+	local frame = Get()
+
+	if shown == nil then
+		shown = not frame:IsShown()
+	end
+
+	if shown and InCombatLockdown() then
+		Private.Utils.Print(Private.L.Settings.CombatRefused)
+
+		return
+	end
+
+	frame:SetShown(shown)
+
+	if shown then
+		frame:SetTab(activeTab)
+	end
+end
+
+--- Re-lays out the active tab, for a node whose *height* changed while what is shown did not: a collapsed
+--- section, a list that gained a row.
+---
+--- Deliberately not a `Refresh`: this is the relayout hook, and a section calling it has already set its
+--- body's visibility. Re-reading every control on the tab from here would also undo an edit in progress.
+function Private.Options.Relayout()
+	if panel and panel:IsShown() then
+		LayoutActive()
+	end
+end
+
+--- Re-reads the active tab and lays it out again. For a setting changed behind the panel's back -- by a
+--- slash command, or by the mover's own combat lock.
+---
+--- Both halves, always in this order: `Refresh` is what hides a node, and laying out against stale
+--- visibility either leaves a hole where a hidden node was or anchors one that is not there.
+function Private.Options.Refresh()
+	local tab = tabs[activeTab]
+
+	if panel and panel:IsShown() and tab and tab.root then
+		tab.root:Refresh()
+		LayoutActive()
+	end
+end
+
+--- Whether the cursor is anywhere over the panel.
+---
+--- For the drag path, which has two kinds of drop target -- a slot row in this panel, and a cell on the
+--- grid -- and no way to tell them apart by geometry alone. The panel is at DIALOG strata and the grid is
+--- not, so a panel over the grid hides it; without this, releasing on a dead part of the panel that
+--- overlaps a cell would assign to the cell underneath.
+---@return boolean
+function Private.Options.IsCursorOver()
+	return panel ~= nil and Private.Utils.IsCursorOver(panel)
+end
+
+Private.Events.RegisterEvent("PLAYER_REGEN_DISABLED", function()
+	-- Before the panel, so the picker is gone whether or not the panel opened it. It is a separate
+	-- top-level frame and outlives its opener, so closing only the panel leaves a colour wheel floating
+	-- over the fight with nothing behind it.
+	ColorPickerFrame:Hide()
+
+	if panel and panel:IsShown() then
+		panel:Hide()
+		Private.Utils.Print(Private.L.Settings.ClosedByCombat)
+	end
+end)
+
+--- The rework's entry point while it is being built. The old `/spotlights options` is untouched until the
+--- cutover replaces it.
+Private.SlashCommands.Register("options2", "OptionsPreview", function()
+	Private.Options.SetShown()
+end)

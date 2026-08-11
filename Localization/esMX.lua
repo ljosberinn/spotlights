@@ -11,6 +11,7 @@ L.SlashCommands.Add = "Resalta a un miembro de la banda por su nombre"
 L.SlashCommands.List = "Enumera las ranuras configuradas"
 L.SlashCommands.Rescan = "Obliga a cada ranura ocupada a volver a coincidir con la lista"
 L.SlashCommands.Options = "Abre el panel de ajustes"
+L.SlashCommands.OptionsPreview = "Abre el panel de ajustes renovado, aún en construcción"
 
 L.Migration.FromTheFuture =
 "los ajustes guardados son de la versión %d pero esta compilación entiende la %d - se dejaron intactos en lugar de degradarlos"
@@ -45,6 +46,22 @@ L.Settings.TabAppearance = "Apariencia"
 L.Settings.TabGrid = "Cuadrícula"
 L.Settings.TabAuras = "Auras"
 L.Settings.TabRoster = "Lista"
+L.Settings.TabImportExport = "Importar / Exportar"
+
+L.Settings.HowThisWorks = "Cómo funciona"
+
+L.Settings.HelpGeneral =
+"Dónde se sitúa la cuadrícula y cómo se comporta fuera de combate: su posición en pantalla, su escala y las opciones de interfaz de todo el accesorio."
+L.Settings.HelpAppearance =
+"Cómo se dibuja un spotlight: su marco, su texto de nombre y su barra de salud. La vista previa junto a los controles muestra el resultado."
+L.Settings.HelpGrid =
+"Cómo se acomodan los spotlights: cuántos por fila, hacia dónde crecen los nuevos y el espacio entre ellos. La vista previa muestra el orden en que se llenan las ranuras."
+L.Settings.HelpAuras =
+"Qué auras sigue un spotlight y cómo se muestran. Cada función puede desactivarse por separado, y los hechizos seguidos se listan por clase."
+L.Settings.HelpRoster =
+"A qué miembro de la banda resalta cada ranura. Arrastra un nombre de la lista de la banda a una ranura, o vacía una ranura para dejar un hueco en la cuadrícula."
+L.Settings.HelpImportExport =
+"Traslada estos ajustes entre personajes como una cadena de texto. Importar reemplaza todo salvo la posición de la cuadrícula y sus ranuras."
 L.Settings.ShowMinimapButton = "Mostrar botón del minimapa"
 L.Settings.ClickToOpenSettings = "Haz clic para abrir la configuración"
 L.Settings.Import = "Importar"

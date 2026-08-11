@@ -16,6 +16,7 @@
 ---@field Widgets SpotlightsWidgets
 ---@field Node SpotlightsNodeKit
 ---@field Controls SpotlightsControls
+---@field Options SpotlightsOptions
 ---@field RosterList SpotlightsRosterList
 ---@field Settings SpotlightsSettings
 ---@field ContextMenu SpotlightsContextMenu
@@ -45,6 +46,19 @@
 ---@field AddTab fun(self: SpotlightsTabSystemFrame, tabText: string): integer
 ---@field SetTabSelectedCallback fun(self: SpotlightsTabSystemFrame, callback: fun(tabID: integer, isUserAction: boolean?): boolean?)
 ---@field SetTab fun(self: SpotlightsTabSystemFrame, tabID: integer, isUserAction: boolean?)
+
+--- The reworked options window.
+---
+--- A `PortraitFrameTemplate` with `TabSystemOwnerMixin` mixed in after the fact, which is how a frame
+--- created in Lua acquires the tab methods a template's own `OnLoad` would have installed. Written out
+--- here because neither half is visible to `CreateFrame`'s return type.
+---@class SpotlightsOptionsFrame : Frame
+---@field SetTitle fun(self: SpotlightsOptionsFrame, title: string)
+---@field SetPortraitToAsset fun(self: SpotlightsOptionsFrame, asset: string)
+---@field SetTabSystem fun(self: SpotlightsOptionsFrame, tabSystem: SpotlightsTabSystemFrame)
+---@field AddNamedTab fun(self: SpotlightsOptionsFrame, name: string, ...: Frame): integer
+---@field SetTabCallback fun(self: SpotlightsOptionsFrame, tabID: integer, callback: fun())
+---@field SetTab fun(self: SpotlightsOptionsFrame, tabID: integer, isUserAction: boolean?)
 
 ---@class SpotlightsNameStyle
 ---@field ApplyLayout fun(fontString: FontString, appearance: SpotlightsAppearanceConfig)

@@ -11,6 +11,7 @@ L.SlashCommands.Add = "Hebt ein Schlachtzugsmitglied namentlich hervor"
 L.SlashCommands.List = "Listet die konfigurierten Plätze auf"
 L.SlashCommands.Rescan = "Erzwingt einen erneuten Abgleich aller belegten Plätze mit der Gruppe"
 L.SlashCommands.Options = "Öffnet das Einstellungsfenster"
+L.SlashCommands.OptionsPreview = "Öffnet das überarbeitete Einstellungsfenster, das noch entsteht"
 
 L.Migration.FromTheFuture =
 "gespeicherte Einstellungen haben Version %d, aber dieser Build versteht %d – sie wurden unangetastet gelassen statt herabgestuft"
@@ -45,6 +46,22 @@ L.Settings.TabAppearance = "Aussehen"
 L.Settings.TabGrid = "Raster"
 L.Settings.TabAuras = "Auren"
 L.Settings.TabRoster = "Gruppe"
+L.Settings.TabImportExport = "Import / Export"
+
+L.Settings.HowThisWorks = "So funktioniert es"
+
+L.Settings.HelpGeneral =
+"Wo das Raster sitzt und wie es sich außerhalb des Kampfes verhält: seine Position auf dem Bildschirm, seine Skalierung und die Oberflächenoptionen des gesamten Addons."
+L.Settings.HelpAppearance =
+"Wie ein einzelnes Spotlight gezeichnet wird – sein Rahmen, sein Namenstext und sein Lebensbalken. Die Vorschau neben den Einstellungen zeigt das Ergebnis."
+L.Settings.HelpGrid =
+"Wie Spotlights angeordnet werden: wie viele pro Reihe, in welche Richtung neue wachsen und der Abstand dazwischen. Die Vorschau zeigt die Reihenfolge, in der Plätze belegt werden."
+L.Settings.HelpAuras =
+"Welche Auren ein Spotlight verfolgt und wie sie dargestellt werden. Jede Funktion lässt sich einzeln abschalten, und die verfolgten Zauber sind nach Klasse aufgelistet."
+L.Settings.HelpRoster =
+"Welches Schlachtzugsmitglied jeder Platz hervorhebt. Ziehe einen Namen aus der Schlachtzugsliste auf einen Platz oder leere einen Platz, um eine Lücke im Raster zu lassen."
+L.Settings.HelpImportExport =
+"Überträgt diese Einstellungen als Zeichenkette zwischen Charakteren. Ein Import ersetzt alles außer der Position des Rasters und seinen Plätzen."
 L.Settings.ShowMinimapButton = "Minimap-Schaltfläche anzeigen"
 L.Settings.ClickToOpenSettings = "Klicken, um die Einstellungen zu öffnen"
 L.Settings.Import = "Importieren"

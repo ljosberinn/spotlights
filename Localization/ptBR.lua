@@ -11,6 +11,7 @@ L.SlashCommands.Add = "Destaca um membro da raide pelo nome"
 L.SlashCommands.List = "Lista os espaços configurados"
 L.SlashCommands.Rescan = "Força cada espaço ocupado a corresponder novamente à lista"
 L.SlashCommands.Options = "Abre o painel de configurações"
+L.SlashCommands.OptionsPreview = "Abre o painel de configurações reformulado, ainda em construção"
 
 L.Migration.FromTheFuture =
 "as configurações salvas são da versão %d mas esta build entende %d - elas foram mantidas intactas em vez de rebaixadas"
@@ -44,6 +45,22 @@ L.Settings.TabAppearance = "Aparência"
 L.Settings.TabGrid = "Grade"
 L.Settings.TabAuras = "Auras"
 L.Settings.TabRoster = "Lista"
+L.Settings.TabImportExport = "Importar / Exportar"
+
+L.Settings.HowThisWorks = "Como isto funciona"
+
+L.Settings.HelpGeneral =
+"Onde a grade fica e como ela se comporta fora de combate: sua posição na tela, sua escala e as opções de interface de todo o addon."
+L.Settings.HelpAppearance =
+"Como um spotlight é desenhado: sua moldura, o texto do nome e a barra de vida. A prévia ao lado dos controles mostra o resultado."
+L.Settings.HelpGrid =
+"Como os spotlights são organizados: quantos por linha, para que lado os novos crescem e o espaçamento entre eles. A prévia mostra a ordem em que os espaços são preenchidos."
+L.Settings.HelpAuras =
+"Quais auras um spotlight acompanha e como elas são exibidas. Cada recurso pode ser desligado separadamente, e as magias acompanhadas são listadas por classe."
+L.Settings.HelpRoster =
+"Qual membro da raide cada espaço destaca. Arraste um nome da lista da raide para um espaço, ou esvazie um espaço para deixar uma lacuna na grade."
+L.Settings.HelpImportExport =
+"Leva estas configurações entre personagens como um texto. Importar substitui tudo, exceto a posição da grade e seus espaços."
 L.Settings.ShowMinimapButton = "Mostrar botão do minimapa"
 L.Settings.ClickToOpenSettings = "Clique para abrir as configurações"
 L.Settings.Import = "Importar"
