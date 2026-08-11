@@ -107,6 +107,35 @@ Private.Enum.AnchorPointOrder = {
 	"BOTTOMRIGHT",
 }
 
+--- The strata a spotlight may be placed in, in stacking order -- which is both the order the strata
+--- dropdown offers and how "the strata above this one" is answered for the preview overlay.
+---
+--- Blizzard's list without `PARENT`, which is an instruction rather than a layer, and without
+--- `BLIZZARD`, which sits above everything and is the game's own.
+---@type FrameStrata[]
+Private.Enum.FrameStrataOrder = {
+	"BACKGROUND",
+	"LOW",
+	"MEDIUM",
+	"HIGH",
+	"DIALOG",
+	"FULLSCREEN",
+	"FULLSCREEN_DIALOG",
+	"TOOLTIP",
+}
+
+--- The same strata as a set, for validating a stored one before `SetFrameStrata`, which errors
+--- outright on a name it does not know and takes the container pass with it.
+---
+--- Derived rather than written out a second time: unlike the anchor points, the order here *is* the
+--- meaning, so a hand-kept set could disagree with it about which strata exist.
+---@type table<string, boolean>
+Private.Enum.FrameStrata = {}
+
+for i = 1, #Private.Enum.FrameStrataOrder do
+	Private.Enum.FrameStrata[Private.Enum.FrameStrataOrder[i]] = true
+end
+
 --- A name no player can hold, used as the `nameList` value for blank and retired slots. Never
 --- leave `nameList` nil: with `groupFilter` and `roleFilter` also nil, SecureGroupHeader_Update
 --- falls back to groupFilter "1,2,3,4,5,6,7,8" and renders the entire raid into one slot.

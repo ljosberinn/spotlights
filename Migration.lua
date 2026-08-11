@@ -40,12 +40,17 @@ end
 --- drifting toward the middle.
 ---
 --- `CENTER` is the default and the one point where both offsets are measured from the screen centre.
+---
+--- `scale` and `strata` were added later and ship at what the grid already did: unscaled, and the
+--- `LOW` the unit frame template used to declare for itself.
 ---@return SpotlightsPositionConfig
 local function DefaultPosition()
 	return {
 		point = "CENTER",
 		x = 0,
 		y = 0,
+		scale = 1,
+		strata = "LOW",
 	}
 end
 
@@ -339,9 +344,13 @@ end
 
 --- Fills in a missing or damaged position block, for the same reasons RepairBlock exists.
 ---
---- Stricter than RepairBlock's field-by-field fill: a position is only meaningful as a whole, so a
---- partial block is replaced rather than patched. `point` is validated against the set CalcPoint can
---- produce, because SetPoint errors outright on an unrecognised one.
+--- Stricter than RepairBlock's field-by-field fill: *where* the grid sits is only meaningful as a
+--- whole, so a partial anchor is replaced rather than patched. `point` is validated against the set
+--- CalcPoint can produce, because SetPoint errors outright on an unrecognised one.
+---
+--- Scale and strata are the exception and are repaired field by field, because neither is part of
+--- that anchor: a database written before they existed has a perfectly good position, and throwing
+--- it away over a field it could not have had would move the user's grid on first login.
 ---@param db SpotlightsDB
 local function RepairPosition(db)
 	local position = db.position
@@ -353,6 +362,20 @@ local function RepairPosition(db)
 		or not Private.Enum.AnchorPoints[position.point]
 	then
 		db.position = DefaultPosition()
+
+		return
+	end
+
+	local defaults = DefaultPosition()
+
+	-- Zero and negative are rejected rather than clamped to the slider's floor: `SetScale` errors on
+	-- them, and a database claiming either was not produced by the slider in the first place.
+	if type(position.scale) ~= "number" or position.scale <= 0 then
+		position.scale = defaults.scale
+	end
+
+	if not Private.Enum.FrameStrata[position.strata] then
+		position.strata = defaults.strata
 	end
 end
 

@@ -65,6 +65,26 @@ L.Settings.ImportErrorPayload = "the decoded data is not a settings table"
 L.Settings.ToggleMover = "Unlock / Lock"
 L.Settings.Recenter = "Return To Center"
 
+L.Settings.PlacementHeading = "Placement"
+L.Settings.InterfaceHeading = "Interface"
+L.Settings.UnlockFrames = "Unlock Frames For Dragging"
+L.Settings.Scale = "Frame Scale"
+L.Settings.FrameStrata = "Frame Strata"
+L.Settings.SlashHint = "Type |cffffd100/spotlights|r for every command."
+
+--- The frame strata, as display strings. Named for what the layer is rather than transliterated, since
+--- the value itself never reaches the user.
+L.Settings.Strata = {
+	BACKGROUND = "Background",
+	LOW = "Low",
+	MEDIUM = "Medium",
+	HIGH = "High",
+	DIALOG = "Dialog",
+	FULLSCREEN = "Fullscreen",
+	FULLSCREEN_DIALOG = "Fullscreen Dialog",
+	TOOLTIP = "Tooltip",
+}
+
 L.Settings.FrameHeading = "Frame"
 L.Settings.Width = "Frame Width"
 L.Settings.Height = "Frame Height"

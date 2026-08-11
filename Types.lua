@@ -222,15 +222,25 @@
 ---@field fontSize number
 ---@field gap number in pixels between multiple icons
 
---- Where the grid sits. A corner-relative anchor, never raw coordinates.
+--- Where the grid sits, how big it is drawn and what it stacks against. A corner-relative anchor,
+--- never raw coordinates.
 ---
 --- `point` is the frame point on the container *and* the point on UIParent it anchors to, so the
 --- offset is measured from the same corner of both -- which survives a resolution change. `x` and
---- `y` are in UIParent units and always mean right and up.
+--- `y` always mean right and up, and are in the **container's own units**: at scale 1 those are
+--- UIParent units, and at any other scale a stored offset is what the grid moves by at that scale,
+--- so scaling reads as the whole grid growing about its anchor rather than sliding across the
+--- screen.
+---
+--- `scale` and `strata` both reach the spotlights through inheritance: every slot header is a child
+--- of the container and every spotlight a child of a header, and none of them sets a scale or a
+--- strata of its own.
 ---@class SpotlightsPositionConfig
 ---@field point AnchorPoint
 ---@field x number
 ---@field y number
+---@field scale number
+---@field strata FrameStrata
 
 --- The nine points CalcPoint can produce. A subset of WoW's anchor points: the four corners,
 --- the four edge midpoints, and the centre.

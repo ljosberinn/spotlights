@@ -676,6 +676,47 @@ function Private.Controls.SubHeading(parent, text)
 	return row
 end
 
+--- Wrapped explanatory prose: the General tab's slash-command hint, and whatever else has to say
+--- something a label cannot.
+---
+--- The one leaf whose height is not the row height, and the reason it is a node at all: a string
+--- only knows how tall it is once it knows how wide it may be, so the height is read in `Layout`
+--- after the width is set rather than measured at construction. A column that narrows re-wraps and
+--- reports the taller answer on the next pass.
+---@param parent Frame
+---@param text string | fun(): string
+---@return SpotlightsNode
+function Private.Controls.Paragraph(parent, text)
+	local row = CreateFrame("Frame", nil, parent) --[[@as SpotlightsNode]]
+
+	row.span = true
+
+	local body = row:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+
+	body:SetPoint("TOPLEFT", row, "TOPLEFT", 0, 0)
+	body:SetJustifyH("LEFT")
+	body:SetJustifyV("TOP")
+	body:SetWordWrap(true)
+
+	function row:Refresh()
+		body:SetText(type(text) == "function" and text() or text)
+	end
+
+	function row:Layout(width)
+		body:SetWidth(width)
+
+		-- Floored at 1, since a frame may not be zero tall and a paragraph whose text is empty this
+		-- pass is still a node its container will size.
+		local height = math.max(body:GetStringHeight(), 1)
+
+		self:SetSize(width, height)
+
+		return height
+	end
+
+	return row
+end
+
 --- A button across the whole row: "Reset frame settings", "Clear all slots".
 ---
 --- `destructive` swaps the template rather than tinting the caption, and has to: red text on

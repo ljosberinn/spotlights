@@ -16,8 +16,13 @@
 	     SecureUnitButtonTemplate supplies OnClick -> SecureUnitButton_OnClick, which is what
 	     makes the *type1/*type2 attributes in SlotHeader.InitChild work. Not inherited, and
 	     deliberately: PingableUnitFrameTemplate, whose receiver attribute we cleared by hand,
-	     and BasePrivateAuraBehaviorMixin, whose anchor path is one of the two taint sites. -->
-	<Button name="SpotlightsUnitFrameTemplate" inherits="SecureUnitButtonTemplate" mixin="SpotlightsUnitFrameMixin" frameStrata="LOW" virtual="true">
+	     and BasePrivateAuraBehaviorMixin, whose anchor path is one of the two taint sites.
+
+	     No frameStrata, deliberately: it used to declare LOW, which is a strata set once per frame
+	     at creation and never revisited. The strata is the container's now (position.strata), and
+	     inherited down through the slot header, so changing the setting restacks the spotlights
+	     already on screen instead of only the ones built afterwards. -->
+	<Button name="SpotlightsUnitFrameTemplate" inherits="SecureUnitButtonTemplate" mixin="SpotlightsUnitFrameMixin" virtual="true">
 		<Layers>
 			<Layer level="BACKGROUND">
 				<!-- White by design: UpdateHealthColor tints it to a fifth of the class colour. -->

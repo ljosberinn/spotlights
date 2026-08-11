@@ -95,6 +95,59 @@ function Private.Container.GetPosition()
 	return Private.DB and Private.DB.position
 end
 
+--- The strata the mover's rectangle belongs in: one above the spotlights, so an aura preview drawn
+--- there covers the frame it stands in for instead of disappearing behind it.
+---
+--- Capped at the top of the list. A user who puts their grid at `TOOLTIP` gets previews in the same
+--- strata rather than none at all, which is the honest answer when there is nothing above.
+---@return FrameStrata
+function Private.Container.OverlayStrata()
+	local position = Private.Container.GetPosition()
+	local order = Private.Enum.FrameStrataOrder
+	local current = position and position.strata
+
+	for i = 1, #order do
+		if order[i] == current then
+			return order[math.min(i + 1, #order)]
+		end
+	end
+
+	-- Before the database has loaded, and for a strata this build does not know. Above the default
+	-- `LOW`, which is what the overlay wants in both cases.
+	return "HIGH"
+end
+
+--- Puts the configured scale and strata on the container.
+---
+--- Out of combat only, like everything else that writes to this frame: it is protected from the
+--- first slot header onwards, so `SetScale` and `SetFrameStrata` are protected calls exactly as
+--- `SetSize` is. Both reach the spotlights by inheritance -- no header and no unit frame sets a
+--- scale or a strata of its own, which is why the unit frame template no longer declares `LOW`.
+---@param position SpotlightsPositionConfig
+local function ApplyDisplay(position)
+	local frame = Private.Container.Get()
+
+	frame:SetScale(position.scale)
+	frame:SetFrameStrata(position.strata)
+end
+
+--- The screen's dimensions in the container's own units.
+---
+--- `GetLeft` and friends answer in the frame's own scaled units while `UIParent:GetWidth()` answers
+--- in UIParent's, and the two differ by the user's frame scale -- so a scaled grid clamped against
+--- the raw screen size would be held inside a rectangle the wrong size, by a factor that grows with
+--- the scale.
+---
+--- Measured from the effective scales rather than from the setting, so it is right even on the pass
+--- that has not applied the setting yet.
+---@return number width, number height
+local function ScreenSize()
+	local frame = Private.Container.Get()
+	local ratio = UIParent:GetEffectiveScale() / frame:GetEffectiveScale()
+
+	return UIParent:GetWidth() * ratio, UIParent:GetHeight() * ratio
+end
+
 --- Turns the container's current rectangle into a corner-relative point and offset.
 ---
 --- The screen is split into vertical halves and horizontal thirds, and the grid's centre decides
@@ -107,7 +160,7 @@ end
 ---@return AnchorPoint point, number x, number y
 local function CalcPoint()
 	local frame = Private.Container.Get()
-	local screenWidth, screenHeight = UIParent:GetWidth(), UIParent:GetHeight()
+	local screenWidth, screenHeight = ScreenSize()
 	local centerX, centerY = frame:GetCenter()
 
 	-- Nil before the frame has both a size and an anchor. Nothing sensible to compute, and the
@@ -169,7 +222,7 @@ local function Clamp(point, x, y)
 		return point, x, y
 	end
 
-	local screenWidth, screenHeight = UIParent:GetWidth(), UIParent:GetHeight()
+	local screenWidth, screenHeight = ScreenSize()
 	local dx, dy = 0, 0
 
 	if left < 0 then
@@ -224,6 +277,10 @@ end
 ---
 --- The corrected values are written back, so a grid pulled on-screen by a resolution change stays
 --- where the clamp put it instead of jumping back out at the next change.
+---
+--- Scale and strata are applied from here rather than from a pass of their own, and *before* the
+--- clamp: a scale change resizes the rectangle being clamped, so clamping first would measure the
+--- old one and leave a grown grid hanging off the screen edge until something else moved it.
 local function ApplyPosition()
 	if Private.Events.DeferIfInCombat(DeferralKey.Position) then
 		return
@@ -234,6 +291,8 @@ local function ApplyPosition()
 	if not position then
 		return
 	end
+
+	ApplyDisplay(position)
 
 	position.point, position.x, position.y = Clamp(position.point, position.x, position.y)
 

@@ -50,6 +50,27 @@ local tabs = {}
 
 local activeTab = 1
 
+--- The tabs in strip order, as the key each one's builder registers under. Parallel to the localised
+--- names in `Get` below, which are what the strip shows and cannot double as keys: a builder must not
+--- have to be found again under a different string in every locale.
+---@type string[]
+local TAB_KEYS = {
+	"general",
+	"appearance",
+	"grid",
+	"auras",
+	"roster",
+	"importExport",
+}
+
+--- What each tab builds, filled by the tab's own file rather than looked up here: a content issue
+--- adds a file and a line, and the shell does not learn six file names to find out.
+---
+--- A key with nothing behind it falls back to the stub below, which is what keeps every tab openable
+--- while the content lands one at a time.
+---@type table<string, fun(page: Frame): SpotlightsNode>
+Private.Options.Builders = {}
+
 --- Stand-in content. The six content issues replace these builders one tab at a time; until then a tab
 --- proves it was built and reused by naming itself.
 ---@param page Frame
@@ -235,7 +256,9 @@ local function Get()
 			--- what lets a dropdown read LibSharedMedia's list at open time, so a media pack that loads
 			--- after us is still listed.
 			if not tab.root then
-				tab.root = BuildStub(tab.page, tab.name)
+				local Build = Private.Options.Builders[TAB_KEYS[i]]
+
+				tab.root = Build and Build(tab.page) or BuildStub(tab.page, tab.name)
 
 				-- The one anchor the kit does not set for itself: a container positions its children and
 				-- sizes itself, so the root of a tree has to be told where its page begins.
