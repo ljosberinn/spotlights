@@ -51,6 +51,7 @@ Options\PreviewPane.lua
 Options\Appearance.lua
 Options\FillOrder.lua
 Options\Grid.lua
+Options\Auras.lua
 Options\Profile.lua
 Options\ImportExport.lua
 

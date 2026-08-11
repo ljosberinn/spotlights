@@ -39,19 +39,26 @@
 ---@class TabSystemTopButtonFrame : Button, TabSystemTopButtonTemplate
 
 --- A button acquired by `TabSystemTemplate` for a bottom-oriented tab strip.
+---
+--- `Text` and `SetTabWidth` come from `TabSystemButtonArtTemplate` and are written out because the
+--- category strip pads a tab beyond its label to make room for the enable dot beside it.
 ---@class TabSystemButtonFrame : Button, TabSystemButtonTemplate
+---@field Text FontString
+---@field SetTabWidth fun(self: TabSystemButtonFrame, width: number)
 
 --- A Lua-created tab system. The button type is selected through `tabTemplate` before `OnLoad` builds
 --- the pool, so the two concrete button frame types above describe the pooled children.
 ---@class SpotlightsTabSystemFrame : Frame, TabSystemTemplate
 ---@field tabTemplate string
----@field maxTabWidth number
----@field minTabWidth number
----@field spacing number between one tab and the next, read by the layout frame under the mixin
+---@field maxTabWidth number? absent for a strip whose tabs may be as wide as their labels
+---@field minTabWidth number? absent for a strip whose tabs may be as narrow as their labels
+---@field spacing number? between one tab and the next, read by the layout frame under the mixin
 ---@field AddTab fun(self: SpotlightsTabSystemFrame, tabText: string): integer
+---@field GetTabButton fun(self: SpotlightsTabSystemFrame, tabID: integer): TabSystemButtonFrame
 ---@field SetTabSelectedCallback fun(self: SpotlightsTabSystemFrame, callback: fun(tabID: integer, isUserAction: boolean?): boolean?)
 ---@field SetTab fun(self: SpotlightsTabSystemFrame, tabID: integer, isUserAction: boolean?) runs the selection callback
 ---@field SetTabVisuallySelected fun(self: SpotlightsTabSystemFrame, tabID: integer) paints the selection without running the callback
+---@field SetTabEnabled fun(self: SpotlightsTabSystemFrame, tabID: integer, enabled: boolean, errorReason: string?) greys the label and refuses the click, with the reason in the tooltip
 
 --- The reworked options window.
 ---
@@ -162,8 +169,16 @@
 ---@field defensives table<integer, boolean> defensive overrides; absent means the shipped default
 ---@field defensiveCustom table<integer, boolean> user-added defensive spell IDs
 
---- One aura's two displays, independent of each other and both optional.
+--- One aura's two displays, independent of each other and both optional, under one switch for the
+--- feature as a whole.
+---
+--- `enabled` is the feature-level switch behind the category strip's dot, and it **overrides** both
+--- displays: a feature switched off renders nothing whatever its bar and icon say, and its containers
+--- stop listening for auras. Off is not the same as switching both displays off -- that is two
+--- decisions the user has to remember to undo, where this is one, and it leaves the display settings
+--- exactly as they were for when the feature comes back.
 ---@class SpotlightsAuraFeatureConfig
+---@field enabled boolean
 ---@field bar SpotlightsAuraBarConfig
 ---@field icon SpotlightsAuraIconConfig
 

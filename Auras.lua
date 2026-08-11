@@ -40,6 +40,17 @@ if not Private.Auras.IsSupported then
 		return false
 	end
 
+	--- Nothing is tracked on a client with no aura displays, so nothing is enabled.
+	---@return boolean
+	function Private.Auras.IsFeatureEnabled()
+		return false
+	end
+
+	---@return boolean applied
+	function Private.Auras.SetFeatureEnabled()
+		return false
+	end
+
 	function Private.Auras.ResetFeature() end
 
 	function Private.Auras.RefreshCandidates() end
@@ -1030,12 +1041,19 @@ local DISPLAYS = {
 ---
 --- The size floor guards against a damaged database, not user input. `SetSize(0, 0)` means "take your
 --- size from your anchors", which with a single anchor point is undefined rather than empty.
+---
+--- `featureEnabled` is the feature's own switch, which the display's cannot override: the anchor is
+--- what carries "off" to a built display, so both answers have to meet here rather than at either
+--- caller. Hiding it takes the container under it down with it, and a hidden container drops its
+--- `UNIT_AURA` registration in `OnHide` -- so a switched-off feature stops being told about auras
+--- rather than merely stopping drawing them.
 ---@param anchor Frame
 ---@param parent Frame
 ---@param display SpotlightsAuraKind
 ---@param config SpotlightsAuraDisplayConfig
 ---@param size SpotlightsChildSize
-local function ApplyAnchor(anchor, parent, display, config, size)
+---@param featureEnabled boolean
+local function ApplyAnchor(anchor, parent, display, config, size, featureEnabled)
 	local point = Private.Enum.AnchorPoints[config.point] and config.point or "CENTER"
 	local width, height = display.Size(config, size)
 
@@ -1043,7 +1061,7 @@ local function ApplyAnchor(anchor, parent, display, config, size)
 	PixelUtil.SetPoint(anchor, point, parent, point, config.x, config.y)
 	PixelUtil.SetSize(anchor, math.max(width, 1), math.max(height, 1))
 	anchor:SetAlpha(config.alpha)
-	anchor:SetShown(config.enabled)
+	anchor:SetShown(featureEnabled and config.enabled)
 end
 
 --- Builds one display on one spotlight: an anchor of ours, a container inside it, and the slot.
@@ -1186,7 +1204,9 @@ end
 local function CreateDisplay(child, feature, display, config)
 	local anchor = CreateFrame("Frame", nil, child)
 
-	ApplyAnchor(anchor, child, display, config, Private.FrameConfig.Get())
+	-- Enabled unconditionally, because nothing builds a display for a feature that is switched off:
+	-- `EnsureDisplays` is the only caller and gates on it before it gets here.
+	ApplyAnchor(anchor, child, display, config, Private.FrameConfig.Get(), true)
 
 	local container = AttachContainer(child, feature, display, config, anchor)
 
@@ -1328,6 +1348,10 @@ end
 --- spotlights' worth of aura frames rather than forty, each carrying one container per display the
 --- user turned on rather than four. A spotlight with no unit builds nothing.
 ---
+--- A feature switched off is skipped whole, so it costs nothing until it is switched back on -- at
+--- which point this runs again and builds what it skipped. That is why the switch is cheap in both
+--- directions: off hides what exists, on builds what does not.
+---
 --- Deferred rather than guarded, because `initializeFrame` anchors and sizes frames descended from a
 --- protected unit button -- protected calls that combat-block. The sweep registered below picks the
 --- work up when combat ends.
@@ -1352,6 +1376,7 @@ local function EnsureDisplays(child)
 
 	for i = 1, #FEATURES do
 		local feature = FEATURES[i]
+		local featureConfig = auras[feature.key]
 		local featureBuilt = built[feature.key]
 
 		if not featureBuilt then
@@ -1361,9 +1386,10 @@ local function EnsureDisplays(child)
 
 		for j = 1, #DISPLAYS do
 			local display = DISPLAYS[j]
-			local config = auras[feature.key][display.key]
+			local config = featureConfig[display.key]
 
-			if (not feature.multiple or display.key == "icon") and config.enabled and not featureBuilt[display.key] then
+			if featureConfig.enabled and (not feature.multiple or display.key == "icon")
+				and config.enabled and not featureBuilt[display.key] then
 				-- Assigned after the call returns, so a display that failed to build leaves the
 				-- spotlight retryable rather than marked done with nothing in it.
 				featureBuilt[display.key] = CreateDisplay(child, feature, display, config)
@@ -1396,7 +1422,7 @@ function Private.Auras.ApplyChild(child)
 	ForEachDisplay(child, function(record, feature, display)
 		local config = auras[feature.key][display.key]
 
-		ApplyAnchor(record.anchor, child, display, config, size)
+		ApplyAnchor(record.anchor, child, display, config, size, auras[feature.key].enabled)
 
 		-- After the anchor has moved, because the question is whether the *new* rect has broken
 		-- something the button was built against. Queued rather than done here: this runs per
@@ -1480,7 +1506,10 @@ function Private.Auras.StylePreviews(previews)
 		local preview = previews[i]
 		local config = auras[preview.feature.key][preview.display.key]
 
-		ApplyAnchor(preview.anchor, preview.anchor:GetParent(), preview.display, config, size)
+		-- The feature switch reaches the previews too, so the panel shows what the grid will: a
+		-- category the user just switched off has nothing left to preview.
+		ApplyAnchor(preview.anchor, preview.anchor:GetParent(), preview.display, config, size,
+			auras[preview.feature.key].enabled)
 
 		if preview.feature.multiple then
 			local width, height = preview.display.Size(config, size)
@@ -1639,9 +1668,9 @@ local function CheckSensePower()
 	local auras = Config()
 	local sensePower = auras and auras[SENSE_POWER_KEY]
 
-	-- Nothing to warn about if nothing is being tracked. A user who switched both Sense Power
-	-- displays off has already answered the question this prompt asks.
-	if not sensePower or not (sensePower.bar.enabled or sensePower.icon.enabled) then
+	-- Nothing to warn about if nothing is being tracked. A user who switched the feature off, or both
+	-- of its displays, has already answered the question this prompt asks.
+	if not sensePower or not sensePower.enabled or not (sensePower.bar.enabled or sensePower.icon.enabled) then
 		return
 	end
 
@@ -1773,7 +1802,57 @@ function Private.Auras.SetSetting(featureKey, displayKey, field, value)
 	return true
 end
 
---- Restores one feature's bar and icon to fresh-install values, leaving the shared spell pool alone.
+--- Whether a whole feature is switched on.
+---
+--- Answers `false` before the database has loaded rather than assuming the default, because the honest
+--- reading of "nothing is loaded" is that nothing is being tracked -- and every caller either draws a
+--- switch, which the migration corrects a moment later, or decides whether to build frames, which
+--- must not happen against a database that is not there yet.
+---@param featureKey SpotlightsAuraFeatureKey
+---@return boolean
+function Private.Auras.IsFeatureEnabled(featureKey)
+	local auras = Config()
+	local feature = auras and auras[featureKey]
+
+	return feature ~= nil and feature.enabled == true
+end
+
+--- Switches a whole feature on or off, and lands it on every live display and preview.
+---
+--- Not routed through `SetSetting`: this is not a display setting. It sits a level above the bar and
+--- the icon and overrides both, and it has no frozen half -- switching off is a `SetShown` on anchors
+--- that already exist, and switching on is a build `EnsureDisplays` was already going to do. So
+--- nothing here abandons a frame, and **nothing here arms the reload prompt**, which is what makes the
+--- dot on the category strip free to click.
+---@param featureKey SpotlightsAuraFeatureKey
+---@param enabled boolean
+---@return boolean applied
+function Private.Auras.SetFeatureEnabled(featureKey, enabled)
+	local auras = Config()
+	local feature = auras and auras[featureKey]
+
+	if not feature or feature.enabled == enabled then
+		return false
+	end
+
+	feature.enabled = enabled
+
+	-- The free path: `Apply` builds whatever the switch just made buildable and re-anchors the rest,
+	-- next frame, or once combat ends.
+	Private.Events.Request(DeferralKey.Auras)
+
+	-- Switching Sense Power on is the moment to find out the ability itself is off, for the same
+	-- reason a display's own switch is (see `SetSetting`).
+	if featureKey == SENSE_POWER_KEY and enabled then
+		CheckSensePower()
+	end
+
+	return true
+end
+
+--- Restores one feature's bar and icon to fresh-install values, leaving the shared spell pool alone
+--- and the feature's own switch where the user put it: a reset is about how a feature looks, and
+--- silently switching a category back on would undo a decision the button does not mention.
 ---
 --- Written through `SetSetting` field by field rather than swapping the two blocks, so a reset takes
 --- the same free/frozen routing every other write does: frozen fields coalesce into one rebuild per

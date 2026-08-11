@@ -204,6 +204,10 @@ end
 ---
 --- Public and split out from `DefaultAuras` so the Reset button has one feature's defaults to write
 --- back. Fresh tables every call, so a reset cannot alias one feature's block onto another's.
+---
+--- Every feature ships **enabled**, which is what makes the field free to add: `Repair` fills it into
+--- a database written before it existed, and `true` is what those databases already behaved as. Which
+--- displays a feature draws stays the per-display question it was.
 ---@param featureKey SpotlightsAuraFeatureKey
 ---@return SpotlightsAuraFeatureConfig
 function Private.Migration.DefaultAuraFeature(featureKey)
@@ -213,6 +217,7 @@ function Private.Migration.DefaultAuraFeature(featureKey)
 		icon.point = "RIGHT"
 
 		return {
+			enabled = true,
 			bar = DefaultAuraBar(false, "BOTTOM", 0.2, 0.8, 1, 0),
 			icon = icon,
 		}
@@ -220,12 +225,14 @@ function Private.Migration.DefaultAuraFeature(featureKey)
 
 	if featureKey == "cooldownAuras" or featureKey == "defensiveAuras" then
 		return {
+			enabled = true,
 			bar = DefaultAuraBar(false, "CENTER", 1, 1, 1, 0),
 			icon = DefaultAuraIcon(true, 25, 25),
 		}
 	end
 
 	return {
+		enabled = true,
 		bar = DefaultAuraBar(true, "TOP", 1, 1, 0, -2),
 		icon = DefaultAuraIcon(false, 25, 25),
 	}
@@ -336,7 +343,7 @@ end
 --- Field-by-field is right for layout and appearance because each field stands alone. Position is the
 --- exception and gets its own repair below.
 ---@param db SpotlightsDB
----@param key "layout" | "appearance" | "auras"
+---@param key "layout" | "appearance" | "auras" | "minimap"
 ---@param build fun(): table
 local function RepairBlock(db, key, build)
 	db[key] = Filled(db[key], build())

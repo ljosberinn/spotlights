@@ -139,26 +139,11 @@ local function MaybePromptReload()
 	StaticPopup_Show(AURA_RELOAD_POPUP)
 end
 
---- The aura previews are *not* taken down here, unlike the old panel's `OnHide`. Both panels can be open
---- at once while the rework is being built, and this one shows no previews yet -- hiding them on its close
---- would clear the previews the old panel is still displaying. Issue 07 adds it back with the previews.
+--- The aura previews are *not* taken down here, unlike the old panel's `OnHide`. They belong to one tab
+--- rather than to the window, so the Auras tab turns them on and off from its own page's `OnShow` and
+--- `OnHide` -- which the shell hiding fires anyway, and which a tab switch fires too.
 local function OnPanelHidden()
 	MaybePromptReload()
-end
-
----@param parent Frame
----@param tabTemplate string
----@param maxTabWidth number
----@return SpotlightsTabSystemFrame
-local function CreateTabSystem(parent, tabTemplate, maxTabWidth)
-	-- Built in Lua rather than XML so the tab pool sees the selected button template during OnLoad.
-	local tabSystem = CreateFrame("Frame", nil, parent, "HorizontalLayoutFrame") --[[@as SpotlightsTabSystemFrame]]
-	tabSystem.tabTemplate = tabTemplate
-	tabSystem.maxTabWidth = maxTabWidth
-	Mixin(tabSystem, TabSystemMixin)
-	TabSystemMixin.OnLoad(tabSystem)
-
-	return tabSystem
 end
 
 ---@return SpotlightsOptionsFrame
@@ -208,7 +193,9 @@ local function Get()
 	Mixin(panel, TabSystemOwnerMixin)
 	TabSystemOwnerMixin.OnLoad(panel)
 
-	local tabSystem = CreateTabSystem(panel, "TabSystemTopButtonTemplate", MAX_TAB_WIDTH)
+	local tabSystem = Private.Node.TabSystem(panel, "TabSystemTopButtonTemplate", {
+		maxTabWidth = MAX_TAB_WIDTH,
+	})
 
 	-- Right of the portrait, the way SpellBook clears its own icon, and nudged down from the plain 19: the
 	-- *selected* tab is drawn emphasised, with its on-top art reaching above the strip's rectangle, so the
@@ -329,6 +316,17 @@ function Private.Options.Refresh()
 		tab.root:Refresh()
 		LayoutActive()
 	end
+end
+
+--- The window itself, for the one thing a tab cannot anchor inside its own page: the Auras tab's
+--- category strip is a *bottom* tab strip, whose art hangs below the frame it belongs to, so it is
+--- anchored to the window's bottom edge rather than to the content rectangle. Anchoring it to the page
+--- instead would put the shell's content inset in a tab's arithmetic.
+---
+--- Everything else a tab needs is handed to its builder. This is not a general seam into the shell.
+---@return SpotlightsOptionsFrame
+function Private.Options.GetFrame()
+	return Get()
 end
 
 --- Whether the cursor is anywhere over the panel.

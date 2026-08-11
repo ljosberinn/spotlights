@@ -472,6 +472,36 @@ function Private.Node.Section(parent, Title, Summary, body, startOpen)
 	return section
 end
 
+--- A tab strip assembled in Lua rather than created from `TabSystemTemplate`.
+---
+--- Assembled by hand everywhere the panel needs a strip -- the window's own, a sub-tab strip inside a
+--- tab, the Auras tab's category strip -- because `TabSystemMixin.OnLoad` builds the button pool from
+--- `tabTemplate`, so the template has to be on the frame before that runs. A frame created from the
+--- XML template has already run its `OnLoad` by the time we could set one.
+---
+--- `constraints` carries what the template's KeyValues would have: the width bounds a tab is sized
+--- against, and `spacing`, which is `TabSystemTemplate`'s own default rather than the layout frame's --
+--- a frame created without those KeyValues inherits neither.
+---
+--- The frame sizes itself from its children, so a caller may anchor it but must not size it.
+---@param parent Frame
+---@param template string the button template, which is also what decides whether the art hangs above or below the strip
+---@param constraints { minTabWidth: number?, maxTabWidth: number?, spacing: number? }
+---@return SpotlightsTabSystemFrame
+function Private.Node.TabSystem(parent, template, constraints)
+	local tabSystem = CreateFrame("Frame", nil, parent, "HorizontalLayoutFrame") --[[@as SpotlightsTabSystemFrame]]
+
+	tabSystem.tabTemplate = template
+	tabSystem.minTabWidth = constraints.minTabWidth
+	tabSystem.maxTabWidth = constraints.maxTabWidth
+	tabSystem.spacing = constraints.spacing
+
+	Mixin(tabSystem, TabSystemMixin)
+	TabSystemMixin.OnLoad(tabSystem)
+
+	return tabSystem
+end
+
 --- One sub-tab: the name on its button, and the node it shows.
 ---@class SpotlightsSubTab
 ---@field name string
@@ -518,19 +548,10 @@ function Private.Node.SubTabs(parent, tabs, OnSelected)
 
 	Adopt(pages, nodes)
 
-	-- Built in Lua rather than XML so the tab pool sees the button template during `OnLoad`, as both
-	-- panels' own strips are. The frame sizes itself from its children, so nothing here may set its
-	-- width or height.
-	local tabSystem = CreateFrame("Frame", nil, strip, "HorizontalLayoutFrame") --[[@as SpotlightsTabSystemFrame]]
-
-	tabSystem.tabTemplate = "TabSystemTopButtonTemplate"
-	tabSystem.minTabWidth = SUBTAB_MIN_WIDTH
-
-	-- `TabSystemTemplate`'s own default, which a frame created without its KeyValues does not inherit.
-	tabSystem.spacing = 1
-
-	Mixin(tabSystem, TabSystemMixin)
-	TabSystemMixin.OnLoad(tabSystem)
+	local tabSystem = Private.Node.TabSystem(strip, "TabSystemTopButtonTemplate", {
+		minTabWidth = SUBTAB_MIN_WIDTH,
+		spacing = 1,
+	})
 
 	tabSystem:SetPoint("TOPLEFT", strip, "TOPLEFT", SUBTAB_INSET, -SUBTAB_TOP_PAD)
 
