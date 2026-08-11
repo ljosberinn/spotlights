@@ -44,21 +44,6 @@ L.Settings.TabGrid = "网格"
 L.Settings.TabAuras = "光环"
 L.Settings.TabRoster = "名单"
 L.Settings.TabImportExport = "导入 / 导出"
-
-L.Settings.HowThisWorks = "使用说明"
-
-L.Settings.HelpGeneral =
-"网格所在的位置以及它在战斗之外的表现：屏幕上的位置、缩放，以及整个插件的界面选项。"
-L.Settings.HelpAppearance =
-"单个 spotlight 的绘制方式——边框、名称文字和生命条。控件旁的预览会显示效果。"
-L.Settings.HelpGrid =
-"spotlight 的排列方式：每行几个、新的向哪个方向增长，以及彼此之间的间距。预览会显示槽位被填充的顺序。"
-L.Settings.HelpAuras =
-"spotlight 追踪哪些光环以及它们的显示方式。每项功能都可以单独关闭，追踪的法术按职业分类列出。"
-L.Settings.HelpRoster =
-"每个槽位聚焦哪名团队成员。将名字从团队列表拖到槽位上，或清空某个槽位，在网格中留出空缺。"
-L.Settings.HelpImportExport =
-"以文本字符串在角色之间转移这些设置。导入会替换除网格位置及其槽位之外的所有内容。"
 L.Settings.ShowMinimapButton = "显示小地图按钮"
 L.Settings.ClickToOpenSettings = "点击打开设置"
 L.Settings.Import = "导入"

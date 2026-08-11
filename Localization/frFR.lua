@@ -44,21 +44,6 @@ L.Settings.TabGrid = "Grille"
 L.Settings.TabAuras = "Auras"
 L.Settings.TabRoster = "Groupe"
 L.Settings.TabImportExport = "Import / Export"
-
-L.Settings.HowThisWorks = "Comment ça marche"
-
-L.Settings.HelpGeneral =
-"Où se place la grille et comment elle se comporte hors combat : sa position à l'écran, son échelle et les options d'interface de tout l'addon."
-L.Settings.HelpAppearance =
-"Comment un spotlight est dessiné : son cadre, son texte de nom et sa barre de vie. L'aperçu à côté des réglages montre le résultat."
-L.Settings.HelpGrid =
-"Comment les spotlights sont disposés : combien par ligne, dans quelle direction les nouveaux s'ajoutent et l'espacement entre eux. L'aperçu montre l'ordre dans lequel les emplacements sont remplis."
-L.Settings.HelpAuras =
-"Quelles auras un spotlight suit et comment elles sont affichées. Chaque fonction peut être désactivée séparément, et les sorts suivis sont listés par classe."
-L.Settings.HelpRoster =
-"Quel membre du groupe chaque emplacement met en avant. Faites glisser un nom depuis la liste du groupe vers un emplacement, ou videz un emplacement pour laisser un trou dans la grille."
-L.Settings.HelpImportExport =
-"Transfère ces réglages entre personnages sous forme de chaîne de texte. Un import remplace tout sauf la position de la grille et ses emplacements."
 L.Settings.ShowMinimapButton = "Afficher le bouton de la minicarte"
 L.Settings.ClickToOpenSettings = "Cliquer pour ouvrir les options"
 L.Settings.Import = "Importer"

@@ -45,21 +45,6 @@ L.Settings.TabGrid = "Rejilla"
 L.Settings.TabAuras = "Auras"
 L.Settings.TabRoster = "Lista"
 L.Settings.TabImportExport = "Importar / Exportar"
-
-L.Settings.HowThisWorks = "Cómo funciona"
-
-L.Settings.HelpGeneral =
-"Dónde se sitúa la rejilla y cómo se comporta fuera de combate: su posición en pantalla, su escala y las opciones de interfaz de todo el accesorio."
-L.Settings.HelpAppearance =
-"Cómo se dibuja un spotlight: su marco, su texto de nombre y su barra de salud. La vista previa junto a los controles muestra el resultado."
-L.Settings.HelpGrid =
-"Cómo se disponen los spotlights: cuántos por fila, hacia dónde crecen los nuevos y el espacio entre ellos. La vista previa muestra el orden en que se llenan las ranuras."
-L.Settings.HelpAuras =
-"Qué auras sigue un spotlight y cómo se muestran. Cada función puede desactivarse por separado, y los hechizos seguidos se listan por clase."
-L.Settings.HelpRoster =
-"A qué miembro de la banda destaca cada ranura. Arrastra un nombre de la lista de la banda a una ranura, o vacía una ranura para dejar un hueco en la rejilla."
-L.Settings.HelpImportExport =
-"Traslada estos ajustes entre personajes como una cadena de texto. Importar reemplaza todo salvo la posición de la rejilla y sus ranuras."
 L.Settings.ShowMinimapButton = "Mostrar botón del minimapa"
 L.Settings.ClickToOpenSettings = "Haz clic para abrir los ajustes"
 L.Settings.Import = "Importar"

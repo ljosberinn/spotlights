@@ -44,21 +44,6 @@ L.Settings.TabGrid = "격자"
 L.Settings.TabAuras = "오라"
 L.Settings.TabRoster = "명단"
 L.Settings.TabImportExport = "가져오기 / 내보내기"
-
-L.Settings.HowThisWorks = "사용 방법"
-
-L.Settings.HelpGeneral =
-"격자가 놓이는 위치와 전투 밖에서의 동작: 화면상 위치, 크기, 그리고 애드온 전체에 적용되는 인터페이스 설정입니다."
-L.Settings.HelpAppearance =
-"하나의 spotlight이 그려지는 방식 - 테두리, 이름 문구, 생명력 바입니다. 설정 옆의 미리보기에서 결과를 확인할 수 있습니다."
-L.Settings.HelpGrid =
-"spotlight의 배치 방식: 한 줄에 몇 개인지, 새 항목이 어느 방향으로 늘어나는지, 그리고 간격입니다. 미리보기는 슬롯이 채워지는 순서를 보여줍니다."
-L.Settings.HelpAuras =
-"spotlight이 추적하는 효과와 그 표시 방식입니다. 각 기능은 개별적으로 끌 수 있으며, 추적하는 주문은 직업별로 나열됩니다."
-L.Settings.HelpRoster =
-"각 슬롯이 조명하는 공격대원입니다. 공격대 목록에서 이름을 슬롯으로 끌어다 놓거나, 슬롯을 비워 격자에 빈자리를 남길 수 있습니다."
-L.Settings.HelpImportExport =
-"이 설정을 문자열로 캐릭터 간에 옮깁니다. 가져오기는 격자의 위치와 슬롯을 제외한 모든 것을 덮어씁니다."
 L.Settings.ShowMinimapButton = "미니맵 버튼 표시"
 L.Settings.ClickToOpenSettings = "클릭하여 설정 열기"
 L.Settings.Import = "가져오기"

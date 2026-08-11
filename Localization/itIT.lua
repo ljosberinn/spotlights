@@ -45,21 +45,6 @@ L.Settings.TabGrid = "Griglia"
 L.Settings.TabAuras = "Aure"
 L.Settings.TabRoster = "Roster"
 L.Settings.TabImportExport = "Importa / Esporta"
-
-L.Settings.HowThisWorks = "Come funziona"
-
-L.Settings.HelpGeneral =
-"Dove si trova la griglia e come si comporta fuori dal combattimento: la sua posizione sullo schermo, la sua scala e le opzioni di interfaccia dell'intero addon."
-L.Settings.HelpAppearance =
-"Come viene disegnato un singolo spotlight: la cornice, il testo del nome e la barra della salute. L'anteprima accanto ai controlli mostra il risultato."
-L.Settings.HelpGrid =
-"Come vengono disposti gli spotlight: quanti per riga, in quale direzione crescono i nuovi e lo spazio tra di essi. L'anteprima mostra l'ordine in cui gli slot vengono riempiti."
-L.Settings.HelpAuras =
-"Quali aure segue uno spotlight e come vengono mostrate. Ogni funzione può essere disattivata singolarmente, e le magie seguite sono elencate per classe."
-L.Settings.HelpRoster =
-"Quale membro del gruppo mette in evidenza ogni slot. Trascina un nome dalla lista del gruppo su uno slot, oppure svuota uno slot per lasciare un vuoto nella griglia."
-L.Settings.HelpImportExport =
-"Sposta queste impostazioni tra i personaggi come stringa di testo. L'importazione sostituisce tutto tranne la posizione della griglia e i suoi slot."
 L.Settings.ShowMinimapButton = "Mostra il pulsante della minimappa"
 L.Settings.ClickToOpenSettings = "Clicca per aprire le impostazioni"
 L.Settings.Import = "Importa"

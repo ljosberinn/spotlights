@@ -20,7 +20,7 @@ local MAX_TAB_WIDTH = 117
 
 local CONTENT_INSET = 16
 
---- Where the tab strip starts relative to the panel's left edge, right of the portrait. The help strip
+--- Where the tab strip starts relative to the panel's left edge, right of the portrait. The content
 --- follows the tab system's bottom and so has to know this to land back at `CONTENT_INSET`.
 local TAB_STRIP_X = 70
 local TAB_STRIP_Y = -26
@@ -28,10 +28,8 @@ local TAB_STRIP_Y = -26
 --- What every tab lays out against. Two ~350 columns with a 26 gutter, or a 196 rail beside a 536 pane.
 local CONTENT_WIDTH = PANEL_WIDTH - CONTENT_INSET * 2
 
-local HELP_STRIP_GAP = 8
-local HELP_TEXT_GAP = 6
-local HELP_TOGGLE_HEIGHT = 22
-local HELP_TOGGLE_PADDING = 30
+--- Between the tab strip's bottom edge and the content, as the old panel already spaces them.
+local CONTENT_GAP = 8
 
 --- Shared with the old panel deliberately. Both panels offer the same reload for the same reason, and
 --- `StaticPopup_Show` reuses the dialog already on screen for a given key -- two keys would stack two
@@ -41,10 +39,9 @@ local AURA_RELOAD_POPUP = "SPOTLIGHTS_AURA_RELOAD"
 ---@type SpotlightsOptionsFrame?
 local panel
 
---- One top-level tab: what it is called, what its help paragraph says, and the page and node behind it.
+--- One top-level tab: what it is called, and the page and node behind it.
 ---@class SpotlightsOptionsTab
 ---@field name string
----@field help string
 ---@field page Frame the fixed content rectangle this tab draws into
 ---@field root SpotlightsNode? nil until the tab is first selected
 
@@ -52,13 +49,6 @@ local panel
 local tabs = {}
 
 local activeTab = 1
-local helpShown = false
-
----@type Frame
-local helpStrip
-
----@type FontString
-local helpText
 
 --- Stand-in content. The six content issues replace these builders one tab at a time; until then a tab
 --- proves it was built and reused by naming itself.
@@ -69,33 +59,9 @@ local function BuildStub(page, name)
 	return Private.Node.Column(page, { Private.Controls.SubHeading(page, name) })
 end
 
---- Sizes the help strip to whatever it is currently showing.
----
---- The content host is anchored to this strip's bottom and to the panel's, so growing the strip is what
---- pushes the content down and shortens it -- there is no second place that restates the content height.
-local function LayoutHelp()
-	local tab = tabs[activeTab]
-
-	if helpShown and tab then
-		helpText:SetText(tab.help)
-		helpText:Show()
-
-		-- `GetStringHeight` wraps against the width the font string was given, which is why it is set here
-		-- rather than left to an anchor the layout has not resolved yet.
-		helpStrip:SetHeight(HELP_TOGGLE_HEIGHT + HELP_TEXT_GAP + helpText:GetStringHeight())
-	else
-		helpText:Hide()
-		helpStrip:SetHeight(HELP_TOGGLE_HEIGHT)
-	end
-end
-
 --- Lays the active tab out. Nothing else: the other tabs are hidden, and a hidden node's `Layout` would
 --- anchor children against a rectangle the user is not looking at.
 local function LayoutActive()
-	-- Unconditionally, and before the node: the strip has a height whether or not a tab has been built
-	-- yet, and the content rectangle is anchored to its bottom.
-	LayoutHelp()
-
 	local tab = tabs[activeTab]
 
 	if tab and tab.root then
@@ -229,73 +195,36 @@ local function Get()
 	tabSystem:SetPoint("TOPLEFT", panel, "TOPLEFT", TAB_STRIP_X, TAB_STRIP_Y)
 	panel:SetTabSystem(tabSystem)
 
-	--- The help strip: a toggle, and the paragraph it reveals.
-	---
-	--- Between the tab strip and the content rather than over the content, because it is about the tab as a
-	--- whole. Its top follows the tab system's bottom instead of restating the strip's height, so a change
-	--- to the tab art cannot leave everything below it in the wrong place.
-	helpStrip = CreateFrame("Frame", nil, panel)
-
-	helpStrip:SetPoint("TOPLEFT", tabSystem, "BOTTOMLEFT", CONTENT_INSET - TAB_STRIP_X, -HELP_STRIP_GAP)
-	helpStrip:SetWidth(CONTENT_WIDTH)
-	helpStrip:SetHeight(HELP_TOGGLE_HEIGHT)
-
-	local helpToggle = CreateFrame("Button", nil, helpStrip, "UIPanelButtonTemplate")
-
-	helpToggle:SetPoint("TOPRIGHT", helpStrip, "TOPRIGHT", 0, 0)
-	helpToggle:SetHeight(HELP_TOGGLE_HEIGHT)
-	helpToggle:SetText(L.HowThisWorks)
-
-	-- Sized to its own caption: every translation spells this differently, and a fixed width is either
-	-- clipped in German or a gap in English.
-	helpToggle:SetWidth(helpToggle:GetTextWidth() + HELP_TOGGLE_PADDING)
-
-	helpText = helpStrip:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
-
-	helpText:SetPoint("TOPLEFT", helpStrip, "TOPLEFT", 0, -(HELP_TOGGLE_HEIGHT + HELP_TEXT_GAP))
-	helpText:SetWidth(CONTENT_WIDTH)
-	helpText:SetJustifyH("LEFT")
-	helpText:SetSpacing(2)
-	helpText:Hide()
-
-	helpToggle:SetScript("OnClick", function()
-		helpShown = not helpShown
-
-		-- Only the geometry changed, so this is a `Layout` without a `Refresh`: no node has been told to
-		-- reconsider whether it is shown.
-		LayoutActive()
-	end)
-
 	--- The content rectangle every tab draws into.
 	---
-	--- Anchored to the help strip above and the panel below rather than given a height, which is what makes
-	--- the help paragraph push the content down and shorten it in one move.
+	--- Its top follows the tab system's bottom instead of restating the strip's height, so a change to the
+	--- tab art cannot leave the content in the wrong place; the bottom and right follow the panel, so the
+	--- rectangle is the one place the content's size is decided.
 	local contentHost = CreateFrame("Frame", nil, panel)
 
-	contentHost:SetPoint("TOPLEFT", helpStrip, "BOTTOMLEFT", 0, -HELP_STRIP_GAP)
+	contentHost:SetPoint("TOPLEFT", tabSystem, "BOTTOMLEFT", CONTENT_INSET - TAB_STRIP_X, -CONTENT_GAP)
 	contentHost:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -CONTENT_INSET, CONTENT_INSET)
 
-	local definitions = {
-		{ name = L.TabGeneral, help = L.HelpGeneral },
-		{ name = L.TabAppearance, help = L.HelpAppearance },
-		{ name = L.TabGrid, help = L.HelpGrid },
-		{ name = L.TabAuras, help = L.HelpAuras },
-		{ name = L.TabRoster, help = L.HelpRoster },
-		{ name = L.TabImportExport, help = L.HelpImportExport },
+	local names = {
+		L.TabGeneral,
+		L.TabAppearance,
+		L.TabGrid,
+		L.TabAuras,
+		L.TabRoster,
+		L.TabImportExport,
 	}
 
-	for i = 1, #definitions do
+	for i = 1, #names do
 		local page = CreateFrame("Frame", nil, contentHost)
 
 		page:SetAllPoints(contentHost)
 
 		tabs[i] = {
-			name = definitions[i].name,
-			help = definitions[i].help,
+			name = names[i],
 			page = page,
 		}
 
-		local tabID = panel:AddNamedTab(definitions[i].name, page)
+		local tabID = panel:AddNamedTab(names[i], page)
 
 		panel:SetTabCallback(tabID, function()
 			activeTab = i

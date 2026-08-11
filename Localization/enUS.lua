@@ -53,21 +53,6 @@ L.Settings.TabGrid = "Grid"
 L.Settings.TabAuras = "Auras"
 L.Settings.TabRoster = "Roster"
 L.Settings.TabImportExport = "Import / Export"
-
-L.Settings.HowThisWorks = "How this works"
-
-L.Settings.HelpGeneral =
-"Where the grid sits and how it behaves outside combat: its position on screen, its scale, and the addon-wide interface options."
-L.Settings.HelpAppearance =
-"How a single spotlight is drawn - its frame, its name text and its health bar. The preview beside the controls shows the result."
-L.Settings.HelpGrid =
-"How spotlights are arranged: how many per row, which way new ones grow, and the spacing between them. The preview shows the order slots are filled in."
-L.Settings.HelpAuras =
-"Which auras a spotlight tracks and how they are drawn. Each feature can be turned off on its own, and the tracked spells are listed per class."
-L.Settings.HelpRoster =
-"Which raid member each slot spotlights. Drag a name from the raid list onto a slot, or clear a slot to leave a gap in the grid."
-L.Settings.HelpImportExport =
-"Moves these settings between characters as a text string. Importing replaces everything except the grid's position and its slots."
 L.Settings.ShowMinimapButton = "Show Minimap Button"
 L.Settings.ClickToOpenSettings = "Click To Open Settings"
 L.Settings.Import = "Import"
