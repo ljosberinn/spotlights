@@ -4,7 +4,6 @@ local _, Private = ...
 ---@class SpotlightsRegistry
 Private.Registry = {}
 
-local SlotKind = Private.Enum.SlotKind
 local DeferralKey = Private.Enum.DeferralKey
 
 ---@return SpotlightsSlot[]?
@@ -80,7 +79,7 @@ local function FindOccupant(guid, name)
 	for i = 1, #slots do
 		local slot = slots[i]
 
-		if slot.kind == SlotKind.Player then
+		if slot.kind == "player" then
 			if guid and slot.guid == guid then
 				return i
 			end
@@ -161,7 +160,7 @@ end
 --- SecureGroupHeaders will not match.
 ---@param slot SpotlightsSlot
 local function SelfHeal(slot)
-	if slot.kind ~= SlotKind.Player then
+	if slot.kind ~= "player" then
 		return
 	end
 
@@ -228,7 +227,7 @@ local function ResolveCells(slots, layout)
 		for i = 1, #slots do
 			local slot = slots[i]
 
-			byCell[i] = slot.kind == SlotKind.Player and slot.name or false
+			byCell[i] = slot.kind == "player" and slot.name or false
 			slotByCell[i] = i
 		end
 
@@ -240,7 +239,7 @@ local function ResolveCells(slots, layout)
 	for i = 1, #slots do
 		local slot = slots[i]
 
-		if slot.kind == SlotKind.Player and slot.name and Private.Roster.GetGuid(slot.name) then
+		if slot.kind == "player" and slot.name and Private.Roster.GetGuid(slot.name) then
 			byCell[cell] = slot.name
 			slotByCell[cell] = i
 			cell = cell + 1
@@ -364,7 +363,7 @@ local function Assign(guid, name, index)
 	end
 
 	---@type SpotlightsSlot
-	local slot = { kind = SlotKind.Player, guid = guid, name = name }
+	local slot = { kind = "player", guid = guid, name = name }
 
 	-- An explicit index **inserts**, pushing the rest of the grid down. Replace would silently
 	-- discard whoever was already there, and a drop is a gesture people miss by an inch. Inserting
@@ -449,7 +448,7 @@ function Private.Registry.SetBlank(index)
 	end
 
 	---@type SpotlightsSlot
-	local slot = { kind = SlotKind.Blank }
+	local slot = { kind = "blank" }
 
 	slots[index or #slots + 1] = slot
 	Apply()
@@ -653,7 +652,7 @@ Private.SlashCommands.Register("list", "List", function()
 	for i = 1, #slots do
 		local slot = slots[i]
 
-		if slot.kind ~= SlotKind.Player then
+		if slot.kind ~= "player" then
 			Private.Utils.Printf(L.ListBlank, i)
 		else
 			-- The token proves the *header* matched, and it comes from our own UnitTokenFromGUID

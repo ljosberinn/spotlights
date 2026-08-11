@@ -162,6 +162,48 @@ function Private.Widgets.CreateSlider(parent, label, minimum, maximum, step, get
 		set(value)
 	end)
 
+	local editBox = CreateFrame("EditBox", nil, row, "InputBoxTemplate")
+	editBox:SetPoint("TOPLEFT", slider.RightText)
+	editBox:SetPoint("BOTTOMLEFT", slider.RightText)
+	editBox:SetPoint("RIGHT", slider.RightText, 5, 0)
+	editBox:SetAutoFocus(false)
+	editBox:SetJustifyH("CENTER")
+
+	editBox:SetScript("OnEditFocusGained", function(self)
+		slider:Hide()
+
+		self:ClearAllPoints()
+		self:SetPoint("RIGHT", slider.RightText, 5, 0)
+		self:SetPoint("TOPLEFT", slider)
+		self:SetPoint("BOTTOMLEFT", slider)
+		self:SetText(slider.Slider:GetValue())
+		self:SetCursorPosition(0)
+	end)
+
+	local function ResetEditBox(self)
+		slider:Show()
+		self:SetText("")
+		self:ClearFocus()
+
+		self:ClearAllPoints()
+		self:SetPoint("RIGHT", slider.RightText, 5, 0)
+		self:SetPoint("TOPLEFT", slider.RightText)
+		self:SetPoint("BOTTOMLEFT", slider.RightText)
+	end
+
+	editBox:SetScript("OnEnterPressed", function(self)
+		local minimumValue, maximumValue = slider.Slider:GetMinMaxValues()
+		local value = tonumber(self:GetText())
+
+		if value then
+			slider:SetValue(math.min(math.max(value, minimumValue), maximumValue))
+		end
+
+		self:ClearFocus()
+	end)
+	editBox:SetScript("OnEscapePressed", ResetEditBox)
+	editBox:SetScript("OnEditFocusLost", ResetEditBox)
+
 	-- Guards the write, not the read. `Refresh` re-reads a value a slash command may have changed behind
 	-- the panel's back; `SetValue` fires the same event a drag does, and re-arming the guard keeps the
 	-- re-draw from writing the value back.
@@ -340,9 +382,10 @@ end
 
 --- A colour swatch that opens Blizzard's colour picker.
 ---
---- `get` and `set` deal in three numbers rather than a colour object, because that is how the setting
---- is stored — three fields, so a database written by one build reads on another without a metatable in
+--- `get` and `set` deal in separate channel numbers rather than a colour object, because that is how the
+--- setting is stored — fields, so a database written by one build reads on another without a metatable in
 --- the way.
+--- They deal in a fourth alpha number as well.
 ---
 --- `swatchFunc` fires continuously while the wheel is dragged, so this writes on every move rather than
 --- on confirm. That is safe for an expensive setting: `Private.Auras.SetSetting` debounces what it has
@@ -358,8 +401,8 @@ end
 --- that owns the mode has to `Refresh` the panel when it changes for this to re-evaluate.
 ---@param parent Frame
 ---@param label string
----@param get fun(): number, number, number
----@param set fun(r: number, g: number, b: number)
+---@param get fun(): number, number, number, number
+---@param set fun(r: number, g: number, b: number, a: number)
 ---@param enabled fun(): boolean|nil
 ---@return SpotlightsWidget
 function Private.Widgets.CreateColorPicker(parent, label, get, set, enabled)
@@ -378,22 +421,24 @@ function Private.Widgets.CreateColorPicker(parent, label, get, set, enabled)
 	swatch:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -6, 4)
 
 	button:SetScript("OnClick", function()
-		local r, g, b = get()
+		local r, g, b, a = get()
 
 		ColorPickerFrame:SetupColorPickerAndShow({
 			r = r,
 			g = g,
 			b = b,
-			hasOpacity = false,
+			hasOpacity = true,
+			opacity = 1 - a,
 			swatchFunc = function()
 				local newR, newG, newB = ColorPickerFrame:GetColorRGB()
+				local newA = ColorPickerFrame:GetColorAlpha()
 
 				swatch:SetColorTexture(newR, newG, newB)
-				set(newR, newG, newB)
+				set(newR, newG, newB, newA)
 			end,
 			cancelFunc = function()
 				swatch:SetColorTexture(r, g, b)
-				set(r, g, b)
+				set(r, g, b, a)
 			end,
 		})
 	end)
@@ -415,7 +460,7 @@ end
 --- A section heading. Not a control and not body text: a tab with two independent groups of controls
 --- needs the boundary between them visible, and indentation cannot express it in a single column.
 ---@param parent Frame
----@param text string
+---@param text string|function
 ---@return SpotlightsWidget
 function Private.Widgets.CreateHeading(parent, text)
 	local row = CreateRow(parent) --[[@as SpotlightsWidget]]
@@ -424,9 +469,11 @@ function Private.Widgets.CreateHeading(parent, text)
 
 	heading:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 0, 2)
 	heading:SetJustifyH("LEFT")
-	heading:SetText(text)
+	heading:SetText(type(text) == "function" and text() or text)
 
-	function row:Refresh() end
+	function row:Refresh()
+		heading:SetText(type(text) == "function" and text() or text)
+	end
 
 	return row
 end
@@ -434,7 +481,7 @@ end
 --- A block of explanatory text. Not a control, but it takes part in the same layout and the
 --- combat-reload limitation has to be documented *somewhere* the user will see it.
 ---@param parent Frame
----@param text string
+---@param text string|function
 ---@return SpotlightsWidget
 function Private.Widgets.CreateText(parent, text)
 	local row = CreateRow(parent) --[[@as SpotlightsWidget]]
@@ -451,13 +498,16 @@ function Private.Widgets.CreateText(parent, text)
 	body:SetWidth(parent:GetWidth())
 	body:SetJustifyH("LEFT")
 	body:SetSpacing(2)
-	body:SetText(text)
+	body:SetText(type(text) == "function" and text() or text)
 
 	-- Height comes from the wrapped text rather than ROW_HEIGHT, the one widget whose height is not
 	-- known until the string is set.
 	row:SetHeight(body:GetStringHeight() + 8)
 
-	function row:Refresh() end
+	function row:Refresh()
+		body:SetText(type(text) == "function" and text() or text)
+		row:SetHeight(body:GetStringHeight() + 8)
+	end
 
 	return row
 end
@@ -588,8 +638,11 @@ end
 ---@param IsEnabled fun(spellID: integer): boolean
 ---@param SetEnabled fun(spellID: integer, enabled: boolean)
 ---@param OnRemove fun(spellID: integer)? when absent, no row is removable
+---@param IsHeadingEnabled fun(entry: table): boolean? when absent, headings have no checkbox
+---@param SetHeadingEnabled fun(entry: table, enabled: boolean)?
 ---@return SpotlightsWidget
-function Private.Widgets.CreateSpellList(parent, Entries, IsEnabled, SetEnabled, OnRemove)
+function Private.Widgets.CreateSpellList(parent, Entries, IsEnabled, SetEnabled, OnRemove, IsHeadingEnabled,
+										 SetHeadingEnabled)
 	local list = CreateFrame("Frame", nil, parent) --[[@as SpotlightsWidget]]
 
 	---@type table[]
@@ -606,24 +659,35 @@ function Private.Widgets.CreateSpellList(parent, Entries, IsEnabled, SetEnabled,
 			local entry = entries[i]
 			local row = AcquireSpellRow(list, rows, i)
 			local heading = entry.heading
+			local headingEnabled = heading and IsHeadingEnabled and IsHeadingEnabled(entry)
 
 			row:ClearAllPoints()
 			row:SetPoint("TOPLEFT", list, "TOPLEFT", 0, -offset)
 			row:SetPoint("TOPRIGHT", list, "TOPRIGHT", 0, -offset)
 			row:SetHeight(heading and CLASS_ROW_HEIGHT or SPELL_ROW_HEIGHT)
 			row:Show()
+			row.check:ClearAllPoints()
+			row.check:SetPoint("RIGHT", row, "RIGHT", -REMOVE_WIDTH, heading and -2 or 0)
 
 			-- Set every time rather than only when it changes, because the rows are pooled: the frame
 			-- that is a heading now was a spell row a rebuild ago.
 			row.heading:SetShown(heading ~= nil)
 			row.icon:SetShown(heading == nil)
 			row.label:SetShown(heading == nil)
-			row.check:SetShown(heading == nil)
+			row.check:SetShown(heading == nil or headingEnabled ~= nil)
 			row.remove:SetShown(heading == nil and OnRemove ~= nil)
 
 			if heading then
 				row.heading:SetText(heading)
 				row.heading:SetTextColor(entry.r or 1, entry.g or 1, entry.b or 1)
+
+				if headingEnabled ~= nil then
+					row.check:SetChecked(headingEnabled)
+					row.check:SetScript("OnClick", function(check)
+						SetHeadingEnabled(entry, check:GetChecked() and true or false)
+						list:Refresh()
+					end)
+				end
 			else
 				local spellID = entry.spellID --[[@as integer]]
 				local label, texture = SpellDisplay(spellID)
@@ -636,6 +700,7 @@ function Private.Widgets.CreateSpellList(parent, Entries, IsEnabled, SetEnabled,
 				-- handler closed over the spell this frame showed last time would toggle the wrong one.
 				row.check:SetScript("OnClick", function(check)
 					SetEnabled(spellID, check:GetChecked() and true or false)
+					list:Refresh()
 				end)
 
 				row.remove:SetScript("OnClick", function()

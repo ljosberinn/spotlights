@@ -91,12 +91,13 @@ end
 ---@param index integer
 ---@param slot SpotlightsSlot?
 local function Fill(preview, index, slot)
-	local blank = slot and slot.kind == Private.Enum.SlotKind.Blank
+	local blank = slot and slot.kind == "blank"
 	local name = slot and slot.name
 
 	preview.name:SetText(
 		blank and "" or (name or string.format(Private.L.Preview.Label, index))
 	)
+	preview.healthText:SetText("")
 
 	local class = PREVIEW_CLASSES[(index - 1) % #PREVIEW_CLASSES + 1]
 	local classColor = RAID_CLASS_COLORS[class]
@@ -119,31 +120,50 @@ local function Fill(preview, index, slot)
 
 	-- The same static-or-class choice the live frame makes. A preview never disconnects or dies, so
 	-- that branch of the live path has no counterpart here.
-	local healthR, healthG, healthB = classColor.r, classColor.g, classColor.b
-	local bgR, bgG, bgB = classColor.r * 0.2, classColor.g * 0.2, classColor.b * 0.2
-	local nameR, nameG, nameB = classColor.r, classColor.g, classColor.b
+	local healthR, healthG, healthB, healthA = classColor.r, classColor.g, classColor.b, 1
+	local bgR, bgG, bgB, bgA = classColor.r * 0.2, classColor.g * 0.2, classColor.b * 0.2, 1
+	local nameR, nameG, nameB, nameA = classColor.r, classColor.g, classColor.b, 1
 
 	if appearance then
 		if not appearance.healthUseClassColor then
-			healthR, healthG, healthB = appearance.healthColorR, appearance.healthColorG, appearance.healthColorB
-			bgR, bgG, bgB = appearance.healthBgColorR, appearance.healthBgColorG, appearance.healthBgColorB
+			healthR, healthG, healthB, healthA = appearance.healthColorR, appearance.healthColorG, appearance.healthColorB, appearance.healthColorA
+			bgR, bgG, bgB, bgA = appearance.healthBgColorR, appearance.healthBgColorG, appearance.healthBgColorB, appearance.healthBgColorA
 		end
 
 		if not appearance.nameUseClassColor then
-			nameR, nameG, nameB = appearance.nameColorR, appearance.nameColorG, appearance.nameColorB
+			nameR, nameG, nameB, nameA = appearance.nameColorR, appearance.nameColorG, appearance.nameColorB, appearance.nameColorA
 		end
 
 		Private.NameStyle.ApplyLayout(preview.name, appearance)
+		preview.healthText:SetFont(Private.Media.Font(appearance.healthTextFont), appearance.healthTextFontSize, "OUTLINE")
+		preview.healthText:ClearAllPoints()
+		PixelUtil.SetPoint(preview.healthText, appearance.healthTextPoint, preview, appearance.healthTextPoint,
+			appearance.healthTextX, appearance.healthTextY)
+		preview.healthText:SetJustifyH("CENTER")
+		preview.healthText:SetShown(appearance.healthTextEnabled)
+		if appearance.healthTextFormat == "percent" then
+			local percent = fraction * 100
+			preview.healthText:SetText(percent < 10 and string.format("%.1f%%", percent) or string.format("%.0f%%", percent))
+		elseif appearance.healthTextFormat == "absValueAbbreviated" then
+			preview.healthText:SetText(AbbreviateNumbers(fraction * 100000))
+		else
+			preview.healthText:SetText(string.format("%d", fraction * 100000))
+		end
 	end
 
-	preview.healthBar:SetStatusBarColor(healthR, healthG, healthB)
-	preview.background:SetVertexColor(bgR, bgG, bgB)
-	preview.name:SetVertexColor(nameR, nameG, nameB)
+	preview.healthBar:SetStatusBarColor(healthR, healthG, healthB, healthA)
+	preview.background:SetVertexColor(bgR, bgG, bgB, bgA)
+	preview.name:SetVertexColor(nameR, nameG, nameB, nameA)
+	local textR, textG, textB, textA = appearance and appearance.healthTextColorR or 0.5, appearance and appearance.healthTextColorG or 0.5, appearance and appearance.healthTextColorB or 0.5, appearance and appearance.healthTextColorA or 1
+	if appearance and appearance.healthTextUseClassColor then
+		textR, textG, textB, textA = classColor.r, classColor.g, classColor.b, 1
+	end
+	preview.healthText:SetVertexColor(textR, textG, textB, textA)
 
 	-- Dimmed as a whole so a preview is never mistaken for a live spotlight. Deliberately not
 	-- SetAlphaFromBoolean: there is no secret here, and the secret-safe setter would needlessly make
 	-- this frame's Alpha aspect secret.
-	preview:SetAlpha(blank and 0.25 or 0.7)
+	preview:SetAlpha((blank and 0.25 or 0.7) * (appearance and appearance.frameAlpha or 1))
 end
 
 --- Positions and fills the preview for one cell, and decides whether it belongs on screen.
@@ -179,7 +199,7 @@ function Private.Preview.Place(index, point, x, y, config, slot)
 	-- spotlight will.
 	preview:ClearAllPoints()
 	preview:SetSize(config.frameWidth, config.frameHeight)
-	preview:SetPoint(point, overlay, point, x, y)
+	PixelUtil.SetPoint(preview, point, overlay, point, x, y)
 
 	Fill(preview, index, slot)
 

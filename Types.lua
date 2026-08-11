@@ -23,11 +23,29 @@
 ---@field Roster SpotlightsRoster
 ---@field Registry SpotlightsRegistry
 ---@field Layout SpotlightsLayout
+---@field NameStyle SpotlightsNameStyle
 ---@field Auras SpotlightsAuras
 ---@field SlashCommands SpotlightsSlashCommands
----@field LoginFnQueue fun()[]
 ---@field DB SpotlightsDB? nil until ADDON_LOADED has run the migration
 ---@field IsTwelveDotOne boolean the aura container system exists only from 12.1 onwards
+
+--- A button acquired by `TabSystemTemplate` for a top-oriented tab strip.
+---@class TabSystemTopButtonFrame : Button, TabSystemTopButtonTemplate
+
+--- A button acquired by `TabSystemTemplate` for a bottom-oriented tab strip.
+---@class TabSystemButtonFrame : Button, TabSystemButtonTemplate
+
+--- A Lua-created tab system. The button type is selected through `tabTemplate` before `OnLoad` builds
+--- the pool, so the two concrete button frame types above describe the pooled children.
+---@class SpotlightsTabSystemFrame : Frame, TabSystemTemplate
+---@field tabTemplate string
+---@field maxTabWidth number
+---@field AddTab fun(self: SpotlightsTabSystemFrame, tabText: string): integer
+---@field SetTabSelectedCallback fun(self: SpotlightsTabSystemFrame, callback: fun(tabID: integer, isUserAction: boolean?): boolean?)
+---@field SetTab fun(self: SpotlightsTabSystemFrame, tabID: integer, isUserAction: boolean?)
+
+---@class SpotlightsNameStyle
+---@field ApplyLayout fun(fontString: FontString, appearance: SpotlightsAppearanceConfig)
 
 --- One configured grid cell.
 ---
@@ -65,29 +83,45 @@
 ---@class SpotlightsAppearanceConfig
 ---@field barTexture string
 ---@field showAbsorb boolean
+---@field frameAlpha number
 ---@field outOfRangeAlpha number
 ---@field deadAlpha number
 ---@field healthUseClassColor boolean
 ---@field healthColorR number
 ---@field healthColorG number
 ---@field healthColorB number
+---@field healthColorA number
 ---@field healthBgColorR number
 ---@field healthBgColorG number
 ---@field healthBgColorB number
+---@field healthBgColorA number
 ---@field nameUseClassColor boolean
 ---@field nameColorR number
 ---@field nameColorG number
 ---@field nameColorB number
+---@field nameColorA number
 ---@field nameFont string
 ---@field nameFontSize number
 ---@field namePoint AnchorPoint
 ---@field nameX number
 ---@field nameY number
+---@field healthTextEnabled boolean
+---@field healthTextFormat HealthTextFormat
+---@field healthTextUseClassColor boolean
+---@field healthTextColorR number
+---@field healthTextColorG number
+---@field healthTextColorB number
+---@field healthTextColorA number
+---@field healthTextFont string
+---@field healthTextFontSize number
+---@field healthTextPoint AnchorPoint
+---@field healthTextX number
+---@field healthTextY number
 
---- Both tracked auras. The two carry identical shapes on purpose: the feature is one customisation
+--- Tracked auras. They carry identical shapes on purpose: the feature is one customisation
 --- set pointed at either spell, so neither may grow a field the other lacks.
 ---
---- `cooldowns` and `custom` sit beside the two features rather than inside `sensePower` (the only
+--- `cooldowns` and `custom` sit beside the tracked features rather than inside `sensePower` (the only
 --- feature that reads them), keeping that rule true: the spell pool is one list belonging to the
 --- aura block, not to a customisation set.
 ---
@@ -97,9 +131,14 @@
 --- the user adds to it -- mapping each ID to its own toggle.
 ---@class SpotlightsAurasConfig
 ---@field prescience SpotlightsAuraFeatureConfig
+---@field shiftingSands SpotlightsAuraFeatureConfig
 ---@field sensePower SpotlightsAuraFeatureConfig
+---@field cooldownAuras SpotlightsAuraFeatureConfig
+---@field defensiveAuras SpotlightsAuraFeatureConfig
 ---@field cooldowns table<integer, boolean> built-in overrides; only ever `false`, meaning "off"
 ---@field custom table<integer, boolean> user-added spell IDs, each mapped to its enabled state
+---@field defensives table<integer, boolean> defensive overrides; absent means the shipped default
+---@field defensiveCustom table<integer, boolean> user-added defensive spell IDs
 
 --- One aura's two displays, independent of each other and both optional.
 ---@class SpotlightsAuraFeatureConfig
@@ -131,9 +170,10 @@
 ---@field borderR number
 ---@field borderG number
 ---@field borderB number
+---@field borderA number
+---@field gap number?
 
---- A duration bar. Sized as a fraction of the spotlight, because the spotlight is resizable and a
---- stored pixel width would stop matching it.
+--- A duration bar with independent pixel dimensions.
 ---
 --- `texture` is a LibSharedMedia key, resolved by `Private.Media` at apply time -- see
 --- `SpotlightsAppearanceConfig.barTexture`.
@@ -145,8 +185,8 @@
 ---@field r number
 ---@field g number
 ---@field b number
----@field widthPct number 0..1 of the spotlight's width
----@field heightPct number 0..1 of the spotlight's height
+---@field width number in pixels
+---@field height number in pixels
 ---@field showIcon boolean
 ---@field iconSide "LEFT" | "RIGHT"
 
@@ -164,6 +204,7 @@
 ---@field showText boolean
 ---@field font string
 ---@field fontSize number
+---@field gap number in pixels between multiple icons
 
 --- Where the grid sits. A corner-relative anchor, never raw coordinates.
 ---
@@ -195,7 +236,7 @@
 --- forever and nothing moves except by user edit; off, cells are filled by present players in slot
 --- order and spacers collapse with them.
 ---@class SpotlightsLayoutConfig
----@field orientation Orientation
+---@field orientation SpotlightsOrientation
 ---@field stride integer
 ---@field growX GrowX
 ---@field growY GrowY
@@ -217,6 +258,7 @@
 ---@field spotlightsInitialised boolean?
 ---@field background Texture
 ---@field name FontString
+---@field healthText FontString
 ---@field selectionHighlight Texture
 ---@field healthBar StatusBar
 ---@field tempMaxHealthLoss StatusBar
@@ -228,6 +270,8 @@
 ---@field UpdateHealthValues fun(self: SpotlightsUnitFrame)
 ---@field UpdateHealthColor fun(self: SpotlightsUnitFrame)
 ---@field UpdateName fun(self: SpotlightsUnitFrame)
+---@field UpdateNameStyle fun(self: SpotlightsUnitFrame)
+---@field UpdateHealthText fun(self: SpotlightsUnitFrame)
 ---@field UpdateTexture fun(self: SpotlightsUnitFrame)
 ---@field UpdateSelectionHighlight fun(self: SpotlightsUnitFrame)
 ---@field UpdateAbsorb fun(self: SpotlightsUnitFrame)
@@ -250,7 +294,11 @@
 ---@class SpotlightsAuraContainer : Frame
 ---@field GetUnit fun(self: SpotlightsAuraContainer): string
 ---@field SetUnit fun(self: SpotlightsAuraContainer, unit: string) asserts on a non-string
+---@field AddAuraGroup fun(self: SpotlightsAuraContainer, groupKey: string, filterString: string, options: table)
 ---@field AddAuraSlot fun(self: SpotlightsAuraContainer, slotKey: string, filterString: string, options: table): table
+---@field SetAuraGroupCandidateFilters fun(self: SpotlightsAuraContainer, groupKey: string, candidateFilters: table)
+---@field SetAuraGroupMaxFrameCount fun(self: SpotlightsAuraContainer, groupKey: string, maxFrameCount: number)
+---@field SetAuraGroupLayout fun(self: SpotlightsAuraContainer, groupKey: string, layoutOptions: table)
 ---@field SetAuraSlotCandidateFilters fun(self: SpotlightsAuraContainer, slotKey: string, candidateFilters: table) asserts on an unknown slot key
 
 --- The drawable parts of one display, whichever kind it is.
@@ -318,7 +366,6 @@
 ---@class SpotlightsAuraDisplay
 ---@field anchor Frame ours, unrestricted, and the only thing a settings change can reach
 ---@field container SpotlightsAuraContainer
----@field button table
 ---@field builtHeight number
 ---@field unresolved table<string, true>
 

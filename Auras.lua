@@ -4,23 +4,20 @@ local _, Private = ...
 ---@class SpotlightsAuras
 Private.Auras = {}
 
---- Whether aura displays should exist at all, on this client and for this character.
+--- Whether aura displays should exist at all on this client.
 ---
---- Two gates. The build half is a hard requirement: the `AuraContainer` intrinsic frame type and
---- `CustomAuraContainerTemplate` arrived in 12.1.0, so on 12.0.7 asking for one is a Lua error. The
---- class half is a cost decision: the aura filters are `PLAYER`-scoped, so a non-Evoker sees nothing
---- but still pays frames and a `UNIT_AURA` registration per spotlight.
+--- The `AuraContainer` intrinsic frame type and `CustomAuraContainerTemplate` arrived in 12.1.0, so
+--- on 12.0.7 asking for one is a Lua error. Class only selects which aura tabs are shown.
 ---
---- Spec is not part of the gate: a slot, once added to a container, cannot be removed
---- (`CustomAuraContainerInboundMixin` exposes `AddAuraSlot` and no inverse), so an Evoker who
---- respecs keeps their frames.
+--- A specialization change swaps the active feature set. Existing containers cannot be removed
+--- (`CustomAuraContainerInboundMixin` exposes `AddAuraSlot` and no inverse), so old records are hidden
+--- and discarded from the active record map before the new set is built.
 ---
 --- Read at load: neither half can change without a client restart or character change, both of which
 --- reload the addon.
 Private.Auras.IsSupported = Private.IsTwelveDotOne
-	and select(3, UnitClass("player")) == Constants.UICharacterClasses.Evoker
 
---- Everything past here is 12.1-only and Evoker-only.
+--- Everything past here is 12.1-only.
 ---
 --- A structural gate rather than a per-entry-point guard: on an unsupported client this file must
 --- not so much as *evaluate* `AuraUtil.AuraFilters`, which does not exist on 12.0.7.
@@ -32,6 +29,10 @@ if not Private.Auras.IsSupported then
 	function Private.Auras.ApplyChild() end
 
 	function Private.Auras.Apply() end
+
+	function Private.Auras.UpdateAssistability() end
+
+	function Private.Auras.RefreshAssistability() end
 
 	--- `false`, so a caller reporting whether a write landed reports the truth: it did not.
 	---@return boolean applied
@@ -56,6 +57,10 @@ if not Private.Auras.IsSupported then
 	--- Empty list rather than nil, like `CreatePreviews`: the panel draws rows by walking this.
 	---@return table<integer, table<integer, true>>
 	function Private.Auras.Cooldowns()
+		return {}
+	end
+
+	function Private.Auras.Defensives()
 		return {}
 	end
 
@@ -84,6 +89,26 @@ if not Private.Auras.IsSupported then
 		return false
 	end
 
+	function Private.Auras.CustomDefensives()
+		return {}
+	end
+
+	function Private.Auras.IsDefensiveEnabled()
+		return false
+	end
+
+	function Private.Auras.SetDefensiveEnabled()
+		return false
+	end
+
+	function Private.Auras.AddCustomDefensive()
+		return false
+	end
+
+	function Private.Auras.RemoveCustomDefensive()
+		return false
+	end
+
 	---@return boolean
 	function Private.Auras.NeedsReload()
 		return false
@@ -98,6 +123,10 @@ if not Private.Auras.IsSupported then
 	end
 
 	function Private.Auras.StylePreviews() end
+
+	function Private.Auras.SetPreviewFeature()
+		return false
+	end
 
 	return
 end
@@ -125,10 +154,11 @@ local ANY_FILTER = AuraUtil.CreateFilterString(AuraUtil.AuraFilters.Helpful)
 --- One tracked aura: which config block is its own, which spell it watches for, and what its slot is
 --- allowed to show.
 ---@class SpotlightsAuraFeature
----@field key string indexes `SpotlightsAurasConfig`, and names the slot inside its container
+---@field key SpotlightsAuraFeatureKey indexes `SpotlightsAurasConfig`, and names the slot inside its container
 ---@field spellID integer the spell the display is *about*: its icon, and its preview
 ---@field filter string the aura filter string its slot parses with
 ---@field Candidates fun(): table<integer, true> every spell its slot may show, `spellID` included
+---@field multiple boolean
 
 --- One kind of display, and the only place the difference between a bar and an icon lives.
 ---
@@ -138,7 +168,7 @@ local ANY_FILTER = AuraUtil.CreateFilterString(AuraUtil.AuraFilters.Helpful)
 --- untouchable, while a preview runs `Create`/`Preview` once and `Style` on every settings change.
 --- Sharing `Style` is what makes a preview show what will ship.
 ---@class SpotlightsAuraKind
----@field key string
+---@field key SpotlightsAuraDisplayKey
 ---@field Create fun(host: Frame|table, config: table, spellID: integer, everything: boolean): SpotlightsAuraRegions
 ---@field Style fun(regions: SpotlightsAuraRegions, anchor: Frame, config: table)
 ---@field Register fun(button: table, regions: SpotlightsAuraRegions)
@@ -224,6 +254,83 @@ local COOLDOWNS = {
 	},
 }
 
+--- ids off by default are NOT considered Big Defenives by the game and added manually
+---@type table<integer, table<integer, boolean>>
+local DEFENSIVES = {
+	[Constants.UICharacterClasses.Warrior] = {
+		[871] = true, -- Shield Wall
+		[118038] = true, -- Die by the Sword
+		[184364] = true, -- Enraged Regeneration
+	},
+	[Constants.UICharacterClasses.Paladin] = {
+		[498] = true, -- Divine Protection
+		[642] = true, -- Divine Shield
+		[1022] = true, -- Blessing of Protection
+		[6940] = true, -- Blessing of Sacrifice
+		[31850] = true, -- Ardent Defender
+		[86659] = true, -- Guardian of Ancient Kings
+		[184662] = false, -- Shield of Vengeance
+		[199448] = true, -- Blessing of Sacrifice
+		[204018] = true, -- Blessing of Spellwarding
+		[212641] = true, -- Guardian of Ancient Kings
+	},
+	[Constants.UICharacterClasses.Hunter] = {
+		[53480] = true, -- Roar of Sacrifice
+		[186265] = true, -- Aspect of the Turtle
+		[264735] = true, -- Survival of the Fittest
+	},
+	[Constants.UICharacterClasses.Rogue] = {
+		[1966] = false, -- Feint
+		[31224] = true, -- Cloak of Shadows
+		[81549] = true, -- Cloak of Shadows
+	},
+	[Constants.UICharacterClasses.Priest] = {
+		[19236] = true, -- Desperate Prayer
+		[33206] = true, -- Pain Suppression
+		[47585] = true, -- Dispersion
+		[47788] = true, -- Guardian Spirit
+	},
+	[Constants.UICharacterClasses.DeathKnight] = {
+		[48707] = true, -- Anti-Magic Shell
+		[48792] = true, -- Icebound Fortitude
+		[55233] = true, -- Vampiric Blood
+		[444741] = false, -- Anti-Magic Shell proc
+	},
+	[Constants.UICharacterClasses.Shaman] = {
+		[108271] = true, -- Astral Shift
+	},
+	[Constants.UICharacterClasses.Mage] = {
+		[45438] = true, -- Ice Block
+		[342246] = true, -- Alter Time
+		[414658] = true, -- Ice Cold
+	},
+	[Constants.UICharacterClasses.Warlock] = {
+		[104773] = true, -- Unending Resolve
+	},
+	[Constants.UICharacterClasses.Monk] = {
+		[115203] = true, -- Fortifying Brew
+		[116849] = true, -- Life Cocoon
+		[120954] = true, -- Fortifying Brew
+		[125174] = true, -- Touch of Karma
+		[243435] = true, -- Fortifying Brew
+	},
+	[Constants.UICharacterClasses.Druid] = {
+		[22812] = true, -- Barkskin
+		[50322] = true, -- Survival Instincts
+		[61336] = true, -- Survival Instincts
+		[102342] = true, -- Ironbark
+	},
+	[Constants.UICharacterClasses.DemonHunter] = {
+		[207771] = true, -- Fiery Brand
+		[212800] = true, -- Blur
+	},
+	[Constants.UICharacterClasses.Evoker] = {
+		[357170] = true, -- Time Dilation
+		[363916] = true, -- Obsidian Scales
+		[374227] = true, -- Zephyr
+	},
+}
+
 --- The current aura settings, or nil before the migration has run.
 ---
 --- Ahead of the feature list below because a function referencing it has to be declared after it --
@@ -236,6 +343,10 @@ end
 ---@return table<integer, true>
 local function PrescienceCandidates()
 	return { [410089] = true }
+end
+
+local function ShiftingSandsCandidates()
+	return { [413984] = true }
 end
 
 --- Sense Power's candidates: the spell, plus every major cooldown still switched on.
@@ -279,27 +390,168 @@ local function SensePowerCandidates()
 	return candidates
 end
 
---- The two tracked auras. `key` indexes the config block and names the slot; the rest is what its
+local function CooldownCandidates()
+	local candidates = {}
+	local auras = Config()
+	local overrides = auras and auras.cooldowns
+	local custom = auras and auras.custom
+
+	for _, cooldowns in pairs(COOLDOWNS) do
+		for spellID in pairs(cooldowns) do
+			if not overrides or overrides[spellID] ~= false then
+				candidates[spellID] = true
+			end
+		end
+	end
+
+	if custom then
+		for spellID, enabled in pairs(custom) do
+			if enabled then
+				candidates[spellID] = true
+			end
+		end
+	end
+
+	return candidates
+end
+
+local function DefensiveCandidates()
+	local candidates = {}
+	local auras = Config()
+	local overrides = auras and auras.defensives
+	local custom = auras and auras.defensiveCustom
+
+	for _, defensives in pairs(DEFENSIVES) do
+		for spellID, enabled in pairs(defensives) do
+			if overrides and overrides[spellID] ~= nil then
+				enabled = overrides[spellID]
+			end
+
+			if enabled then
+				candidates[spellID] = true
+			end
+		end
+	end
+
+	if custom then
+		for spellID, enabled in pairs(custom) do
+			if enabled then
+				candidates[spellID] = true
+			end
+		end
+	end
+
+	return candidates
+end
+
+---@param candidates table<integer, true>
+---@return integer[]
+local function CandidateIDs(candidates)
+	local spellIDs = {}
+
+	for spellID in pairs(candidates) do
+		spellIDs[#spellIDs + 1] = spellID
+	end
+
+	table.sort(spellIDs)
+
+	return spellIDs
+end
+
+--- The tracked auras. `key` indexes the config block and names the slot; the rest is what its
 --- slot may show and whose auras count.
 ---
 --- Prescience is one spell from one caster, while Sense Power shares its slot with every major
 --- cooldown the spotlighted player might have, cast by them rather than by us -- so they are no
 --- longer distinguished by spell ID alone.
 ---@type SpotlightsAuraFeature[]
-local FEATURES = {
+local EVOKER_FEATURES = {
 	{
 		key = "prescience",
 		spellID = 410089,
 		filter = OWN_FILTER,
 		Candidates = PrescienceCandidates,
+		multiple = false
+	},
+	{
+		key = "shiftingSands",
+		spellID = 413984,
+		filter = OWN_FILTER,
+		Candidates = ShiftingSandsCandidates,
+		multiple = false
 	},
 	{
 		key = "sensePower",
 		spellID = 361022,
 		filter = ANY_FILTER,
 		Candidates = SensePowerCandidates,
+		multiple = false
 	},
 }
+
+local NON_EVOKER_FEATURES = {
+	{
+		key = "cooldownAuras",
+		spellID = 0,
+		filter = ANY_FILTER,
+		Candidates = CooldownCandidates,
+		multiple = true,
+	},
+	{
+		key = "defensiveAuras",
+		spellID = 0,
+		filter = ANY_FILTER,
+		Candidates = DefensiveCandidates,
+		multiple = true,
+	},
+}
+
+local FEATURES = NON_EVOKER_FEATURES
+local previewFeatureKey
+local MAX_PREVIEW_AURAS = 3
+
+function Private.Auras.SetPreviewFeature(featureKey)
+	if previewFeatureKey == featureKey then
+		return false
+	end
+
+	previewFeatureKey = featureKey
+
+	return true
+end
+
+local function SetFeatureMode()
+	local nextFeatures = Private.Utils.IsAugmentation() and EVOKER_FEATURES or NON_EVOKER_FEATURES
+
+	if FEATURES == nextFeatures then
+		return false
+	end
+
+	FEATURES = nextFeatures
+
+	Private.SlotHeader.ForEachChild(function(child)
+		local built = child.spotlightsAuras
+
+		if not built then
+			return
+		end
+
+		for _, featureBuilt in pairs(built) do
+			for _, record in pairs(featureBuilt) do
+				record.anchor:Hide()
+				record.container:Hide()
+			end
+		end
+
+		table.wipe(built)
+	end)
+
+	Private.Events.Request(DeferralKey.Auras)
+
+	return true
+end
+
+Private.Events.RegisterEvent("PLAYER_LOGIN", SetFeatureMode)
 
 --- The settings that cannot reach a live display and need the button built again.
 ---
@@ -363,8 +615,8 @@ local settled = false
 ---
 --- Restart-on-change: the timer is cancelled and replaced on every write, so a drag of any length
 --- costs one rebuild, at the end. The drain runs through `Apply`, which handles combat.
----@param featureKey string
----@param displayKey string
+---@param featureKey SpotlightsAuraFeatureKey
+---@param displayKey SpotlightsAuraDisplayKey
 local function RequestRebuild(featureKey, displayKey)
 	pending[featureKey .. "." .. displayKey] = true
 
@@ -407,7 +659,7 @@ local DURATION_FORMATTER = C_StringUtil.CreateNumericRuleFormatter()
 
 DURATION_FORMATTER:SetBreakpoints({
 	{ threshold = 0, step = 0.1, rounding = Enum.NumericRuleFormatRounding.Down, format = "%.1f" },
-	{ threshold = 3, step = 1, rounding = Enum.NumericRuleFormatRounding.Up, format = "%.0f" },
+	{ threshold = 3, step = 1,   rounding = Enum.NumericRuleFormatRounding.Up,   format = "%.0f" },
 })
 
 --- Creation and styling are separate throughout this section, and the preview is why.
@@ -465,7 +717,7 @@ local function StyleBorder(regions, config)
 		edgeFile = Private.Media.Border(config.borderTexture),
 		edgeSize = config.borderSize,
 	})
-	border:SetBackdropBorderColor(config.borderR, config.borderG, config.borderB)
+	border:SetBackdropBorderColor(config.borderR, config.borderG, config.borderB, config.borderA)
 	border:Show()
 end
 
@@ -540,7 +792,7 @@ local function StyleBar(regions, anchor, config)
 		-- and there is no anchor for "as wide as I am tall" — so the icon is square at the height the
 		-- display has *now*. On a live display that is frozen until a rebuild; on a preview it is
 		-- re-measured on every restyle.
-		icon:SetWidth(anchor:GetHeight())
+		PixelUtil.SetWidth(icon, anchor:GetHeight())
 
 		bar:SetPoint("TOP" .. opposite)
 		bar:SetPoint("BOTTOM" .. opposite)
@@ -732,8 +984,7 @@ end
 
 --- The two displays a feature can draw.
 ---
---- `Size` is a function rather than a flag because one is a fraction of the spotlight and the other
---- absolute pixels — genuinely different sums.
+--- `Size` is a function rather than a flag because the two display kinds have different config shapes.
 ---@type SpotlightsAuraKind[]
 local DISPLAYS = {
 	{
@@ -743,12 +994,12 @@ local DISPLAYS = {
 		Register = RegisterBar,
 		Preview = PreviewBar,
 		Size = function(config, size)
-			return size.frameWidth * config.widthPct, size.frameHeight * config.heightPct
+			return config.width, config.height
 		end,
 
 		-- The inline icon and nothing else. It was made square against a height measured at build
-		-- time, and it sits below the access restriction, so a spotlight resize or `heightPct` change
-		-- leaves it a rectangle that only a new button can fix. A bar without one survives any resize.
+		-- time, and it sits below the access restriction, so a spotlight resize leaves it a rectangle
+		-- that only a new button can fix. A bar without one survives any resize.
 		Invalidated = function(config, record)
 			return config.showIcon and record.builtHeight ~= record.anchor:GetHeight()
 		end,
@@ -789,8 +1040,8 @@ local function ApplyAnchor(anchor, parent, display, config, size)
 	local width, height = display.Size(config, size)
 
 	anchor:ClearAllPoints()
-	anchor:SetPoint(point, parent, point, config.x, config.y)
-	anchor:SetSize(math.max(width, 1), math.max(height, 1))
+	PixelUtil.SetPoint(anchor, point, parent, point, config.x, config.y)
+	PixelUtil.SetSize(anchor, math.max(width, 1), math.max(height, 1))
 	anchor:SetAlpha(config.alpha)
 	anchor:SetShown(config.enabled)
 end
@@ -815,7 +1066,7 @@ end
 ---@param display SpotlightsAuraKind
 ---@param config SpotlightsAuraDisplayConfig
 ---@param anchor Frame
----@return SpotlightsAuraContainer container, table button
+---@return SpotlightsAuraContainer container
 local function AttachContainer(child, feature, display, config, anchor)
 	---@type SpotlightsAuraContainer
 	local container = CreateFrame("AuraContainer", nil, anchor, "CustomAuraContainerTemplate")
@@ -830,50 +1081,57 @@ local function AttachContainer(child, feature, display, config, anchor)
 		container:SetUnit(child.unit)
 	end
 
-	local button = container:AddAuraSlot(feature.key, feature.filter, {
-		-- What pins this slot to the spells it is for. Permitted here and not everywhere:
-		-- `AuraContainerUtil.CanApplyIdentityCandidateFilters` refuses spell-ID filtering for
-		-- *harmful* auras on assistable units, and silently -- the filter is skipped rather than
-		-- failing. These are helpful auras on a friendly unit, so the filter applies.
-		candidateFilters = {
-			includeSpellIDs = feature.Candidates(),
-		},
+	local candidateIDs = feature.multiple and CandidateIDs(feature.Candidates()) or nil
 
-		-- Longest remaining first, which only matters once a slot has more than one candidate --
-		-- Sense Power's does.
-		--
-		-- `ExpirationOnly` orders soonest-expiry first and `Reverse` swaps the operands. It has to be
-		-- the `Only` variant: plain `Expiration` prefers the player's own auras, then priority, then
-		-- `canApplyAura` before it looks at a clock, and `Reverse` would invert *those* too --
-		-- ranking everyone else's auras above ours. `ExpirationOnly` compares nothing but the clock.
-		--
-		-- A permanent aura sorts as `math.huge` and wins outright under `Reverse`. Nothing tracked
-		-- here is permanent, which makes that a property of the order rather than a bug.
-		sortMethod = AuraContainerSortMethod.ExpirationOnly,
-		sortDirection = AuraContainerSortDirection.Reverse,
-		initializeFrame = function(button)
+	local function InitializeFrame(button, spellID)
+		if feature.multiple then
+			local width, height = display.Size(config, Private.FrameConfig.Get())
+			PixelUtil.SetSize(button, math.max(width, 1), math.max(height, 1))
+		else
 			button:SetPoint("TOPLEFT", container, "TOPLEFT")
 			button:SetPoint("BOTTOMRIGHT", container, "BOTTOMRIGHT")
+		end
 
-			-- Clicks already pass through: the AuraButton intrinsic carries
-			-- `ForbiddenAspect.AlwaysPropagateInput`. Motion is ours to turn off, and must be --
-			-- otherwise the aura tooltip replaces the unit tooltip on every hover.
-			button:SetMouseMotionEnabled(false)
+		-- Clicks already pass through: the AuraButton intrinsic carries
+		-- `ForbiddenAspect.AlwaysPropagateInput`. Motion is ours to turn off, and must be --
+		-- otherwise the aura tooltip replaces the unit tooltip on every hover.
+		button:SetMouseMotionEnabled(false)
 
-			-- Create, style, register, in that order and once. Styling has to precede registration: it
-			-- sets `Shown` on the optional regions, and `SetDurationCooldown` makes that aspect secret
-			-- the moment it returns.
-			--
-			-- `everything` is false, so only the regions this config asks for exist -- anything the
-			-- settings can no longer reach could never be reclaimed.
-			local regions = display.Create(button, config, feature.spellID, false)
+		-- Create, style, register, in that order and once. Styling has to precede registration: it
+		-- sets `Shown` on the optional regions, and `SetDurationCooldown` makes that aspect secret
+		-- the moment it returns.
+		--
+		-- `everything` is false, so only the regions this config asks for exist -- anything the
+		-- settings can no longer reach could never be reclaimed.
+		local regions = display.Create(button, config, spellID or feature.spellID, false)
 
-			display.Style(regions, anchor, config)
-			display.Register(button, regions)
-		end,
-	})
+		display.Style(regions, anchor, config)
+		display.Register(button, regions)
+	end
 
-	return container, button
+	if feature.multiple then
+		container:AddAuraGroup(feature.key, feature.filter, {
+			candidateFilters = { includeSpellIDs = feature.Candidates() },
+			maxFrameCount = #candidateIDs,
+			sortMethod = AuraContainerSortMethod.ExpirationOnly,
+			sortDirection = AuraContainerSortDirection.Reverse,
+			layout = { elementSpacing = config.gap or 0 },
+			initializeFrame = function(button)
+				InitializeFrame(button)
+			end,
+		})
+	else
+		container:AddAuraSlot(feature.key, feature.filter, {
+			candidateFilters = { includeSpellIDs = feature.Candidates() },
+			sortMethod = AuraContainerSortMethod.ExpirationOnly,
+			sortDirection = AuraContainerSortDirection.Reverse,
+			initializeFrame = function(button)
+				InitializeFrame(button, feature.spellID)
+			end,
+		})
+	end
+
+	return container
 end
 
 --- Namespaces a media key by its type, because the two together are the identity: LibSharedMedia
@@ -930,15 +1188,32 @@ local function CreateDisplay(child, feature, display, config)
 
 	ApplyAnchor(anchor, child, display, config, Private.FrameConfig.Get())
 
-	local container, button = AttachContainer(child, feature, display, config, anchor)
+	local container = AttachContainer(child, feature, display, config, anchor)
 
 	return {
 		anchor = anchor,
 		container = container,
-		button = button,
 		builtHeight = anchor:GetHeight(),
 		unresolved = UnresolvedMedia(config),
 	}
+end
+
+--- Shows one live aura container only while its unit is assistable by the player.
+---
+--- Blizzard deliberately skips identity candidate filters for non-assistable units, so a container
+--- left visible on one would parse and display helpful auras these displays exist to hide. That makes
+--- this a privacy gate rather than a cosmetic one, and the reason it is a function of its own: every
+--- path that puts a container on screen has to pass through it, the relationship sweep and the
+--- replacement a frozen setting forces alike.
+---
+--- Deliberately not folded into `ApplyAnchor`. User enablement belongs to the anchor; assistability
+--- belongs to the container's lifetime, and a rebuild replaces the container while keeping the anchor.
+---@param container SpotlightsAuraContainer
+---@param child SpotlightsUnitFrame
+local function ApplyAssistability(container, child)
+	local unit = child.unit
+
+	container:SetShown(unit ~= nil and UnitCanAssist("player", unit))
 end
 
 --- Replaces a display's container and button with a fresh pair styled from the current settings.
@@ -960,13 +1235,17 @@ end
 ---@param config SpotlightsAuraDisplayConfig
 ---@param record SpotlightsAuraDisplay
 local function RebuildDisplay(child, feature, display, config, record)
-	local container, button = AttachContainer(child, feature, display, config, record.anchor)
+	local container = AttachContainer(child, feature, display, config, record.anchor)
 
 	record.container:Hide()
 
 	record.container = container
-	record.button = button
 	record.builtHeight = record.anchor:GetHeight()
+
+	-- A fresh container is shown. `Apply` settles assistability before this loop runs, so it settled it
+	-- on the container being replaced -- without this the replacement stays visible on a non-assistable
+	-- unit until some later faction, flag or roster event happens to sweep again.
+	ApplyAssistability(container, child)
 
 	-- Recomputed, not carried over. The usual reason to be here is that the key this display fell back
 	-- on has just been registered, so the new button resolved it properly. Keeping the stale set would
@@ -1005,6 +1284,41 @@ local function ForEachDisplay(child, callback)
 			end
 		end
 	end
+end
+
+--- Applies the spacing of a live multi-aura group without rebuilding its frames.
+---
+--- `gap` is the group's flow-layout spacing, not a property of the protected aura button. The
+--- container setter marks layout dirty and the next aura pass applies the new spacing.
+---@param featureKey SpotlightsAuraFeatureKey
+---@param displayKey SpotlightsAuraDisplayKey
+---@param gap number
+local function ApplyGroupLayout(featureKey, displayKey, gap)
+	Private.SlotHeader.ForEachChild(function(child)
+		ForEachDisplay(child, function(record, feature, display)
+			if feature.key == featureKey and display.key == displayKey and feature.multiple then
+				record.container:SetAuraGroupLayout(featureKey, { elementSpacing = gap })
+			end
+		end)
+	end)
+end
+
+--- Brings every one of a spotlight's built containers in line with the current relationship.
+---
+--- The iterator only. What "in line" means lives in `ApplyAssistability`, which a rebuild calls for a
+--- single replacement container without a record to iterate over yet.
+---@param child SpotlightsUnitFrame
+function Private.Auras.UpdateAssistability(child)
+	ForEachDisplay(child, function(record)
+		ApplyAssistability(record.container, child)
+	end)
+end
+
+--- Revalidates every built spotlight after a global relationship or unit assignment change.
+function Private.Auras.RefreshAssistability()
+	Private.SlotHeader.ForEachChild(function(child)
+		Private.Auras.UpdateAssistability(child)
+	end)
 end
 
 --- Builds whatever a spotlight does not yet have. Out of combat only, idempotent.
@@ -1049,7 +1363,7 @@ local function EnsureDisplays(child)
 			local display = DISPLAYS[j]
 			local config = auras[feature.key][display.key]
 
-			if config.enabled and not featureBuilt[display.key] then
+			if (not feature.multiple or display.key == "icon") and config.enabled and not featureBuilt[display.key] then
 				-- Assigned after the call returns, so a display that failed to build leaves the
 				-- spotlight retryable rather than marked done with nothing in it.
 				featureBuilt[display.key] = CreateDisplay(child, feature, display, config)
@@ -1118,16 +1432,28 @@ function Private.Auras.CreatePreviews(parent)
 	for i = 1, #FEATURES do
 		local feature = FEATURES[i]
 
-		for j = 1, #DISPLAYS do
-			local display = DISPLAYS[j]
-			local anchor = CreateFrame("Frame", nil, parent)
+		if not previewFeatureKey or feature.key == previewFeatureKey then
+			local spellIDs = feature.multiple and CandidateIDs(feature.Candidates()) or { feature.spellID }
 
-			previews[#previews + 1] = {
-				anchor = anchor,
-				regions = display.Create(anchor, auras[feature.key][display.key], feature.spellID, true),
-				feature = feature,
-				display = display,
-			}
+			for spellIndex = 1, math.min(#spellIDs, MAX_PREVIEW_AURAS) do
+				local spellID = spellIDs[spellIndex]
+
+				for j = 1, #DISPLAYS do
+					local display = DISPLAYS[j]
+
+					if not feature.multiple or display.key == "icon" then
+						local anchor = CreateFrame("Frame", nil, parent)
+
+						previews[#previews + 1] = {
+							anchor = anchor,
+							regions = display.Create(anchor, auras[feature.key][display.key], spellID, true),
+							feature = feature,
+							display = display,
+							slotIndex = spellIndex,
+						}
+					end
+				end
+			end
 		end
 	end
 
@@ -1156,6 +1482,21 @@ function Private.Auras.StylePreviews(previews)
 
 		ApplyAnchor(preview.anchor, preview.anchor:GetParent(), preview.display, config, size)
 
+		if preview.feature.multiple then
+			local width, height = preview.display.Size(config, size)
+			local gap = config.gap or 0
+			local columns = math.max(1, math.floor(size.frameWidth / math.max(width + gap, 1)))
+			local rows = math.ceil(math.min(MAX_PREVIEW_AURAS, #CandidateIDs(preview.feature.Candidates())) / columns)
+			local column = (preview.slotIndex - 1) % columns
+			local row = math.floor((preview.slotIndex - 1) / columns)
+			local point = Private.Enum.AnchorPoints[config.point] and config.point or "CENTER"
+
+			preview.anchor:ClearAllPoints()
+			PixelUtil.SetPoint(preview.anchor, point, preview.anchor:GetParent(), point,
+				config.x + (column - (columns - 1) / 2) * (width + gap),
+				config.y + (row - (rows - 1) / 2) * -(height + gap))
+		end
+
 		preview.display.Style(preview.regions, preview.anchor, config)
 		preview.display.Preview(preview.regions, config)
 	end
@@ -1182,6 +1523,7 @@ function Private.Auras.Apply()
 
 	Private.SlotHeader.ForEachChild(function(child)
 		EnsureDisplays(child)
+		Private.Auras.UpdateAssistability(child)
 		Private.Auras.ApplyChild(child)
 	end)
 
@@ -1207,13 +1549,14 @@ end
 
 Private.Events.RegisterHandler(DeferralKey.Auras, Private.Auras.Apply)
 
+Private.Events.RegisterEvent("GROUP_ROSTER_UPDATE", Private.Auras.RefreshAssistability)
+Private.Events.RegisterEvent("PLAYER_ENTERING_WORLD", Private.Auras.RefreshAssistability)
+
 --- Augmentation, and the only specialisation this next part has anything to say to.
 ---
 --- Narrower than `IsSupported`. The *displays* are class-gated; the *reminder* below is about an
 --- ability only Augmentation has, and telling a Devastation Evoker to switch on a spell they do not
 --- own would be worse than saying nothing.
-local AUGMENTATION_SPEC = 1473
-
 --- What the player casts to toggle Sense Power, which is **not** the ID the displays track. 361022 is
 --- what the toggle puts on the allies it senses; 361021 is the toggle itself, and the only one of the
 --- two that appears on an action bar.
@@ -1289,9 +1632,7 @@ local function CheckSensePower()
 		return
 	end
 
-	local spec = C_SpecializationInfo.GetSpecialization()
-
-	if not spec or C_SpecializationInfo.GetSpecializationInfo(spec) ~= AUGMENTATION_SPEC then
+	if not Private.Utils.IsAugmentation() then
 		return
 	end
 
@@ -1367,6 +1708,9 @@ Private.Events.RegisterEvent("PLAYER_SPECIALIZATION_CHANGED", function(unit)
 		return
 	end
 
+	SetFeatureMode()
+	Private.Settings.RefreshAuraTabs(true)
+	Private.AuraPreview.Rebuild()
 	ScheduleSensePowerCheck()
 end)
 
@@ -1383,8 +1727,8 @@ end)
 --- between a leak and none: re-picking the current texture from a dropdown, or a `RefreshActive`
 --- echoing a widget's own value back, would otherwise cost a container and a button on every assigned
 --- spotlight for no visible change. A caller that means "rebuild regardless" wants `RequestRebuild`.
----@param featureKey string
----@param displayKey string
+---@param featureKey SpotlightsAuraFeatureKey
+---@param displayKey SpotlightsAuraDisplayKey
 ---@param field string
 ---@param value any
 ---@return boolean applied
@@ -1403,7 +1747,16 @@ function Private.Auras.SetSetting(featureKey, displayKey, field, value)
 
 	config[field] = value
 
-	if FROZEN[field] then
+	if field == "gap" and feature.multiple then
+		ApplyGroupLayout(featureKey, displayKey, value or 0)
+	end
+
+	local groupIconSizeChanged = (featureKey == "cooldownAuras"
+			or featureKey == "defensiveAuras")
+		and displayKey == "icon"
+		and (field == "width" or field == "height")
+
+	if groupIconSizeChanged or FROZEN[field] then
 		RequestRebuild(featureKey, displayKey)
 	else
 		Private.Events.Request(DeferralKey.Auras)
@@ -1432,7 +1785,7 @@ end
 ---
 --- `Private.Migration.DefaultAuraFeature` hands back a freshly built pair every call, so the values
 --- read here are never aliased to the database being written.
----@param featureKey string
+---@param featureKey SpotlightsAuraFeatureKey
 function Private.Auras.ResetFeature(featureKey)
 	local defaults = Private.Migration.DefaultAuraFeature(featureKey)
 
@@ -1445,12 +1798,12 @@ function Private.Auras.ResetFeature(featureKey)
 	end
 end
 
---- Pushes the current Sense Power candidate set onto every slot already built.
+--- Pushes the current candidate sets onto every display already built.
 ---
 --- **The one thing in this file that changes a frozen-looking property without abandoning a frame.**
---- `includeSpellIDs` is handed to `AddAuraSlot` at build time, so a changed spell list looks like it
---- belongs on the rebuild path -- but the container exposes `SetAuraSlotCandidateFilters`, which
---- replaces a live slot's filters and re-runs `UpdateAllAuras` itself. `CustomAuraContainerInboundMixin`
+--- `includeSpellIDs` is handed to `AddAuraGroup`/`AddAuraSlot` at build time, so a changed spell list
+--- looks like it belongs on the rebuild path -- but the container exposes candidate-filter setters,
+--- which replace a live display's filters and re-run `UpdateAllAuras` themselves. `CustomAuraContainerInboundMixin`
 --- is assembled from `CustomAuraContainerSharedMixin`, so it is ours to call, and it `securecopy`s and
 --- validates what it is given.
 ---
@@ -1468,6 +1821,15 @@ end
 function Private.Auras.RefreshCandidates()
 	Private.SlotHeader.ForEachChild(function(child)
 		ForEachDisplay(child, function(record, feature)
+			if feature.multiple then
+				local candidates = feature.Candidates()
+
+				record.container:SetAuraGroupCandidateFilters(feature.key, { includeSpellIDs = candidates })
+				record.container:SetAuraGroupMaxFrameCount(feature.key, #CandidateIDs(candidates))
+
+				return
+			end
+
 			if feature.key ~= SENSE_POWER_KEY then
 				return
 			end
@@ -1528,6 +1890,10 @@ end
 ---@return table<integer, table<integer, true>>
 function Private.Auras.Cooldowns()
 	return COOLDOWNS
+end
+
+function Private.Auras.Defensives()
+	return DEFENSIVES
 end
 
 --- Whether one spell in the pool is switched on.
@@ -1656,6 +2022,108 @@ function Private.Auras.RemoveCustomCooldown(spellID)
 	return true
 end
 
+function Private.Auras.IsDefensiveEnabled(spellID, custom)
+	local auras = Config()
+
+	if not auras then
+		return false
+	end
+
+	if custom then
+		return auras.defensiveCustom ~= nil and auras.defensiveCustom[spellID] == true
+	end
+
+	for _, defensives in pairs(DEFENSIVES) do
+		if defensives[spellID] ~= nil then
+			if auras.defensives[spellID] ~= nil then
+				return auras.defensives[spellID]
+			end
+
+			return defensives[spellID]
+		end
+	end
+
+	return false
+end
+
+function Private.Auras.SetDefensiveEnabled(spellID, enabled, custom)
+	local auras = Config()
+
+	if not auras or not auras.defensives or not auras.defensiveCustom then
+		return false
+	end
+
+	if custom then
+		if auras.defensiveCustom[spellID] == nil then
+			return false
+		end
+
+		auras.defensiveCustom[spellID] = enabled
+	else
+		local default
+		for _, defensives in pairs(DEFENSIVES) do
+			if defensives[spellID] ~= nil then
+				default = defensives[spellID]
+				break
+			end
+		end
+
+		if default == nil then
+			return false
+		end
+
+		if enabled == default then
+			auras.defensives[spellID] = nil
+		else
+			auras.defensives[spellID] = enabled
+		end
+	end
+
+	Private.Auras.RefreshCandidates()
+	return true
+end
+
+function Private.Auras.CustomDefensives()
+	local auras = Config()
+	local spellIDs = {}
+
+	if auras and auras.defensiveCustom then
+		for spellID in pairs(auras.defensiveCustom) do
+			spellIDs[#spellIDs + 1] = spellID
+		end
+	end
+
+	table.sort(spellIDs)
+
+	return spellIDs
+end
+
+function Private.Auras.AddCustomDefensive(spellID)
+	local auras = Config()
+
+	if not auras or not auras.defensiveCustom or auras.defensiveCustom[spellID] ~= nil then
+		return false
+	end
+
+	auras.defensiveCustom[spellID] = true
+	Private.Auras.RefreshCandidates()
+
+	return true
+end
+
+function Private.Auras.RemoveCustomDefensive(spellID)
+	local auras = Config()
+
+	if not auras or not auras.defensiveCustom or auras.defensiveCustom[spellID] == nil then
+		return false
+	end
+
+	auras.defensiveCustom[spellID] = nil
+	Private.Auras.RefreshCandidates()
+
+	return true
+end
+
 --- Whether the user should be offered a reload, because frames have been abandoned or are about to
 --- be.
 ---
@@ -1705,4 +2173,5 @@ function Private.Auras.OnUnitChanged(frame, unit)
 	end)
 
 	EnsureDisplays(frame)
+	Private.Auras.UpdateAssistability(frame)
 end

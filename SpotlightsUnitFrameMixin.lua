@@ -15,11 +15,14 @@ local UNIT_EVENTS = {
 	"UNIT_MAX_HEALTH_MODIFIERS_CHANGED",
 	"UNIT_IN_RANGE_UPDATE",
 	"UNIT_PHASE",
+	"UNIT_FACTION",
+	"UNIT_FLAGS",
 }
 
 --- Not unit-filtered, so registered once per frame rather than re-registered by the mirror.
 local GLOBAL_EVENTS = {
 	"PLAYER_TARGET_CHANGED",
+	"PLAYER_FLAGS_CHANGED",
 }
 
 local DISCONNECTED_COLOR = { r = 0.5, g = 0.5, b = 0.5 }
@@ -32,6 +35,19 @@ local HEALTH_BAR_INSET = 1
 --- The absorb overlay's opacity.
 local ABSORB_ALPHA = 0.6
 
+-- Round to one decimal below 10%, then to whole percentages. The curve keeps the secret health
+-- percentage opaque while still giving the FontString a single, safe value to format.
+local healthPercentCurve = C_CurveUtil.CreateCurve()
+healthPercentCurve:SetType(Enum.LuaCurveType.Step)
+healthPercentCurve:AddPoint(0, 0)
+for tenth = 1, 100 do
+	local threshold = tenth / 10
+	healthPercentCurve:AddPoint((threshold - 0.05) / 100, threshold)
+end
+for whole = 11, 100 do
+	healthPercentCurve:AddPoint((whole - 0.5) / 100, whole)
+end
+
 --- The appearance block, or nil before the database has loaded.
 ---
 --- Read per call rather than cached: every value is a setting the options frame can change at any
@@ -41,23 +57,13 @@ local function Appearance()
 	return Private.DB and Private.DB.appearance
 end
 
---- Prescience. A single fixed ID rather than a per-class table: `C_Spell.IsSpellInRange` answers
---- non-nil only when the spell is known and castable, so a player who cannot cast this falls through
---- to the fallback path.
-local RANGE_SPELL = 409311
-
---- CheckInteractDistance index 4, "follow", at 28 yards. Shorter than the 40 of most friendly
---- spells, so it only answers when the spell itself does not.
-local FOLLOW_DISTANCE_INDEX = 4
-
 --- Whether `unit` is close enough to matter, for alpha purposes only.
 ---
---- **The return may be a secret value.** Pipe it into `SetAlphaFromBoolean`; never compare it, cache
---- it as a plain bool, or store it in a table we later iterate.
+--- **The return may be a secret value.** Pipe it directly into `SetAlphaFromBoolean`; never compare
+--- it, cache it as a plain bool, or store it in a table we later iterate. The companion validity
+--- return cannot be tested from tainted addon code, so the API's primary result is the only value
+--- used here.
 ---
---- Ordering is load-bearing: every step before the last answers with a plain boolean, keeping the
---- frame's Alpha aspect non-secret, and is skipped when its source turns out secret. Only
---- `UnitInRange` is unconditionally secret, and it is the last resort.
 ---@param unit string
 ---@return boolean inRange
 local function IsInRange(unit)
@@ -73,27 +79,6 @@ local function IsInRange(unit)
 		return false
 	end
 
-	-- Plain booleans, measured: the primary source. nil means the spell cannot be cast on this unit
-	-- at all -- not the same answer as out of range -- so it falls through instead of resolving.
-	local inSpellRange = C_Spell.IsSpellInRange(RANGE_SPELL, unit)
-
-	if inSpellRange ~= nil then
-		return inSpellRange
-	end
-
-	if not InCombatLockdown() then
-		local canInteract = CheckInteractDistance(unit, FOLLOW_DISTANCE_INDEX)
-
-		if not issecretvalue(canInteract) and canInteract ~= nil then
-			-- Normalised rather than returned as-is: SetAlphaFromBoolean type-checks its first
-			-- argument, and this API has returned a truthy number historically.
-			return canInteract ~= false
-		end
-	end
-
-	-- Unconditionally SecretReturns, and the only option left once we are in combat. Its second
-	-- return is deliberately dropped: comparing checkedRange against inRange is what makes
-	-- CompactUnitFrame_UpdateInRange throw.
 	local inRange = UnitInRange(unit)
 
 	return inRange
@@ -105,8 +90,8 @@ Private.NameStyle = {}
 
 --- The horizontal justification implied by an anchor point.
 ---
---- A single-point anchor has no width to justify within, but justification decides which way the
---- text grows: a right-edge anchor reads correctly only if right-justified to grow leftward.
+--- The name spans the frame between opposed horizontal anchors, so `wordwrap=false` has a width to
+--- truncate against. Justification still decides how text sits within that span.
 ---@param point string
 ---@return string
 local function JustifyForPoint(point)
@@ -121,9 +106,9 @@ end
 
 --- Applies the font, size, placement and justification of the name, but not its colour.
 ---
---- Single-anchored rather than spanning both edges as the template's XML does, because the point is
---- now a setting: the name grows from wherever it is anchored. `wordwrap` stays false, so a name too
---- long runs off one edge rather than wrapping.
+--- The opposed anchors follow the selected row and preserve the selected point's offset. Keeping both
+--- edges is important: a single anchor leaves the FontString unconstrained and allows names to bleed
+--- outside the frame.
 ---
 --- The shadow is re-asserted after `SetFont`, which clears it.
 ---@param fontString FontString
@@ -132,16 +117,23 @@ function Private.NameStyle.ApplyLayout(fontString, appearance)
 	fontString:SetFont(Private.Media.Font(appearance.nameFont), appearance.nameFontSize, "")
 	fontString:SetShadowColor(0, 0, 0, 1)
 	fontString:SetShadowOffset(1, -1)
+	fontString:SetWordWrap(false)
+
+	local point = appearance.namePoint
+	local parent = fontString:GetParent()
+	local horizontal = point:find("LEFT") and "LEFT" or point:find("RIGHT") and "RIGHT" or "CENTER"
+	local vertical = point:find("TOP") and "TOP" or point:find("BOTTOM") and "BOTTOM" or "CENTER"
+	local firstPoint = vertical == "CENTER" and "LEFT" or vertical .. "LEFT"
+	local secondPoint = vertical == "CENTER" and "RIGHT" or vertical .. "RIGHT"
+	local firstX = horizontal == "RIGHT" and 0 or appearance.nameX
+	local secondX = horizontal == "LEFT" and 0 or appearance.nameX
+	local firstY = vertical == "BOTTOM" and 0 or appearance.nameY
+	local secondY = vertical == "TOP" and 0 or appearance.nameY
 
 	fontString:ClearAllPoints()
-	fontString:SetPoint(
-		appearance.namePoint,
-		fontString:GetParent(),
-		appearance.namePoint,
-		appearance.nameX,
-		appearance.nameY
-	)
-	fontString:SetJustifyH(JustifyForPoint(appearance.namePoint))
+	PixelUtil.SetPoint(fontString, firstPoint, parent, firstPoint, firstX, firstY)
+	PixelUtil.SetPoint(fontString, secondPoint, parent, secondPoint, secondX, secondY)
+	fontString:SetJustifyH(JustifyForPoint(point))
 end
 
 --- Blizzard's own opt-out for the temporary maximum-health-loss bar, cached rather than asked for
@@ -192,15 +184,16 @@ function SpotlightsUnitFrameMixin:UpdateHealthColor()
 	end
 
 	local appearance = Appearance()
-	local r, g, b
-	local bgR, bgG, bgB
+	local r, g, b, a
+	local bgR, bgG, bgB, bgA
 
 	if not UnitIsConnected(unit) or UnitIsDead(unit) then
-		r, g, b = DISCONNECTED_COLOR.r, DISCONNECTED_COLOR.g, DISCONNECTED_COLOR.b
-		bgR, bgG, bgB = r * BACKGROUND_MULTIPLIER, g * BACKGROUND_MULTIPLIER, b * BACKGROUND_MULTIPLIER
+		r, g, b, a = DISCONNECTED_COLOR.r, DISCONNECTED_COLOR.g, DISCONNECTED_COLOR.b, 1
+		bgR, bgG, bgB, bgA = r * BACKGROUND_MULTIPLIER, g * BACKGROUND_MULTIPLIER, b * BACKGROUND_MULTIPLIER, 1
 	elseif appearance and not appearance.healthUseClassColor then
-		r, g, b = appearance.healthColorR, appearance.healthColorG, appearance.healthColorB
-		bgR, bgG, bgB = appearance.healthBgColorR, appearance.healthBgColorG, appearance.healthBgColorB
+		r, g, b, a = appearance.healthColorR, appearance.healthColorG, appearance.healthColorB, appearance.healthColorA
+		bgR, bgG, bgB, bgA = appearance.healthBgColorR, appearance.healthBgColorG, appearance.healthBgColorB,
+			appearance.healthBgColorA
 	else
 		local _, classFilename = UnitClass(unit)
 		local color = classFilename and RAID_CLASS_COLORS[classFilename]
@@ -209,15 +202,15 @@ function SpotlightsUnitFrameMixin:UpdateHealthColor()
 			return
 		end
 
-		r, g, b = color.r, color.g, color.b
-		bgR, bgG, bgB = r * BACKGROUND_MULTIPLIER, g * BACKGROUND_MULTIPLIER, b * BACKGROUND_MULTIPLIER
+		r, g, b, a = color.r, color.g, color.b, 1
+		bgR, bgG, bgB, bgA = r * BACKGROUND_MULTIPLIER, g * BACKGROUND_MULTIPLIER, b * BACKGROUND_MULTIPLIER, 1
 	end
 
-	self.healthBar:SetStatusBarColor(r, g, b)
+	self.healthBar:SetStatusBarColor(r, g, b, a)
 
 	-- `raidframe-hp-bg-white` is a white texture meant to be tinted, and this is the only thing that
 	-- tints it. Without this the frame reads as an empty white box.
-	self.background:SetVertexColor(bgR, bgG, bgB)
+	self.background:SetVertexColor(bgR, bgG, bgB, bgA)
 end
 
 --- The unit's name.
@@ -235,6 +228,55 @@ function SpotlightsUnitFrameMixin:UpdateName()
 	end
 
 	self.name:SetText(UnitName(unit))
+end
+
+local function HealthTextLayout(fontString, appearance)
+	fontString:SetFont(Private.Media.Font(appearance.healthTextFont), appearance.healthTextFontSize, "OUTLINE")
+	fontString:ClearAllPoints()
+	PixelUtil.SetPoint(
+		fontString,
+		appearance.healthTextPoint,
+		fontString:GetParent(),
+		appearance.healthTextPoint,
+		appearance.healthTextX,
+		appearance.healthTextY
+	)
+	fontString:SetJustifyH(JustifyForPoint(appearance.healthTextPoint))
+end
+
+function SpotlightsUnitFrameMixin:UpdateHealthText()
+	local unit = self.displayedUnit
+	local appearance = Appearance()
+
+	if not unit or not appearance then
+		return
+	end
+
+	HealthTextLayout(self.healthText, appearance)
+
+	local r, g, b, a = appearance.healthTextColorR, appearance.healthTextColorG, appearance.healthTextColorB,
+		appearance.healthTextColorA
+	if appearance.healthTextUseClassColor then
+		local _, classFilename = UnitClass(unit)
+		local color = classFilename and RAID_CLASS_COLORS[classFilename]
+		if color then
+			r, g, b, a = color.r, color.g, color.b, 1
+		end
+	end
+	self.healthText:SetVertexColor(r, g, b, a)
+	self.healthText:SetShown(appearance.healthTextEnabled)
+
+	if not appearance.healthTextEnabled then
+		return
+	end
+
+	if appearance.healthTextFormat == "percent" then
+		self.healthText:SetFormattedText("%g%%", UnitHealthPercent(unit, true, healthPercentCurve))
+	elseif appearance.healthTextFormat == "absValueAbbreviated" then
+		self.healthText:SetText(AbbreviateNumbers(UnitHealth(unit)))
+	else
+		self.healthText:SetFormattedText("%d", UnitHealth(unit))
+	end
 end
 
 --- The name's font, size, placement and colour -- everything about it except the text.
@@ -255,7 +297,7 @@ function SpotlightsUnitFrameMixin:UpdateNameStyle()
 
 	Private.NameStyle.ApplyLayout(self.name, appearance)
 
-	local r, g, b = appearance.nameColorR, appearance.nameColorG, appearance.nameColorB
+	local r, g, b, a = appearance.nameColorR, appearance.nameColorG, appearance.nameColorB, appearance.nameColorA
 	local unit = self.displayedUnit
 
 	if appearance.nameUseClassColor and unit then
@@ -263,13 +305,13 @@ function SpotlightsUnitFrameMixin:UpdateNameStyle()
 		local color = classFilename and RAID_CLASS_COLORS[classFilename]
 
 		if color then
-			r, g, b = color.r, color.g, color.b
+			r, g, b, a = color.r, color.g, color.b, 1
 		end
 	end
 
 	-- SetVertexColor rather than SetTextColor, matching Blizzard's own name updater: it colours a
 	-- FontString whose Text aspect may be secret, and the vertex colour is not that aspect.
-	self.name:SetVertexColor(r, g, b)
+	self.name:SetVertexColor(r, g, b, a)
 end
 
 --- The outline shown while this unit is the player's target.
@@ -338,7 +380,8 @@ function SpotlightsUnitFrameMixin:UpdateTempMaxHealthLoss()
 	-- to change -- reading it back would compound the inset on every update.
 	local fullWidth = self:GetWidth() - (HEALTH_BAR_INSET * 2)
 
-	self.healthBar:SetPoint(
+	PixelUtil.SetPoint(
+		self.healthBar,
 		"BOTTOMRIGHT",
 		self,
 		"BOTTOMRIGHT",
@@ -376,11 +419,11 @@ function SpotlightsUnitFrameMixin:UpdateRangeAlpha()
 	-- A plain boolean, so it can gate which fade applies. `deadAlpha` in both slots so a dead unit
 	-- reads the same whether or not it is also in range.
 	if UnitIsDead(unit) then
-		self:SetAlphaFromBoolean(false, 1.0, appearance.deadAlpha)
+		self:SetAlphaFromBoolean(false, appearance.frameAlpha, appearance.frameAlpha * appearance.deadAlpha)
 		return
 	end
 
-	self:SetAlphaFromBoolean(IsInRange(unit), 1.0, appearance.outOfRangeAlpha)
+	self:SetAlphaFromBoolean(IsInRange(unit), appearance.frameAlpha, appearance.frameAlpha * appearance.outOfRangeAlpha)
 end
 
 --- Bar art and the absorb overlay's visibility. Not per-unit, so safe on a child with nothing
@@ -424,6 +467,7 @@ function SpotlightsUnitFrameMixin:UpdateAll()
 	self:UpdateRangeAlpha()
 	self:UpdateName()
 	self:UpdateNameStyle()
+	self:UpdateHealthText()
 	self:UpdateSelectionHighlight()
 end
 
@@ -435,6 +479,7 @@ local EVENT_HANDLERS = {
 	UNIT_HEALTH = function(frame)
 		frame:UpdateHealthValues()
 		frame:UpdateHealthColor()
+		frame:UpdateHealthText()
 		frame:UpdateRangeAlpha()
 	end,
 
@@ -443,11 +488,13 @@ local EVENT_HANDLERS = {
 		frame:UpdateHealthValues()
 		frame:UpdateAbsorb()
 		frame:UpdateTempMaxHealthLoss()
+		frame:UpdateHealthText()
 	end,
 
 	UNIT_CONNECTION = function(frame)
 		frame:UpdateHealthValues()
 		frame:UpdateHealthColor()
+		frame:UpdateHealthText()
 	end,
 
 	UNIT_NAME_UPDATE = function(frame)
@@ -474,6 +521,18 @@ local EVENT_HANDLERS = {
 
 	PLAYER_TARGET_CHANGED = function(frame)
 		frame:UpdateSelectionHighlight()
+	end,
+
+	UNIT_FACTION = function(frame)
+		Private.Auras.UpdateAssistability(frame)
+	end,
+
+	UNIT_FLAGS = function(frame)
+		Private.Auras.UpdateAssistability(frame)
+	end,
+
+	PLAYER_FLAGS_CHANGED = function(frame)
+		Private.Auras.UpdateAssistability(frame)
 	end,
 }
 
@@ -577,40 +636,8 @@ function SpotlightsUnitFrameMixin:OnUnitAttributeChanged(value)
 	end
 
 	self:UpdateAll()
-
-	-- Range is the one thing UpdateAll cannot get right on the first try, and it needs a second
-	-- attempt rather than a better first one.
-	--
-	-- configureChildren assigns the unit at :213 and only calls Show() at :224, so this runs against
-	-- a unit the client has had no frame to answer range questions about yet -- and
-	-- UNIT_IN_RANGE_UPDATE is edge-triggered, so a premature answer here is never revisited.
-	--
-	-- One deferred re-assert closes that window. It fires once per changed unit, which the early-out
-	-- above makes true. UpdateRangeAlpha re-reads displayedUnit, so a unit that changed again or was
-	-- released in the meantime is handled by the same call.
-	RunNextFrame(function()
-		self:UpdateRangeAlpha()
-	end)
 end
 
---- Keeps the cached CVar current, and redraws on the change.
----
---- This puts a tainted closure of ours into a registry Blizzard owns and every addon shares -- the
---- exact shape WU-5b was written to escape. **CVarCallbackRegistry is built to take tainted
---- registrants.** `RegisterCallback` routes the event-key insert through an attribute delegate,
---- commented in Blizzard's source as a "taint barrier" (`CallbackRegistry.lua:106-126`), and
---- `TriggerEvent` dispatches every callback through `securecallfunction` inside a
---- `secureexecuterange` (`CallbackRegistry.lua:198-204`) -- so our taint cannot reach the iteration
---- or any other registrant. `standardIconAnchor` was a bare module-level table handed straight to a
---- C function, with no barrier.
----
---- The rule: **sharing state with Blizzard is safe exactly where Blizzard wrote a barrier for it,
---- and nowhere else.**
----
---- The discarded first parameter is the **owner**, not the value: the dispatch is
---- `securecallfunction(func, owner, ...)` (`CallbackRegistry.lua:209-210`), and omitting `owner` at
---- registration means it is a generated numeric ID rather than nil. Taking `value` as the first
---- parameter would silently compare that ID against "0" and leave the feature permanently enabled.
 CVarCallbackRegistry:RegisterCallback(TEMP_MAX_HEALTH_LOSS_CVAR, function(_, value)
 	-- Blizzard's own conversion (`CvarUtil.lua:158-161`), not `not not value`: CVAR_UPDATE carries
 	-- the value as a *string*, so "0" is the disabled case and is truthy in Lua.

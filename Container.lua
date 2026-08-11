@@ -160,7 +160,7 @@ local function Clamp(point, x, y)
 	local frame = Private.Container.Get()
 
 	frame:ClearAllPoints()
-	frame:SetPoint(point, UIParent, point, x, y)
+	PixelUtil.SetPoint(frame, point, UIParent, point, x, y)
 
 	local left, bottom = frame:GetLeft(), frame:GetBottom()
 	local right, top = frame:GetRight(), frame:GetTop()
@@ -190,7 +190,7 @@ local function Clamp(point, x, y)
 
 	x, y = x + dx, y + dy
 
-	frame:SetPoint(point, UIParent, point, x, y)
+	PixelUtil.SetPoint(frame, point, UIParent, point, x, y)
 
 	return point, x, y
 end

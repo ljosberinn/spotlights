@@ -6,7 +6,7 @@ Private.Enum = {}
 
 --- Grid fill direction. Horizontal fills across then wraps down; vertical fills down then wraps
 --- across. `stride` means columns when horizontal, rows when vertical.
----@enum Orientation
+---@enum SpotlightsOrientation
 Private.Enum.Orientation = {
 	Horizontal = 1,
 	Vertical = 2,
@@ -28,12 +28,15 @@ Private.Enum.GrowY = {
 
 --- What a configured slot holds. `Blank` is a user-placed spacer that reserves its grid cell;
 --- `Retired` is a pooled header kept alive but hidden, since frames cannot be destroyed.
----@enum SlotKind
-Private.Enum.SlotKind = {
-	Player = "player",
-	Blank = "blank",
-	Retired = "retired",
-}
+---@alias SlotKind "player" | "blank" | "retired"
+
+---@alias HealthTextFormat
+---| "percent"
+---| "absValue"
+---| "absValueAbbreviated"
+
+---@alias SpotlightsAuraDisplayKey "bar" | "icon"
+---@alias SpotlightsAuraFeatureKey "prescience" | "shiftingSands" | "sensePower" | "cooldownAuras" | "defensiveAuras"
 
 --- Work deferred past combat, and the throttle keys used out of combat. Both queues drain through
 --- the same ordered dispatch.

@@ -47,4 +47,3 @@ Settings.lua
 SpotlightsUnitFrameMixin.lua
 
 Templates\SpotlightsUnitFrameTemplate.xml
-Templates\SpotlightsSettingsTabsTemplate.xml

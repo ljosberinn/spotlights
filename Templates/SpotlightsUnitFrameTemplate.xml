@@ -39,6 +39,11 @@
 						<Anchor point="TOPRIGHT" x="-3" y="-3"/>
 					</Anchors>
 				</FontString>
+				<FontString parentKey="healthText" inherits="GameFontHighlightSmall" wordwrap="false" justifyH="CENTER">
+					<Anchors>
+						<Anchor point="CENTER"/>
+					</Anchors>
+				</FontString>
 			</Layer>
 			<Layer level="OVERLAY" textureSubLevel="1">
 				<!-- Starts at alpha 0 rather than hidden. UpdateSelectionHighlight drives it with

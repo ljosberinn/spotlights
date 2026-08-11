@@ -334,7 +334,8 @@
     "TabSystemOwnerMixin",
     "CompactUnitFrame_UpdateSelectionHighlight",
     "GameTooltipTextLeft1",
-    "STANDARD_TEXT_FONT"
+    "STANDARD_TEXT_FONT",
+    "TabSystemMixin"
   ],
   "Lua.workspace.ignoreDir": ["Libs"]
 }

@@ -184,6 +184,8 @@ function Private.Roster.List()
 	return list
 end
 
+Private.Events.RegisterEvent("GROUP_ROSTER_UPDATE", Private.Roster.Rebuild)
+
 --- How many members the last scan could read, and how many it skipped because their identity
 --- was secret. A nonzero skip count is the rated-PvP case.
 ---@return integer scanned, integer skipped

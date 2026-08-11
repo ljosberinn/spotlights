@@ -23,9 +23,14 @@ local CONTENT_INSET = 16
 --- tab system's own anchor and the scroll frames' top anchor, which follows the strip's bottom and has
 --- to know the strip's left edge to land content back at `CONTENT_INSET`.
 local TAB_STRIP_X = 70
+local BOTTOM_TAB_STRIP_X = 6
 
+-- The bottom Auras tab strip is 32px high, matching TabSystemButtonTemplate. Its art hangs below the
+-- system, as it does on PlayerSpellsFrame, so the scroll area reserves the strip plus the usual gutter.
 ---@type Frame?
 local panel
+local auraTabSystem
+local auraTabIDs
 
 ---@class SpotlightsSettingsTab
 ---@field name string
@@ -37,13 +42,177 @@ local tabs = {}
 
 local activeTab = 1
 
+local EXPORT_PREFIX = "SPOTLIGHTS!"
+local EXPORT_POPUP = "SPOTLIGHTS_EXPORT"
+local IMPORT_POPUP = "SPOTLIGHTS_IMPORT"
+local IMPORT_ERROR_POPUP = "SPOTLIGHTS_IMPORT_ERROR"
+local IMPORT_RELOAD_POPUP = "SPOTLIGHTS_IMPORT_RELOAD"
+local AURA_RELOAD_POPUP = "SPOTLIGHTS_AURA_RELOAD"
+
+local ShowImportPopup
+local ShowExportPopup
+
+local function CopyExportData()
+	local db = Private.DB
+	local payload = {}
+
+	if not db then
+		return payload
+	end
+
+	for key, value in pairs(db) do
+		if key ~= "position" and key ~= "slots" then
+			payload[key] = value
+		end
+	end
+
+	return payload
+end
+
+local function ExportString()
+	return EXPORT_PREFIX ..
+		C_EncodingUtil.EncodeBase64(C_EncodingUtil.CompressString(C_EncodingUtil.SerializeCBOR(CopyExportData())))
+end
+
+---@param text string
+---@return boolean, string?
+local function ImportString(text)
+	if string.sub(text, 1, #EXPORT_PREFIX) ~= EXPORT_PREFIX then
+		return false, "prefix"
+	end
+
+	local encoded = string.sub(text, #EXPORT_PREFIX + 1)
+	local ok, payload = pcall(function()
+		return C_EncodingUtil.DeserializeCBOR(C_EncodingUtil.DecompressString(C_EncodingUtil.DecodeBase64(encoded)))
+	end)
+
+	if not ok then
+		return false, "decode"
+	end
+
+	if type(payload) ~= "table" then
+		return false, "payload"
+	end
+
+	local current = Private.DB
+	payload.slots = current and current.slots or {}
+	payload.position = current and current.position or nil
+
+	local migrated = Private.Migration.Run(payload)
+	Private.DB = migrated
+	SpotlightsSaved = migrated
+
+	return true
+end
+
+local function ShowImportError(reason)
+	local L = Private.L.Settings
+	local details = reason == "prefix" and L.ImportErrorPrefix
+		or reason == "decode" and L.ImportErrorDecode
+		or L.ImportErrorPayload
+
+	StaticPopupDialogs[IMPORT_ERROR_POPUP] = {
+		text = string.format(L.ImportError, details),
+		button1 = ACCEPT,
+		timeout = 0,
+		whileDead = true,
+		hideOnEscape = true,
+		preferredIndex = 3,
+	}
+	StaticPopup_Show(IMPORT_ERROR_POPUP)
+end
+
+local function CreateReadOnlyPopup(title, text)
+	return {
+		text = title,
+		button1 = ACCEPT,
+		hasEditBox = true,
+		hasWideEditBox = true,
+		editBoxWidth = 350,
+		hideOnEscape = true,
+		whileDead = true,
+		OnShow = function(popup)
+			local editBox = popup:GetEditBox()
+			editBox:SetText(text)
+			editBox:HighlightText()
+
+			local ctrlDown = false
+			editBox:SetScript("OnKeyDown", function(_, key)
+				if key == "LCTRL" or key == "RCTRL" or key == "LMETA" or key == "RMETA" then
+					ctrlDown = true
+				end
+			end)
+			editBox:SetScript("OnKeyUp", function(_, key)
+				if ctrlDown and (key == "C" or key == "X") then
+					StaticPopup_Hide(EXPORT_POPUP)
+				end
+				ctrlDown = false
+			end)
+		end,
+		EditBoxOnEscapePressed = function(popup)
+			popup:GetParent():Hide()
+		end,
+		EditBoxOnTextChanged = function(popup)
+			if popup:GetText() ~= "" and popup:GetText() ~= text then
+				popup:SetText(text)
+			end
+		end,
+	}
+end
+
+local function CreateWritablePopup()
+	return {
+		text = Private.L.Settings.Import,
+		button1 = Private.L.Settings.Import,
+		button2 = CLOSE,
+		hasEditBox = true,
+		hasWideEditBox = true,
+		editBoxWidth = 350,
+		hideOnEscape = true,
+		whileDead = true,
+		OnAccept = function(popup)
+			local success, reason = ImportString(strtrim(popup:GetEditBox():GetText()))
+			if not success then
+				StaticPopup_Hide(IMPORT_POPUP)
+				ShowImportError(reason)
+				return
+			end
+
+			StaticPopup_Hide(IMPORT_POPUP)
+			StaticPopupDialogs[IMPORT_RELOAD_POPUP] = {
+				text = Private.L.Settings.ImportReloadPrompt,
+				button1 = Private.L.Settings.ReloadNow,
+				button2 = Private.L.Settings.ReloadLater,
+				timeout = 0,
+				whileDead = true,
+				hideOnEscape = true,
+				preferredIndex = 3,
+				OnAccept = ReloadUI,
+			}
+			StaticPopup_Show(IMPORT_RELOAD_POPUP)
+		end,
+	}
+end
+
+ShowImportPopup = function()
+	StaticPopupDialogs[IMPORT_POPUP] = CreateWritablePopup()
+	StaticPopup_Hide(IMPORT_POPUP)
+	StaticPopup_Show(IMPORT_POPUP)
+end
+
+ShowExportPopup = function()
+	StaticPopupDialogs[EXPORT_POPUP] = CreateReadOnlyPopup(Private.L.Settings.Export, ExportString())
+	StaticPopup_Hide(EXPORT_POPUP)
+	StaticPopup_Show(EXPORT_POPUP)
+end
+
 ---@return SpotlightsLayoutConfig?
 local function Layout()
 	return Private.DB and Private.DB.layout
 end
 
 ---@return SpotlightsAppearanceConfig?
-local function Appearance()
+local function GetCurrentAppearanceSettings()
 	return Private.DB and Private.DB.appearance
 end
 
@@ -80,6 +249,7 @@ local function ApplyAppearance()
 	Private.SlotHeader.ForEachChild(function(child)
 		child:UpdateTexture()
 		child:UpdateNameStyle()
+		child:UpdateHealthText()
 		child:UpdateRangeAlpha()
 	end)
 
@@ -92,7 +262,7 @@ end
 ---@param field string
 ---@param value any
 local function SetAppearance(field, value)
-	local appearance = Appearance()
+	local appearance = GetCurrentAppearanceSettings()
 
 	if not appearance then
 		return
@@ -103,9 +273,9 @@ local function SetAppearance(field, value)
 	ApplyAppearance()
 end
 
---- Writes the three channels of a colour in one go, then applies once.
+--- Writes all four channels of a colour in one go, then applies once.
 ---
---- A colour picker fires continuously while dragged, and three `SetAppearance` calls per frame would
+--- A colour picker fires continuously while dragged, and four `SetAppearance` calls per frame would
 --- sweep the whole grid three times for one visual change. Writing the fields directly and sweeping
 --- once collapses that to a single pass, the way the aura colour pickers lean on `SetSetting`'s
 --- debounce.
@@ -115,14 +285,16 @@ end
 ---@param r number
 ---@param g number
 ---@param b number
-local function SetAppearanceColor(rField, gField, bField, r, g, b)
-	local appearance = Appearance()
+---@param aField string
+---@param a number
+local function SetAppearanceColor(rField, gField, bField, aField, r, g, b, a)
+	local appearance = GetCurrentAppearanceSettings()
 
 	if not appearance then
 		return
 	end
 
-	appearance[rField], appearance[gField], appearance[bField] = r, g, b
+	appearance[rField], appearance[gField], appearance[bField], appearance[aField] = r, g, b, a
 
 	ApplyAppearance()
 end
@@ -144,15 +316,18 @@ end
 local FRAME_APPEARANCE_FIELDS = {
 	"barTexture",
 	"showAbsorb",
+	"frameAlpha",
 	"outOfRangeAlpha",
 	"deadAlpha",
 	"healthUseClassColor",
 	"healthColorR",
 	"healthColorG",
 	"healthColorB",
+	"healthColorA",
 	"healthBgColorR",
 	"healthBgColorG",
 	"healthBgColorB",
+	"healthBgColorA",
 }
 
 --- The appearance fields the Name section owns.
@@ -161,11 +336,27 @@ local NAME_APPEARANCE_FIELDS = {
 	"nameColorR",
 	"nameColorG",
 	"nameColorB",
+	"nameColorA",
 	"nameFont",
 	"nameFontSize",
 	"namePoint",
 	"nameX",
 	"nameY",
+}
+
+local HEALTH_TEXT_APPEARANCE_FIELDS = {
+	"healthTextEnabled",
+	"healthTextFormat",
+	"healthTextUseClassColor",
+	"healthTextColorR",
+	"healthTextColorG",
+	"healthTextColorB",
+	"healthTextColorA",
+	"healthTextFont",
+	"healthTextFontSize",
+	"healthTextPoint",
+	"healthTextX",
+	"healthTextY",
 }
 
 --- Writes a list of appearance fields back to their shipped defaults.
@@ -175,7 +366,7 @@ local NAME_APPEARANCE_FIELDS = {
 --- swapped wholesale, so a section reset touches only its own fields.
 ---@param fields string[]
 local function ResetAppearanceFields(fields)
-	local appearance = Appearance()
+	local appearance = GetCurrentAppearanceSettings()
 
 	if not appearance then
 		return
@@ -341,7 +532,15 @@ local function BuildGeneralTab(content)
 				icon:Hide(addonName)
 			end
 		end, 160),
+
+		Widgets.CreateButtonPair(content, L.Import, ShowImportPopup, L.Export, ShowExportPopup),
 	}
+end
+
+local function ResetHealthText()
+	ResetAppearanceFields(HEALTH_TEXT_APPEARANCE_FIELDS)
+	ApplyAppearance()
+	Private.Settings.Refresh()
 end
 
 ---@param content Frame
@@ -352,7 +551,7 @@ local function BuildAppearanceTab(content)
 	-- The two colour modes, shared by the health bar and the name. `true` is class colour, so the get
 	-- closures below hand the toggle straight back and the dropdown matches on it.
 	local colorModes = {
-		{ value = true, label = L.ColorClass },
+		{ value = true,  label = L.ColorClass },
 		{ value = false, label = L.ColorStatic },
 	}
 
@@ -360,13 +559,17 @@ local function BuildAppearanceTab(content)
 		Widgets.CreateHeading(content, L.FrameHeading),
 
 		Widgets.CreateSlider(content, L.Width, 40, 300, 1, function()
-			return Layout() and Layout().frameWidth or 90
+			local layout = Layout()
+
+			return layout and layout.frameWidth or 90
 		end, function(value)
 			SetLayout("frameWidth", value)
 		end),
 
 		Widgets.CreateSlider(content, L.Height, 20, 200, 1, function()
-			return Layout() and Layout().frameHeight or 40
+			local layout = Layout()
+
+			return layout and layout.frameHeight or 40
 		end, function(value)
 			SetLayout("frameHeight", value)
 		end),
@@ -374,15 +577,21 @@ local function BuildAppearanceTab(content)
 		-- Passed as a function, not its result: the list has to be re-read every time the menu
 		-- opens so media registered after the panel was built still appears.
 		Widgets.CreateDropdown(content, L.BarTexture, function()
-			return TextureChoices(Appearance() and Appearance().barTexture)
+			local appearance = GetCurrentAppearanceSettings()
+
+			return TextureChoices(appearance and appearance.barTexture)
 		end, function()
-			return Appearance() and Appearance().barTexture
+			local appearance = GetCurrentAppearanceSettings()
+
+			return appearance and appearance.barTexture
 		end, function(value)
 			SetAppearance("barTexture", value)
 		end),
 
 		Widgets.CreateDropdown(content, L.HealthColorMode, colorModes, function()
-			return Appearance() and Appearance().healthUseClassColor
+			local appearance = GetCurrentAppearanceSettings()
+
+			return appearance and appearance.healthUseClassColor
 		end, function(value)
 			SetColorMode("healthUseClassColor", value)
 		end),
@@ -392,51 +601,69 @@ local function BuildAppearanceTab(content)
 		-- the mode dropdown moved. The predicate re-reads the mode on each panel refresh, which
 		-- `SetColorMode` triggers.
 		Widgets.CreateColorPicker(content, L.HealthColor, function()
-			local appearance = Appearance()
+			local appearance = GetCurrentAppearanceSettings()
 
 			if not appearance then
-				return 0.1, 0.7, 0.1
+				return 0.1, 0.7, 0.1, 1
 			end
 
-			return appearance.healthColorR, appearance.healthColorG, appearance.healthColorB
-		end, function(r, g, b)
-			SetAppearanceColor("healthColorR", "healthColorG", "healthColorB", r, g, b)
+			return appearance.healthColorR, appearance.healthColorG, appearance.healthColorB, appearance.healthColorA
+		end, function(r, g, b, a)
+			SetAppearanceColor("healthColorR", "healthColorG", "healthColorB", "healthColorA", r, g, b, a)
 		end, function()
-			return Appearance() and not Appearance().healthUseClassColor
+			local appearance = GetCurrentAppearanceSettings()
+
+			return appearance and not appearance.healthUseClassColor
 		end),
 
 		-- The unfilled tail of the bar. Only meaningful in static mode (class mode derives it) so it
 		-- disables alongside the static bar colour above.
 		Widgets.CreateColorPicker(content, L.HealthBgColor, function()
-			local appearance = Appearance()
+			local appearance = GetCurrentAppearanceSettings()
 
 			if not appearance then
-				return 0.02, 0.14, 0.02
+				return 0.02, 0.14, 0.02, 1
 			end
 
-			return appearance.healthBgColorR, appearance.healthBgColorG, appearance.healthBgColorB
-		end, function(r, g, b)
-			SetAppearanceColor("healthBgColorR", "healthBgColorG", "healthBgColorB", r, g, b)
+			return appearance.healthBgColorR, appearance.healthBgColorG, appearance.healthBgColorB,
+				appearance.healthBgColorA
+		end, function(r, g, b, a)
+			SetAppearanceColor("healthBgColorR", "healthBgColorG", "healthBgColorB", "healthBgColorA", r, g, b, a)
 		end, function()
-			return Appearance() and not Appearance().healthUseClassColor
+			local appearance = GetCurrentAppearanceSettings()
+
+			return appearance and not appearance.healthUseClassColor
 		end),
 
 		Widgets.CreateCheckbox(content, L.ShowAbsorb, function()
-			return Appearance() and Appearance().showAbsorb or false
+			local appearance = GetCurrentAppearanceSettings()
+
+			return appearance and appearance.showAbsorb or false
 		end, function(value)
 			SetAppearance("showAbsorb", value)
 		end),
 
 		Widgets.CreateSlider(content, L.OutOfRangeAlpha, 0.1, 1, 0.05, function()
-			return Appearance() and Appearance().outOfRangeAlpha or 0.45
+			local appearance = GetCurrentAppearanceSettings()
+			return appearance and appearance.outOfRangeAlpha or 0.45
 		end, function(value)
 			SetAppearance("outOfRangeAlpha", value)
 		end),
 
 		Widgets.CreateSlider(content, L.DeadAlpha, 0.1, 1, 0.05, function()
-			return Appearance() and Appearance().deadAlpha or 0.45
+			local appearance = GetCurrentAppearanceSettings()
+
+			return appearance and appearance.deadAlpha or 0.45
 		end, function(value)
 			SetAppearance("deadAlpha", value)
+		end),
+
+		Widgets.CreateSlider(content, L.FrameAlpha, 0.1, 1, 0.05, function()
+			local appearance = GetCurrentAppearanceSettings()
+
+			return appearance and appearance.frameAlpha or 1
+		end, function(value)
+			SetAppearance("frameAlpha", value)
 		end),
 
 		Widgets.CreateButton(content, L.ResetFrame, ResetFrame),
@@ -444,58 +671,167 @@ local function BuildAppearanceTab(content)
 		Widgets.CreateHeading(content, L.NameHeading),
 
 		Widgets.CreateDropdown(content, L.NameColorMode, colorModes, function()
-			return Appearance() and Appearance().nameUseClassColor
+			local appearance = GetCurrentAppearanceSettings()
+
+			return appearance and appearance.nameUseClassColor
 		end, function(value)
 			SetColorMode("nameUseClassColor", value)
 		end),
 
 		Widgets.CreateColorPicker(content, L.NameColor, function()
-			local appearance = Appearance()
+			local appearance = GetCurrentAppearanceSettings()
 
 			if not appearance then
-				return 1, 1, 1
+				return 1, 1, 1, 1
 			end
 
-			return appearance.nameColorR, appearance.nameColorG, appearance.nameColorB
-		end, function(r, g, b)
-			SetAppearanceColor("nameColorR", "nameColorG", "nameColorB", r, g, b)
+			return appearance.nameColorR, appearance.nameColorG, appearance.nameColorB, appearance.nameColorA
+		end, function(r, g, b, a)
+			SetAppearanceColor("nameColorR", "nameColorG", "nameColorB", "nameColorA", r, g, b, a)
 		end, function()
-			return Appearance() and not Appearance().nameUseClassColor
+			local appearance = GetCurrentAppearanceSettings()
+
+			return appearance and not appearance.nameUseClassColor
 		end),
 
 		Widgets.CreateDropdown(content, L.NameFont, function()
-			return FontChoices(Appearance() and Appearance().nameFont)
+			local appearance = GetCurrentAppearanceSettings()
+
+			return FontChoices(appearance and appearance.nameFont)
 		end, function()
-			return Appearance() and Appearance().nameFont
+			local appearance = GetCurrentAppearanceSettings()
+			return appearance and appearance.nameFont
 		end, function(value)
 			SetAppearance("nameFont", value)
 		end),
 
 		Widgets.CreateSlider(content, L.NameFontSize, 6, 32, 1, function()
-			return Appearance() and Appearance().nameFontSize or 10
+			local appearance = GetCurrentAppearanceSettings()
+
+			return appearance and appearance.nameFontSize or 10
 		end, function(value)
 			SetAppearance("nameFontSize", value)
 		end),
 
 		Widgets.CreateDropdown(content, L.NameAnchor, AnchorChoices, function()
-			return Appearance() and Appearance().namePoint
+			local appearance = GetCurrentAppearanceSettings()
+
+			return appearance and appearance.namePoint
 		end, function(value)
 			SetAppearance("namePoint", value)
 		end),
 
 		Widgets.CreateSlider(content, L.NameOffsetX, -100, 100, 1, function()
-			return Appearance() and Appearance().nameX or 0
+			local appearance = GetCurrentAppearanceSettings()
+
+			return appearance and appearance.nameX or 0
 		end, function(value)
 			SetAppearance("nameX", value)
 		end),
 
 		Widgets.CreateSlider(content, L.NameOffsetY, -100, 100, 1, function()
-			return Appearance() and Appearance().nameY or 0
+			local appearance = GetCurrentAppearanceSettings()
+
+			return appearance and appearance.nameY or 0
 		end, function(value)
 			SetAppearance("nameY", value)
 		end),
 
 		Widgets.CreateButton(content, L.ResetName, ResetName),
+
+		Widgets.CreateHeading(content, L.HealthTextHeading),
+
+		Widgets.CreateCheckbox(content, L.HealthTextEnabled, function()
+			local appearance = GetCurrentAppearanceSettings()
+
+			return appearance and appearance.healthTextEnabled or false
+		end, function(value)
+			SetAppearance("healthTextEnabled", value)
+			Private.Settings.Refresh()
+		end),
+
+		Widgets.CreateDropdown(content, L.HealthTextFormat, {
+			{ value = "percent",             label = L.HealthTextPercent },
+			{ value = "absValue",            label = L.HealthTextAbsValue },
+			{ value = "absValueAbbreviated", label = L.HealthTextAbsValueAbbreviated },
+		}, function()
+			local appearance = GetCurrentAppearanceSettings()
+
+			return appearance and appearance.healthTextFormat
+		end, function(value)
+			SetAppearance("healthTextFormat", value)
+		end),
+
+		Widgets.CreateDropdown(content, L.HealthTextColorMode, colorModes, function()
+			local appearance = GetCurrentAppearanceSettings()
+
+			return appearance and appearance.healthTextUseClassColor
+		end, function(value)
+			SetColorMode("healthTextUseClassColor", value)
+		end),
+
+		Widgets.CreateColorPicker(content, L.HealthTextColor, function()
+			local appearance = GetCurrentAppearanceSettings()
+
+			if not appearance then
+				return 0.5, 0.5, 0.5, 1
+			end
+
+			return appearance.healthTextColorR, appearance.healthTextColorG, appearance.healthTextColorB,
+				appearance.healthTextColorA
+		end, function(r, g, b, a)
+			SetAppearanceColor("healthTextColorR", "healthTextColorG", "healthTextColorB", "healthTextColorA", r, g, b, a)
+		end, function()
+			local appearance = GetCurrentAppearanceSettings()
+
+			return appearance and not appearance.healthTextUseClassColor
+		end),
+
+		Widgets.CreateDropdown(content, L.HealthTextFont, function()
+			local appearance = GetCurrentAppearanceSettings()
+
+			return FontChoices(appearance and appearance.healthTextFont)
+		end, function()
+			local appearance = GetCurrentAppearanceSettings()
+
+			return appearance and appearance.healthTextFont
+		end, function(value)
+			SetAppearance("healthTextFont", value)
+		end),
+
+		Widgets.CreateSlider(content, L.HealthTextFontSize, 6, 32, 1, function()
+			local appearance = GetCurrentAppearanceSettings()
+
+			return appearance and appearance.healthTextFontSize or 10
+		end, function(value)
+			SetAppearance("healthTextFontSize", value)
+		end),
+
+		Widgets.CreateDropdown(content, L.HealthTextAnchor, AnchorChoices, function()
+			local appearance = GetCurrentAppearanceSettings()
+
+			return appearance and appearance.healthTextPoint
+		end, function(value)
+			SetAppearance("healthTextPoint", value)
+		end),
+
+		Widgets.CreateSlider(content, L.HealthTextOffsetX, -100, 100, 1, function()
+			local appearance = GetCurrentAppearanceSettings()
+
+			return appearance and appearance.healthTextX or 0
+		end, function(value)
+			SetAppearance("healthTextX", value)
+		end),
+
+		Widgets.CreateSlider(content, L.HealthTextOffsetY, -100, 100, 1, function()
+			local appearance = GetCurrentAppearanceSettings()
+
+			return appearance and appearance.healthTextY or 0
+		end, function(value)
+			SetAppearance("healthTextY", value)
+		end),
+
+		Widgets.CreateButton(content, L.ResetHealthText, ResetHealthText),
 	}
 end
 
@@ -509,13 +845,17 @@ local function BuildGridTab(content)
 			{ value = Enum.Orientation.Horizontal, label = L.Horizontal },
 			{ value = Enum.Orientation.Vertical,   label = L.Vertical },
 		}, function()
-			return Layout() and Layout().orientation
+			local layout = Layout()
+
+			return layout and layout.orientation
 		end, function(value)
 			SetLayout("orientation", value)
 		end),
 
 		Widgets.CreateSlider(content, L.Stride, 1, 40, 1, function()
-			return Layout() and Layout().stride or 5
+			local layout = Layout()
+
+			return layout and layout.stride or 5
 		end, function(value)
 			SetLayout("stride", value)
 		end),
@@ -524,7 +864,9 @@ local function BuildGridTab(content)
 			{ value = Enum.GrowX.Right, label = L.GrowRight },
 			{ value = Enum.GrowX.Left,  label = L.GrowLeft },
 		}, function()
-			return Layout() and Layout().growX
+			local layout = Layout()
+
+			return layout and layout.growX
 		end, function(value)
 			SetLayout("growX", value)
 		end),
@@ -533,19 +875,25 @@ local function BuildGridTab(content)
 			{ value = Enum.GrowY.Down, label = L.GrowDown },
 			{ value = Enum.GrowY.Up,   label = L.GrowUp },
 		}, function()
-			return Layout() and Layout().growY
+			local layout = Layout()
+
+			return layout and layout.growY
 		end, function(value)
 			SetLayout("growY", value)
 		end),
 
 		Widgets.CreateSlider(content, L.SpacingX, 0, 40, 1, function()
-			return Layout() and Layout().spacingX or 3
+			local layout = Layout()
+
+			return layout and layout.spacingX or 3
 		end, function(value)
 			SetLayout("spacingX", value)
 		end),
 
 		Widgets.CreateSlider(content, L.SpacingY, 0, 40, 1, function()
-			return Layout() and Layout().spacingY or 3
+			local layout = Layout()
+
+			return layout and layout.spacingY or 3
 		end, function(value)
 			SetLayout("spacingY", value)
 		end),
@@ -564,7 +912,9 @@ local function BuildRosterTab(content)
 
 	local widgets = {
 		Widgets.CreateCheckbox(content, L.AllowGaps, function()
-			return Layout() and Layout().allowGaps or false
+			local layout = Layout()
+
+			return layout and layout.allowGaps or false
 		end, function(value)
 			SetLayout("allowGaps", value)
 
@@ -576,7 +926,9 @@ local function BuildRosterTab(content)
 		Widgets.CreateText(content, L.AllowGapsHelp),
 
 		Widgets.CreateCheckbox(content, L.ClearOnLeave, function()
-			return Layout() and Layout().clearOnLeave or false
+			local layout = Layout()
+
+			return layout and layout.clearOnLeave or false
 		end, function(value)
 			-- Through the same writer as every other layout field, even though this one invalidates
 			-- nothing on screen: the pass it requests is coalesced and costs a click.
@@ -602,7 +954,8 @@ end
 --- Every widget in the kit reads and writes through closures, so a sub-tab switch is one variable
 --- write plus the `RefreshActive` the panel already does — no widget is rebuilt and no second set
 --- exists.
-local activeFeature = "prescience"
+---@type SpotlightsAuraFeatureKey
+local activeFeature = "cooldownAuras"
 
 ---@return SpotlightsAuraFeatureConfig?
 local function Feature()
@@ -631,7 +984,7 @@ end
 --- between a next-frame reapply and a debounced rebuild from the field name, and that decision has to
 --- live with the frames: a settings file that knew which fields are frozen would be a second copy of a
 --- list that can only be wrong.
----@param displayKey "bar" | "icon"
+---@param displayKey SpotlightsAuraDisplayKey
 ---@param field string
 ---@param value any
 local function SetAura(displayKey, field, value)
@@ -648,7 +1001,7 @@ end
 --- A border is the one piece of styling that does not care whether it is around a bar or an icon, so
 --- writing these twice would duplicate the same thing.
 ---@param content Frame
----@param displayKey "bar" | "icon"
+---@param displayKey SpotlightsAuraDisplayKey
 ---@param Get fun(): SpotlightsAuraDisplayConfig?
 ---@return SpotlightsWidget[]
 local function BorderWidgets(content, displayKey, Get)
@@ -679,45 +1032,25 @@ local function BorderWidgets(content, displayKey, Get)
 			local config = Get()
 
 			if not config then
-				return 0, 0, 0
+				return 0, 0, 0, 1
 			end
 
-			return config.borderR, config.borderG, config.borderB
-		end, function(r, g, b)
+			return config.borderR, config.borderG, config.borderB, config.borderA
+		end, function(r, g, b, a)
 			SetAura(displayKey, "borderR", r)
 			SetAura(displayKey, "borderG", g)
 			SetAura(displayKey, "borderB", b)
+			SetAura(displayKey, "borderA", a)
 		end),
 	}
 end
 
---- The sub-tab the spell pool belongs to. Only Sense Power reads the pool, so only Sense Power shows it.
-local SENSE_POWER = "sensePower"
-
 local RESET_POPUP = "SPOTLIGHTS_AURA_RESET"
-
---- Every class that has cooldowns, in class-ID order.
----
---- Derived from `Constants.UICharacterClasses` rather than counted to thirteen, so a class added to the
---- game arrives here without this file being edited. Sorted because `pairs` over that map has no order.
----@return integer[]
-local function ClassOrder()
-	local order = {}
-
-	for _, classID in pairs(Constants.UICharacterClasses) do
-		order[#order + 1] = classID
-	end
-
-	table.sort(order)
-
-	return order
-end
 
 --- The built-in rows: a class heading, then that class's cooldowns, for every class that has any.
 ---
 --- Built once and kept, unlike the custom list beside it. The shipped table cannot change while the
---- game is running, so rebuilding this on every refresh would be thirteen sorts to reach the same
---- answer. The *toggles* are read per row by the widget, not baked in here.
+--- game is running. The *toggles* are read per row by the widget, not baked in here.
 ---@type { heading: string?, spellID: integer?, r: number?, g: number?, b: number? }[]?
 local cooldownEntries
 
@@ -728,12 +1061,10 @@ local function CooldownEntries()
 	end
 
 	local cooldowns = Private.Auras.Cooldowns()
-	local order = ClassOrder()
 
 	cooldownEntries = {}
 
-	for i = 1, #order do
-		local classID = order[i]
+	for _, classID in pairs(Constants.UICharacterClasses) do
 		local spells = cooldowns[classID]
 
 		-- A class with no cooldowns left in the list gets no heading. Pruning the shipped table is
@@ -751,6 +1082,7 @@ local function CooldownEntries()
 
 			cooldownEntries[#cooldownEntries + 1] = {
 				heading = info and info.className or tostring(classID),
+				spellIDs = spellIDs,
 				r = color and color.r or 1,
 				g = color and color.g or 1,
 				b = color and color.b or 1,
@@ -765,10 +1097,84 @@ local function CooldownEntries()
 	return cooldownEntries
 end
 
+local function IsCooldownClassEnabled(entry)
+	for i = 1, #entry.spellIDs do
+		if not Private.Auras.IsCooldownEnabled(entry.spellIDs[i]) then
+			return false
+		end
+	end
+
+	return true
+end
+
+local function SetCooldownClassEnabled(entry, enabled)
+	for i = 1, #entry.spellIDs do
+		Private.Auras.SetCooldownEnabled(entry.spellIDs[i], enabled)
+	end
+end
+
+local function IsDefensiveClassEnabled(entry)
+	for i = 1, #entry.spellIDs do
+		if not Private.Auras.IsDefensiveEnabled(entry.spellIDs[i]) then
+			return false
+		end
+	end
+
+	return true
+end
+
+local function SetDefensiveClassEnabled(entry, enabled)
+	for i = 1, #entry.spellIDs do
+		Private.Auras.SetDefensiveEnabled(entry.spellIDs[i], enabled)
+	end
+end
+
+local defensiveEntries
+
+local function DefensiveEntries()
+	if defensiveEntries then
+		return defensiveEntries
+	end
+
+	local defensives = Private.Auras.Defensives()
+	defensiveEntries = {}
+
+	for _, classID in pairs(Constants.UICharacterClasses) do
+		local spells = defensives[classID]
+
+		if spells then
+			local info = C_CreatureInfo.GetClassInfo(classID)
+			local color = info and RAID_CLASS_COLORS[info.classFile]
+			local spellIDs = {}
+
+			for spellID in pairs(spells) do
+				spellIDs[#spellIDs + 1] = spellID
+			end
+
+			table.sort(spellIDs)
+			defensiveEntries[#defensiveEntries + 1] = {
+				heading = info and info.className or tostring(classID),
+				spellIDs = spellIDs,
+				r = color and color.r or 1,
+				g = color and color.g or 1,
+				b = color and color.b or 1,
+			}
+
+			for j = 1, #spellIDs do
+				defensiveEntries[#defensiveEntries + 1] = { spellID = spellIDs[j] }
+			end
+		end
+	end
+
+	return defensiveEntries
+end
+
 --- The custom rows, which are whatever the user has added.
 ---@return { spellID: integer }[]
 local function CustomEntries()
-	local spellIDs = Private.Auras.CustomCooldowns()
+	local spellIDs = activeFeature == "defensiveAuras"
+		and Private.Auras.CustomDefensives()
+		or Private.Auras.CustomCooldowns()
 	local entries = {}
 
 	for i = 1, #spellIDs do
@@ -778,7 +1184,7 @@ local function CustomEntries()
 	return entries
 end
 
---- Makes a widget belong to the Sense Power sub-tab alone.
+--- Makes a widget belong to the cooldown/defensive spell-pool sub-tabs alone.
 ---
 --- Wrapping `Refresh` rather than asking every widget to check for itself, because the check is the
 --- same for all of them and the widgets are shared with the other sub-tab's controls, which must not
@@ -787,11 +1193,12 @@ end
 --- the other sub-tab.
 ---@param widget SpotlightsWidget
 ---@return SpotlightsWidget
-local function SensePowerOnly(widget)
+local function AuraPoolOnly(widget)
 	local Refresh = widget.Refresh
 
 	function widget:Refresh()
-		local shown = activeFeature == SENSE_POWER
+		local shown = activeFeature == "sensePower" or activeFeature == "cooldownAuras" or
+			activeFeature == "defensiveAuras"
 
 		self:SetShown(shown)
 
@@ -801,6 +1208,84 @@ local function SensePowerOnly(widget)
 	end
 
 	return widget
+end
+
+local function AuraBarOnly(widget)
+	local Refresh = widget.Refresh
+
+	function widget:Refresh()
+		local shown = activeFeature == "prescience" or activeFeature == "shiftingSands" or activeFeature == "sensePower"
+
+		self:SetShown(shown)
+
+		if shown then
+			Refresh(self)
+		end
+	end
+
+	return widget
+end
+
+local function ConfigureAuraTab(tabID, enabled, tooltip)
+	local button = auraTabSystem:GetTabButton(tabID)
+
+	-- TabSystem changes selected visuals before its callback runs. Keep its original handler so an
+	-- unavailable tab can be made inert without letting a rejected click corrupt the current tab's art.
+	if not button.spotlightsTabClick then
+		button.spotlightsTabClick = button:GetScript("OnClick")
+	end
+
+	button:Enable()
+	button:SetAlpha(enabled and 1 or 0.5)
+	button:SetScript("OnClick", enabled and button.spotlightsTabClick or function() end)
+
+	button:SetScript("OnEnter", function(self)
+		if not tooltip or enabled then
+			return
+		end
+
+		GameTooltip:SetOwner(self, "ANCHOR_TOP")
+		GameTooltip:SetText(tooltip, nil, nil, nil, nil, true)
+		GameTooltip:Show()
+	end)
+	button:SetScript("OnLeave", GameTooltip_Hide)
+end
+
+---@param selectCurrent boolean?
+function Private.Settings.RefreshAuraTabs(selectCurrent)
+	if not auraTabSystem then
+		return false
+	end
+
+	local augmentation = Private.Utils.IsAugmentation()
+	local reason = Private.L.Settings.AuraAugmentationOnly
+
+	ConfigureAuraTab(auraTabIDs.prescience, augmentation, reason)
+	ConfigureAuraTab(auraTabIDs.shiftingSands, augmentation, reason)
+	ConfigureAuraTab(auraTabIDs.sensePower, augmentation, reason)
+	ConfigureAuraTab(auraTabIDs.cooldownAuras, not augmentation)
+	ConfigureAuraTab(auraTabIDs.defensiveAuras, not augmentation)
+
+	if not augmentation and (activeFeature == "prescience" or activeFeature == "shiftingSands" or activeFeature == "sensePower") then
+		activeFeature = "cooldownAuras"
+	elseif augmentation and (activeFeature == "cooldownAuras" or activeFeature == "defensiveAuras") then
+		activeFeature = "prescience"
+	end
+
+	local previewChanged = Private.Auras.SetPreviewFeature(activeFeature)
+
+	if selectCurrent and panel and panel:IsShown() then
+		auraTabSystem:SetTab(auraTabIDs[activeFeature])
+
+		-- SetTab updates the button states internally, so apply our specialization lock again after it.
+		ConfigureAuraTab(auraTabIDs.prescience, augmentation, reason)
+		ConfigureAuraTab(auraTabIDs.shiftingSands, augmentation, reason)
+		ConfigureAuraTab(auraTabIDs.sensePower, augmentation, reason)
+		ConfigureAuraTab(auraTabIDs.cooldownAuras, not augmentation)
+		ConfigureAuraTab(auraTabIDs.defensiveAuras, not augmentation)
+	end
+
+	return previewChanged
 end
 
 --- The Auras tab: one customisation set, pointed at either spell by the sub-tabs.
@@ -813,31 +1298,12 @@ local function BuildAurasTab(content)
 	local L = Private.L.Settings
 
 	if not Private.Auras.IsSupported then
-		return {
-			Widgets.CreateText(
-				content,
-				Private.IsTwelveDotOne and L.AurasEvokerOnly or L.AurasRequiresTwelveOne
-			),
-		}
+		return { Widgets.CreateText(content, L.AurasRequiresTwelveOne) }
 	end
 
 	local widgets = {
-		Widgets.CreateSubTabs(content, {
-			{ value = "prescience", label = L.Prescience },
-			{ value = "sensePower", label = L.SensePower },
-		}, function()
-			return activeFeature
-		end, function(value)
-			activeFeature = value
-
-			-- Both, and in this order. `Refresh` re-reads every widget, which decides whether the spell
-			-- pool below is shown; `Relayout` then closes or opens the gap it left. Refreshing alone
-			-- would switch the controls over and leave several hundred pixels of blank scroll behind.
-			Private.Settings.Refresh()
-			Private.Settings.Relayout()
-		end),
-
-		-- Under the sub-tabs so it is plainly scoped to the selected feature, and above the first
+		-- The feature selector is the bottom tab strip, so the first content row can be the reset action.
+		-- Under the tabs it is plainly scoped to the selected feature, and above the first
 		-- heading so it never scrolls out of reach. Confirmed rather than immediate: a reset discards a
 		-- layout the user may have spent a while on, and a stray click on a top-of-tab button is the
 		-- accident a confirmation exists to catch.
@@ -848,7 +1314,11 @@ local function BuildAurasTab(content)
 			StaticPopupDialogs[RESET_POPUP] = {
 				text = string.format(
 					L.AuraResetPrompt,
-					activeFeature == SENSE_POWER and L.SensePower or L.Prescience
+					activeFeature == "shiftingSands" and L.ShiftingSands
+					or activeFeature == "sensePower" and L.SensePower
+					or activeFeature == "cooldownAuras" and L.Cooldowns
+					or activeFeature == "defensiveAuras" and L.Defensives
+					or L.Prescience
 				),
 				button1 = L.AuraResetConfirm,
 				button2 = CANCEL,
@@ -874,15 +1344,21 @@ local function BuildAurasTab(content)
 		Widgets.CreateHeading(content, L.AuraBar),
 
 		Widgets.CreateCheckbox(content, L.AuraEnabled, function()
-			return Bar() and Bar().enabled or false
+			local bar = Bar()
+
+			return bar and bar.enabled or false
 		end, function(value)
 			SetAura("bar", "enabled", value)
 		end),
 
 		Widgets.CreateDropdown(content, L.BarTexture, function()
-			return TextureChoices(Bar() and Bar().texture)
+			local bar = Bar()
+
+			return TextureChoices(bar and bar.texture)
 		end, function()
-			return Bar() and Bar().texture
+			local bar = Bar()
+
+			return bar and bar.texture
 		end, function(value)
 			SetAura("bar", "texture", value)
 		end),
@@ -891,56 +1367,71 @@ local function BuildAurasTab(content)
 			local bar = Bar()
 
 			if not bar then
-				return 1, 1, 1
+				return 1, 1, 1, 1
 			end
 
-			return bar.r, bar.g, bar.b
-		end, function(r, g, b)
+			return bar.r, bar.g, bar.b, bar.alpha
+		end, function(r, g, b, a)
 			-- Three writes rather than one, which costs nothing extra. Each may queue a rebuild, but
 			-- all three name the same display, so they collapse into one entry and one timer.
 			SetAura("bar", "r", r)
 			SetAura("bar", "g", g)
 			SetAura("bar", "b", b)
+			SetAura("bar", "alpha", a)
 		end),
 
 		Widgets.CreateSlider(content, L.AuraAlpha, 0.05, 1, 0.05, function()
-			return Bar() and Bar().alpha or 0.5
+			local bar = Bar()
+
+			return bar and bar.alpha or 0.5
 		end, function(value)
 			SetAura("bar", "alpha", value)
 		end),
 
-		Widgets.CreateSlider(content, L.AuraWidthPct, 0.05, 1, 0.05, function()
-			return Bar() and Bar().widthPct or 1
+		Widgets.CreateSlider(content, L.AuraWidth, 1, 500, 1, function()
+			local bar = Bar()
+
+			return bar and bar.width or 100
 		end, function(value)
-			SetAura("bar", "widthPct", value)
+			SetAura("bar", "width", value)
 		end),
 
-		Widgets.CreateSlider(content, L.AuraHeightPct, 0.05, 1, 0.05, function()
-			return Bar() and Bar().heightPct or 0.5
+		Widgets.CreateSlider(content, L.AuraHeight, 1, 200, 1, function()
+			local bar = Bar()
+
+			return bar and bar.height or 25
 		end, function(value)
-			SetAura("bar", "heightPct", value)
+			SetAura("bar", "height", value)
 		end),
 
 		Widgets.CreateDropdown(content, L.AuraAnchor, AnchorChoices, function()
-			return Bar() and Bar().point
+			local bar = Bar()
+
+			return bar and bar.point
 		end, function(value)
 			SetAura("bar", "point", value)
 		end),
 
 		Widgets.CreateSlider(content, L.AuraOffsetX, -200, 200, 1, function()
-			return Bar() and Bar().x or 0
+			local bar = Bar()
+
+			return bar and bar.x or 0
 		end, function(value)
 			SetAura("bar", "x", value)
 		end),
 
 		Widgets.CreateSlider(content, L.AuraOffsetY, -200, 200, 1, function()
-			return Bar() and Bar().y or 0
+			local bar = Bar()
+
+			return bar and bar.y or 0
 		end, function(value)
 			SetAura("bar", "y", value)
 		end),
 
 		Widgets.CreateCheckbox(content, L.AuraShowIcon, function()
-			return Bar() and Bar().showIcon or false
+			local bar = Bar()
+
+			return bar and bar.showIcon or false
 		end, function(value)
 			SetAura("bar", "showIcon", value)
 		end),
@@ -949,49 +1440,82 @@ local function BuildAurasTab(content)
 			{ value = "LEFT",  label = L.AuraIconLeft },
 			{ value = "RIGHT", label = L.AuraIconRight },
 		}, function()
-			return Bar() and Bar().iconSide
+			local bar = Bar()
+
+			return bar and bar.iconSide
 		end, function(value)
 			SetAura("bar", "iconSide", value)
 		end),
+
 	}
 
-	Append(widgets, BorderWidgets(content, "bar", Bar))
+	for i = 2, #widgets do
+		widgets[i] = AuraBarOnly(widgets[i])
+	end
+
+	local barBorders = BorderWidgets(content, "bar", Bar)
+
+	for i = 1, #barBorders do
+		barBorders[i] = AuraBarOnly(barBorders[i])
+	end
+
+	Append(widgets, barBorders)
 
 	Append(widgets, {
 		Widgets.CreateHeading(content, L.AuraIcon),
 
 		Widgets.CreateCheckbox(content, L.AuraEnabled, function()
-			return Icon() and Icon().enabled or false
+			local icon = Icon()
+
+			return icon and icon.enabled or false
 		end, function(value)
 			SetAura("icon", "enabled", value)
 		end),
 
 		Widgets.CreateSlider(content, L.AuraIconWidth, 16, 128, 1, function()
-			return Icon() and Icon().width or 50
+			local icon = Icon()
+
+			return icon and icon.width or 25
 		end, function(value)
 			SetAura("icon", "width", value)
 		end),
 
 		Widgets.CreateSlider(content, L.AuraIconHeight, 16, 128, 1, function()
-			return Icon() and Icon().height or 50
+			local icon = Icon()
+
+			return icon and icon.height or 25
 		end, function(value)
 			SetAura("icon", "height", value)
 		end),
 
+		Widgets.CreateSlider(content, L.AuraGap, 0, 40, 1, function()
+			local icon = Icon()
+
+			return icon and icon.gap or 0
+		end, function(value)
+			SetAura("icon", "gap", value)
+		end),
+
 		Widgets.CreateSlider(content, L.AuraAlpha, 0.05, 1, 0.05, function()
-			return Icon() and Icon().alpha or 1
+			local icon = Icon()
+
+			return icon and icon.alpha or 1
 		end, function(value)
 			SetAura("icon", "alpha", value)
 		end),
 
 		Widgets.CreateCheckbox(content, L.AuraShowSwipe, function()
-			return Icon() and Icon().showSwipe or false
+			local icon = Icon()
+
+			return icon and icon.showSwipe or false
 		end, function(value)
 			SetAura("icon", "showSwipe", value)
 		end),
 
 		Widgets.CreateCheckbox(content, L.AuraShowText, function()
-			return Icon() and Icon().showText or false
+			local icon = Icon()
+
+			return icon and icon.showText or false
 		end, function(value)
 			SetAura("icon", "showText", value)
 		end),
@@ -1009,25 +1533,33 @@ local function BuildAurasTab(content)
 		end),
 
 		Widgets.CreateSlider(content, L.AuraFontSize, 6, 32, 1, function()
-			return Icon() and Icon().fontSize or 16
+			local icon = Icon()
+
+			return icon and icon.fontSize or 16
 		end, function(value)
 			SetAura("icon", "fontSize", value)
 		end),
 
 		Widgets.CreateDropdown(content, L.AuraAnchor, AnchorChoices, function()
-			return Icon() and Icon().point
+			local icon = Icon()
+
+			return icon and icon.point
 		end, function(value)
 			SetAura("icon", "point", value)
 		end),
 
 		Widgets.CreateSlider(content, L.AuraOffsetX, -200, 200, 1, function()
-			return Icon() and Icon().x or 0
+			local icon = Icon()
+
+			return icon and icon.x or 0
 		end, function(value)
 			SetAura("icon", "x", value)
 		end),
 
 		Widgets.CreateSlider(content, L.AuraOffsetY, -200, 200, 1, function()
-			return Icon() and Icon().y or 0
+			local icon = Icon()
+
+			return icon and icon.y or 0
 		end, function(value)
 			SetAura("icon", "y", value)
 		end),
@@ -1046,23 +1578,60 @@ local function BuildAurasTab(content)
 	--- Every one of these is wrapped: the aura tab is one set of widgets serving both sub-tabs, so a
 	--- section belonging to one has to hide itself rather than exist twice.
 	Append(widgets, {
-		SensePowerOnly(Widgets.CreateHeading(content, L.AuraBuiltinCooldowns)),
-		SensePowerOnly(Widgets.CreateText(content, L.AuraBuiltinCooldownsNote)),
+		AuraPoolOnly(Widgets.CreateHeading(content, function()
+			return activeFeature == "defensiveAuras" and (L.AuraBuiltinDefensives or L.AuraBuiltinCooldowns)
+				or L.AuraBuiltinCooldowns
+		end)),
+		AuraPoolOnly(Widgets.CreateText(content, function()
+			return activeFeature == "defensiveAuras" and (L.AuraBuiltinDefensivesNote or L.AuraBuiltinCooldownsNote)
+				or L.AuraBuiltinCooldownsNote
+		end)),
 
 		-- Both accessors passed straight through, no wrapper. Their `custom` parameter is the third and
 		-- the widget only ever passes two, so omitting it *is* saying "a shipped cooldown" -- which is
 		-- why the custom list below wraps them and this one does not.
-		SensePowerOnly(
+		AuraPoolOnly(
 			Widgets.CreateSpellList(
 				content,
-				CooldownEntries,
-				Private.Auras.IsCooldownEnabled,
-				Private.Auras.SetCooldownEnabled
+				function()
+					return activeFeature == "defensiveAuras" and DefensiveEntries() or CooldownEntries()
+				end,
+				function(spellID)
+					return activeFeature == "defensiveAuras" and Private.Auras.IsDefensiveEnabled(spellID)
+						or Private.Auras.IsCooldownEnabled(spellID)
+				end,
+				function(spellID, enabled)
+					if activeFeature == "defensiveAuras" then
+						Private.Auras.SetDefensiveEnabled(spellID, enabled)
+					else
+						Private.Auras.SetCooldownEnabled(spellID, enabled)
+					end
+				end,
+				nil,
+				function(entry)
+					if activeFeature == "cooldownAuras" or activeFeature == "sensePower" then
+						return IsCooldownClassEnabled(entry)
+					elseif activeFeature == "defensiveAuras" then
+						return IsDefensiveClassEnabled(entry)
+					else
+						return nil
+					end
+				end,
+				function(entry, enabled)
+					if activeFeature == "cooldownAuras" or activeFeature == "sensePower" then
+						SetCooldownClassEnabled(entry, enabled)
+					elseif activeFeature == "defensiveAuras" then
+						SetDefensiveClassEnabled(entry, enabled)
+					end
+				end
 			)
 		),
 
-		SensePowerOnly(Widgets.CreateHeading(content, L.AuraCustomCooldowns)),
-		SensePowerOnly(Widgets.CreateText(content, L.AuraCustomCooldownsNote)),
+		AuraPoolOnly(Widgets.CreateHeading(content, L.AuraCustomCooldowns)),
+		AuraPoolOnly(Widgets.CreateText(content, function()
+			return activeFeature == "defensiveAuras" and (L.AuraCustomDefensivesNote or L.AuraCustomCooldownsNote)
+				or L.AuraCustomCooldownsNote
+		end)),
 	})
 
 	--- Declared before the list so the input's Add can refresh it, and appended after so it draws above.
@@ -1072,13 +1641,22 @@ local function BuildAurasTab(content)
 	---@type SpotlightsWidget
 	local customList
 
-	customList = SensePowerOnly(
+	customList = AuraPoolOnly(
 		Widgets.CreateSpellList(content, CustomEntries, function(spellID)
-			return Private.Auras.IsCooldownEnabled(spellID, true)
+			return activeFeature == "defensiveAuras" and Private.Auras.IsDefensiveEnabled(spellID, true)
+				or Private.Auras.IsCooldownEnabled(spellID, true)
 		end, function(spellID, enabled)
-			Private.Auras.SetCooldownEnabled(spellID, enabled, true)
+			if activeFeature == "defensiveAuras" then
+				Private.Auras.SetDefensiveEnabled(spellID, enabled, true)
+			else
+				Private.Auras.SetCooldownEnabled(spellID, enabled, true)
+			end
 		end, function(spellID)
-			Private.Auras.RemoveCustomCooldown(spellID)
+			if activeFeature == "defensiveAuras" then
+				Private.Auras.RemoveCustomDefensive(spellID)
+			else
+				Private.Auras.RemoveCustomCooldown(spellID)
+			end
 
 			-- Refresh before relayout, because the row count is what the new height is derived from.
 			customList:Refresh()
@@ -1089,9 +1667,13 @@ local function BuildAurasTab(content)
 	Append(widgets, {
 		customList,
 
-		SensePowerOnly(
+		AuraPoolOnly(
 			Widgets.CreateSpellInput(content, L.AuraCustomSpellID, L.AuraCustomAdd, function(spellID)
-				if not Private.Auras.AddCustomCooldown(spellID) then
+				local added = activeFeature == "defensiveAuras"
+					and Private.Auras.AddCustomDefensive(spellID)
+					or Private.Auras.AddCustomCooldown(spellID)
+
+				if not added then
 					return false
 				end
 
@@ -1105,8 +1687,6 @@ local function BuildAurasTab(content)
 
 	return widgets
 end
-
-local RELOAD_POPUP = "SPOTLIGHTS_AURA_RELOAD"
 
 --- Offers a reload if aura frames have been abandoned, and asks at most once per abandonment.
 ---
@@ -1130,7 +1710,7 @@ local function MaybePromptReload()
 	local L = Private.L.Settings
 
 	-- Registered at show time rather than at load, so the localisation table is filled by now.
-	StaticPopupDialogs[RELOAD_POPUP] = {
+	StaticPopupDialogs[AURA_RELOAD_POPUP] = {
 		text = L.ReloadPrompt,
 		button1 = L.ReloadNow,
 		button2 = L.ReloadLater,
@@ -1154,7 +1734,7 @@ local function MaybePromptReload()
 		end,
 	}
 
-	StaticPopup_Show(RELOAD_POPUP)
+	StaticPopup_Show(AURA_RELOAD_POPUP)
 end
 
 --- Everything the panel owes the rest of the addon when it goes away, by whichever route it went.
@@ -1165,6 +1745,21 @@ end
 local function OnPanelHidden()
 	Private.AuraPreview.SetShown(false)
 	MaybePromptReload()
+end
+
+---@param parent Frame
+---@param tabTemplate string
+---@param maxTabWidth number
+---@return SpotlightsTabSystemFrame
+local function CreateTabSystem(parent, tabTemplate, maxTabWidth)
+	-- Build this in Lua rather than XML so the tab pool sees the selected button template during OnLoad.
+	local tabSystem = CreateFrame("Frame", nil, parent, "HorizontalLayoutFrame") --[[@as SpotlightsTabSystemFrame]]
+	tabSystem.tabTemplate = tabTemplate
+	tabSystem.maxTabWidth = maxTabWidth
+	Mixin(tabSystem, TabSystemMixin)
+	TabSystemMixin.OnLoad(tabSystem)
+
+	return tabSystem
 end
 
 ---@type table<integer, fun(content: Frame): SpotlightsWidget[]>
@@ -1242,13 +1837,14 @@ local function Get()
 
 	panel:SetScript("OnHide", OnPanelHidden)
 
-	-- The tab system owns selection, visibility and keyboard/tooltip behaviour for the six tabs.
+	-- The tab system owns selection, visibility and keyboard/tooltip behaviour for the five tabs.
 	-- `TabSystemOwnerMixin` is mixed in here rather than inherited, because the mixin's `OnLoad` is not
 	-- run for a frame we create ourselves.
 	Mixin(panel, TabSystemOwnerMixin)
 	TabSystemOwnerMixin.OnLoad(panel)
 
-	local tabSystem = CreateFrame("Frame", nil, panel, "SpotlightsSettingsTabSystemTemplate")
+	local tabSystem = CreateTabSystem(panel, "TabSystemTopButtonTemplate", 89)
+	auraTabSystem = CreateTabSystem(panel, "TabSystemButtonTemplate", 140)
 
 	-- Right of the portrait, the way SpellBook clears its own icon. This is what makes the change
 	-- reclaim space instead of costing it: the tab strip no longer sits below the 62px portrait, so no
@@ -1259,6 +1855,49 @@ local function Get()
 	-- reaching above the strip's rectangle, so the strip has to sit low enough that the emphasis clears
 	-- the title rather than leaking into it.
 	tabSystem:SetPoint("TOPLEFT", panel, "TOPLEFT", TAB_STRIP_X, -26)
+	-- Match PlayerSpellsFrame: the system begins at the panel's bottom edge and the default tab art hangs
+	-- below it, leaving the tabs outside rather than consuming panel content height.
+	auraTabSystem:SetPoint("TOPLEFT", panel, "BOTTOMLEFT", BOTTOM_TAB_STRIP_X, 2)
+	auraTabSystem:Hide()
+
+	auraTabIDs = {
+		prescience = auraTabSystem:AddTab(L.Prescience),
+		shiftingSands = auraTabSystem:AddTab(L.ShiftingSands),
+		sensePower = auraTabSystem:AddTab(L.SensePower),
+		cooldownAuras = auraTabSystem:AddTab(L.Cooldowns),
+		defensiveAuras = auraTabSystem:AddTab(L.Defensives),
+	}
+
+	auraTabSystem:SetTabSelectedCallback(function(tabID)
+		local augmentation = Private.Utils.IsAugmentation()
+
+		if
+			(augmentation and (tabID == auraTabIDs.cooldownAuras or tabID == auraTabIDs.defensiveAuras))
+			or (not augmentation and (tabID == auraTabIDs.prescience or tabID == auraTabIDs.shiftingSands or tabID == auraTabIDs.sensePower))
+		then
+			return false
+		end
+
+		if tabID == auraTabIDs.prescience then
+			activeFeature = "prescience"
+		elseif tabID == auraTabIDs.shiftingSands then
+			activeFeature = "shiftingSands"
+		elseif tabID == auraTabIDs.sensePower then
+			activeFeature = "sensePower"
+		elseif tabID == auraTabIDs.defensiveAuras then
+			activeFeature = "defensiveAuras"
+		else
+			activeFeature = "cooldownAuras"
+		end
+
+		-- The selected feature changes which widgets are visible, so refresh before re-stacking the
+		-- current scroll child. The main tab callback performs the same work when entering Auras.
+		Private.Settings.Refresh()
+		Private.Settings.Relayout()
+		if Private.Settings.RefreshAuraTabs() then
+			Private.AuraPreview.Rebuild()
+		end
+	end)
 
 	panel:SetTabSystem(tabSystem)
 
@@ -1326,6 +1965,15 @@ local function Get()
 
 		panel:SetTabCallback(tabID, function()
 			activeTab = i
+			local isAuras = builders[i] == BuildAurasTab
+			local showAuraTabs = isAuras and Private.Auras.IsSupported
+
+			auraTabSystem:SetShown(showAuraTabs)
+
+			-- Re-anchor both points after tab switches because the scroll frame is shared by all pages.
+			scroll:ClearAllPoints()
+			scroll:SetPoint("TOPLEFT", tabSystem, "BOTTOMLEFT", CONTENT_INSET - TAB_STRIP_X, -8)
+			scroll:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -CONTENT_INSET - 22, CONTENT_INSET + 8)
 
 			-- Compared against the builder rather than against a tab number, so adding or reordering
 			-- a tab cannot silently point this at the wrong one.
@@ -1355,6 +2003,11 @@ local function Get()
 			widgets = {},
 		}
 	end
+
+	-- Resolve the specialization-specific default before selecting the initial sub-tab. Augmentation
+	-- starts on Prescience; other specializations retain Cooldowns.
+	Private.Settings.RefreshAuraTabs()
+	auraTabSystem:SetTab(auraTabIDs[activeFeature])
 
 	return panel
 end
