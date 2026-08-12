@@ -82,6 +82,10 @@ function Private.Preview.CreateFrame(parent)
 	frame.selectionHighlight:SetAlpha(0)
 	frame.tempMaxHealthLoss:Hide()
 
+	-- The same layer a live spotlight puts its name in, so the pane and the grid stack a name over an
+	-- aura display the same way. Nothing here is protected, so no deferral is owed.
+	Private.NameStyle.EnsureLayer(frame)
+
 	return frame
 end
 
@@ -176,6 +180,7 @@ function Private.Preview.Fill(frame, index, slot, dim)
 		end
 
 		Private.NameStyle.ApplyLayout(frame.name, appearance)
+		Private.NameStyle.ApplyStrata(frame, appearance)
 		frame.healthText:SetFont(Private.Media.Font(appearance.healthTextFont), appearance.healthTextFontSize, "OUTLINE")
 		frame.healthText:ClearAllPoints()
 		PixelUtil.SetPoint(frame.healthText, appearance.healthTextPoint, frame, appearance.healthTextPoint,

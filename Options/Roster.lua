@@ -433,9 +433,9 @@ local function BuildRoster(page)
 		Private.Controls.ActionButton(page, L.AddSpacer, AddSpacer),
 		Private.Controls.ActionButton(page, L.ClearSlots, ConfirmClear, true),
 
-		Private.Controls.Checkbox(page, L.AllowGaps, GetAllowGaps, SetAllowGaps, true,
+		Private.Controls.Checkbox(page, L.AllowGaps, GetAllowGaps, SetAllowGaps, nil, true,
 			CHECKBOX_LABEL_WIDTH),
-		Private.Controls.Checkbox(page, L.ClearOnLeave, GetClearOnLeave, SetClearOnLeave, true,
+		Private.Controls.Checkbox(page, L.ClearOnLeave, GetClearOnLeave, SetClearOnLeave, nil, true,
 			CHECKBOX_LABEL_WIDTH),
 	}, PANE_GAP)
 

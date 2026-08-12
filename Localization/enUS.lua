@@ -54,6 +54,10 @@ L.Settings.TabRoster = "Roster"
 L.Settings.TabImportExport = "Import / Export"
 L.Settings.ShowMinimapButton = "Show Minimap Button"
 L.Settings.ClickToOpenSettings = "Click To Open Settings"
+
+-- The second tooltip line. Assigning a slot is the most common reason to open the panel, so the button
+-- says the shortcut rather than leaving it to be found.
+L.Settings.RightClickToOpenRoster = "Right-Click To Open The Roster Tab"
 L.Settings.Import = "Import"
 L.Settings.Export = "Export"
 L.Settings.ImportError = "Import failed: %s"
@@ -101,7 +105,33 @@ L.Settings.HealthColor = "Static Bar Color"
 L.Settings.HealthBgColor = "Background Color"
 L.Settings.ResetFrame = "Reset Frame Settings"
 
+--- Group headings, one level between a section title and a control's own label. Kept under their own
+--- prefix rather than reusing the control labels they sit over: `Size` heads a group whose members are
+--- `Frame Width` and `Frame Height`, and a heading that repeated a label would read as a duplicate row.
+---
+--- Shared across tabs on purpose -- `Text`, `Color` and `Positioning` mean the same thing over the name
+--- as over the health text, and one string each is what keeps them spelled the same way.
+L.Settings.GroupSize = "Size"
+L.Settings.GroupHealthBar = "Health Bar"
+L.Settings.GroupOpacity = "Opacity"
+L.Settings.GroupText = "Text"
+L.Settings.GroupColor = "Color"
+L.Settings.GroupPositioning = "Positioning"
+L.Settings.GroupDisplay = "Display"
+L.Settings.GroupCooldown = "Cooldown"
+L.Settings.GroupBar = "Bar"
+L.Settings.GroupIcon = "Icon"
+L.Settings.GroupBlock = "Block"
+
 L.Settings.NameHeading = "Name"
+L.Settings.ShowName = "Show Name"
+L.Settings.NameHoverOnly = "Show Name On Hover Only"
+L.Settings.NameStrata = "Name Strata"
+
+-- Not a strata but the absence of one: the name draws in the layer the grid is already in. Named for
+-- what it does rather than "Default", since every other entry in the list is a layer.
+L.Settings.NameStrataInherit = "Inherit"
+
 L.Settings.NameColorMode = "Name Color"
 L.Settings.NameColor = "Static Name Color"
 L.Settings.NameFont = "Name Font"

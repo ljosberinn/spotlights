@@ -64,6 +64,10 @@ end
 --- colours are stored even while class colour is on, so switching it off reveals a chosen colour
 --- rather than a blank one. `healthBgColor` is the background shown through unfilled health, used only
 --- in static mode; its default is the static bar colour at a fifth (what class mode derives).
+---
+--- `nameEnabled`, `nameHoverOnly` and `nameStrata` need no version step: every one of them ships at
+--- what a database written before them already behaved as, so `Repair` filling them in changes nothing
+--- about how an existing profile renders.
 ---@return SpotlightsAppearanceConfig
 local function DefaultAppearance()
 	return {
@@ -81,6 +85,14 @@ local function DefaultAppearance()
 		healthBgColorG = 0.14,
 		healthBgColorB = 0.02,
 		healthBgColorA = 1,
+		nameEnabled = true,
+		nameHoverOnly = false,
+
+		--- Not a strata but the absence of one: the name layer sets none of its own and inherits the
+		--- container's, which is how every spotlight has always drawn. Anything else would restack an
+		--- existing profile the first time it loaded a build that had this field.
+		nameStrata = Private.Enum.NameStrataInherit,
+
 		nameUseClassColor = false,
 		nameColorR = 1,
 		nameColorG = 1,
@@ -453,6 +465,24 @@ local function RepairPosition(db)
 	end
 end
 
+--- Validates the one appearance field a field-by-field fill cannot repair.
+---
+--- `RepairBlock` only replaces nils, and a nil is not the failure mode here: `SetFrameStrata` errors
+--- outright on a name it does not know and takes the pass with it, so a hand-edited `nameStrata` has to
+--- be checked against the value space rather than merely for presence. The same check `RepairPosition`
+--- gives `position.strata`, and separate from it for the same reason it is separate there.
+---
+--- Runs after `RepairBlock` has guaranteed the block is a table.
+---@param db SpotlightsDB
+local function RepairNameStrata(db)
+	local appearance = db.appearance
+	local strata = appearance.nameStrata
+
+	if strata ~= Private.Enum.NameStrataInherit and not Private.Enum.FrameStrata[strata] then
+		appearance.nameStrata = DefaultAppearance().nameStrata
+	end
+end
+
 --- Every repair, in one call, so no caller has to remember the set.
 ---
 --- Adding a settings block means adding it here as well as to CreateDefault and a migration step.
@@ -463,6 +493,7 @@ end
 local function Repair(db)
 	RepairBlock(db, "layout", DefaultLayout)
 	RepairBlock(db, "appearance", DefaultAppearance)
+	RepairNameStrata(db)
 	RepairBlock(db, "auras", DefaultAuras)
 	RepairPosition(db)
 	RepairBlock(db, "minimap", function()

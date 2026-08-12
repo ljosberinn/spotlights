@@ -296,6 +296,11 @@ local function ApplyPosition()
 
 	position.point, position.x, position.y = Clamp(position.point, position.x, position.y)
 
+	-- A name layer set to inherit expresses that by naming the strata it would have inherited, which is
+	-- the one just written here. Without this, changing the grid's strata leaves every inheriting name
+	-- pinned to the layer the grid has left.
+	Private.NameStyle.Request()
+
 	Private.Mover.Sync()
 end
 

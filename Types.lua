@@ -83,6 +83,9 @@
 
 ---@class SpotlightsNameStyle
 ---@field ApplyLayout fun(fontString: FontString, appearance: SpotlightsAppearanceConfig)
+---@field EnsureLayer fun(frame: SpotlightsUnitFrame): Frame
+---@field ApplyStrata fun(frame: SpotlightsUnitFrame, appearance: SpotlightsAppearanceConfig)
+---@field Request fun()
 
 --- One configured grid cell.
 ---
@@ -143,6 +146,9 @@
 ---@field healthBgColorG number
 ---@field healthBgColorB number
 ---@field healthBgColorA number
+---@field nameEnabled boolean
+---@field nameHoverOnly boolean
+---@field nameStrata FrameStrata | "INHERIT" the strata the name layer takes, or that it takes its parent's
 ---@field nameUseClassColor boolean
 ---@field nameColorR number
 ---@field nameColorG number
@@ -353,6 +359,8 @@
 ---@field healthBar StatusBar
 ---@field tempMaxHealthLoss StatusBar
 ---@field spotlightsAbsorbBar StatusBar?
+---@field spotlightsNameLayer Frame? the frame the name is drawn in, so `nameStrata` has something to raise
+---@field spotlightsHovered boolean? ours, from the hooked OnEnter/OnLeave — never a secret
 ---@field spotlightsAuras table<string, table<string, SpotlightsAuraDisplay>>? feature key -> display key -> display, built lazily
 ---@field OnEvent fun(self: SpotlightsUnitFrame, event: string)
 ---@field OnUnitAttributeChanged fun(self: SpotlightsUnitFrame, value: string?)
@@ -361,6 +369,7 @@
 ---@field UpdateHealthColor fun(self: SpotlightsUnitFrame)
 ---@field UpdateName fun(self: SpotlightsUnitFrame)
 ---@field UpdateNameStyle fun(self: SpotlightsUnitFrame)
+---@field UpdateNameVisibility fun(self: SpotlightsUnitFrame)
 ---@field UpdateHealthText fun(self: SpotlightsUnitFrame)
 ---@field UpdateTexture fun(self: SpotlightsUnitFrame)
 ---@field UpdateSelectionHighlight fun(self: SpotlightsUnitFrame)

@@ -98,6 +98,31 @@ function Private.SlotHeader.InitChild(child)
 
 	child:CreateAbsorbBar()
 
+	--- The name's own frame. Created here rather than lazily because everything about it is a protected
+	--- call -- `SetAllPoints`, `SetFrameLevel` and `SetFrameStrata` on a child of a secure unit button --
+	--- and this is the one path guaranteed to be out of combat.
+	---
+	--- The strata is requested rather than applied inline: the sweep is keyed and idempotent, so a header
+	--- rebuild that initialises several children costs one pass, and a child created before the database
+	--- loaded still gets its strata on the next one.
+	Private.NameStyle.EnsureLayer(child)
+	Private.NameStyle.Request()
+
+	--- Hooked rather than set. `OnEnter` and `OnLeave` are wired to Blizzard globals in the template --
+	--- script attributes take global function names -- and `UnitFrame_OnEnter` is what puts the unit
+	--- tooltip up, so replacing them would trade the name setting for the tooltip.
+	child:HookScript("OnEnter", function(self)
+		self.spotlightsHovered = true
+
+		self:UpdateNameVisibility()
+	end)
+
+	child:HookScript("OnLeave", function(self)
+		self.spotlightsHovered = false
+
+		self:UpdateNameVisibility()
+	end)
+
 	-- After CreateAbsorbBar, which is what there is to apply the showAbsorb setting to.
 	child:UpdateTexture()
 

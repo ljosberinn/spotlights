@@ -142,7 +142,7 @@ local function BuildGeneral(page)
 		Private.Controls.SubHeading(page, L.PlacementHeading),
 
 		Private.Controls.Checkbox(page, L.UnlockFrames, Private.Mover.IsUnlocked,
-			Private.Mover.SetUnlocked, true, CHECKBOX_LABEL_WIDTH),
+			Private.Mover.SetUnlocked, nil, true, CHECKBOX_LABEL_WIDTH),
 
 		Private.Controls.ActionButton(page, L.Recenter, Recenter),
 		Private.Controls.Slider(page, L.Scale, SCALE_MIN, SCALE_MAX, SCALE_STEP, GetScale, SetScale),
@@ -154,7 +154,7 @@ local function BuildGeneral(page)
 	local interface = Private.Node.Grid(page, {
 		Private.Controls.SubHeading(page, L.InterfaceHeading),
 
-		Private.Controls.Checkbox(page, L.ShowMinimapButton, GetMinimapShown, SetMinimapShown, true,
+		Private.Controls.Checkbox(page, L.ShowMinimapButton, GetMinimapShown, SetMinimapShown, nil, true,
 			CHECKBOX_LABEL_WIDTH),
 
 		Private.Controls.Paragraph(page, L.SlashHint),

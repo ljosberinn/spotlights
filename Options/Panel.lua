@@ -13,8 +13,11 @@ Private.Options = {}
 --- 780 leaves 710 right of the portrait for the tab strip, and the layout frame puts a pixel between each
 --- pair of tabs: 6 * 117 + 5 * 1 = 707, so six tabs fit with the remainder inside the panel rather than
 --- clipping its right edge.
+--- The height has no arithmetic behind it, unlike the width: it is simply what fits the tallest tab
+--- without cramping it. 610 is where a two-column grid with group headings in it clears the 174px
+--- preview pane beside it.
 local PANEL_WIDTH = 780
-local PANEL_HEIGHT = 560
+local PANEL_HEIGHT = 610
 local MAX_TAB_WIDTH = 117
 
 local CONTENT_INSET = 16
@@ -288,6 +291,36 @@ function Private.Options.SetShown(shown)
 	if shown then
 		frame:SetTab(activeTab)
 	end
+end
+
+--- Opens the panel on a named tab, whatever it was last showing.
+---
+--- Selecting and showing in one call rather than two, so a right-click on a closed panel does not show
+--- the previously active tab and then switch off it.
+---
+--- The combat guard is here rather than left to `SetShown` so that a *refused* open leaves the
+--- remembered tab alone as well: a right-click that silently changed which tab opens next would be a
+--- state change with nothing on screen to explain it.
+---
+--- `TAB_KEYS` stays the only key-to-index mapping in the addon. A caller names a tab; nothing outside
+--- this file learns a tab index.
+---@param key string
+function Private.Options.SelectTab(key)
+	if InCombatLockdown() then
+		Private.Utils.Print(Private.L.Settings.CombatRefused)
+
+		return
+	end
+
+	for i = 1, #TAB_KEYS do
+		if TAB_KEYS[i] == key then
+			activeTab = i
+
+			break
+		end
+	end
+
+	Private.Options.SetShown(true)
 end
 
 --- Re-lays out the active tab, for a node whose *height* changed while what is shown did not: a collapsed

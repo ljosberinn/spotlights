@@ -23,3 +23,9 @@ v1.1.0
 - added Roster Presets which can also be imported and exported
 - fixed a bug where aura previews kept showing spells that were toggled off
 - fixed a bug where the gap between pooled aura icons only reached displays built afterwards
+- right-clicking the minimap button now opens the Roster tab directly
+- settings are now grouped under headings on the Appearance and Auras tabs
+- added Show Name, so a spotlight's name can be turned off
+- added Show Name On Hover Only, showing the name only while the cursor is over the frame
+- added Name Strata, so the name can be raised over an overlapping aura display
+- the options panel is taller, and the Import / Export boxes with it

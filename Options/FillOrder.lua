@@ -261,7 +261,7 @@ end
 --- the two gaps `Column` adds plus a two-line allowance for the caption, which wraps in most
 --- locales at 280px. The scroll pane gets whatever is left, so it fills the tab rather than a guess
 --- at how tall the grid "usually" is.
-local HEADING_RESERVE = 20 + 6
+local HEADING_RESERVE = Private.Controls.HeadingHeight + 6
 local CAPTION_RESERVE = 28 + 6
 
 --- Floor for the scroll pane itself, in case a future tab makes `page` shorter than this pane's

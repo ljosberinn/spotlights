@@ -24,9 +24,17 @@ Private.Controls.RowHeight = ROW_HEIGHT
 --- recoverable where a 20px dropdown is not.
 local MIN_CONTROL_WIDTH = 80
 
---- Shorter than a row, so a sub-heading reads as a break between groups rather than as a control that
---- lost its widget.
-local HEADING_HEIGHT = 20
+--- A heading is its text plus a band of empty space *above* it.
+---
+--- The pad is what makes a heading read as a break: `GameFontNormalMed2` alone, at the row rhythm, is
+--- a slightly larger label in a list of labels. Sitting under twice the gap it sits over, it belongs to
+--- the group beneath rather than to the row above -- which is also the Import/Export tab's whole
+--- complaint, where the only thing above a heading is the button ending the previous block.
+---
+--- The first heading in a body pays it too, and reads as that body's top inset.
+local HEADING_TOP_PAD = 10
+local HEADING_TEXT_HEIGHT = 18
+local HEADING_HEIGHT = HEADING_TOP_PAD + HEADING_TEXT_HEIGHT
 
 --- Published alongside `RowHeight`, and for the same reason: the Roster tab fits a list into what a
 --- heading above it and the controls below it leave over.
@@ -117,14 +125,21 @@ end
 ---
 --- `full` spans the row instead of taking one grid cell. The box still sits at the label column, so a
 --- full-width checkbox lines up with the half-width ones above it rather than drifting to the far edge.
+---
+--- `enabled` sits where `Slider` and `ColorSwatch` put theirs and is re-read on every `Refresh`, for the
+--- same reason: a toggle that does nothing in the current state -- Show Name On Hover Only while Show
+--- Name is off -- dims rather than hides, so the row stays put and no relayout is owed. The caption is
+--- dimmed alongside the box, since a greyed box beside a bright label reads as art rather than as a
+--- state. Whoever owns the state it gates has to refresh the tree when it changes.
 ---@param parent Frame
 ---@param label string
 ---@param get fun(): boolean
 ---@param set fun(value: boolean)
+---@param enabled (fun(): boolean)? absent means always enabled
 ---@param full boolean?
 ---@param labelWidth number?
 ---@return SpotlightsNode
-function Private.Controls.Checkbox(parent, label, get, set, full, labelWidth)
+function Private.Controls.Checkbox(parent, label, get, set, enabled, full, labelWidth)
 	local row = CreateRow(parent)
 
 	row.span = full or nil
@@ -140,6 +155,11 @@ function Private.Controls.Checkbox(parent, label, get, set, full, labelWidth)
 
 	function row:Refresh()
 		check:SetChecked(get())
+
+		local on = enabled == nil or enabled()
+
+		check:SetEnabled(on)
+		caption:SetFontObject(on and "GameFontNormal" or "GameFontDisable")
 	end
 
 	function row:Layout(width)
@@ -740,10 +760,20 @@ function Private.Controls.NumberPair(parent, label, fields, labelWidth)
 	return row
 end
 
---- A sub-heading inside a section's body: the `Border` line above the four border controls.
+--- A group heading inside a body: the `Border` line above the four border controls, the `Opacity` line
+--- above the three alpha sliders.
 ---
 --- Always spans, because a heading over one of two columns names half a group and reads as a control that
---- lost its widget.
+--- lost its widget. A grid therefore gives it a row of its own and the group beneath it starts back in the
+--- left column -- so a group with an odd number of controls leaves a hole, and its members are ordered so
+--- that hole falls at the end rather than in the middle.
+---
+--- `GameFontNormalMed2` is the one step between a control's own label and a section title: 14 against
+--- `GameFontNormal`'s 12 and `GameFontNormalLarge`'s 16, all three shadowed. `GameFontNormalMed1` is 13
+--- but carries no shadow, so beside the other two it reads as a different family rather than as a level
+--- between them.
+---
+--- The text is anchored `BOTTOMLEFT` so `HEADING_TOP_PAD` falls above it.
 ---@param parent Frame
 ---@param text string | fun(): string
 ---@return SpotlightsNode
@@ -752,7 +782,7 @@ function Private.Controls.SubHeading(parent, text)
 
 	row.span = true
 
-	local heading = row:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+	local heading = row:CreateFontString(nil, "ARTWORK", "GameFontNormalMed2")
 
 	heading:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 0, 0)
 	heading:SetJustifyH("LEFT")
