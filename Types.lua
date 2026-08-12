@@ -421,11 +421,17 @@
 ---
 --- Carries its own `feature` and `display` because a preview is restyled from settings on every
 --- control change, and the record is the only thing that knows which settings are its own.
+---
+--- `slotIndex` is its place in a pooled feature's row, and `spellID` the spell it currently shows --
+--- which the pool moves under it, so the art is repainted whenever the two disagree. A feature tracking
+--- one spell has one item at index 1, and its spell never changes.
 ---@class SpotlightsAuraPreview
 ---@field anchor Frame
 ---@field regions SpotlightsAuraRegions
 ---@field feature SpotlightsAuraFeature
 ---@field display SpotlightsAuraKind
+---@field slotIndex integer
+---@field spellID integer? the spell its art was last painted for, `nil` until first styled
 
 --- One built display: a bar, an icon or a square, for one aura, on one spotlight.
 ---

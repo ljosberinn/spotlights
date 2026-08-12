@@ -21,3 +21,4 @@ v1.1.0
 - Status Bars can now be vertically aligned
 - added a third display option: Square
 - added Roster Presets which can also be imported and exported
+- fixed a bug where aura previews kept showing spells that were toggled off, and sat centered instead of where the real auras land

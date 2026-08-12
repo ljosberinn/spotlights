@@ -52,6 +52,7 @@ local ANY_FILTER = AuraUtil.CreateFilterString(AuraUtil.AuraFilters.Helpful)
 ---@field Style fun(regions: SpotlightsAuraRegions, anchor: Frame, config: table)
 ---@field Register fun(button: table, regions: SpotlightsAuraRegions)
 ---@field Preview fun(regions: SpotlightsAuraRegions, config: table)
+---@field PreviewArt? fun(regions: SpotlightsAuraRegions, spellID: integer) absent on a display drawing no spell art
 ---@field Size fun(config: table, size: SpotlightsChildSize): number, number
 ---@field Invalidated? fun(config: table, record: SpotlightsAuraDisplay): boolean whether a resize has broken something built-in
 
@@ -901,6 +902,20 @@ local function PreviewBar(regions, _)
 	regions.bar:SetValue(0.65)
 end
 
+--- Repaints a preview's inline icon for a different spell.
+---
+--- **Not `SetAuraIcon`.** That hands the texture to a live aura button, which makes its contents secret
+--- and its identity the container's to decide. A preview has no button, so the art is the only thing
+--- saying which spell it is about -- and it has to follow a pooled feature's candidate set, which the
+--- user edits while looking at it.
+---@param regions SpotlightsAuraRegions
+---@param spellID integer
+local function PreviewBarArt(regions, spellID)
+	if regions.barIcon then
+		regions.barIcon:SetTexture(C_Spell.GetSpellTexture(spellID))
+	end
+end
+
 --- The regions a spell icon is made of: the art, an optional swipe, an optional countdown.
 ---
 --- Everything here fills its host, so the display's size is the anchor's size and stays live.
@@ -930,6 +945,15 @@ local function CreateIcon(host, config, spellID, everything)
 	regions.border = CreateBorder(host)
 
 	return regions
+end
+
+--- Repaints a preview's art for a different spell, for `PreviewBarArt`'s reason.
+---@param regions SpotlightsAuraRegions
+---@param spellID integer
+local function PreviewIconArt(regions, spellID)
+	local icon = regions.icon --[[@as Texture]]
+
+	icon:SetTexture(C_Spell.GetSpellTexture(spellID))
 end
 
 --- Applies every icon setting.
@@ -1008,6 +1032,7 @@ local DISPLAYS = {
 		Style = StyleBar,
 		Register = RegisterBar,
 		Preview = PreviewBar,
+		PreviewArt = PreviewBarArt,
 		Size = function(config, size)
 			return config.width, config.height
 		end,
@@ -1025,6 +1050,7 @@ local DISPLAYS = {
 		Style = StyleIcon,
 		Register = RegisterIcon,
 		Preview = PreviewDuration,
+		PreviewArt = PreviewIconArt,
 		Size = function(config)
 			return config.width, config.height
 		end,
@@ -1038,6 +1064,8 @@ local DISPLAYS = {
 		Style = StyleSquare,
 		Register = RegisterDuration,
 		Preview = PreviewDuration,
+
+		-- No `PreviewArt`. A block draws no spell art, so there is nothing for a candidate set to repaint.
 
 		-- One field for both axes: a square that could be told to be a rectangle would be an icon
 		-- without the art.
@@ -1483,6 +1511,12 @@ end
 --- Both filters exist for the options panel's per-section preview, which shows one display of one
 --- category beside the controls that edit it. The grid cells pass neither and get what the panel last
 --- pointed the preview layer at.
+---
+--- A pooled feature gets `MAX_PREVIEW_AURAS` items **whatever its pool currently holds**, and none of
+--- them is about a particular spell yet: which spell each shows is `StylePreviews`' answer, re-asked on
+--- every restyle. Sizing the set to the pool instead is what made a preview go stale -- a spell
+--- switched on afterwards had no item to appear in, and frames cannot be created here to give it one
+--- without stranding the old set.
 ---@param parent Frame
 ---@param featureKey SpotlightsAuraFeatureKey? defaults to the previewed category
 ---@param displayKey SpotlightsAuraDisplayKey? every kind the category draws, when omitted
@@ -1503,11 +1537,9 @@ function Private.Auras.CreatePreviews(parent, featureKey, displayKey)
 		local feature = FEATURES[i]
 
 		if not featureKey or feature.key == featureKey then
-			local spellIDs = feature.multiple and CandidateIDs(feature.Candidates()) or { feature.spellID }
+			local slots = feature.multiple and MAX_PREVIEW_AURAS or 1
 
-			for spellIndex = 1, math.min(#spellIDs, MAX_PREVIEW_AURAS) do
-				local spellID = spellIDs[spellIndex]
-
+			for slotIndex = 1, slots do
 				for j = 1, #DISPLAYS do
 					local display = DISPLAYS[j]
 
@@ -1516,10 +1548,10 @@ function Private.Auras.CreatePreviews(parent, featureKey, displayKey)
 
 						previews[#previews + 1] = {
 							anchor = anchor,
-							regions = display.Create(anchor, auras[feature.key][display.key], spellID, true),
+							regions = display.Create(anchor, auras[feature.key][display.key], feature.spellID, true),
 							feature = feature,
 							display = display,
-							slotIndex = spellIndex,
+							slotIndex = slotIndex,
 						}
 					end
 				end
@@ -1536,6 +1568,17 @@ end
 --- ship — but nothing is registered or access-restricted, so the *frozen* half applies as freely as
 --- the free half. A colour picker drags smoothly here while the real displays wait out their
 --- debounce.
+---
+--- **A pooled feature's spell identities are decided here rather than at creation**, from the candidate
+--- set as it stands at this call: item `n` is about the `n`th enabled spell, and an item the pool no
+--- longer reaches is hidden. That is what carries a spell toggled in the Tracked pane into the preview
+--- immediately, with no frame created and no live container replaced.
+---
+--- The items after the first are chained rather than centred around the configured point, because that
+--- is what the live container does: `CustomAuraContainerLayoutDefaults` starts a group at the
+--- container's top-left and grows right with `elementSpacing` between elements, and the container fills
+--- the anchor `ApplyAnchor` has just placed. Centring put a two-icon preview half a display left of
+--- where the two real ones land.
 ---@param previews SpotlightsAuraPreview[]
 function Private.Auras.StylePreviews(previews)
 	local auras = Config()
@@ -1546,32 +1589,66 @@ function Private.Auras.StylePreviews(previews)
 
 	local size = Private.FrameConfig.Get()
 
+	-- Both keyed by feature and both per call: the candidate set is walked once however many items read
+	-- from it, and `previous` carries the item the next one hangs off. A pooled feature draws one kind
+	-- of display, so the feature key alone identifies a chain.
+	---@type table<string, integer[]>
+	local candidates = {}
+
+	---@type table<string, Frame>
+	local previous = {}
+
 	for i = 1, #previews do
 		local preview = previews[i]
-		local config = auras[preview.feature.key][preview.display.key]
+		local feature = preview.feature
+		local display = preview.display
+		local config = auras[feature.key][display.key]
+		local spellID = feature.spellID
+
+		if feature.multiple then
+			local spellIDs = candidates[feature.key]
+
+			if not spellIDs then
+				spellIDs = CandidateIDs(feature.Candidates())
+				candidates[feature.key] = spellIDs
+			end
+
+			spellID = spellIDs[preview.slotIndex]
+		end
 
 		-- The feature switch reaches the previews too, so the panel shows what the grid will: a
 		-- category the user just switched off has nothing left to preview.
-		ApplyAnchor(preview.anchor, preview.anchor:GetParent(), preview.display, config, size,
-			auras[preview.feature.key].enabled)
+		ApplyAnchor(preview.anchor, preview.anchor:GetParent(), display, config, size,
+			auras[feature.key].enabled)
 
-		if preview.feature.multiple then
-			local width, height = preview.display.Size(config, size)
-			local gap = config.gap or 0
-			local columns = math.max(1, math.floor(size.frameWidth / math.max(width + gap, 1)))
-			local rows = math.ceil(math.min(MAX_PREVIEW_AURAS, #CandidateIDs(preview.feature.Candidates())) / columns)
-			local column = (preview.slotIndex - 1) % columns
-			local row = math.floor((preview.slotIndex - 1) / columns)
-			local point = Private.Enum.AnchorPoints[config.point] and config.point or "CENTER"
+		if feature.multiple then
+			if spellID then
+				local anchoredTo = previous[feature.key]
 
-			preview.anchor:ClearAllPoints()
-			PixelUtil.SetPoint(preview.anchor, point, preview.anchor:GetParent(), point,
-				config.x + (column - (columns - 1) / 2) * (width + gap),
-				config.y + (row - (rows - 1) / 2) * -(height + gap))
+				if anchoredTo then
+					preview.anchor:ClearAllPoints()
+					PixelUtil.SetPoint(preview.anchor, "TOPLEFT", anchoredTo, "TOPRIGHT", config.gap or 0, 0)
+				end
+
+				previous[feature.key] = preview.anchor
+			else
+				-- A pool shorter than `MAX_PREVIEW_AURAS` leaves the tail items with no spell to be
+				-- about, and an empty one leaves every item hidden -- which is the honest preview of a
+				-- category tracking nothing.
+				preview.anchor:Hide()
+			end
 		end
 
-		preview.display.Style(preview.regions, preview.anchor, config)
-		preview.display.Preview(preview.regions, config)
+		-- Guarded on the spell rather than on the hook alone: an item with no spell keeps whatever it
+		-- last showed, behind an anchor now hidden, and gets repainted if the pool grows back into it.
+		if spellID and display.PreviewArt and preview.spellID ~= spellID then
+			display.PreviewArt(preview.regions, spellID)
+
+			preview.spellID = spellID
+		end
+
+		display.Style(preview.regions, preview.anchor, config)
+		display.Preview(preview.regions, config)
 	end
 end
 
@@ -1966,6 +2043,11 @@ function Private.Auras.RefreshCandidates()
 			})
 		end)
 	end)
+
+	-- The previews take the same edit, since a pooled one is about whichever spells the filters just
+	-- became. A restyle rather than a rebuild: the items already exist and only their spell identities
+	-- have moved, and a rebuild per toggle would strand a set of frames per click of the list.
+	Private.AuraPreview.Restyle()
 end
 
 --- Rebuilds the displays that a newly registered medium actually fixes, and no others.
