@@ -193,6 +193,12 @@ local function DefaultAuraIcon(enabled, width, height)
 		borderR = 0,
 		borderG = 0,
 		borderB = 0,
+
+		-- Opaque, and it has to be *present*: `SetSetting` refuses a field the stored block does not
+		-- already have, so an icon without this one silently drops every border-alpha write -- and the
+		-- colour picker reads it back as the opacity it opens at. `Repair` fills it into a database
+		-- written before it was here, which is why no version step is needed.
+		borderA = 1,
 	}
 end
 

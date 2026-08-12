@@ -343,6 +343,51 @@ function Private.Controls.Dropdown(parent, label, choices, get, set, labelWidth)
 	return row
 end
 
+--- The choices for a media picker, rebuilt per call from whatever LibSharedMedia currently knows.
+---
+--- Not cached: another addon can register media after a tab is built, and a list captured then would omit
+--- it until a reload. `Dropdown` takes a function for exactly this.
+---
+--- A stored key nothing currently registers is added anyway, marked. The setting is legitimately kept in
+--- that case (a media pack can be disabled for one session), so the honest display is the name plus a note
+--- rather than a blank dropdown -- the button derives its label from whichever choice reports itself
+--- selected, so without a matching entry the setting would look lost rather than unavailable.
+---@param list string[]
+---@param IsRegistered fun(key: string): boolean
+---@param stored string?
+---@return { value: any, label: string }[]
+function Private.Controls.MediaChoices(list, IsRegistered, stored)
+	local choices = {}
+
+	for i = 1, #list do
+		choices[i] = { value = list[i], label = list[i] }
+	end
+
+	if stored and not IsRegistered(stored) then
+		choices[#choices + 1] = {
+			value = stored,
+			label = string.format(Private.L.Settings.TextureMissing, stored),
+		}
+	end
+
+	return choices
+end
+
+--- The nine anchor points, in reading order, with prose labels. Built per call because the labels are
+--- localised and the files that ask load before the localisation table is filled.
+---@return { value: any, label: string }[]
+function Private.Controls.AnchorChoices()
+	local L = Private.L.Settings
+	local order = Private.Enum.AnchorPointOrder
+	local choices = {}
+
+	for i = 1, #order do
+		choices[i] = { value = order[i], label = L.Anchors[order[i]] }
+	end
+
+	return choices
+end
+
 --- A colour swatch that opens Blizzard's colour picker.
 ---
 --- `get` and `set` deal in separate channel numbers rather than a colour object, because that is how the

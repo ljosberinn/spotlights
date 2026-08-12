@@ -39,6 +39,10 @@ local SECTION_TITLE_GAP = 10
 local SUBTAB_HEIGHT = 32
 local SUBTAB_TOP_PAD = 3
 
+--- What a sub-tab strip costs the column it heads, published because a tab that fits a `ScrollPane` into
+--- what is left has to subtract it -- and a restated constant would drift the moment the tab art does.
+Private.Node.SubTabHeight = SUBTAB_TOP_PAD + SUBTAB_HEIGHT
+
 --- Where a sub-tab strip starts, and the narrowest a tab may be. Blizzard's own inner strips are
 --- inset from the pane they head rather than flush with it, and a one-word tab sized to its text
 --- alone reads as a fragment of a strip rather than as a tab.
@@ -64,9 +68,14 @@ local SCROLL_GUTTER = 22
 ---@field labelWidth number?
 
 --- A section, which is a node that also remembers whether it is open.
+---
+--- `RefreshHeader` is the summary's own refresh: a header formatted from the settings its body edits has
+--- to follow a control the same frame it moves, and re-reading the body to do that would regenerate every
+--- dropdown menu inside it on every frame of a colour drag.
 ---@class SpotlightsSectionNode : SpotlightsNode
 ---@field open boolean
 ---@field SetOpen fun(self: SpotlightsSectionNode, open: boolean)
+---@field RefreshHeader fun(self: SpotlightsSectionNode)
 
 ---@type fun()?
 local RelayoutHook
@@ -436,14 +445,18 @@ function Private.Node.Section(parent, Title, Summary, body, startOpen)
 		section:SetOpen(not section.open)
 	end)
 
-	function section:Refresh()
+	function section:RefreshHeader()
 		title:SetText(Title())
 		summary:SetText(Summary and Summary() or "")
+		UpdateHeader()
+	end
+
+	function section:Refresh()
+		self:RefreshHeader()
 
 		-- Refreshed whether or not it is open, so a section expanded between passes shows current values
 		-- immediately rather than one frame late.
 		body:Refresh()
-		UpdateHeader()
 	end
 
 	function section:Layout(width)
@@ -572,7 +585,7 @@ function Private.Node.SubTabs(parent, tabs, OnSelected)
 	function strip:Refresh() end
 
 	function strip:Layout(width)
-		local height = SUBTAB_TOP_PAD + SUBTAB_HEIGHT
+		local height = Private.Node.SubTabHeight
 
 		self:SetSize(width, height)
 

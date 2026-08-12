@@ -13,8 +13,8 @@ local _, Private = ...
 --- the same: the shell shows and hides that per tab, which is exactly when the strip should come and
 --- go, so it follows the Auras tab without the shell being told about it.
 ---
---- Both sub-tab bodies are stubs here. What is real is the shell, the specialisation gating, and the
---- per-feature switch behind each tab's dot; issues 08 and 09 fill the bodies in.
+--- The Appearance sub-tab lives in `Options/AuraAppearance.lua`, which is handed the selected category
+--- as an accessor rather than a copy. The Tracked one is still a stub; issue 09 fills it in.
 
 --- Where the strip starts along the window's bottom edge, and how far its art hangs below it. Both as
 --- the old panel already places its own.
@@ -272,6 +272,16 @@ local function BuildStub(page)
 	end)
 end
 
+---@return SpotlightsAuraFeatureKey
+local function ActiveFeature()
+	return activeFeature
+end
+
+---@return string
+local function ActiveName()
+	return CategoryNames()[activeFeature]
+end
+
 local function OnPageShown()
 	ApplyPreviewFeature()
 	Private.AuraPreview.SetShown(true)
@@ -279,6 +289,10 @@ end
 
 local function OnPageHidden()
 	Private.AuraPreview.SetShown(false)
+
+	-- A section's open state belongs to the visit rather than to the panel, and this is the moment the
+	-- visit ends -- on a tab switch as well as on a close, which is the same answer either way.
+	Private.AuraAppearance.ResetSections()
 end
 
 ---@param page Frame
@@ -297,7 +311,7 @@ local function BuildAuras(page)
 	CreateCategoryStrip(page)
 
 	local subTabs, pages = Private.Node.SubTabs(page, {
-		{ name = L.TabAppearance, node = BuildStub(page) },
+		{ name = L.TabAppearance, node = Private.AuraAppearance.Build(page, ActiveFeature, ActiveName) },
 		{ name = L.AuraTracked,   node = BuildStub(page) },
 	}, Private.Options.Refresh)
 

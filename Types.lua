@@ -17,6 +17,7 @@
 ---@field Node SpotlightsNodeKit
 ---@field Controls SpotlightsControls
 ---@field PreviewPane SpotlightsPreviewPane
+---@field AuraAppearance SpotlightsAuraAppearance
 ---@field Options SpotlightsOptions
 ---@field Profile SpotlightsProfile
 ---@field RosterList SpotlightsRosterList

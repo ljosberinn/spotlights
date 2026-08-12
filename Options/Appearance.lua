@@ -203,39 +203,9 @@ local function SizeSetter(field)
 	end
 end
 
---- The media choices, rebuilt per call from whatever LibSharedMedia currently knows.
----
---- Not cached: another addon can register media after this tab is built, and a list captured then
---- would omit it until a reload.
----
---- A stored key nothing currently registers is added anyway, marked. The setting is legitimately kept
---- in that case (a media pack can be disabled for one session), so the honest display is the name plus
---- a note rather than a blank dropdown -- the button derives its label from whichever choice reports
---- itself selected, so without a matching entry the setting would look lost rather than unavailable.
----@param list string[]
----@param IsRegistered fun(key: string): boolean
----@param stored string
----@return { value: any, label: string }[]
-local function MediaChoices(list, IsRegistered, stored)
-	local choices = {}
-
-	for i = 1, #list do
-		choices[i] = { value = list[i], label = list[i] }
-	end
-
-	if not IsRegistered(stored) then
-		choices[#choices + 1] = {
-			value = stored,
-			label = string.format(Private.L.Settings.TextureMissing, stored),
-		}
-	end
-
-	return choices
-end
-
 ---@return { value: any, label: string }[]
 local function TextureChoices()
-	return MediaChoices(Private.Media.StatusBarList(), Private.Media.IsRegistered,
+	return Private.Controls.MediaChoices(Private.Media.StatusBarList(), Private.Media.IsRegistered,
 		Appearance().barTexture)
 end
 
@@ -245,24 +215,9 @@ end
 ---@return fun(): { value: any, label: string }[]
 local function FontChoices(field)
 	return function()
-		return MediaChoices(Private.Media.FontList(), Private.Media.IsFontRegistered,
+		return Private.Controls.MediaChoices(Private.Media.FontList(), Private.Media.IsFontRegistered,
 			Appearance()[field])
 	end
-end
-
---- The nine anchor points, in reading order, with prose labels. Built per call because the labels are
---- localised and this file loads before the localisation table is filled.
----@return { value: any, label: string }[]
-local function AnchorChoices()
-	local L = Private.L.Settings
-	local order = Private.Enum.AnchorPointOrder
-	local choices = {}
-
-	for i = 1, #order do
-		choices[i] = { value = order[i], label = L.Anchors[order[i]] }
-	end
-
-	return choices
 end
 
 --- The two colour modes, shared by the bar, the name and the health text. `true` is class colour, so
@@ -431,7 +386,7 @@ local function BuildNameSubTab(page)
 		Private.Controls.Slider(page, L.NameFontSize, FONT_SIZE_MIN, FONT_SIZE_MAX, 1,
 			Getter("nameFontSize"), Setter("nameFontSize")),
 
-		Private.Controls.Dropdown(page, L.NameAnchor, AnchorChoices, Getter("namePoint"),
+		Private.Controls.Dropdown(page, L.NameAnchor, Private.Controls.AnchorChoices, Getter("namePoint"),
 			Setter("namePoint")),
 
 		-- Sliders rather than the kit's number pair, unlike the Grid tab's spacing: an offset is
@@ -471,8 +426,8 @@ local function BuildHealthSubTab(page)
 		Private.Controls.Slider(page, L.HealthTextFontSize, FONT_SIZE_MIN, FONT_SIZE_MAX, 1,
 			Getter("healthTextFontSize"), Setter("healthTextFontSize")),
 
-		Private.Controls.Dropdown(page, L.HealthTextAnchor, AnchorChoices, Getter("healthTextPoint"),
-			Setter("healthTextPoint")),
+		Private.Controls.Dropdown(page, L.HealthTextAnchor, Private.Controls.AnchorChoices,
+			Getter("healthTextPoint"), Setter("healthTextPoint")),
 
 		Private.Controls.Slider(page, L.HealthTextOffsetX, OFFSET_MIN, OFFSET_MAX, 1,
 			Getter("healthTextX"), Setter("healthTextX")),

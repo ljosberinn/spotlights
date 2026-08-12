@@ -77,6 +77,13 @@ end
 function Private.PreviewPane.Build(page, CaptionText)
 	local L = Private.L.Settings
 	local stage = CreateFrame("Frame", nil, page) --[[@as SpotlightsNode]]
+
+	--- The stage is a window onto a spotlight, not a canvas the spotlight may spill out of. Several
+	--- settings position something by an offset measured from the frame -- a name at +100, an aura
+	--- display at -200 -- and without this those draw across the controls beside the pane and, in the
+	--- aura sections, across the sections under it.
+	stage:SetClipsChildren(true)
+
 	local frame = Private.Preview.CreateFrame(stage)
 
 	-- Centre to centre with no offsets, which is the one anchor a change of scale cannot move.

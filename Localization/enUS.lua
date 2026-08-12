@@ -215,8 +215,22 @@ L.Settings.AuraShowText = "Duration Text"
 L.Settings.AuraFont = "Duration Font"
 L.Settings.AuraFontSize = "Duration Size"
 L.Settings.AuraBorder = "Border"
+L.Settings.AuraBorderStyle = "Border Style"
 L.Settings.AuraBorderSize = "Border Size"
 L.Settings.AuraBorderColor = "Border Color"
+
+-- What a collapsed display section says about itself: its size, where it hangs, the one option that
+-- most changes how it reads, and its border. Formatted from the live config on every edit, so the
+-- header tracks the body -- and replaced outright by `AuraSummaryHidden` for a display that is off,
+-- since a size for something nothing will draw is worse than no summary at all.
+L.Settings.AuraSummary = "%d × %d · %s · %s · %s"
+L.Settings.AuraSummaryHidden = "Hidden"
+L.Settings.AuraSummarySwipeOn = "swipe on"
+L.Settings.AuraSummarySwipeOff = "swipe off"
+L.Settings.AuraSummaryInlineIcon = "inline icon"
+L.Settings.AuraSummaryNoInlineIcon = "no inline icon"
+L.Settings.AuraSummaryBorder = "%dpx border"
+L.Settings.AuraSummaryNoBorder = "no border"
 
 L.Settings.AuraReset = "Reset To Defaults"
 L.Settings.AuraResetConfirm = "Reset"

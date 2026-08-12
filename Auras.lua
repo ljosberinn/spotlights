@@ -531,6 +531,29 @@ function Private.Auras.SetPreviewFeature(featureKey)
 	return true
 end
 
+--- One feature's record by key, from whichever specialisation's set holds it.
+---
+--- Both sets rather than the active `FEATURES`, because the options panel asks about the category its
+--- strip has selected and the two can disagree for a moment: a specialisation change swaps the set
+--- before the strip has corrected the selection against it.
+---@param featureKey SpotlightsAuraFeatureKey
+---@return SpotlightsAuraFeature?
+local function FeatureByKey(featureKey)
+	for i = 1, #EVOKER_FEATURES do
+		if EVOKER_FEATURES[i].key == featureKey then
+			return EVOKER_FEATURES[i]
+		end
+	end
+
+	for i = 1, #NON_EVOKER_FEATURES do
+		if NON_EVOKER_FEATURES[i].key == featureKey then
+			return NON_EVOKER_FEATURES[i]
+		end
+	end
+
+	return nil
+end
+
 local function SetFeatureMode()
 	local nextFeatures = Private.Utils.IsAugmentation() and EVOKER_FEATURES or NON_EVOKER_FEATURES
 
@@ -1030,6 +1053,18 @@ local DISPLAYS = {
 	},
 }
 
+--- Whether a feature draws a given kind of display at all.
+---
+--- A pooled feature shows several of the spotlighted player's auras at once, and a column of duration
+--- bars over one spotlight is unreadable -- so it draws icons only. The build path, the preview layer
+--- and the options panel all ask here rather than each restating the rule.
+---@param feature SpotlightsAuraFeature
+---@param display SpotlightsAuraKind
+---@return boolean
+local function DrawsDisplay(feature, display)
+	return not feature.multiple or display.key == "icon"
+end
+
 --- Everything a settings change gets for free, in one call.
 ---
 --- Position, size, fade and on/off, all written to the **anchor** — a plain frame of ours above the
@@ -1388,7 +1423,7 @@ local function EnsureDisplays(child)
 			local display = DISPLAYS[j]
 			local config = featureConfig[display.key]
 
-			if featureConfig.enabled and (not feature.multiple or display.key == "icon")
+			if featureConfig.enabled and DrawsDisplay(feature, display)
 				and config.enabled and not featureBuilt[display.key] then
 				-- Assigned after the call returns, so a display that failed to build leaves the
 				-- spotlight retryable rather than marked done with nothing in it.
@@ -1443,14 +1478,22 @@ end
 --- Every kind is built for every feature regardless of `enabled`, and `everything` is true, so a
 --- toggle is a `SetShown` on something that already exists. Live displays cannot afford that, but a
 --- preview is bounded by the visible grid and thrown away by a reload.
+---
+--- Both filters exist for the options panel's per-section preview, which shows one display of one
+--- category beside the controls that edit it. The grid cells pass neither and get what the panel last
+--- pointed the preview layer at.
 ---@param parent Frame
+---@param featureKey SpotlightsAuraFeatureKey? defaults to the previewed category
+---@param displayKey SpotlightsAuraDisplayKey? every kind the category draws, when omitted
 ---@return SpotlightsAuraPreview[]
-function Private.Auras.CreatePreviews(parent)
+function Private.Auras.CreatePreviews(parent, featureKey, displayKey)
 	local auras = Config()
 
 	if not auras then
 		return {}
 	end
+
+	featureKey = featureKey or previewFeatureKey
 
 	---@type SpotlightsAuraPreview[]
 	local previews = {}
@@ -1458,7 +1501,7 @@ function Private.Auras.CreatePreviews(parent)
 	for i = 1, #FEATURES do
 		local feature = FEATURES[i]
 
-		if not previewFeatureKey or feature.key == previewFeatureKey then
+		if not featureKey or feature.key == featureKey then
 			local spellIDs = feature.multiple and CandidateIDs(feature.Candidates()) or { feature.spellID }
 
 			for spellIndex = 1, math.min(#spellIDs, MAX_PREVIEW_AURAS) do
@@ -1467,7 +1510,7 @@ function Private.Auras.CreatePreviews(parent)
 				for j = 1, #DISPLAYS do
 					local display = DISPLAYS[j]
 
-					if not feature.multiple or display.key == "icon" then
+					if DrawsDisplay(feature, display) and (not displayKey or display.key == displayKey) then
 						local anchor = CreateFrame("Frame", nil, parent)
 
 						previews[#previews + 1] = {
@@ -1960,6 +2003,40 @@ function Private.Auras.FeatureKeys()
 	end
 
 	return keys
+end
+
+--- Whether a feature pools several of the spotlighted player's auras into one display rather than
+--- watching a single spell.
+---
+--- The options panel's question, and the only thing that makes the gap between icons mean anything:
+--- a feature with one aura to draw has nothing to space it against.
+---@param featureKey SpotlightsAuraFeatureKey
+---@return boolean
+function Private.Auras.IsPooled(featureKey)
+	local feature = FeatureByKey(featureKey)
+
+	return feature ~= nil and feature.multiple
+end
+
+--- Whether a feature draws a given kind of display, so the panel can leave out a section for one
+--- nothing will ever render. See `DrawsDisplay`, which is what both build paths ask.
+---@param featureKey SpotlightsAuraFeatureKey
+---@param displayKey SpotlightsAuraDisplayKey
+---@return boolean
+function Private.Auras.HasDisplay(featureKey, displayKey)
+	local feature = FeatureByKey(featureKey)
+
+	if not feature then
+		return false
+	end
+
+	for i = 1, #DISPLAYS do
+		if DISPLAYS[i].key == displayKey then
+			return DrawsDisplay(feature, DISPLAYS[i])
+		end
+	end
+
+	return false
 end
 
 --- The shipped cooldown list, for the options panel to draw rows from.
