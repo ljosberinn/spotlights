@@ -110,7 +110,7 @@ EventUtil.ContinueOnAddOnLoaded(addonName, function()
 			text = addonName,
 			icon = iconTexture,
 			OnClick = function()
-				Private.Settings.SetShown()
+				Private.Options.SetShown()
 			end,
 			OnTooltipShow = function(tooltip)
 				tooltip:AddLine(addonName)
@@ -122,7 +122,7 @@ EventUtil.ContinueOnAddOnLoaded(addonName, function()
 			text = addonName,
 			icon = iconTexture,
 			func = function()
-				Private.Settings.SetShown()
+				Private.Options.SetShown()
 			end,
 			funcOnEnter = function(button)
 				GameTooltip:SetOwner(button, "ANCHOR_LEFT")

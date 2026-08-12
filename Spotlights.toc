@@ -38,9 +38,7 @@ Mover.lua
 Media.lua
 Preview.lua
 AuraPreview.lua
-Widgets.lua
 DragAssign.lua
-RosterList.lua
 ContextMenu.lua
 
 Options\Node.lua
@@ -55,12 +53,11 @@ Options\AuraSpells.lua
 Options\AuraAppearance.lua
 Options\AuraTracked.lua
 Options\Auras.lua
+Options\RosterList.lua
 Options\Roster.lua
 Options\Profile.lua
 Options\RosterPresets.lua
 Options\ImportExport.lua
-
-Settings.lua
 
 SpotlightsUnitFrameMixin.lua
 

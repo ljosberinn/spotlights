@@ -11,7 +11,6 @@ L.SlashCommands.Add = "Выделяет участника рейда по им�
 L.SlashCommands.List = "Показывает настроенные слоты"
 L.SlashCommands.Rescan = "Заставляет каждый занятый слот заново сопоставиться с составом"
 L.SlashCommands.Options = "Открывает панель настроек"
-L.SlashCommands.OptionsPreview = "Открывает переработанную панель настроек, ещё не завершённую"
 
 L.Migration.FromTheFuture =
 "сохранённые настройки версии %d, но эта сборка понимает %d — они оставлены без изменений, а не понижены"
@@ -54,7 +53,6 @@ L.Settings.ImportErrorPrefix = "строка не начинается с SPOTLI
 L.Settings.ImportErrorDecode = "не удалось декодировать строку"
 L.Settings.ImportErrorPayload = "декодированные данные не являются таблицей настроек"
 L.Settings.Copy = "Копировать"
-L.Settings.ToggleMover = "Разблокировать / заблокировать"
 L.Settings.Recenter = "Вернуть в центр"
 L.Settings.PlacementHeading = "Размещение"
 L.Settings.InterfaceHeading = "Интерфейс"
@@ -120,8 +118,6 @@ L.Settings.GrowLeft = "Влево"
 L.Settings.GrowY = "Расти по вертикали"
 L.Settings.GrowDown = "Вниз"
 L.Settings.GrowUp = "Вверх"
-L.Settings.SpacingX = "Горизонтальный интервал"
-L.Settings.SpacingY = "Вертикальный интервал"
 
 L.Settings.FillHeading = "Заполнение"
 L.Settings.Spacing = "Интервал"
@@ -130,15 +126,7 @@ L.Settings.SpacingVerticalShort = "V"
 L.Settings.FillOrderHeading = "Порядок заполнения"
 L.Settings.FillOrderCaption = "%s · перенос каждые %d · растёт %s, %s"
 L.Settings.AllowGaps = "Отображать пустые ячейки"
-L.Settings.AllowGapsHelp =
-"Включено: игрок, покинувший рейд, оставляет свою ячейку пустой, и ничего больше не сдвигается. Выключено: оставшиеся выделения закроют промежуток, как только вы выйдете из боя."
 L.Settings.ClearOnLeave = "Очищать состав при выходе из группы"
-L.Settings.ClearOnLeaveHelp =
-"Выключено: ваши выделения запоминаются между рейдами. Включено: выход из рейда полностью очищает сетку — каждого игрока и каждый разделитель — так что следующий начинается с нуля. Выход из игры, перезагрузка и переподключение не считаются выходом."
-L.Settings.CombatHelp =
-"Выделения перестраиваются только вне боя. Добавление или удаление во время боя запоминается и применяется в момент окончания боя; ничего не теряется, но сетка не изменится посреди боя."
-L.Settings.RosterHelp =
-"Вы можете перетаскивать игроков в группу ниже и из неё. Также можно перетащить их на контейнер Spotlights, если там уже есть хотя бы один другой игрок."
 L.Settings.SlotsHeader = "Настроенные слоты"
 L.Settings.RaidHeader = "Участники рейда"
 L.Settings.AddSpacer = "Добавить разделитель"
@@ -170,7 +158,6 @@ L.Settings.PresetDeletePrompt =
 L.Settings.PresetImportAdd = "Добавить шаблон"
 L.Settings.PresetImportErrorPrefix = "строка не является шаблоном Spotlights"
 L.Settings.PresetImportErrorPayload = "декодированные данные не являются списком мест"
-L.Settings.AurasEvokerOnly = "Отслеживание аур — функция только для Эвокеров: Чувство силы и Предвидение."
 L.Settings.Prescience = "Предвидение"
 L.Settings.ShiftingSands = "Изменчивые пески"
 L.Settings.Cooldowns = "Перезарядки и свои ауры"
@@ -218,7 +205,6 @@ L.Settings.AuraSummaryBorder = "рамка %d px"
 L.Settings.AuraSummaryNoBorder = "без рамки"
 L.Settings.AuraReset = "Сбросить по умолчанию"
 L.Settings.AuraResetConfirm = "Сбросить"
-L.Settings.AuraResetPrompt = "Сбросить полосу состояния и значок %s к настройкам по умолчанию?"
 L.Settings.AuraResetDisplayPrompt = "Сбросить «%s» для %s к настройкам по умолчанию?"
 L.Settings.AuraResetSpellsPrompt =
 "Сбросить отслеживаемые для %s заклинания к выбору по умолчанию? Добавленные вами заклинания сохранятся."
@@ -230,12 +216,6 @@ L.Settings.AuraNoTrackedSpells = "%s отслеживает один конкр�
 L.Settings.AuraNoSpellMatches = "Нет заклинаний, соответствующих запросу."
 L.Settings.AurasRebuildHelp =
 "Некоторым настройкам может потребоваться перезагрузка после применения. Вам предложат сделать это, когда вы закончите настройку."
-L.Settings.AuraBuiltinCooldowns = "Отслеживаемые перезарядки"
-L.Settings.AuraBuiltinCooldownsNote =
-"Отображение Чувства силы также показывает эти основные перезарядки, когда выделенный игрок использует одну из них."
-L.Settings.AuraBuiltinDefensives = "Отслеживаемые защитные способности"
-L.Settings.AuraBuiltinDefensivesNote =
-"Показывать эти защитные способности, когда выделенный игрок использует одну из них."
 L.Settings.AuraCustomCooldowns = "Свои ауры"
 L.Settings.AuraCustomCooldownsNote =
 "Это должны быть УСИЛЕНИЯ, появляющиеся на игроках, чтобы работали эффекты аксессуаров. Ослабления и произнесения здесь отслеживать нельзя, и добавление такого не даст никакого эффекта."

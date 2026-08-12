@@ -1,8 +1,8 @@
 ---@type string, Spotlights
 local _, Private = ...
 
---- The Import/Export tab: the design's own tab replacing the two buttons that used to drive
---- `Settings.lua`'s `StaticPopup`s. The codec lives in `Options/Profile.lua`; both panels call into it.
+--- The Import/Export tab: two in-place boxes rather than the pair of `StaticPopup`s a button opens. The
+--- codec itself lives in `Options/Profile.lua`, which the Roster tab's presets share.
 
 local EXPORT_HEIGHT = 130
 local IMPORT_HEIGHT = 130
@@ -12,9 +12,9 @@ local IMPORT_HEIGHT = 130
 --- returned to.
 local pending = ""
 
---- Shared with `Settings.lua` deliberately, same as `Panel.lua`'s `AURA_RELOAD_POPUP` -- both panels can
---- offer the same prompt, and two different keys would stack two identical dialogs rather than the one
---- `StaticPopup_Show` reuses for a key already on screen.
+--- One key per prompt across the whole panel, the same rule `Panel.lua`'s `AURA_RELOAD_POPUP` follows:
+--- `StaticPopup_Show` reuses the dialog already on screen for a given key, so a second key would stack
+--- two identical dialogs.
 local IMPORT_ERROR_POPUP = "SPOTLIGHTS_IMPORT_ERROR"
 local IMPORT_RELOAD_POPUP = "SPOTLIGHTS_IMPORT_RELOAD"
 

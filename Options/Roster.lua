@@ -339,7 +339,6 @@ local function BuildPane(page, heading, height, section, Note, IsEmpty, BuildLis
 	}), height)
 
 	Private.RosterList.RegisterRowSet({
-		panel = Private.Options.GetFrame(),
 		viewport = pane.viewport,
 		section = section,
 		rows = rows,

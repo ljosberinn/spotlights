@@ -14,7 +14,6 @@ L.SlashCommands.Add = "Spotlights a raid member by name"
 L.SlashCommands.List = "Lists the configured slots"
 L.SlashCommands.Rescan = "Forces every occupied slot to re-match the roster"
 L.SlashCommands.Options = "Opens the settings panel"
-L.SlashCommands.OptionsPreview = "Opens the reworked settings panel, still being built"
 
 L.Migration = {}
 
@@ -63,7 +62,6 @@ L.Settings.ImportErrorDecode = "the string could not be decoded"
 L.Settings.ImportErrorPayload = "the decoded data is not a settings table"
 L.Settings.Copy = "Copy"
 
-L.Settings.ToggleMover = "Unlock / Lock"
 L.Settings.Recenter = "Return To Center"
 
 L.Settings.PlacementHeading = "Placement"
@@ -143,8 +141,6 @@ L.Settings.GrowLeft = "Left"
 L.Settings.GrowY = "Grow Vertically"
 L.Settings.GrowDown = "Down"
 L.Settings.GrowUp = "Up"
-L.Settings.SpacingX = "Horizontal Spacing"
-L.Settings.SpacingY = "Vertical Spacing"
 
 L.Settings.FillHeading = "Fill"
 L.Settings.Spacing = "Spacing"
@@ -154,17 +150,7 @@ L.Settings.FillOrderHeading = "Fill Order"
 L.Settings.FillOrderCaption = "%s · wraps every %d · grows %s, %s"
 
 L.Settings.AllowGaps = "Render Empty Cells"
-L.Settings.AllowGapsHelp =
-"On, a player who leaves the raid leaves their cell empty and nothing else moves. Off, the remaining spotlights close the gap once you are out of combat."
 L.Settings.ClearOnLeave = "Clear Roster When Leaving The Group"
-L.Settings.ClearOnLeaveHelp =
-"Off, your spotlights are remembered between raids. On, leaving a raid empties the grid completely - every player and every spacer - so the next one starts from nothing. Logging out, reloading and reconnecting do not count as leaving."
-
-L.Settings.CombatHelp =
-"Spotlights are rebuilt out of combat only. Adding or removing one during a fight is remembered and applied the moment combat ends; nothing is lost, but the grid will not change mid-pull."
-
-L.Settings.RosterHelp =
-"You can drag & drop players in and out of the grouping below. You can also drag them on top of the Spotlights container if at least one other player is already present."
 
 L.Settings.SlotsHeader = "Configured slots"
 L.Settings.RaidHeader = "Raid members"
@@ -204,8 +190,6 @@ L.Settings.PresetImportAdd = "Add Preset"
 -- is the answer to a full profile pasted into the preset box.
 L.Settings.PresetImportErrorPrefix = "the string is not a Spotlights preset"
 L.Settings.PresetImportErrorPayload = "the decoded data is not a slot list"
-
-L.Settings.AurasEvokerOnly = "Aura tracking is an Evoker-only feature for Sense Power, Prescience, and Shifting Sands."
 
 L.Settings.Prescience = "Prescience"
 L.Settings.ShiftingSands = "Shifting Sands"
@@ -268,7 +252,6 @@ L.Settings.AuraReset = "Reset To Defaults"
 L.Settings.AuraResetConfirm = "Reset"
 -- Names the feature so the prompt is unambiguous when both sub-tabs share one button, and stays
 -- silent about the tracked cooldown list because a reset does not touch it and Prescience has none.
-L.Settings.AuraResetPrompt = "Reset %s's Status Bar And Icon To Their Default Settings?"
 
 -- The reworked panel resets one display at a time, since the two are configured independently: the
 -- display first, then the category it belongs to.
@@ -299,12 +282,6 @@ L.Settings.AuraNoSpellMatches = "No spells match your search."
 -- only that it costs something.
 L.Settings.AurasRebuildHelp =
 "Some settings may need a reload after application. You will get prompted to do so when you finished customizing."
-
-L.Settings.AuraBuiltinCooldowns = "Tracked Cooldowns"
-L.Settings.AuraBuiltinCooldownsNote =
-"Show these major cooldowns when the spotlighted player uses one."
-L.Settings.AuraBuiltinDefensives = "Tracked Defensives"
-L.Settings.AuraBuiltinDefensivesNote = "Show these defensive abilities when the spotlighted player uses one."
 
 L.Settings.AuraCustomCooldowns = "Custom Auras"
 

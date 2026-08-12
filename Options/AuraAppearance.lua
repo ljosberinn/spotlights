@@ -61,8 +61,9 @@ local CHROME_RESERVE = 6
 --- a cramped pane than a negative height Blizzard errors on.
 local MIN_SCROLL_HEIGHT = 80
 
---- Shared with the old panel deliberately, exactly as the reload prompt is: the dialog is registered at
---- click time by whichever panel was clicked, and two keys would stack two identical prompts.
+--- Shared with the Tracked sub-tab deliberately, exactly as the reload prompt is: the dialog is
+--- registered at click time by whichever button was clicked, and two keys would stack two identical
+--- prompts.
 local RESET_POPUP = "SPOTLIGHTS_AURA_RESET"
 
 --- Which category the strip has selected, and its localised name for the reset prompt. Both handed in by

@@ -6,10 +6,10 @@ Private.Node = {}
 
 --- The layout kit the reworked options panel is built out of.
 ---
---- `Private.Widgets.Stack` can express one shape -- a single full-width column anchored to a scroll child
---- -- because the only thing a widget in that kit knows about its surroundings is that it is as wide as
---- everything else. A node is handed its width in `Layout` and answers with the height it took, so a
---- container divides and recurses while a leaf places itself inside what it was given.
+--- A node is handed its width in `Layout` and answers with the height it took, so a container divides
+--- and recurses while a leaf places itself inside what it was given. That is what lets a tab be a box
+--- layout: a kit whose widgets only know they are as wide as each other can express one shape, a single
+--- full-width column.
 ---
 --- **`Refresh` runs over the whole tree, then `Layout` does.** Always, and over the whole tree rather than
 --- the part that changed: `Refresh` is what decides whether a node is shown, and a `Layout` pass against

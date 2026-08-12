@@ -4,11 +4,11 @@ local _, Private = ...
 ---@class SpotlightsControls
 Private.Controls = {}
 
---- The leaves of the layout kit, ported from `Widgets.lua` with the anchoring changed.
+--- The leaves of the layout kit.
 ---
---- That kit computes every position from `LABEL_WIDTH + CONTROL_WIDTH = 410`, which is an assumption
---- rather than a width: there is one column and it is that wide. A leaf here is handed its width in
---- `Layout` and places itself inside it.
+--- A leaf is handed its width in `Layout` and places itself inside it, rather than computing its
+--- positions from a constant: a control that assumes one column of a fixed width cannot be put in a
+--- two-column grid or beside a preview pane.
 
 local ROW_HEIGHT = 26
 local DEFAULT_LABEL_WIDTH = 130
@@ -919,9 +919,8 @@ end
 --- pane.
 ---
 --- `set` absent is what makes a box read-only -- `EditBox` has no such flag, so a keystroke is undone
---- in `OnTextChanged` by resetting the text to `get()` whenever the two disagree, the trick the old
---- `StaticPopup`'s read-only edit box used (`Settings.lua`'s `EditBoxOnTextChanged`). Selecting and
---- copying still work; typing does not stick.
+--- in `OnTextChanged` by resetting the text to `get()` whenever the two disagree, the same trick a
+--- read-only `StaticPopup` edit box uses. Selecting and copying still work; typing does not stick.
 ---
 --- `InputScrollFrameTemplate` sizes its `EditBox` once, in its own `OnLoad`, against whatever width the
 --- frame happened to have at creation -- one pixel, since nothing has laid it out yet. `Layout` restates

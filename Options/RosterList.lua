@@ -44,17 +44,14 @@ local HEIGHTS = {
 	heading = HEADING_HEIGHT,
 }
 
---- The pooled rows every roster list in the addon is built from, and the drag path that lands on
---- them.
+--- The pooled rows the Roster tab's two lists are built from, and the drag path that lands on them.
 ---
---- Two panels draw these while the options rework is in progress: the old panel's single interleaved
---- column (`Build` below) and the reworked panel's Roster tab, which is two lists side by side
---- (`Options/Roster.lua`). Both use the same row frame, the same drag handling and the same class
---- colouring -- a second copy of any of it would be a second set of bugs, and the drag path would
---- have to learn which panel it was in.
+--- Its own file rather than part of `Options/Roster.lua`, because the drag path reaches in here from
+--- outside the panel: `Private.DragAssign` asks what is under the cursor without knowing which list
+--- answered, and both lists share one row frame so a reorder and an assignment are the same gesture.
 ---
 --- No model code of its own: every action calls the same `Private.Registry` API the slash commands
---- do, so all three assignment front-ends produce identical database state.
+--- do, so both assignment front-ends produce identical database state.
 
 --- One pooled action button: a `Button` frame with text, icon and highlight children built in
 --- `AcquireRow`. Named rather than a bare `Button` so those children carry their own types.
@@ -128,7 +125,7 @@ end
 --- Rows are pooled and reused. A raid of forty rebuilt on every roster event would otherwise create
 --- forty frames per event, and frames cannot be destroyed.
 ---
---- The pool is the caller's, because there are three lists and a shared array would make the drag
+--- The pool is the caller's, because there are two lists and a shared array would make the drag
 --- path's own scan cross from one into another.
 ---@param parent Frame
 ---@param rows SpotlightsRosterRow[]
@@ -340,17 +337,10 @@ end
 
 --- One list's rows, as the drag path sees them.
 ---
---- `panel` is which window the rows are in, so a drag resolves against the panel the cursor is over
---- rather than against whichever list happened to register first -- both panels exist until the
---- cutover, and they can overlap.
----
 --- `section` is what a drop inside the viewport but *not* on a row means. **A whole block is a target,
 --- not only its rows**: with no slots configured there are no slot rows to aim at, so a drop anywhere
---- in that pane means append, the only thing it can mean. The old panel answers this from its heading
---- and spacer rows instead, which carry a section with no slot, so it registers no block section of
---- its own.
+--- in that pane means append, the only thing it can mean.
 ---@class SpotlightsRosterRowSet
----@field panel Frame
 ---@field viewport Frame? what clips the rows, and the block-level target
 ---@field section SpotlightsRowSection?
 ---@field rows SpotlightsRosterRow[]
@@ -360,14 +350,14 @@ local rowSets = {}
 
 --- Makes a list's rows droppable.
 ---
---- Registered once per list and never removed: the lists are built once per panel and live as long as
---- it does, and a set whose panel is hidden answers nothing because `IsCursorOver` tests visibility.
+--- Registered once per list and never removed: the lists are built once and live as long as the panel
+--- does, and a set whose panel is hidden answers nothing because `IsCursorOver` tests visibility.
 ---@param set SpotlightsRosterRowSet
 function Private.RosterList.RegisterRowSet(set)
 	rowSets[#rowSets + 1] = set
 end
 
---- What a release inside `panel` would land on: a specific slot, and/or a block of one of its lists.
+--- What a release inside the panel would land on: a specific slot, and/or a block of one of its lists.
 ---
 --- **Clipped rows are excluded explicitly**, which `IsCursorOver` cannot do alone. A scroll frame
 --- clips children when it *draws* them, but their rectangles are unchanged -- a row scrolled above the
@@ -376,13 +366,12 @@ end
 ---
 --- Rows past the end of the current list are hidden rather than destroyed, and `IsCursorOver` tests
 --- visibility, so a stale row from a longer list cannot be dropped on either.
----@param panel Frame the window the cursor is over
 ---@return integer? slot, SpotlightsRowSection? section
-function Private.RosterList.TargetUnderCursor(panel)
+function Private.RosterList.TargetUnderCursor()
 	for i = 1, #rowSets do
 		local set = rowSets[i]
 
-		if set.panel == panel and (not set.viewport or Private.Utils.IsCursorOver(set.viewport)) then
+		if not set.viewport or Private.Utils.IsCursorOver(set.viewport) then
 			for j = 1, #set.rows do
 				local row = set.rows[j]
 
@@ -437,203 +426,4 @@ function Private.RosterList.Available()
 	end
 
 	return available, #members
-end
-
---- Assignment path (c), as the old panel draws it: the current raid with toggles, plus configured
---- slots with reordering and spacer controls.
----
---- Unlike other tabs, this one's contents are not a fixed set of controls -- the raid changes
---- underneath it. So it is a *single* widget that rebuilds its own rows on `Refresh`, keeping the
---- panel's build-once/refresh-many contract intact.
----
---- Superseded by `Options/Roster.lua`, which draws the same rows as two panes; both exist until the
---- cutover deletes this one.
----@param content Frame
----@return SpotlightsWidget[]
-function Private.RosterList.Build(content)
-	local L = Private.L.Settings
-
-	local list = CreateFrame("Frame", nil, content) --[[@as SpotlightsWidget]]
-
-	---@type SpotlightsRosterRow[]
-	local rows = {}
-
-	Private.RosterList.RegisterRowSet({
-		panel = Private.Settings.GetFrame(),
-
-		-- `content` is the scroll child, so its parent is the frame that does the clipping.
-		viewport = content:GetParent() --[[@as Frame]],
-		rows = rows,
-	})
-
-	--- The drag gesture help text.
-	---
-	--- A FontString on the list rather than a `CreateText` widget stacked above it, because this
-	--- widget sets its own height from its row count and the panel's scroll range is that height. A
-	--- sibling widget would leave the two disagreeing by however tall this wraps to.
-	---
-	--- Width taken from `content` (which has an explicit `SetWidth`) rather than `list` (whose width
-	--- comes from anchors and is not resolved yet). `GetStringHeight` below needs a real width to
-	--- wrap against.
-	local help = list:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
-
-	help:SetPoint("TOPLEFT", list, "TOPLEFT", 4, -2)
-	help:SetWidth(content:GetWidth() - 8)
-	help:SetJustifyH("LEFT")
-	help:SetSpacing(2)
-	help:SetText(L.RosterHelp)
-
-	--- Rebuilds every row from the current roster and slot list.
-	---
-	--- Rebuilt wholesale rather than diffed. The lists are at most forty and twenty rows, this runs
-	--- only when the panel is open and something changed, and a diff would need to track identity
-	--- across a reorder -- the one operation this tab exists to perform.
-	function list:Refresh()
-		local used = 0
-
-		-- Rows start below the help text, which is inside this widget's own height.
-		local offset = help:GetStringHeight() + 8
-
-		---@param text string
-		---@param actions { label: string, atlas: string?, texture: integer?, scale: number?, onClick: fun() }[]
-		---@param target SpotlightsRowTarget?
-		---@param style SpotlightsRowStyle
-		local function AddRow(text, actions, target, style)
-			used = used + 1
-
-			local row = Private.RosterList.AcquireRow(list, rows, used)
-
-			row:ClearAllPoints()
-			row:SetPoint("TOPLEFT", list, "TOPLEFT", 0, -offset)
-			row:SetPoint("TOPRIGHT", list, "TOPRIGHT", 0, -offset)
-			row:Show()
-
-			Private.RosterList.ConfigureRow(row, {
-				text = text,
-				actions = actions,
-				target = target,
-				style = style,
-			})
-
-			-- Read back rather than recomputed, so a heading's height and the next row's offset cannot
-			-- drift apart.
-			offset = offset + row:GetHeight()
-		end
-
-		---@param text string
-		---@param style SpotlightsRowStyle
-		---@param section SpotlightsRowSection? which block a drop on this heading lands in
-		local function AddHeading(text, style, section)
-			AddRow(text, {}, section and { section = section } or nil, style)
-		end
-
-		local slots = Private.Registry.GetSlots()
-
-		AddHeading(L.SlotsHeader, "heading", "slots")
-
-		if slots then
-			for i = 1, #slots do
-				local index = i
-				local label, guid = Private.RosterList.SlotDisplay(slots[i])
-
-				AddRow(string.format("%d. %s", i, ClassColored(guid, label)), {
-					-- Rightmost first. Remove, then down, then up.
-					{
-						label = L.RemoveShort,
-						atlas = "RedButton-Exit",
-						onClick = function()
-							Private.Registry.Unassign(index)
-							list:Refresh()
-						end,
-					},
-					{
-						label = L.DownShort,
-						texture = 136472,
-						scale = 1.5,
-						onClick = function()
-							Private.Registry.Move(index, index + 1)
-							list:Refresh()
-						end,
-					},
-					{
-						label = L.UpShort,
-						texture = 136476,
-						scale = 1.5,
-						onClick = function()
-							Private.Registry.Move(index, index - 1)
-							list:Refresh()
-						end,
-					},
-				}, { slot = index, section = "slots" })
-			end
-		end
-
-		AddRow(L.AddSpacer, {
-			{
-				label = L.PlusShort,
-				texture = 130838,
-				onClick = function()
-					Private.Registry.SetBlank(nil)
-					list:Refresh()
-				end,
-			},
-		}, { section = "slots" })
-
-		AddHeading(L.RaidHeader, "heading", "members")
-
-		local available, members = Private.RosterList.Available()
-
-		if #available == 0 then
-			-- Still a drop target: dragging a slot here removes it, which must keep working when there
-			-- is nobody left to list. The two empty states say which one this is.
-			AddRow(members == 0 and L.NotInRaid or L.AllSpotlighted, {}, { section = "members" })
-		end
-
-		--- One raid member row: the drag source for adding a player.
-		---
-		--- `+` still appends (the fast path when the cell does not matter); dragging is what puts
-		--- someone in a *particular* cell.
-		---@param member { guid: string, name: string }
-		local function AddMember(member)
-			-- Class colour and nothing else -- a second colour would compete with the class being
-			-- scanned for.
-			AddRow(ClassColored(member.guid, member.name), {
-				{
-					label = L.PlusShort,
-					texture = 130838,
-					onClick = function()
-						Private.Registry.AssignByGuid(member.guid)
-						list:Refresh()
-					end,
-				},
-			}, { guid = member.guid, section = "members" })
-		end
-
-		for i = 1, #available do
-			AddMember(available[i])
-		end
-
-		for i = used + 1, #rows do
-			rows[i]:Hide()
-		end
-
-		-- This widget's height is not knowable until its rows exist, and the scroll child's height
-		-- gives the scrollbar its range. Set here rather than by the panel's Stack pass, which runs
-		-- once while this changes on every roster event.
-		list:SetHeight(offset)
-
-		-- The panel owns the scroll child's height: it is the sum of every widget on the tab and this
-		-- is only one of them.
-		Private.Settings.Relayout()
-	end
-
-	-- The roster list is the one tab that goes stale on its own; everything else changes only when
-	-- the user changes it.
-	Private.Events.RegisterEvent("GROUP_ROSTER_UPDATE", function()
-		if list:IsVisible() then
-			list:Refresh()
-		end
-	end)
-
-	return { list }
 end

@@ -4,10 +4,9 @@ local _, Private = ...
 ---@class SpotlightsProfile
 Private.Profile = {}
 
---- The export/import codec, lifted out of `Settings.lua` unchanged. Both the old panel's
---- `StaticPopup`s and the new Import/Export tab drive it from here, so neither has to reach into the
---- other's file to find it -- and the old panel keeps working once `Settings.lua` is deleted, at the
---- point where only this file remains.
+--- The export/import codec, in a file of its own because two tabs drive it: Import/Export carries a
+--- whole profile and the Roster tab's presets carry a slot list, and neither should have to reach into
+--- the other's file to find the encoder they share.
 
 --- The two kinds of string this codec produces, and why neither can be mistaken for the other: a
 --- preset string does not start with the profile's prefix, and a profile string does not start with

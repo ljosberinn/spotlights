@@ -11,7 +11,6 @@ L.SlashCommands.Add = "Resalta a un miembro de la banda por su nombre"
 L.SlashCommands.List = "Enumera las ranuras configuradas"
 L.SlashCommands.Rescan = "Obliga a cada ranura ocupada a volver a coincidir con la lista"
 L.SlashCommands.Options = "Abre el panel de ajustes"
-L.SlashCommands.OptionsPreview = "Abre el panel de ajustes renovado, aún en construcción"
 
 L.Migration.FromTheFuture =
 "los ajustes guardados son de la versión %d pero esta compilación entiende la %d - se dejaron intactos en lugar de degradarlos"
@@ -56,7 +55,6 @@ L.Settings.ImportErrorPrefix = "la cadena no comienza con SPOTLIGHTS!"
 L.Settings.ImportErrorDecode = "no se pudo decodificar la cadena"
 L.Settings.ImportErrorPayload = "los datos decodificados no son una tabla de configuración"
 L.Settings.Copy = "Copiar"
-L.Settings.ToggleMover = "Desbloquear / bloquear"
 L.Settings.Recenter = "Regresar al centro"
 L.Settings.PlacementHeading = "Colocación"
 L.Settings.InterfaceHeading = "Interfaz"
@@ -122,8 +120,6 @@ L.Settings.GrowLeft = "Izquierda"
 L.Settings.GrowY = "Crecer verticalmente"
 L.Settings.GrowDown = "Abajo"
 L.Settings.GrowUp = "Arriba"
-L.Settings.SpacingX = "Espaciado horizontal"
-L.Settings.SpacingY = "Espaciado vertical"
 
 L.Settings.FillHeading = "Llenado"
 L.Settings.Spacing = "Espaciado"
@@ -132,15 +128,7 @@ L.Settings.SpacingVerticalShort = "V"
 L.Settings.FillOrderHeading = "Orden de llenado"
 L.Settings.FillOrderCaption = "%s · ajusta cada %d · crece %s, %s"
 L.Settings.AllowGaps = "Mostrar celdas vacías"
-L.Settings.AllowGapsHelp =
-"Activado, un jugador que sale de la banda deja su celda vacía y nada más se mueve. Desactivado, los resaltados restantes cierran el hueco en cuanto salgas de combate."
 L.Settings.ClearOnLeave = "Vaciar la lista al salir del grupo"
-L.Settings.ClearOnLeaveHelp =
-"Desactivado, tus resaltados se recuerdan entre bandas. Activado, salir de una banda vacía la cuadrícula por completo - cada jugador y cada separador - para que la siguiente empiece desde cero. Cerrar sesión, recargar y reconectar no cuentan como salir."
-L.Settings.CombatHelp =
-"Los resaltados solo se reconstruyen fuera de combate. Agregar o quitar uno durante una pelea se recuerda y se aplica en el momento en que termina el combate; no se pierde nada, pero la cuadrícula no cambiará a mitad de combate."
-L.Settings.RosterHelp =
-"Puedes arrastrar y soltar jugadores dentro y fuera de la agrupación de abajo. También puedes arrastrarlos sobre el contenedor de Spotlights si ya hay al menos otro jugador presente."
 L.Settings.SlotsHeader = "Ranuras configuradas"
 L.Settings.RaidHeader = "Miembros de la banda"
 L.Settings.AddSpacer = "Agregar un separador"
@@ -172,8 +160,6 @@ L.Settings.PresetDeletePrompt =
 L.Settings.PresetImportAdd = "Agregar preajuste"
 L.Settings.PresetImportErrorPrefix = "la cadena no es un preajuste de Spotlights"
 L.Settings.PresetImportErrorPayload = "los datos decodificados no son una lista de posiciones"
-L.Settings.AurasEvokerOnly =
-"El seguimiento de auras es una función exclusiva de Evocador para Sentir poder, Presagio y Arenas cambiantes."
 L.Settings.Prescience = "Presagio"
 L.Settings.ShiftingSands = "Arenas cambiantes"
 L.Settings.Cooldowns = "Reutilizaciones y auras personalizadas"
@@ -221,7 +207,6 @@ L.Settings.AuraSummaryBorder = "borde de %dpx"
 L.Settings.AuraSummaryNoBorder = "sin borde"
 L.Settings.AuraReset = "Restablecer valores predeterminados"
 L.Settings.AuraResetConfirm = "Restablecer"
-L.Settings.AuraResetPrompt = "¿Restablecer la barra de estado y el icono de %s a sus ajustes predeterminados?"
 L.Settings.AuraResetDisplayPrompt = "¿Restablecer «%s» de %s a sus ajustes predeterminados?"
 L.Settings.AuraResetSpellsPrompt =
 "¿Restablecer los hechizos que %s rastrea a la selección predeterminada? Los hechizos que hayas agregado se conservan."
@@ -233,12 +218,6 @@ L.Settings.AuraNoTrackedSpells = "%s vigila un aura específica, así que aquí 
 L.Settings.AuraNoSpellMatches = "Ningún hechizo coincide con tu búsqueda."
 L.Settings.AurasRebuildHelp =
 "Algunos ajustes pueden requerir una recarga después de aplicarse. Se te pedirá que lo hagas cuando termines de personalizar."
-L.Settings.AuraBuiltinCooldowns = "Reutilizaciones rastreadas"
-L.Settings.AuraBuiltinCooldownsNote =
-"La visualización de Percibir poder también muestra estas reutilizaciones importantes cuando el jugador resaltado usa una."
-L.Settings.AuraBuiltinDefensives = "Habilidades defensivas rastreadas"
-L.Settings.AuraBuiltinDefensivesNote =
-"Mostrar estas habilidades defensivas cuando el jugador resaltado use una."
 L.Settings.AuraCustomCooldowns = "Auras personalizadas"
 L.Settings.AuraCustomCooldownsNote =
 "Estas deben ser BENEFICIOS que aparezcan en los jugadores, para que funcionen los efectos de accesorios. Los perjuicios y los lanzamientos no se pueden rastrear aquí, y agregar uno no hará absolutamente nada."

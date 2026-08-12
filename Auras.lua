@@ -1786,7 +1786,6 @@ Private.Events.RegisterEvent("PLAYER_SPECIALIZATION_CHANGED", function(unit)
 	end
 
 	SetFeatureMode()
-	Private.Settings.RefreshAuraTabs(true)
 	Private.AuraPreview.Rebuild()
 	ScheduleSensePowerCheck()
 end)
@@ -1896,14 +1895,6 @@ function Private.Auras.SetFeatureEnabled(featureKey, enabled)
 	end
 
 	return true
-end
-
---- Restores every one of a feature's displays at once, for a caller offering a reset per category.
----@param featureKey SpotlightsAuraFeatureKey
-function Private.Auras.ResetFeature(featureKey)
-	for i = 1, #DISPLAYS do
-		Private.Auras.ResetDisplay(featureKey, DISPLAYS[i].key)
-	end
 end
 
 --- Restores one display to fresh-install values, leaving the shared spell pool alone and the feature's

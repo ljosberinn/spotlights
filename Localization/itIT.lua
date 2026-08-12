@@ -11,7 +11,6 @@ L.SlashCommands.Add = "Mette in evidenza un membro del raid per nome"
 L.SlashCommands.List = "Elenca gli slot configurati"
 L.SlashCommands.Rescan = "Forza ogni slot occupato a riabbinare il roster"
 L.SlashCommands.Options = "Apre il pannello delle impostazioni"
-L.SlashCommands.OptionsPreview = "Apre il nuovo pannello delle impostazioni, ancora in costruzione"
 
 L.Migration.FromTheFuture =
 "le impostazioni salvate sono alla versione %d ma questa build ne comprende %d - sono state lasciate intatte anziché retrocesse"
@@ -54,7 +53,6 @@ L.Settings.ImportErrorPrefix = "la stringa non inizia con SPOTLIGHTS!"
 L.Settings.ImportErrorDecode = "non è stato possibile decodificare la stringa"
 L.Settings.ImportErrorPayload = "i dati decodificati non sono una tabella di impostazioni"
 L.Settings.Copy = "Copia"
-L.Settings.ToggleMover = "Sblocca / blocca"
 L.Settings.Recenter = "Torna al centro"
 L.Settings.PlacementHeading = "Posizionamento"
 L.Settings.InterfaceHeading = "Interfaccia"
@@ -120,8 +118,6 @@ L.Settings.GrowLeft = "Sinistra"
 L.Settings.GrowY = "Espandi verticalmente"
 L.Settings.GrowDown = "Basso"
 L.Settings.GrowUp = "Alto"
-L.Settings.SpacingX = "Spaziatura orizzontale"
-L.Settings.SpacingY = "Spaziatura verticale"
 
 L.Settings.FillHeading = "Riempimento"
 L.Settings.Spacing = "Spaziatura"
@@ -130,15 +126,7 @@ L.Settings.SpacingVerticalShort = "V"
 L.Settings.FillOrderHeading = "Ordine di riempimento"
 L.Settings.FillOrderCaption = "%s · a capo ogni %d · si espande %s, %s"
 L.Settings.AllowGaps = "Mostra celle vuote"
-L.Settings.AllowGapsHelp =
-"Attivo, un giocatore che lascia il raid lascia la sua cella vuota e nient'altro si sposta. Disattivo, gli spotlight rimanenti chiudono lo spazio una volta fuori dal combattimento."
 L.Settings.ClearOnLeave = "Azzera il roster uscendo dal gruppo"
-L.Settings.ClearOnLeaveHelp =
-"Disattivo, i tuoi spotlight vengono ricordati tra i raid. Attivo, uscire da un raid svuota completamente la griglia - ogni giocatore e ogni spaziatore - così il successivo parte da zero. Disconnettersi, ricaricare e riconnettersi non contano come uscita."
-L.Settings.CombatHelp =
-"Gli spotlight vengono ricostruiti solo fuori dal combattimento. Aggiungerne o rimuoverne uno durante uno scontro viene ricordato e applicato appena il combattimento finisce; nulla va perso, ma la griglia non cambierà durante il pull."
-L.Settings.RosterHelp =
-"Puoi trascinare i giocatori dentro e fuori dal raggruppamento qui sotto. Puoi anche trascinarli sul contenitore Spotlights se è già presente almeno un altro giocatore."
 L.Settings.SlotsHeader = "Slot configurati"
 L.Settings.RaidHeader = "Membri del raid"
 L.Settings.AddSpacer = "Aggiungi uno spaziatore"
@@ -170,8 +158,6 @@ L.Settings.PresetDeletePrompt =
 L.Settings.PresetImportAdd = "Aggiungi preimpostazione"
 L.Settings.PresetImportErrorPrefix = "la stringa non è una preimpostazione di Spotlights"
 L.Settings.PresetImportErrorPayload = "i dati decodificati non sono un elenco di slot"
-L.Settings.AurasEvokerOnly =
-"Il tracciamento delle aure è una funzione solo per Evocatori per Potere Sensoriale, Prescienza e Sabbie Mutevoli."
 L.Settings.Prescience = "Prescienza"
 L.Settings.ShiftingSands = "Sabbie Mutevoli"
 L.Settings.Cooldowns = "Ricariche e aure personalizzate"
@@ -219,7 +205,6 @@ L.Settings.AuraSummaryBorder = "bordo di %dpx"
 L.Settings.AuraSummaryNoBorder = "senza bordo"
 L.Settings.AuraReset = "Ripristina predefiniti"
 L.Settings.AuraResetConfirm = "Ripristina"
-L.Settings.AuraResetPrompt = "Ripristinare la barra di stato e l'icona di %s alle impostazioni predefinite?"
 L.Settings.AuraResetDisplayPrompt = "Ripristinare «%s» di %s alle impostazioni predefinite?"
 L.Settings.AuraResetSpellsPrompt =
 "Ripristinare le magie monitorate da %s alla selezione predefinita? Le magie che hai aggiunto vengono mantenute."
@@ -231,12 +216,6 @@ L.Settings.AuraNoTrackedSpells = "%s sorveglia una singola aura, quindi qui non 
 L.Settings.AuraNoSpellMatches = "Nessuna magia corrisponde alla tua ricerca."
 L.Settings.AurasRebuildHelp =
 "Alcune impostazioni potrebbero richiedere un ricaricamento dopo l'applicazione. Ti verrà richiesto di farlo quando avrai finito di personalizzare."
-L.Settings.AuraBuiltinCooldowns = "Recuperi tracciati"
-L.Settings.AuraBuiltinCooldownsNote =
-"La visualizzazione di Percepire potere mostra anche questi recuperi principali quando il giocatore in evidenza ne usa uno."
-L.Settings.AuraBuiltinDefensives = "Difese tracciate"
-L.Settings.AuraBuiltinDefensivesNote =
-"Mostra queste abilità difensive quando il giocatore in evidenza ne usa una."
 L.Settings.AuraCustomCooldowns = "Aure personalizzate"
 L.Settings.AuraCustomCooldownsNote =
 "Devono essere BENEFICI che appaiono sui giocatori, così gli effetti dei gingilli funzionano. Malefici e lanci non possono essere tracciati qui, e aggiungerne uno non farà assolutamente nulla."

@@ -98,8 +98,8 @@ local CHROME_RESERVE = 6
 local MIN_RAIL_HEIGHT = 120
 local MIN_LIST_HEIGHT = 40
 
---- Shared with the old panel and with the Appearance sub-tab deliberately: the dialog is registered at
---- click time by whoever was clicked, and a second key would stack a second identical prompt.
+--- Shared with the Appearance sub-tab deliberately: the dialog is registered at click time by whichever
+--- button was clicked, and a second key would stack a second identical prompt.
 local RESET_POPUP = "SPOTLIGHTS_AURA_RESET"
 
 --- Which category the strip has selected, and its localised name for the reset prompt. Both handed in

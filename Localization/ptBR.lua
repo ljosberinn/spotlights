@@ -11,7 +11,6 @@ L.SlashCommands.Add = "Destaca um membro da raide pelo nome"
 L.SlashCommands.List = "Lista os espaços configurados"
 L.SlashCommands.Rescan = "Força cada espaço ocupado a corresponder novamente à lista"
 L.SlashCommands.Options = "Abre o painel de configurações"
-L.SlashCommands.OptionsPreview = "Abre o painel de configurações reformulado, ainda em construção"
 
 L.Migration.FromTheFuture =
 "as configurações salvas são da versão %d mas esta build entende %d - elas foram mantidas intactas em vez de rebaixadas"
@@ -55,7 +54,6 @@ L.Settings.ImportErrorPrefix = "a sequência não começa com SPOTLIGHTS!"
 L.Settings.ImportErrorDecode = "não foi possível decodificar a sequência"
 L.Settings.ImportErrorPayload = "os dados decodificados não são uma tabela de configurações"
 L.Settings.Copy = "Copiar"
-L.Settings.ToggleMover = "Desbloquear / bloquear"
 L.Settings.Recenter = "Voltar ao centro"
 L.Settings.PlacementHeading = "Posicionamento"
 L.Settings.InterfaceHeading = "Interface"
@@ -121,8 +119,6 @@ L.Settings.GrowLeft = "Esquerda"
 L.Settings.GrowY = "Crescer verticalmente"
 L.Settings.GrowDown = "Baixo"
 L.Settings.GrowUp = "Cima"
-L.Settings.SpacingX = "Espaçamento horizontal"
-L.Settings.SpacingY = "Espaçamento vertical"
 
 L.Settings.FillHeading = "Preenchimento"
 L.Settings.Spacing = "Espaçamento"
@@ -131,15 +127,7 @@ L.Settings.SpacingVerticalShort = "V"
 L.Settings.FillOrderHeading = "Ordem de preenchimento"
 L.Settings.FillOrderCaption = "%s · quebra a cada %d · cresce %s, %s"
 L.Settings.AllowGaps = "Renderizar células vazias"
-L.Settings.AllowGapsHelp =
-"Ativado, um jogador que sai da raide deixa sua célula vazia e nada mais se move. Desativado, os destaques restantes fecham o espaço assim que você sair do combate."
 L.Settings.ClearOnLeave = "Limpar a lista ao sair do grupo"
-L.Settings.ClearOnLeaveHelp =
-"Desativado, seus destaques são lembrados entre as raides. Ativado, sair de uma raide esvazia a grade completamente - cada jogador e cada espaçador - para que a próxima comece do zero. Deslogar, recarregar e reconectar não contam como sair."
-L.Settings.CombatHelp =
-"Os destaques são reconstruídos apenas fora do combate. Adicionar ou remover um durante uma luta é lembrado e aplicado no momento em que o combate termina; nada é perdido, mas a grade não mudará no meio do pull."
-L.Settings.RosterHelp =
-"Você pode arrastar e soltar jogadores para dentro e fora do agrupamento abaixo. Você também pode arrastá-los sobre o contêiner Spotlights se pelo menos um outro jogador já estiver presente."
 L.Settings.SlotsHeader = "Espaços configurados"
 L.Settings.RaidHeader = "Membros da raide"
 L.Settings.AddSpacer = "Adicionar um espaçador"
@@ -171,8 +159,6 @@ L.Settings.PresetDeletePrompt =
 L.Settings.PresetImportAdd = "Adicionar predefinição"
 L.Settings.PresetImportErrorPrefix = "a string não é uma predefinição do Spotlights"
 L.Settings.PresetImportErrorPayload = "os dados decodificados não são uma lista de espaços"
-L.Settings.AurasEvokerOnly =
-"O rastreamento de auras é um recurso exclusivo de Evocador para Detectar Poder, Presciência e Areias Cambiantes."
 L.Settings.Prescience = "Presciência"
 L.Settings.ShiftingSands = "Areias Cambiantes"
 L.Settings.Cooldowns = "Recargas e auras personalizadas"
@@ -220,7 +206,6 @@ L.Settings.AuraSummaryBorder = "borda de %dpx"
 L.Settings.AuraSummaryNoBorder = "sem borda"
 L.Settings.AuraReset = "Restaurar padrões"
 L.Settings.AuraResetConfirm = "Restaurar"
-L.Settings.AuraResetPrompt = "Restaurar a barra de status e o ícone de %s para suas configurações padrão?"
 L.Settings.AuraResetDisplayPrompt = "Restaurar «%s» de %s para suas configurações padrão?"
 L.Settings.AuraResetSpellsPrompt =
 "Restaurar as magias que %s acompanha para a seleção padrão? As magias que você adicionou são mantidas."
@@ -232,12 +217,6 @@ L.Settings.AuraNoTrackedSpells = "%s observa uma aura específica, então não h
 L.Settings.AuraNoSpellMatches = "Nenhuma magia corresponde à sua busca."
 L.Settings.AurasRebuildHelp =
 "Algumas configurações podem precisar de um recarregamento após a aplicação. Você será solicitado a fazê-lo quando terminar de personalizar."
-L.Settings.AuraBuiltinCooldowns = "Recargas rastreadas"
-L.Settings.AuraBuiltinCooldownsNote =
-"A exibição de Sentir Poder também mostra essas grandes recargas quando o jogador em destaque usa uma."
-L.Settings.AuraBuiltinDefensives = "Defensivos rastreados"
-L.Settings.AuraBuiltinDefensivesNote =
-"Mostrar essas habilidades defensivas quando o jogador em destaque usar uma."
 L.Settings.AuraCustomCooldowns = "Auras personalizadas"
 L.Settings.AuraCustomCooldownsNote =
 "Estas devem ser BÊNÇÃOS que aparecem nos jogadores, para que efeitos de berloques funcionem. Maldições e conjurações não podem ser rastreadas aqui, e adicionar uma não fará absolutamente nada."

@@ -334,9 +334,8 @@ function Private.FillOrder.Build(page)
 		return height
 	end
 
-	-- `ScrollPane` is the same fixed-viewport-plus-`MinimalScrollBar` pattern the old panel's tabs
-	-- scroll with (`Settings.lua:1920-2005`) and the rest of this kit already reuses -- one scrollbar
-	-- style across the whole panel rather than a second one invented for this pane alone.
+	-- `ScrollPane` rather than a scrollbar of this pane's own: one scrollbar style across the whole
+	-- panel, and this is the same fixed-viewport-plus-`MinimalScrollBar` pattern every other pane uses.
 	local scrollHeight = math.max(page:GetHeight() - HEADING_RESERVE - CAPTION_RESERVE, MIN_SCROLL_HEIGHT)
 	local scrollPane = Private.Node.ScrollPane(page, canvas, scrollHeight)
 

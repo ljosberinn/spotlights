@@ -11,7 +11,6 @@ L.SlashCommands.Add = "Hebt ein Schlachtzugsmitglied namentlich hervor"
 L.SlashCommands.List = "Listet die konfigurierten Plätze auf"
 L.SlashCommands.Rescan = "Erzwingt einen erneuten Abgleich aller belegten Plätze mit der Gruppe"
 L.SlashCommands.Options = "Öffnet das Einstellungsfenster"
-L.SlashCommands.OptionsPreview = "Öffnet das überarbeitete Einstellungsfenster, das noch entsteht"
 
 L.Migration.FromTheFuture =
 "gespeicherte Einstellungen haben Version %d, aber dieser Build versteht %d – sie wurden unangetastet gelassen statt herabgestuft"
@@ -56,7 +55,6 @@ L.Settings.ImportErrorPrefix = "die Zeichenkette beginnt nicht mit SPOTLIGHTS!"
 L.Settings.ImportErrorDecode = "die Zeichenkette konnte nicht dekodiert werden"
 L.Settings.ImportErrorPayload = "die dekodierten Daten sind keine Einstellungstabelle"
 L.Settings.Copy = "Kopieren"
-L.Settings.ToggleMover = "Entsperren / sperren"
 L.Settings.Recenter = "Zurück zur Mitte"
 L.Settings.PlacementHeading = "Platzierung"
 L.Settings.InterfaceHeading = "Benutzeroberfläche"
@@ -122,8 +120,6 @@ L.Settings.GrowLeft = "Links"
 L.Settings.GrowY = "Vertikal wachsen"
 L.Settings.GrowDown = "Abwärts"
 L.Settings.GrowUp = "Aufwärts"
-L.Settings.SpacingX = "Horizontaler Abstand"
-L.Settings.SpacingY = "Vertikaler Abstand"
 
 L.Settings.FillHeading = "Füllung"
 L.Settings.Spacing = "Abstand"
@@ -132,15 +128,7 @@ L.Settings.SpacingVerticalShort = "V"
 L.Settings.FillOrderHeading = "Füllreihenfolge"
 L.Settings.FillOrderCaption = "%s · Umbruch alle %d · wächst %s, %s"
 L.Settings.AllowGaps = "Leere Zellen darstellen"
-L.Settings.AllowGapsHelp =
-"An: Ein Spieler, der den Schlachtzug verlässt, lässt seine Zelle leer und nichts anderes verschiebt sich. Aus: Die verbleibenden Hervorhebungen schließen die Lücke, sobald du außerhalb des Kampfes bist."
 L.Settings.ClearOnLeave = "Gruppe beim Verlassen der Gruppe leeren"
-L.Settings.ClearOnLeaveHelp =
-"Aus: Deine Hervorhebungen werden zwischen Schlachtzügen gespeichert. An: Das Verlassen eines Schlachtzugs leert das Raster vollständig – jeden Spieler und jeden Platzhalter –, sodass der nächste bei null beginnt. Ausloggen, Neuladen und erneutes Verbinden zählen nicht als Verlassen."
-L.Settings.CombatHelp =
-"Hervorhebungen werden nur außerhalb des Kampfes neu aufgebaut. Das Hinzufügen oder Entfernen während eines Kampfes wird gemerkt und im Moment des Kampfendes angewendet; nichts geht verloren, aber das Raster ändert sich nicht mitten im Kampf."
-L.Settings.RosterHelp =
-"Du kannst Spieler per Drag & Drop in die untenstehende Gruppierung hinein- und herausziehen. Du kannst sie auch auf den Spotlights-Container ziehen, wenn bereits mindestens ein anderer Spieler vorhanden ist."
 L.Settings.SlotsHeader = "Konfigurierte Plätze"
 L.Settings.RaidHeader = "Schlachtzugsmitglieder"
 L.Settings.AddSpacer = "Platzhalter hinzufügen"
@@ -172,7 +160,6 @@ L.Settings.PresetDeletePrompt =
 L.Settings.PresetImportAdd = "Vorlage hinzufügen"
 L.Settings.PresetImportErrorPrefix = "die Zeichenfolge ist keine Spotlights-Vorlage"
 L.Settings.PresetImportErrorPayload = "die decodierten Daten sind keine Platzliste"
-L.Settings.AurasEvokerOnly = "Aura-Verfolgung ist eine reine Rufer-Funktion für Macht erspüren, Voraussicht und Verändernde Sande."
 L.Settings.Prescience = "Voraussicht"
 L.Settings.ShiftingSands = "Verändernde Sande"
 L.Settings.Cooldowns = "Abklingzeiten & benutzerdefinierte Auren"
@@ -220,7 +207,6 @@ L.Settings.AuraSummaryBorder = "%dpx Rahmen"
 L.Settings.AuraSummaryNoBorder = "kein Rahmen"
 L.Settings.AuraReset = "Auf Standard zurücksetzen"
 L.Settings.AuraResetConfirm = "Zurücksetzen"
-L.Settings.AuraResetPrompt = "Statusleiste und Symbol von %s auf die Standardeinstellungen zurücksetzen?"
 L.Settings.AuraResetDisplayPrompt = "%s von %s auf die Standardeinstellungen zurücksetzen?"
 L.Settings.AuraResetSpellsPrompt =
 "Die von %s überwachten Zauber auf die Standardauswahl zurücksetzen? Selbst hinzugefügte Zauber bleiben erhalten."
@@ -233,12 +219,6 @@ L.Settings.AuraNoTrackedSpells =
 L.Settings.AuraNoSpellMatches = "Keine Zauber entsprechen deiner Suche."
 L.Settings.AurasRebuildHelp =
 "Einige Einstellungen benötigen nach der Anwendung möglicherweise ein Neuladen. Du wirst dazu aufgefordert, sobald du mit dem Anpassen fertig bist."
-L.Settings.AuraBuiltinCooldowns = "Verfolgte Abklingzeiten"
-L.Settings.AuraBuiltinCooldownsNote =
-"Die Anzeige von Macht spüren zeigt diese wichtigen Abklingzeiten auch an, wenn der hervorgehobene Spieler eine davon einsetzt."
-L.Settings.AuraBuiltinDefensives = "Verfolgte defensive Fähigkeiten"
-L.Settings.AuraBuiltinDefensivesNote =
-"Diese defensiven Fähigkeiten anzeigen, wenn der hervorgehobene Spieler eine davon einsetzt."
 L.Settings.AuraCustomCooldowns = "Benutzerdefinierte Auren"
 L.Settings.AuraCustomCooldownsNote =
 "Dies müssen STÄRKUNGSZAUBER sein, die auf Spielern erscheinen, Schmuckstück-Effekte funktionieren beispielsweise. Schwächungszauber und Zauber können hier nicht verfolgt werden, und das Hinzufügen bewirkt überhaupt nichts."

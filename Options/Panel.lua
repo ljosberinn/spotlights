@@ -6,10 +6,9 @@ Private.Options = {}
 
 --- The window the layout kit lives in.
 ---
---- Window management -- `UISpecialFrames`, the combat close, the reload offer, lazy tab building -- is
---- lifted from `Settings.lua` rather than rethought: those behaviours encode bugs that are already fixed,
---- and their reasons are carried over with them. What is new here is the shape: a fixed content rectangle
---- handed to one node per tab, instead of a scroll child every widget anchors itself into.
+--- Its shape is what the layout kit needs: a fixed content rectangle handed to one node per tab, rather
+--- than a scroll child every widget anchors itself into. Window management -- `UISpecialFrames`, the
+--- combat close, the reload offer, lazy tab building -- is separate from that and sits here.
 
 --- 780 leaves 710 right of the portrait for the tab strip, and the layout frame puts a pixel between each
 --- pair of tabs: 6 * 117 + 5 * 1 = 707, so six tabs fit with the remainder inside the panel rather than
@@ -28,12 +27,11 @@ local TAB_STRIP_Y = -26
 --- What every tab lays out against. Two ~350 columns with a 26 gutter, or a 196 rail beside a 536 pane.
 local CONTENT_WIDTH = PANEL_WIDTH - CONTENT_INSET * 2
 
---- Between the tab strip's bottom edge and the content, as the old panel already spaces them.
+--- Between the tab strip's bottom edge and the content.
 local CONTENT_GAP = 8
 
---- Shared with the old panel deliberately. Both panels offer the same reload for the same reason, and
---- `StaticPopup_Show` reuses the dialog already on screen for a given key -- two keys would stack two
---- identical prompts when combat closes both panels in the same frame.
+--- One key for the reload prompt wherever it is offered from: `StaticPopup_Show` reuses the dialog
+--- already on screen for a given key, so a second key would stack two identical prompts.
 local AURA_RELOAD_POPUP = "SPOTLIGHTS_AURA_RELOAD"
 
 ---@type SpotlightsOptionsFrame?
@@ -154,10 +152,9 @@ local function Get()
 
 	local L = Private.L.Settings
 
-	--- `PortraitFrameTemplate`, the same window the old panel uses and what `PlayerSpellsFrame` and the
-	--- rest of the modern panels are built from: a `NineSlicePanelTemplate` whose `layoutType` the game
-	--- resolves itself, so the borders follow Blizzard's current panel art rather than the build we were
-	--- written against.
+	--- `PortraitFrameTemplate`, what `PlayerSpellsFrame` and the rest of the modern panels are built from:
+	--- a `NineSlicePanelTemplate` whose `layoutType` the game resolves itself, so the borders follow
+	--- Blizzard's current panel art rather than the build we were written against.
 	panel = CreateFrame("Frame", "SpotlightsOptions", UIParent, "PortraitFrameTemplate") --[[@as SpotlightsOptionsFrame]]
 	panel:SetSize(PANEL_WIDTH, PANEL_HEIGHT)
 	panel:SetPoint("CENTER")
@@ -352,8 +349,6 @@ Private.Events.RegisterEvent("PLAYER_REGEN_DISABLED", function()
 	end
 end)
 
---- The rework's entry point while it is being built. The old `/spotlights options` is untouched until the
---- cutover replaces it.
-Private.SlashCommands.Register("options2", "OptionsPreview", function()
+Private.SlashCommands.Register("options", "Options", function()
 	Private.Options.SetShown()
 end)

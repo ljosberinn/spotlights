@@ -104,9 +104,9 @@ end
 
 --- Points the preview layer at the selected category, rebuilding it when that moved.
 ---
---- **Only while this tab is the one on screen.** The preview layer is global, and the old panel drives
---- it from its own strip until the cutover deletes it -- so pushing from a panel the user is not looking
---- at would repoint the previews the other one is showing.
+--- **Only while this tab is the one on screen.** The preview layer is global and the panel's other tabs
+--- do not want it repointed under them, so a category selected here means nothing until the user is
+--- looking at it.
 local function ApplyPreviewFeature()
 	if not auraPage or not auraPage:IsVisible() then
 		return

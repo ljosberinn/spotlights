@@ -13,7 +13,6 @@
 ---@field Preview SpotlightsPreview
 ---@field AuraPreview SpotlightsAuraPreviews
 ---@field Media SpotlightsMedia
----@field Widgets SpotlightsWidgets
 ---@field Node SpotlightsNodeKit
 ---@field Controls SpotlightsControls
 ---@field PreviewPane SpotlightsPreviewPane
@@ -24,7 +23,6 @@
 ---@field Profile SpotlightsProfile
 ---@field RosterList SpotlightsRosterList
 ---@field RosterPresets SpotlightsRosterPresets
----@field Settings SpotlightsSettings
 ---@field ContextMenu SpotlightsContextMenu
 ---@field DragAssign SpotlightsDragAssign
 ---@field SlotHeader SpotlightsSlotHeader
@@ -37,6 +35,13 @@
 ---@field Auras SpotlightsAuras
 ---@field SlashCommands SpotlightsSlashCommands
 ---@field DB SpotlightsDB? nil until ADDON_LOADED has run the migration
+
+--- The three XML templates in `Blizzard_SharedXML/TabSystemTemplates.xml` the tab strips inherit from.
+--- Declared here because the WoW API annotations model Lua mixins but not XML templates, so inheriting
+--- from one is otherwise an undefined class.
+---@class TabSystemTemplate
+---@class TabSystemTopButtonTemplate
+---@class TabSystemButtonTemplate
 
 --- A button acquired by `TabSystemTemplate` for a top-oriented tab strip.
 ---@class TabSystemTopButtonFrame : Button, TabSystemTopButtonTemplate

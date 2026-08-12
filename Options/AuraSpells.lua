@@ -13,10 +13,9 @@ Private.AuraSpells = {}
 --- in `Auras.lua` for a reader that only exists while the panel is open.
 ---
 --- **The one place that knows which pool a category draws from.** Sense Power shares the cooldown pool
---- rather than having one of its own, Prescience and Shifting Sands have none at all, and that rule was
---- previously spelled out at each of the six call sites in `Settings.lua` that needed it. `FEATURE_POOLS`
---- is the whole of it now, and it is what lets both panels ask the same questions of a category without
---- either of them learning what a pool is.
+--- rather than having one of its own, and Prescience and Shifting Sands have none at all. `FEATURE_POOLS`
+--- is the whole of that rule, which is what lets the tracked pane ask the same questions of every
+--- category without learning what a pool is.
 
 --- The user's own spells, listed as a group of their own so the panel has somewhere to put them.
 ---
@@ -26,9 +25,9 @@ local CUSTOM_KEY = "CUSTOM"
 
 --- One class's spells, or the user's own.
 ---
---- `heading`, `r`, `g` and `b` are what the old panel's flat list draws for a class row, so a group *is*
---- the heading entry rather than something a heading is derived from -- which is also why the class
---- enable helpers below take a group: they are handed one by both panels.
+--- `heading`, `r`, `g` and `b` are what a class row draws, so a group *is* the heading entry rather than
+--- something a heading is derived from -- which is also why the class enable helpers below take a group:
+--- the row that offers the toggle already holds one.
 ---@class SpotlightsAuraSpellGroup
 ---@field key string the class file, or `CUSTOM`
 ---@field heading string the class name, localised by the client
@@ -43,11 +42,10 @@ local CUSTOM_KEY = "CUSTOM"
 ---
 --- A table rather than a branch per question. Six of the functions below differ only in which of two
 --- sets of `Private.Auras` accessors they reach for, and written out each would restate the same
---- two-way choice six times -- which is exactly the shape `Settings.lua` had and the shape this file
---- exists to remove.
+--- two-way choice six times.
 ---
---- `groups` and `flat` are filled on first use and kept: the shipped tables cannot change while the
---- game is running. The *toggles* are read per call, never baked in here.
+--- `groups` is filled on first use and kept: the shipped tables cannot change while the game is
+--- running. The *toggles* are read per call, never baked in here.
 ---@class SpotlightsAuraSpellPool
 ---@field spells table<integer, table<integer, boolean>> the shipped list, by class
 ---@field IsEnabled fun(spellID: integer, custom: boolean?): boolean
@@ -57,7 +55,6 @@ local CUSTOM_KEY = "CUSTOM"
 ---@field RemoveCustom fun(spellID: integer): boolean
 ---@field Reset fun(): boolean
 ---@field groups SpotlightsAuraSpellGroup[]?
----@field flat table[]?
 
 ---@type table<string, SpotlightsAuraSpellPool>
 local POOLS = {
@@ -97,10 +94,9 @@ local FEATURE_POOLS = {
 
 --- The class groups, in the order the panel lists them.
 ---
---- Sorted by the localised class name rather than left in `pairs` order, which is what the old panel
---- used and is no order at all: the same list could come out differently between two sessions. A rail
---- the user searches by typing a class name is worth being able to scan alphabetically, and the flat
---- list built from these groups inherits the same order.
+--- Sorted by the localised class name rather than left in `pairs` order, which is no order at all: the
+--- same list could come out differently between two sessions. A rail the user searches by typing a class
+--- name is worth being able to scan alphabetically.
 ---@param pool SpotlightsAuraSpellPool
 ---@return SpotlightsAuraSpellGroup[]
 local function BuiltinGroups(pool)
@@ -217,61 +213,6 @@ function Private.AuraSpells.Group(featureKey, key)
 	return nil
 end
 
---- The old panel's rows: a class heading, then that class's spells, for every class that has any.
----
---- Built once and kept, since neither the shipped table nor the order it is listed in can change while
---- the game is running.
----@param featureKey SpotlightsAuraFeatureKey
----@return table[]
-function Private.AuraSpells.Entries(featureKey)
-	local pool = FEATURE_POOLS[featureKey]
-
-	if not pool then
-		return {}
-	end
-
-	if pool.flat then
-		return pool.flat
-	end
-
-	local groups = BuiltinGroups(pool)
-	local entries = {}
-
-	for i = 1, #groups do
-		local group = groups[i]
-
-		entries[#entries + 1] = group
-
-		for j = 1, #group.spellIDs do
-			entries[#entries + 1] = { spellID = group.spellIDs[j] }
-		end
-	end
-
-	pool.flat = entries
-
-	return entries
-end
-
---- The user's own rows, which are whatever they have added.
----@param featureKey SpotlightsAuraFeatureKey
----@return { spellID: integer }[]
-function Private.AuraSpells.CustomEntries(featureKey)
-	local pool = FEATURE_POOLS[featureKey]
-	local entries = {}
-
-	if not pool then
-		return entries
-	end
-
-	local spellIDs = pool.Custom()
-
-	for i = 1, #spellIDs do
-		entries[i] = { spellID = spellIDs[i] }
-	end
-
-	return entries
-end
-
 ---@param featureKey SpotlightsAuraFeatureKey
 ---@param spellID integer
 ---@param custom boolean? whether `spellID` is a user-added entry rather than a shipped one
@@ -335,44 +276,6 @@ function Private.AuraSpells.Counts(featureKey, group)
 	end
 
 	return enabled, #group.spellIDs
-end
-
---- Whether every spell in a group is on, which is what a group-level checkbox shows.
----
---- `nil` rather than `false` for a category with no pool, because the old panel's list draws the
---- checkbox only where this answers at all.
----@param featureKey SpotlightsAuraFeatureKey
----@param group SpotlightsAuraSpellGroup
----@return boolean?
-function Private.AuraSpells.IsGroupEnabled(featureKey, group)
-	local pool = FEATURE_POOLS[featureKey]
-
-	if not pool then
-		return nil
-	end
-
-	for i = 1, #group.spellIDs do
-		if not pool.IsEnabled(group.spellIDs[i], group.custom) then
-			return false
-		end
-	end
-
-	return true
-end
-
----@param featureKey SpotlightsAuraFeatureKey
----@param group SpotlightsAuraSpellGroup
----@param enabled boolean
-function Private.AuraSpells.SetGroupEnabled(featureKey, group, enabled)
-	local pool = FEATURE_POOLS[featureKey]
-
-	if not pool then
-		return
-	end
-
-	for i = 1, #group.spellIDs do
-		pool.SetEnabled(group.spellIDs[i], enabled, group.custom)
-	end
 end
 
 --- Restores a category's tracked list to what it ships as.
