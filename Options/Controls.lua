@@ -146,6 +146,13 @@ end
 --- The mixin's `Init(value, min, max, steps, formatters)` takes a *count* of steps and derives the step
 --- from it, so the caller's `step` is converted back to a count here. `formatters` maps the mixin's label
 --- enum to a function; `RightText` is the live value slot the edit box overlays.
+--- What a fractional slider steps by, whatever step its caller asked for.
+---
+--- The value box prints two decimals for any step below one, so the stepper has to be able to reach
+--- every value that box will show: at a coarser step the arrows walk past a number the user typed and
+--- can never come back to it.
+local FRACTION_STEP = 0.01
+
 ---@param parent Frame
 ---@param label string
 ---@param minimum number
@@ -153,9 +160,10 @@ end
 ---@param step number
 ---@param get fun(): number
 ---@param set fun(value: number)
+---@param enabled (fun(): boolean)? absent means always enabled
 ---@param labelWidth number?
 ---@return SpotlightsNode
-function Private.Controls.Slider(parent, label, minimum, maximum, step, get, set, labelWidth)
+function Private.Controls.Slider(parent, label, minimum, maximum, step, get, set, enabled, labelWidth)
 	local row = CreateRow(parent)
 
 	local caption = CreateLabel(row, label)
@@ -185,10 +193,15 @@ function Private.Controls.Slider(parent, label, minimum, maximum, step, get, set
 		return string.format("%.2f", number)
 	end
 
-	-- The step the caller gives is a *distance*; the mixin wants the number of steps across the range.
-	-- `math.max` guards a `step` wider than the range, which would otherwise ask for a fractional count
-	-- and then divide by it.
-	local steps = math.max(math.floor((maximum - minimum) / step), 1)
+	--- The step the caller gives is a *distance*; the mixin wants the number of steps across the range,
+	--- which it divides the range back by. **Rounded rather than truncated**, since a range that is a
+	--- whole number of steps rarely divides to one in binary -- `0.9 / 0.05` is `17.999...`, and
+	--- truncating that hands back a slider stepping by `0.0529`.
+	---
+	--- `math.max` guards a `step` wider than the range, which would otherwise ask for a fractional count
+	--- and then divide by it.
+	local steps = math.max(math.floor((maximum - minimum) / (wholeNumbers and step or FRACTION_STEP)
+		+ 0.5), 1)
 
 	-- `Init` paints the control: it calls `SetValue`, which fires the mixin's `OnValueChanged` event. That
 	-- first event fires *before* the callback below is registered, so it cannot reach the database -- there
@@ -260,6 +273,15 @@ function Private.Controls.Slider(parent, label, minimum, maximum, step, get, set
 		refreshing = true
 		slider:SetValue(get())
 		refreshing = false
+
+		--- Re-read on every pass, like the colour swatch's: a setting that does nothing in the current
+		--- mode dims rather than hides, so the row stays put and no relayout is needed. The mixin greys
+		--- the thumb, the value and both steppers; the edit box over the value is ours to stop, and must
+		--- be -- a disabled slider you can still type into is worse than no dimming at all.
+		local on = enabled == nil or enabled()
+
+		slider:SetEnabled(on)
+		editBox:SetEnabled(on)
 	end
 
 	function row:Layout(width)

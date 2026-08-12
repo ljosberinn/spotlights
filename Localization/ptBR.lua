@@ -200,6 +200,7 @@ L.Settings.AuraSummaryNoBorder = "sem borda"
 L.Settings.AuraReset = "Restaurar padrões"
 L.Settings.AuraResetConfirm = "Restaurar"
 L.Settings.AuraResetPrompt = "Restaurar a barra de status e o ícone de %s para suas configurações padrão?"
+L.Settings.AuraResetDisplayPrompt = "Restaurar «%s» de %s para suas configurações padrão?"
 L.Settings.AurasRebuildHelp =
 "Algumas configurações podem precisar de um recarregamento após a aplicação. Você será solicitado a fazê-lo quando terminar de personalizar."
 L.Settings.AuraBuiltinCooldowns = "Recargas rastreadas"

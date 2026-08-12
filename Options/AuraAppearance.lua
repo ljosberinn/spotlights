@@ -44,13 +44,14 @@ local BORDER_SIZE_MIN, BORDER_SIZE_MAX = 1, 32
 local OFFSET_MIN, OFFSET_MAX = -200, 200
 
 --- Never fully transparent, for the same reason a spotlight is not: a display at zero opacity is
---- indistinguishable from one that failed to build.
-local ALPHA_MIN, ALPHA_MAX, ALPHA_STEP = 0.05, 1, 0.05
+--- indistinguishable from one that failed to build. The step is what the value box shows, two decimals
+--- -- see `Controls`' `FRACTION_STEP`.
+local ALPHA_MIN, ALPHA_MAX, ALPHA_STEP = 0.05, 1, 0.01
 
---- What this sub-tab's chrome costs its own height: the gap under the Auras tab's sub-tab strip, then
---- the gap above the reset button and the button's row. The scroll pane gets whatever is left, so it
---- fills the tab rather than a guess at how tall two sections "usually" are.
-local CHROME_RESERVE = 6 + 6 + 26
+--- What this sub-tab's chrome costs its own height: the gap under the Auras tab's sub-tab strip. The
+--- scroll pane gets everything else, so it fills the tab rather than a guess at how tall two sections
+--- "usually" are.
+local CHROME_RESERVE = 6
 
 --- Floor for the scroll pane, in case the window is ever shorter than this tab's chrome costs -- better
 --- a cramped pane than a negative height Blizzard errors on.
@@ -164,6 +165,20 @@ local function Setter(displayKey, field)
 	end
 end
 
+--- Writes the border style and re-reads the whole tab.
+---
+--- `None` is how "no border" is spelled, and the thickness and colour beside it gate on that but only
+--- sample it in their own `Refresh` -- so the plain setter would leave a just-disabled swatch looking
+--- clickable. No relayout is owed: a disabled control dims rather than hides, so nothing moves.
+---@param displayKey SpotlightsAuraDisplayKey
+---@return fun(value: any)
+local function BorderStyleSetter(displayKey)
+	return function(value)
+		SetAura(displayKey, "borderTexture", value)
+		Private.Options.Refresh()
+	end
+end
+
 --- Reads a colour stored as four separately named fields.
 ---
 --- Named rather than derived from a prefix: a bar's own colour is `r`/`g`/`b`/`alpha` while its border's
@@ -205,6 +220,17 @@ local function ColorSetter(displayKey, red, green, blue, alpha)
 
 		Private.AuraPreview.Restyle()
 		RefreshSections()
+	end
+end
+
+--- Whether a display draws a border at all, which is the one thing its thickness and its colour both
+--- depend on: `None` is LibSharedMedia's empty path, and `StyleBorder` hides the backdrop outright
+--- rather than drawing a nothing-wide edge in the chosen colour.
+---@param displayKey SpotlightsAuraDisplayKey
+---@return fun(): boolean
+local function HasBorder(displayKey)
+	return function()
+		return Display(displayKey).borderTexture ~= BORDER_NONE
 	end
 end
 
@@ -355,6 +381,40 @@ local function BuildPreview(page, displayKey)
 	return pane
 end
 
+--- Restores one display to its shipped values, after asking.
+---
+--- Confirmed rather than immediate: a reset discards a layout the user may have spent a while on, and a
+--- stray click on the button ending a section is the accident a confirmation exists to catch.
+---@param displayKey SpotlightsAuraDisplayKey
+---@param label string the display's own name, which the prompt names beside the category's
+local function ConfirmReset(displayKey, label)
+	local L = Private.L.Settings
+
+	-- Registered at click time rather than at load: the localisation table is filled by now, and the
+	-- category named in the prompt is whichever the strip has selected at the click rather than whichever
+	-- it had when this tab was built.
+	StaticPopupDialogs[RESET_POPUP] = {
+		text = string.format(L.AuraResetDisplayPrompt, label, ActiveName()),
+		button1 = L.AuraResetConfirm,
+		button2 = CANCEL,
+		timeout = 0,
+		whileDead = true,
+		hideOnEscape = true,
+		preferredIndex = 3,
+
+		OnAccept = function()
+			Private.Auras.ResetDisplay(ActiveFeature(), displayKey)
+
+			-- The whole tab rather than the summaries alone: every control in the section now shows a
+			-- value that has just been replaced.
+			Private.Options.Refresh()
+			Private.AuraPreview.Restyle()
+		end,
+	}
+
+	StaticPopup_Show(RESET_POPUP)
+end
+
 --- The border sub-heading and its three controls, identical for both displays.
 ---
 --- A border is the one piece of styling that does not care whether it is around a bar or an icon, so
@@ -373,27 +433,39 @@ local function BorderRows(page, displayKey)
 		Private.Controls.Dropdown(page, L.AuraBorderStyle, function()
 			return Private.Controls.MediaChoices(Private.Media.BorderList(),
 				Private.Media.IsBorderRegistered, Display(displayKey).borderTexture)
-		end, Getter(displayKey, "borderTexture"), Setter(displayKey, "borderTexture")),
+		end, Getter(displayKey, "borderTexture"), BorderStyleSetter(displayKey)),
 
+		-- Both dim while the style is `None`, because both are then settings for something that is not
+		-- drawn -- which is otherwise only discoverable by picking a colour and watching nothing happen.
 		Private.Controls.Slider(page, L.AuraBorderSize, BORDER_SIZE_MIN, BORDER_SIZE_MAX, 1,
-			Getter(displayKey, "borderSize"), Setter(displayKey, "borderSize")),
+			Getter(displayKey, "borderSize"), Setter(displayKey, "borderSize"), HasBorder(displayKey)),
 
 		Private.Controls.ColorSwatch(page, L.AuraBorderColor,
 			ColorGetter(displayKey, "borderR", "borderG", "borderB", "borderA"),
-			ColorSetter(displayKey, "borderR", "borderG", "borderB", "borderA")),
+			ColorSetter(displayKey, "borderR", "borderG", "borderB", "borderA"), HasBorder(displayKey)),
 	}
 end
 
+--- One section's body: its own controls, then the border group, then the reset that belongs to it.
+---
+--- The reset is per display rather than one for the category, because the two displays are configured
+--- independently and one button for both would discard the half the user was happy with. Inside the
+--- grid, so it ends the controls it resets rather than floating under the pane beside them.
 ---@param page Frame
 ---@param rows SpotlightsNode[]
 ---@param displayKey SpotlightsAuraDisplayKey
+---@param label string
 ---@return SpotlightsNode
-local function BuildBody(page, rows, displayKey)
+local function BuildBody(page, rows, displayKey, label)
 	local border = BorderRows(page, displayKey)
 
 	for i = 1, #border do
 		rows[#rows + 1] = border[i]
 	end
+
+	rows[#rows + 1] = Private.Controls.ActionButton(page, Private.L.Settings.AuraReset, function()
+		ConfirmReset(displayKey, label)
+	end, true)
 
 	return Private.Node.Split(page, Private.Node.Grid(page, rows, 2, COLUMN_LABEL_WIDTH),
 		BuildPreview(page, displayKey), { rightWidth = Private.PreviewPane.Width })
@@ -443,7 +515,7 @@ local function BuildIconBody(page)
 			Setter("icon", "x")),
 		Private.Controls.Slider(page, L.AuraOffsetY, OFFSET_MIN, OFFSET_MAX, 1, Getter("icon", "y"),
 			Setter("icon", "y")),
-	}, "icon")
+	}, "icon", L.AuraIcon)
 end
 
 ---@param page Frame
@@ -486,39 +558,7 @@ local function BuildBarBody(page)
 			Setter("bar", "x")),
 		Private.Controls.Slider(page, L.AuraOffsetY, OFFSET_MIN, OFFSET_MAX, 1, Getter("bar", "y"),
 			Setter("bar", "y")),
-	}, "bar")
-end
-
---- Restores the selected category's displays to their shipped values, after asking.
----
---- Confirmed rather than immediate: a reset discards a layout the user may have spent a while on, and a
---- stray click on a button pinned under the pane is the accident a confirmation exists to catch.
-local function ConfirmReset()
-	local L = Private.L.Settings
-
-	-- Registered at click time rather than at load: the localisation table is filled by now, and the
-	-- category named in the prompt is whichever the strip has selected at the click rather than whichever
-	-- it had when this tab was built.
-	StaticPopupDialogs[RESET_POPUP] = {
-		text = string.format(L.AuraResetPrompt, ActiveName()),
-		button1 = L.AuraResetConfirm,
-		button2 = CANCEL,
-		timeout = 0,
-		whileDead = true,
-		hideOnEscape = true,
-		preferredIndex = 3,
-
-		OnAccept = function()
-			Private.Auras.ResetFeature(ActiveFeature())
-
-			-- The whole tab rather than the summaries alone: every control on it now shows a value that
-			-- has just been replaced.
-			Private.Options.Refresh()
-			Private.AuraPreview.Restyle()
-		end,
-	}
-
-	StaticPopup_Show(RESET_POPUP)
+	}, "bar", L.AuraBar)
 end
 
 --- Collapses nothing and expands everything: the open state is transient, and this is what makes it so.
@@ -564,18 +604,12 @@ function Private.AuraAppearance.Build(page, GetFeature, GetName)
 	local scrollHeight = math.max(page:GetHeight() - Private.Node.SubTabHeight - CHROME_RESERVE,
 		MIN_SCROLL_HEIGHT)
 
-	return Private.Node.Column(page, {
-		Private.Node.ScrollPane(page, Private.Node.Column(page, {
-			icon,
-			bar,
+	return Private.Node.ScrollPane(page, Private.Node.Column(page, {
+		icon,
+		bar,
 
-			-- Last, and the explanation of everything above it: the one place the cost of a frozen
-			-- setting is visible to the user.
-			Private.Controls.Paragraph(page, L.AurasRebuildHelp),
-		}, SECTION_GAP), scrollHeight),
-
-		-- Outside the pane rather than at the end of it, so a reset is never something the user has to
-		-- scroll two open sections to reach.
-		Private.Controls.ActionButton(page, L.AuraReset, ConfirmReset, true),
-	})
+		-- Last, and the explanation of everything above it: the one place the cost of a frozen setting
+		-- is visible to the user.
+		Private.Controls.Paragraph(page, L.AurasRebuildHelp),
+	}, SECTION_GAP), scrollHeight)
 end

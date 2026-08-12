@@ -612,7 +612,18 @@ local FROZEN = {
 	borderR = true,
 	borderG = true,
 	borderB = true,
+
+	-- With its three channels, and for the same reason: all four reach the backdrop through one
+	-- `SetBackdropBorderColor` below the access restriction. Left out, an alpha write took the free
+	-- path, which re-anchors a display without restyling it -- so it changed nothing anywhere but the
+	-- preview.
+	borderA = true,
 }
+
+--- How faint a preview bar's unfilled remainder is against its own fill. Enough to read the bar's
+--- extent against a spotlight, little enough that the fill still reads as the fill -- and multiplied by
+--- the display's own opacity on top, since it sits under the same anchor.
+local TRACK_ALPHA = 0.35
 
 --- How long a frozen setting has to stop changing before anything is rebuilt.
 ---
@@ -770,6 +781,20 @@ local function CreateBar(host, config, spellID, everything)
 	---@type SpotlightsAuraRegions
 	local regions = { bar = CreateFrame("StatusBar", nil, host) }
 
+	--- The unfilled remainder of the bar, and **preview-only**.
+	---
+	--- A `StatusBar` draws nothing where it is not filled, and a preview's fill is a fixed two thirds --
+	--- so without this the pane reports a bar a third narrower than the one being configured, and a
+	--- width dragged to cover a spotlight looks like it does not. A live display needs none: its fill
+	--- moves, which is what says where the bar ends.
+	---
+	--- On `host` rather than on the status bar, so it draws under the fill: a child frame is above every
+	--- region of its parent whatever layer they claim.
+	if everything then
+		regions.barTrack = host:CreateTexture(nil, "BACKGROUND")
+		regions.barTrack:SetAllPoints(regions.bar)
+	end
+
 	if config.showIcon or everything then
 		regions.barIcon = host:CreateTexture(nil, "ARTWORK")
 
@@ -803,10 +828,18 @@ end
 local function StyleBar(regions, anchor, config)
 	local bar = regions.bar --[[@as StatusBar]]
 	local icon = regions.barIcon
+	local path = Private.Media.StatusBar(config.texture)
 
-	bar:SetStatusBarTexture(Private.Media.StatusBar(config.texture))
+	bar:SetStatusBarTexture(path)
 	bar:SetStatusBarColor(config.r, config.g, config.b)
 	bar:ClearAllPoints()
+
+	-- The same material and colour as the fill, faint: the remainder has to read as the rest of *this*
+	-- bar rather than as a second one behind it.
+	if regions.barTrack then
+		regions.barTrack:SetTexture(path)
+		regions.barTrack:SetVertexColor(config.r, config.g, config.b, TRACK_ALPHA)
+	end
 
 	if icon then
 		-- A no-op on a live display, where the region exists only when wanted. The preview is the
@@ -1893,30 +1926,39 @@ function Private.Auras.SetFeatureEnabled(featureKey, enabled)
 	return true
 end
 
---- Restores one feature's bar and icon to fresh-install values, leaving the shared spell pool alone
---- and the feature's own switch where the user put it: a reset is about how a feature looks, and
---- silently switching a category back on would undo a decision the button does not mention.
+--- Restores one feature's bar and icon at once, for a caller offering a reset per category.
+---@param featureKey SpotlightsAuraFeatureKey
+function Private.Auras.ResetFeature(featureKey)
+	for i = 1, #DISPLAYS do
+		Private.Auras.ResetDisplay(featureKey, DISPLAYS[i].key)
+	end
+end
+
+--- Restores one display to fresh-install values, leaving the shared spell pool alone and the feature's
+--- own switch where the user put it: a reset is about how a display looks, and silently switching a
+--- category back on would undo a decision the button does not mention.
 ---
---- Written through `SetSetting` field by field rather than swapping the two blocks, so a reset takes
---- the same free/frozen routing every other write does: frozen fields coalesce into one rebuild per
---- display, free ones into one reapply, and the reload prompt arms as a manual edit would. Assigning
---- the tables directly would strand the live displays pointing at the old config, and skip the leak
---- accounting a rebuild owes.
+--- Per display rather than per feature because that is the unit the user edits -- the two are
+--- independent, configured one at a time, and a button that reset both would discard the one they were
+--- happy with.
+---
+--- Written through `SetSetting` field by field rather than swapping the block, so a reset takes the
+--- same free/frozen routing every other write does: frozen fields coalesce into one rebuild, free ones
+--- into one reapply, and the reload prompt arms as a manual edit would. Assigning the table directly
+--- would strand the live display pointing at the old config, and skip the leak accounting a rebuild
+--- owes.
 ---
 --- Unchanged fields cost nothing: `SetSetting` early-outs when the stored value already matches.
 ---
 --- `Private.Migration.DefaultAuraFeature` hands back a freshly built pair every call, so the values
 --- read here are never aliased to the database being written.
 ---@param featureKey SpotlightsAuraFeatureKey
-function Private.Auras.ResetFeature(featureKey)
-	local defaults = Private.Migration.DefaultAuraFeature(featureKey)
+---@param displayKey SpotlightsAuraDisplayKey
+function Private.Auras.ResetDisplay(featureKey, displayKey)
+	local defaults = Private.Migration.DefaultAuraFeature(featureKey)[displayKey]
 
-	for i = 1, #DISPLAYS do
-		local displayKey = DISPLAYS[i].key
-
-		for field, value in pairs(defaults[displayKey]) do
-			Private.Auras.SetSetting(featureKey, displayKey, field, value)
-		end
+	for field, value in pairs(defaults) do
+		Private.Auras.SetSetting(featureKey, displayKey, field, value)
 	end
 end
 

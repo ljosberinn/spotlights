@@ -238,6 +238,10 @@ L.Settings.AuraResetConfirm = "Reset"
 -- silent about the tracked cooldown list because a reset does not touch it and Prescience has none.
 L.Settings.AuraResetPrompt = "Reset %s's Status Bar And Icon To Their Default Settings?"
 
+-- The reworked panel resets one display at a time, since the two are configured independently: the
+-- display first, then the category it belongs to.
+L.Settings.AuraResetDisplayPrompt = "Reset The %s For %s To Its Default Settings?"
+
 -- The one place the cost of the design is visible to the user, so it says what it costs rather than
 -- only that it costs something.
 L.Settings.AurasRebuildHelp =

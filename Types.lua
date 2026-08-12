@@ -359,6 +359,7 @@
 --- `Register`, `Preview`) are dispatched per kind anyway.
 ---@class SpotlightsAuraRegions
 ---@field bar StatusBar?
+---@field barTrack Texture? the unfilled remainder behind a **preview** bar, so its rect is visible
 ---@field barIcon Texture? the spell icon inline at one end of a bar
 ---@field icon Texture?
 ---@field swipe Cooldown?

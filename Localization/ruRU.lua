@@ -198,6 +198,7 @@ L.Settings.AuraSummaryNoBorder = "без рамки"
 L.Settings.AuraReset = "Сбросить по умолчанию"
 L.Settings.AuraResetConfirm = "Сбросить"
 L.Settings.AuraResetPrompt = "Сбросить полосу состояния и значок %s к настройкам по умолчанию?"
+L.Settings.AuraResetDisplayPrompt = "Сбросить «%s» для %s к настройкам по умолчанию?"
 L.Settings.AurasRebuildHelp =
 "Некоторым настройкам может потребоваться перезагрузка после применения. Вам предложат сделать это, когда вы закончите настройку."
 L.Settings.AuraBuiltinCooldowns = "Отслеживаемые перезарядки"

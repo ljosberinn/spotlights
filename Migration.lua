@@ -124,7 +124,8 @@ local BORDER_NONE = "None"
 --- the same for both.
 ---
 --- The defaults reproduce the adjacent Prescience addon for the default 100x50 frame: 100px wide by
---- 25px high, pinned to the top, gold at half alpha. The fixed height keeps the bar off the player's name.
+--- 25px high, pinned to the top left, gold at half alpha. The fixed height keeps the bar off the
+--- player's name.
 ---
 --- Width and height are independent pixel dimensions, like the icon display.
 ---
@@ -205,8 +206,10 @@ end
 --- One feature's pair of displays at their shipped values, both freshly built.
 ---
 --- Which one starts on is per-feature: a duration bar is what Prescience wants; an icon with a swipe
---- is what Sense Power wants. The two bars would sit on top of each other if both were on, so the
---- second defaults to the bottom edge in a different colour.
+--- is what Sense Power wants. Every bar ships anchored **top left**, which is the corner a bar sized
+--- against a spotlight is measured from -- at `TOP` a bar narrower or wider than the frame stays
+--- centred, so a width dragged to match the frame never lines up with it. Only one bar ships enabled,
+--- so nothing overlaps out of the box; two switched on are told apart by their colours.
 ---
 --- Public and split out from `DefaultAuras` so the Reset button has one feature's defaults to write
 --- back. Fresh tables every call, so a reset cannot alias one feature's block onto another's.
@@ -224,7 +227,7 @@ function Private.Migration.DefaultAuraFeature(featureKey)
 
 		return {
 			enabled = true,
-			bar = DefaultAuraBar(false, "BOTTOM", 0.2, 0.8, 1, 0),
+			bar = DefaultAuraBar(false, "TOPLEFT", 0.2, 0.8, 1, 0),
 			icon = icon,
 		}
 	end
@@ -232,14 +235,14 @@ function Private.Migration.DefaultAuraFeature(featureKey)
 	if featureKey == "cooldownAuras" or featureKey == "defensiveAuras" then
 		return {
 			enabled = true,
-			bar = DefaultAuraBar(false, "CENTER", 1, 1, 1, 0),
+			bar = DefaultAuraBar(false, "TOPLEFT", 1, 1, 1, 0),
 			icon = DefaultAuraIcon(true, 25, 25),
 		}
 	end
 
 	return {
 		enabled = true,
-		bar = DefaultAuraBar(true, "TOP", 1, 1, 0, -2),
+		bar = DefaultAuraBar(true, "TOPLEFT", 1, 1, 0, -2),
 		icon = DefaultAuraIcon(false, 25, 25),
 	}
 end

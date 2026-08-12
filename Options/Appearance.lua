@@ -22,7 +22,9 @@ local FRAME_HEIGHT_MIN, FRAME_HEIGHT_MAX = 20, 200
 
 --- Never fully transparent: a spotlight at zero opacity is indistinguishable from a bug, and the
 --- floor is where one is still visible enough to be found and turned back up.
-local ALPHA_MIN, ALPHA_MAX, ALPHA_STEP = 0.1, 1, 0.05
+---
+--- The step is what the value box shows, two decimals -- see `Controls`' `FRACTION_STEP`.
+local ALPHA_MIN, ALPHA_MAX, ALPHA_STEP = 0.1, 1, 0.01
 
 local FONT_SIZE_MIN, FONT_SIZE_MAX = 6, 32
 local OFFSET_MIN, OFFSET_MAX = -100, 100
