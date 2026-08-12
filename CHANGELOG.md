@@ -23,3 +23,4 @@ v1.1.0
 - added Roster Presets which can also be imported and exported
 - fixed a bug where aura previews kept showing spells that were toggled off
 - fixed a bug where the gap between pooled aura icons only reached displays built afterwards
+- active aura displays now draw an animated border

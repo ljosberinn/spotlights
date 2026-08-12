@@ -739,6 +739,76 @@ end
 --- LibSharedMedia's name for the empty border, and how "no border" is spelled in the settings.
 local BORDER_NONE = "None"
 
+--- Optional, and asked for once. The addon embeds the library, but a no-lib package strips it and a
+--- user can delete it, so every use of this is guarded rather than assumed.
+local CustomGlow = LibStub("LibCustomGlow-1.0", true)
+
+--- The one place the glow's look is decided, shared by both container shapes so a slot and a group
+--- cannot drift apart.
+---
+--- `level` is an *offset* from the host's frame level, not a level: `PixelGlow_Start` adds it. Seven
+--- continues the ladder `CreateBorder` and the duration layer start at five and six, which puts the
+--- glow over everything the display draws -- including a thick border on the same rect, which would
+--- otherwise swallow the pixels travelling along it.
+local GLOW = {
+	color = { 1, 0.8, 0.1, 1 },
+	lines = 8,
+	frequency = 0.25,
+	thickness = 1,
+	key = "spotlights",
+	level = 7,
+}
+
+--- How long each travelling line is, as a fraction of half the display's perimeter. The library's own
+--- default for eight lines, spelled out here so it can be computed from a size we trust.
+local GLOW_LINE = 0.15
+
+--- Starts the one glow an aura button will ever have.
+---
+--- **Never stopped, and that is the design.** The button's own visibility is the aura's state: the
+--- container shows it when an instance is assigned and hides it when the instance is cleared, both
+--- through secure paths we cannot hook and must not poll. The glow is a child of the button, so it
+--- inherits that answer for free. Calling `PixelGlow_Stop` from anywhere would mean tracking aura
+--- state ourselves, which is exactly what the access restriction exists to prevent.
+---
+--- Called from `initializeFrame` for the same reason everything else about the button is: it is the
+--- last moment the library can create descendants. A pooled button is initialised once, so there is
+--- no second call and no second glow -- and the library keys its frame on the button anyway, so a
+--- repeat would reconfigure rather than stack.
+---
+--- The line length is computed here rather than left to the library's default, which is why
+--- `InitializeFrame` sizes a slot's button as well as a group's: the library clamps the length to the
+--- button's shorter side *once*, at this call, and a zero there is permanent -- an animation of
+--- zero-length lines that never recovers. Every other dimension it re-measures on each frame.
+---
+--- A rebuild's abandoned button keeps its glow, and it costs nothing: `RebuildDisplay` hides the
+--- container, and a hidden frame runs no `OnUpdate`.
+---
+--- `border` is false. The library's border is a dark ring drawn on the outer edge of the same rect
+--- the display's own border occupies, so it would hide the border colour the user chose.
+---@param button table
+---@param width number
+---@param height number
+local function StartGlow(button, width, height)
+	if not CustomGlow then
+		return
+	end
+
+	CustomGlow.PixelGlow_Start(
+		button,
+		GLOW.color,
+		GLOW.lines,
+		GLOW.frequency,
+		math.max(math.min(math.floor((width + height) * GLOW_LINE), width, height), 1),
+		GLOW.thickness,
+		0,
+		0,
+		false,
+		GLOW.key,
+		GLOW.level
+	)
+end
+
 --- The formatter for the icon's countdown text, replacing the container's default.
 ---
 --- `SetDurationText` with no options selects `DefaultAuraDurationFormatter`, a `SecondsFormatter`
@@ -1481,10 +1551,17 @@ local function AttachContainer(child, feature, display, config, anchor)
 	local candidateIDs = feature.multiple and CandidateIDs(feature.Candidates()) or nil
 
 	local function InitializeFrame(button, spellID)
-		if feature.multiple then
-			local width, height = display.Size(config, Private.FrameConfig.Get())
-			PixelUtil.SetSize(button, math.max(width, 1), math.max(height, 1))
-		else
+		local width, height = display.Size(config, Private.FrameConfig.Get())
+
+		width, height = math.max(width, 1), math.max(height, 1)
+
+		-- Sized in both shapes, though only a group's frames are laid out from it: a slot's rect comes
+		-- from the corners below and would ignore this. It is set anyway so that anything reading the
+		-- button's size back this early gets the number it will have, rather than the zero an anchor
+		-- chain that has not been resolved yet would answer with.
+		PixelUtil.SetSize(button, width, height)
+
+		if not feature.multiple then
 			button:SetPoint("TOPLEFT", container, "TOPLEFT")
 			button:SetPoint("BOTTOMRIGHT", container, "BOTTOMRIGHT")
 		end
@@ -1493,6 +1570,10 @@ local function AttachContainer(child, feature, display, config, anchor)
 		-- `ForbiddenAspect.AlwaysPropagateInput`. Motion is ours to turn off, and must be --
 		-- otherwise the aura tooltip replaces the unit tooltip on every hover.
 		button:SetMouseMotionEnabled(false)
+
+		-- Before the display, because the glow is about the button rather than about anything the
+		-- display draws -- and nothing it touches may be secret by the time the library sees it.
+		StartGlow(button, width, height)
 
 		-- Create, style, register, in that order and once. Styling has to precede registration: it
 		-- sets `Shown` on the optional regions, and `SetDurationCooldown` makes that aspect secret
