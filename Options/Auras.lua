@@ -304,12 +304,6 @@ end
 local function BuildAuras(page)
 	local L = Private.L.Settings
 
-	--- Nothing but a line of text on a client that cannot have the feature, as the old panel answers it
-	--- too: a strip whose every tab is disabled invites the reading that the settings are broken.
-	if not Private.Auras.IsSupported then
-		return Private.Controls.Paragraph(page, L.AurasRequiresTwelveOne)
-	end
-
 	auraPage = page
 
 	CreateCategoryStrip(page)

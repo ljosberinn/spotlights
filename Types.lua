@@ -34,7 +34,6 @@
 ---@field Auras SpotlightsAuras
 ---@field SlashCommands SpotlightsSlashCommands
 ---@field DB SpotlightsDB? nil until ADDON_LOADED has run the migration
----@field IsTwelveDotOne boolean the aura container system exists only from 12.1 onwards
 
 --- A button acquired by `TabSystemTemplate` for a top-oriented tab strip.
 ---@class TabSystemTopButtonFrame : Button, TabSystemTopButtonTemplate

@@ -5,10 +5,9 @@ local _, Private = ...
 Private.FrameConfig = {}
 
 --- Blizzard's native raid-frame size, the starting point for a database with no layout yet.
---- Hardcoded rather than read from the game because the *accessor* is version-dependent while the
---- value is not: 12.1 exposes it as `CompactUnitFrameUtil.NativeFrameWidth`
---- (`CompactUnitFrameUtil.lua:10-11`) and 12.0.7 keeps it in unreachable file-locals. Both say
---- 72 x 36.
+--- Hardcoded rather than read from `CompactUnitFrameUtil.NativeFrameWidth`
+--- (`CompactUnitFrameUtil.lua:10-11`), because this is a *default* rather than a live reading: a
+--- patch that moved the native size would silently resize a grid nobody asked to resize.
 local NATIVE_FRAME_WIDTH = 72
 local NATIVE_FRAME_HEIGHT = 36
 

@@ -152,8 +152,6 @@ L.Settings.UpShort = "^"
 L.Settings.DownShort = "v"
 L.Settings.RemoveShort = "x"
 L.Settings.PlusShort = "+"
-L.Settings.AurasRequiresTwelveOne =
-"Aura-Anzeigen benötigen Patch 12.1 oder neuer. Dieser Client verfügt nicht über das System, auf dem sie aufbauen, daher wird der Rest dieses Tabs ausgeblendet, statt funktionslos angezeigt zu werden."
 L.Settings.AurasEvokerOnly = "Aura-Verfolgung ist eine reine Rufer-Funktion für Macht erspüren, Voraussicht und Verändernde Sande."
 L.Settings.Prescience = "Voraussicht"
 L.Settings.ShiftingSands = "Verändernde Sande"

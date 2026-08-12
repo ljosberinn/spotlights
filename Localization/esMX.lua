@@ -152,8 +152,6 @@ L.Settings.UpShort = "^"
 L.Settings.DownShort = "v"
 L.Settings.RemoveShort = "x"
 L.Settings.PlusShort = "+"
-L.Settings.AurasRequiresTwelveOne =
-"Las visualizaciones de auras necesitan el parche 12.1 o posterior. Este cliente no tiene el sistema sobre el que se construyen, así que el resto de esta pestaña se oculta en lugar de mostrarse sin hacer nada."
 L.Settings.AurasEvokerOnly =
 "El seguimiento de auras es una función exclusiva de Evocador para Sentir poder, Presagio y Arenas cambiantes."
 L.Settings.Prescience = "Presagio"

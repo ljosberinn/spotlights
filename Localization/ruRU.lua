@@ -150,8 +150,6 @@ L.Settings.UpShort = "^"
 L.Settings.DownShort = "v"
 L.Settings.RemoveShort = "x"
 L.Settings.PlusShort = "+"
-L.Settings.AurasRequiresTwelveOne =
-"Отображение аур требует патч 12.1 или новее. У этого клиента нет системы, на которой они построены, поэтому остальная часть этой вкладки скрыта, а не показана бездействующей."
 L.Settings.AurasEvokerOnly = "Отслеживание аур — функция только для Эвокеров: Чувство силы и Предвидение."
 L.Settings.Prescience = "Предвидение"
 L.Settings.ShiftingSands = "Изменчивые пески"

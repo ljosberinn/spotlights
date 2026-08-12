@@ -151,8 +151,6 @@ L.Settings.UpShort = "^"
 L.Settings.DownShort = "v"
 L.Settings.RemoveShort = "x"
 L.Settings.PlusShort = "+"
-L.Settings.AurasRequiresTwelveOne =
-"As exibições de aura precisam da atualização 12.1 ou posterior. Este cliente não tem o sistema em que elas se baseiam, então o resto desta aba fica oculto em vez de mostrado sem fazer nada."
 L.Settings.AurasEvokerOnly =
 "O rastreamento de auras é um recurso exclusivo de Evocador para Detectar Poder, Presciência e Areias Cambiantes."
 L.Settings.Prescience = "Presciência"

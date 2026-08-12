@@ -178,8 +178,6 @@ L.Settings.DownShort = "v"
 L.Settings.RemoveShort = "x"
 L.Settings.PlusShort = "+"
 
-L.Settings.AurasRequiresTwelveOne =
-"Aura displays need patch 12.1 or later. This client does not have the system they are built on, so the rest of this tab is hidden rather than shown doing nothing."
 L.Settings.AurasEvokerOnly = "Aura tracking is an Evoker-only feature for Sense Power, Prescience, and Shifting Sands."
 
 L.Settings.Prescience = "Prescience"

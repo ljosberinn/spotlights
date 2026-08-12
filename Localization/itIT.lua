@@ -150,8 +150,6 @@ L.Settings.UpShort = "^"
 L.Settings.DownShort = "v"
 L.Settings.RemoveShort = "x"
 L.Settings.PlusShort = "+"
-L.Settings.AurasRequiresTwelveOne =
-"Le visualizzazioni delle aure richiedono la patch 12.1 o successiva. Questo client non ha il sistema su cui si basano, quindi il resto di questa scheda è nascosto anziché mostrato inattivo."
 L.Settings.AurasEvokerOnly =
 "Il tracciamento delle aure è una funzione solo per Evocatori per Potere Sensoriale, Prescienza e Sabbie Mutevoli."
 L.Settings.Prescience = "Prescienza"

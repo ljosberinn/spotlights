@@ -1235,17 +1235,10 @@ function Private.Settings.RefreshAuraTabs(selectCurrent)
 end
 
 --- The Auras tab: one customisation set, pointed at either spell by the sub-tabs.
----
---- **Nothing but a line of text on a client that cannot have the feature.** Building the controls
---- anyway and disabling them would invite the reading that the settings are broken.
 ---@param content Frame
 ---@return SpotlightsWidget[]
 local function BuildAurasTab(content)
 	local L = Private.L.Settings
-
-	if not Private.Auras.IsSupported then
-		return { Widgets.CreateText(content, L.AurasRequiresTwelveOne) }
-	end
 
 	local widgets = {
 		-- The feature selector is the bottom tab strip, so the first content row can be the reset action.
@@ -1912,9 +1905,8 @@ local function Get()
 		panel:SetTabCallback(tabID, function()
 			activeTab = i
 			local isAuras = builders[i] == BuildAurasTab
-			local showAuraTabs = isAuras and Private.Auras.IsSupported
 
-			auraTabSystem:SetShown(showAuraTabs)
+			auraTabSystem:SetShown(isAuras)
 
 			-- Re-anchor both points after tab switches because the scroll frame is shared by all pages.
 			scroll:ClearAllPoints()

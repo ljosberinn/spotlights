@@ -146,8 +146,6 @@ L.Settings.UpShort = "^"
 L.Settings.DownShort = "v"
 L.Settings.RemoveShort = "x"
 L.Settings.PlusShort = "+"
-L.Settings.AurasRequiresTwelveOne =
-"오라 표시는 12.1 패치 이상이 필요합니다. 이 클라이언트에는 그것이 기반으로 하는 시스템이 없으므로, 이 탭의 나머지는 아무 동작 없이 표시되는 대신 숨겨집니다."
 L.Settings.AurasEvokerOnly = "오라 추적은 능력 감응, 예지, 흐르는 모래를 위한 환기사 전용 기능입니다."
 L.Settings.Prescience = "예지"
 L.Settings.ShiftingSands = "흐르는 모래"
