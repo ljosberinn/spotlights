@@ -23,6 +23,7 @@
 ---@field Options SpotlightsOptions
 ---@field Profile SpotlightsProfile
 ---@field RosterList SpotlightsRosterList
+---@field RosterPresets SpotlightsRosterPresets
 ---@field Settings SpotlightsSettings
 ---@field ContextMenu SpotlightsContextMenu
 ---@field DragAssign SpotlightsDragAssign
@@ -88,9 +89,20 @@
 ---@field guid string?
 ---@field name string? exactly as GetRaidRosterInfo spelled it — never synthesised
 
+--- Saved slot layouts, by the name the user gave each one.
+---
+--- Slots only: a preset is a raid composition, and nothing about how the frames look, where they sit
+--- or which auras they track belongs in one. Local to this account and deliberately outside the
+--- exported profile -- a preset library is a shelf, not a setting.
+---
+--- A stored slot carries its `kind` and `name` and never a GUID: the GUID a preset saw belongs to the
+--- raid it was saved in, and applying one resolves names against the raid it is applied to.
+---@alias SpotlightsPresets table<string, SpotlightsSlot[]>
+
 ---@class SpotlightsDB
 ---@field version integer
 ---@field slots SpotlightsSlot[]
+---@field presets SpotlightsPresets
 ---@field layout SpotlightsLayoutConfig
 ---@field position SpotlightsPositionConfig
 ---@field appearance SpotlightsAppearanceConfig

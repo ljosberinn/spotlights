@@ -57,6 +57,7 @@ Options\AuraTracked.lua
 Options\Auras.lua
 Options\Roster.lua
 Options\Profile.lua
+Options\RosterPresets.lua
 Options\ImportExport.lua
 
 Settings.lua

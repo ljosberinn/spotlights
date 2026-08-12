@@ -5,7 +5,7 @@ local _, Private = ...
 Private.Migration = {}
 
 --- Bump this and add the matching step whenever the shape of SpotlightsSaved changes.
-Private.Migration.CurrentVersion = 3
+Private.Migration.CurrentVersion = 4
 
 --- The layout defaults, and the shape version 2 introduced.
 ---
@@ -311,6 +311,9 @@ local steps = {
 		auras.defensiveCustom = auras.defensiveCustom or {}
 		db.auras = auras
 	end,
+	[4] = function(db)
+		db.presets = db.presets or {}
+	end,
 }
 
 --- Fills in every field `defaults` has and `target` lacks, returning what to store: `target` patched,
@@ -352,7 +355,7 @@ end
 --- Field-by-field is right for layout and appearance because each field stands alone. Position is the
 --- exception and gets its own repair below.
 ---@param db SpotlightsDB
----@param key "layout" | "appearance" | "auras" | "minimap"
+---@param key "layout" | "appearance" | "auras" | "minimap" | "presets"
 ---@param build fun(): table
 local function RepairBlock(db, key, build)
 	db[key] = Filled(db[key], build())
@@ -410,6 +413,13 @@ local function Repair(db)
 	RepairBlock(db, "minimap", function()
 		return { hide = false }
 	end)
+
+	--- Empty defaults, so this only ever replaces a `presets` that is not a table: the block is a
+	--- library the user filled rather than a set of fields we ship, and there is no such thing as a
+	--- preset missing from it.
+	RepairBlock(db, "presets", function()
+		return {}
+	end)
 end
 
 ---@return SpotlightsDB
@@ -422,6 +432,7 @@ local function CreateDefault()
 		appearance = DefaultAppearance(),
 		auras = DefaultAuras(),
 		minimap = { hide = false },
+		presets = {},
 	}
 end
 

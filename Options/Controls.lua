@@ -329,7 +329,7 @@ end
 --- revisited -- silently dropping any media another addon registers afterwards. Resolved per menu-open
 --- instead, the list is as current as the media library is.
 ---@param parent Frame
----@param label string
+---@param label string? omitted for a dropdown that spans its column, where a heading above says what it picks
 ---@param choices { value: any, label: string }[] | fun(): { value: any, label: string }[]
 ---@param get fun(): any
 ---@param set fun(value: any)
@@ -338,7 +338,7 @@ end
 function Private.Controls.Dropdown(parent, label, choices, get, set, labelWidth)
 	local row = CreateRow(parent)
 
-	local caption = CreateLabel(row, label)
+	local caption = label and CreateLabel(row, label) or nil
 	local dropdown = CreateFrame("DropdownButton", nil, row, "WowStyle1DropdownTemplate")
 
 	-- The generator re-runs every time the menu opens, so the checked state is derived from the database at
@@ -841,6 +841,73 @@ function Private.Controls.ActionButton(parent, label, onClick, destructive)
 	function row:Layout(width)
 		self:SetWidth(width)
 		button:SetWidth(width)
+
+		return ROW_HEIGHT
+	end
+
+	return row
+end
+
+--- One button in a row of them.
+---@class SpotlightsButtonSpec
+---@field label string
+---@field onClick fun()
+---@field destructive boolean? swaps in the red template, as `ActionButton`'s own flag does
+---@field enabled (fun(): boolean)? absent means always enabled
+
+--- Several buttons across one row, dividing it evenly: the presets block's Save / Delete pair and the
+--- Import / Export pair under it.
+---
+--- `Segmented` looks like this and is not it. There the selection *is* the state and the disabled
+--- button is the chosen one; these are independent actions, each dimmed or not by a question about
+--- the database -- there is nothing to delete without a preset selected, and nothing to save without
+--- a slot.
+---@param parent Frame
+---@param buttons SpotlightsButtonSpec[]
+---@return SpotlightsNode
+function Private.Controls.ButtonRow(parent, buttons)
+	local row = CreateRow(parent)
+
+	row.span = true
+
+	---@type Button[]
+	local frames = {}
+
+	for i = 1, #buttons do
+		local spec = buttons[i]
+		local button = CreateFrame("Button", nil, row,
+			spec.destructive and "SharedButtonTemplate" or "UIPanelButtonTemplate")
+
+		button:SetHeight(BUTTON_HEIGHT)
+		button:SetText(spec.label)
+		button:SetScript("OnClick", spec.onClick)
+
+		frames[i] = button
+	end
+
+	function row:Refresh()
+		for i = 1, #buttons do
+			local enabled = buttons[i].enabled
+
+			frames[i]:SetEnabled(enabled == nil or enabled())
+		end
+	end
+
+	function row:Layout(width)
+		self:SetWidth(width)
+
+		local each = width / #frames
+
+		for i = 1, #frames do
+			local button = frames[i]
+
+			button:ClearAllPoints()
+			button:SetPoint("LEFT", self, "LEFT", (i - 1) * each, 0)
+
+			-- Two pixels off each rather than a gap between them, so the row ends exactly where the
+			-- controls above it do. `Segmented` divides itself the same way.
+			button:SetWidth(math.max(each - 2, 1))
+		end
 
 		return ROW_HEIGHT
 	end

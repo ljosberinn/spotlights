@@ -184,6 +184,27 @@ L.Settings.DownShort = "v"
 L.Settings.RemoveShort = "x"
 L.Settings.PlusShort = "+"
 
+-- The presets block under the raid list. A preset is a slot layout and nothing else, which is what the
+-- delete prompt says out loud: "delete" beside a list of slots could be read as deleting the slots.
+L.Settings.PresetsHeading = "Presets"
+L.Settings.PresetsCount = "%d saved"
+L.Settings.PresetsNone = "No presets saved yet. Save the slots you have configured to start one."
+L.Settings.PresetSave = "Save"
+L.Settings.PresetDelete = "Delete"
+L.Settings.PresetSavePrompt = "Name this preset:"
+L.Settings.PresetOverwritePrompt = "A preset called \"%s\" already exists. Replace it?"
+L.Settings.PresetOverwriteConfirm = "Replace"
+L.Settings.PresetDeletePrompt = "Delete the preset \"%s\"? Your configured slots are not touched."
+
+-- What commits the pasted string. It adds a preset to the library rather than applying one, so it says
+-- "add" where the Import/Export tab's button says "import".
+L.Settings.PresetImportAdd = "Add Preset"
+
+-- A preset string and a profile string cannot be swapped, and each says so in the other's words: this
+-- is the answer to a full profile pasted into the preset box.
+L.Settings.PresetImportErrorPrefix = "the string is not a Spotlights preset"
+L.Settings.PresetImportErrorPayload = "the decoded data is not a slot list"
+
 L.Settings.AurasEvokerOnly = "Aura tracking is an Evoker-only feature for Sense Power, Prescience, and Shifting Sands."
 
 L.Settings.Prescience = "Prescience"

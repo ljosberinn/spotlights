@@ -343,7 +343,8 @@
     "BLACK_FONT_COLOR",
     "ScrollFrame_OnLoad",
     "GameTooltip_AddHighlightLine",
-    "Lerp"
+    "Lerp",
+    "StaticPopup_StandardNonEmptyTextHandler"
   ],
   "Lua.workspace.ignoreDir": ["Libs"]
 }

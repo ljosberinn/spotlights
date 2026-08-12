@@ -7,6 +7,9 @@ local _, Private = ...
 --- worth redoing: those two lists are read against each other -- "who is in, who is left" -- and a
 --- single column made that a scroll rather than a glance.
 ---
+--- The presets block under the raid list is `Options/RosterPresets.lua`'s: it is a library with its
+--- own storage and its own codec, and the only thing this file owes it is the height it takes.
+---
 --- Every row here is `RosterList.lua`'s pooled row, configured through the same two functions the old
 --- panel configures its own with. What this file owns is the arrangement: which rows each pane holds,
 --- what its buttons do, and how much height each list gets.
@@ -320,7 +323,7 @@ end
 --- clips them belongs to the scroll pane and the block a drop lands in belongs to the pane as a whole.
 ---@param page Frame
 ---@param heading string
----@param height number what the column has to spend on the list
+---@param height number | fun(): number what the column has to spend on the list
 ---@param section SpotlightsRowSection what a drop in this pane but not on one of its rows means
 ---@param Note fun(): string what to say instead of an empty list
 ---@param IsEmpty fun(): boolean
@@ -348,14 +351,62 @@ local function BuildPane(page, heading, height, section, Note, IsEmpty, BuildLis
 	}, PANE_GAP)
 end
 
+--- The trailing column: the raid list with the presets block pinned under it.
+---
+--- A `Column` would do this if the list could be sized last, and it cannot: a `ScrollPane` is a
+--- *window*, so the list has to be told its height, and what is left for it is whatever the block
+--- under it took -- a section's open state and which of its two boxes is showing, neither of which is
+--- a constant this file could subtract. So the block is measured first and anchored afterwards.
+--- Heights and anchors are set independently, so the order they are decided in is free.
+---@param page Frame
+---@param members SpotlightsNode
+---@param presets SpotlightsNode
+---@param SetReserved fun(height: number) hands the measured height to the list's own height function
+---@return SpotlightsNode
+local function BuildRightColumn(page, members, presets, SetReserved)
+	local column = CreateFrame("Frame", nil, page) --[[@as SpotlightsNode]]
+
+	members:SetParent(column)
+	presets:SetParent(column)
+
+	function column:Refresh()
+		members:Refresh()
+		presets:Refresh()
+	end
+
+	function column:Layout(width)
+		self:SetWidth(width)
+
+		local reserved = presets:Layout(width)
+
+		SetReserved(reserved)
+
+		members:ClearAllPoints()
+		members:SetPoint("TOPLEFT", self, "TOPLEFT", 0, 0)
+
+		local top = members:Layout(width) + PANE_GAP
+
+		presets:ClearAllPoints()
+		presets:SetPoint("TOPLEFT", self, "TOPLEFT", 0, -top)
+
+		local height = top + reserved
+
+		self:SetHeight(height)
+
+		return height
+	end
+
+	return column
+end
+
 ---@param page Frame
 ---@return SpotlightsNode
 local function BuildRoster(page)
 	local L = Private.L.Settings
 
 	--- What each column spends on something other than its list. The left one carries the two slot
-	--- buttons and the two settings under its list; the right one carries nothing but its heading, so
-	--- the raid list runs to the bottom of the window.
+	--- buttons and the two settings under its list; the right one carries its heading and the presets
+	--- block, whose height is decided per pass rather than here.
 	---
 	--- Both are counted from the same page height, which is why the two lists do not end level: the
 	--- design puts the controls under the slots, and a raid list cropped to match them would waste a
@@ -364,7 +415,14 @@ local function BuildRoster(page)
 	local row = Private.Controls.RowHeight
 
 	local slotsHeight = math.max(page:GetHeight() - heading - row * 4 - PANE_GAP * 5, MIN_LIST_HEIGHT)
-	local membersHeight = math.max(page:GetHeight() - heading - PANE_GAP, MIN_LIST_HEIGHT)
+
+	--- What the presets block took on this pass, written by the column below before it lays the list
+	--- out. Zero until then, which is only ever the case before the first pass.
+	local reserved = 0
+
+	local function MembersHeight()
+		return math.max(page:GetHeight() - heading - PANE_GAP * 2 - reserved, MIN_LIST_HEIGHT)
+	end
 
 	local slots = Private.Node.Column(page, {
 		BuildPane(page, L.SlotsHeader, slotsHeight, "slots", function()
@@ -382,7 +440,7 @@ local function BuildRoster(page)
 			CHECKBOX_LABEL_WIDTH),
 	}, PANE_GAP)
 
-	local members = BuildPane(page, L.RaidHeader, membersHeight, "members", function()
+	local members = BuildPane(page, L.RaidHeader, MembersHeight, "members", function()
 		local _, count = Private.RosterList.Available()
 
 		-- The two empty states say which one this is: nobody to list, or nobody left to list.
@@ -403,7 +461,11 @@ local function BuildRoster(page)
 		end
 	end)
 
-	return Private.Node.Split(page, slots, members, { rightWidth = RAID_WIDTH })
+	local right = BuildRightColumn(page, members, Private.RosterPresets.Build(page), function(height)
+		reserved = height
+	end)
+
+	return Private.Node.Split(page, slots, right, { rightWidth = RAID_WIDTH })
 end
 
 Private.Options.Builders.roster = BuildRoster

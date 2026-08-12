@@ -632,9 +632,13 @@ end
 --- The tab as a whole does not scroll in the reworked panel -- panes do, independently, which is the only
 --- way a rail stays put while the list beside it moves. So the viewport's height is given rather than
 --- derived from its content.
+---
+--- A **function** for a pane that shares its column with something whose height is not fixed: the raid
+--- list gives up whatever the presets block under it took, and that is a section's open state rather
+--- than a constant. Re-read on every pass, so the pane follows the block rather than a stale answer.
 ---@param parent Frame
 ---@param node SpotlightsNode
----@param height number
+---@param height number | fun(): number
 ---@return SpotlightsScrollPaneNode
 function Private.Node.ScrollPane(parent, node, height)
 	local pane = CreateFrame("Frame", nil, parent) --[[@as SpotlightsScrollPaneNode]]
@@ -672,8 +676,10 @@ function Private.Node.ScrollPane(parent, node, height)
 	end
 
 	function pane:Layout(width)
+		local extent = type(height) == "function" and height() or height --[[@as number]]
+
 		self:SetWidth(width)
-		self:SetHeight(height)
+		self:SetHeight(extent)
 
 		local childWidth = math.max(width - SCROLL_GUTTER, 1)
 
@@ -683,7 +689,7 @@ function Private.Node.ScrollPane(parent, node, height)
 		-- rather than leaving empty space under the last one.
 		content:SetHeight(math.max(LayoutChild(self, node, childWidth), 1))
 
-		return height
+		return extent
 	end
 
 	return pane
