@@ -28,6 +28,10 @@ local MIN_CONTROL_WIDTH = 80
 --- lost its widget.
 local HEADING_HEIGHT = 20
 
+--- Published alongside `RowHeight`, and for the same reason: the Roster tab fits a list into what a
+--- heading above it and the controls below it leave over.
+Private.Controls.HeadingHeight = HEADING_HEIGHT
+
 --- Both templates draw their own border, and one at the full row height sits proud of the sliders beside
 --- it.
 local BUTTON_HEIGHT = ROW_HEIGHT - 4

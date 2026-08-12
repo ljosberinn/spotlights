@@ -142,6 +142,12 @@ L.Settings.RosterHelp =
 L.Settings.SlotsHeader = "Slot configurati"
 L.Settings.RaidHeader = "Membri del raid"
 L.Settings.AddSpacer = "Aggiungi uno spaziatore"
+L.Settings.NoSlots =
+"Nessun giocatore in evidenza per ora. Aggiungi un membro del raid dalla lista accanto, oppure trascinane uno qui."
+L.Settings.ClearSlots = "Svuota tutti gli slot"
+L.Settings.ClearSlotsPrompt =
+"Rimuovere tutti gli slot configurati? Vanno via sia i giocatori sia gli spaziatori, e la griglia riparte da zero."
+L.Settings.ClearSlotsConfirm = "Svuota"
 L.Settings.BlankSlot = "(spaziatore)"
 L.Settings.UnknownSlot = "(vuoto)"
 L.Settings.NotInRaid = "non in un raid"

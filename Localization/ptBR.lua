@@ -143,6 +143,12 @@ L.Settings.RosterHelp =
 L.Settings.SlotsHeader = "Espaços configurados"
 L.Settings.RaidHeader = "Membros da raide"
 L.Settings.AddSpacer = "Adicionar um espaçador"
+L.Settings.NoSlots =
+"Ninguém em destaque ainda. Adicione um membro da raide pela lista ao lado, ou arraste um até aqui."
+L.Settings.ClearSlots = "Limpar todos os espaços"
+L.Settings.ClearSlotsPrompt =
+"Remover todos os espaços configurados? Jogadores e espaçadores vão juntos, e a grade começa do zero."
+L.Settings.ClearSlotsConfirm = "Limpar"
 L.Settings.BlankSlot = "(espaçador)"
 L.Settings.UnknownSlot = "(vazio)"
 L.Settings.NotInRaid = "não está em uma raide"

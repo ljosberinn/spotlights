@@ -1848,6 +1848,18 @@ function Private.Settings.Relayout()
 	tab.content:SetHeight(Widgets.Stack(tab.widgets, tab.content))
 end
 
+--- The window itself, for the drag path: two panels exist until the cutover and they can overlap, so
+--- the roster list registers its rows against the frame they are in and the drag resolves against
+--- whichever of the two is drawn on top. Safe to call from a tab builder, which runs from a tab
+--- callback and so only after `Get` has returned.
+---
+--- Not a general seam into the panel. Its counterpart is `Private.Options.GetFrame`, and both go away
+--- with the old panel.
+---@return Frame
+function Private.Settings.GetFrame()
+	return Get()
+end
+
 --- Whether the cursor is anywhere over the panel.
 ---
 --- For the drag path, which has two kinds of drop target — a slot row in this panel, and a cell on the

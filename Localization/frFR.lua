@@ -137,6 +137,12 @@ L.Settings.RosterHelp = "Vous pouvez glisser-déposer des joueurs dans et hors d
 L.Settings.SlotsHeader = "Emplacements configurés"
 L.Settings.RaidHeader = "Membres du raid"
 L.Settings.AddSpacer = "Ajouter un espace"
+L.Settings.NoSlots =
+"Aucun joueur mis en avant pour l'instant. Ajoutez un membre du raid depuis la liste voisine, ou faites-en glisser un jusqu'ici."
+L.Settings.ClearSlots = "Effacer tous les emplacements"
+L.Settings.ClearSlotsPrompt =
+"Retirer tous les emplacements configurés ? Les joueurs comme les espaces disparaissent, et la grille repart de zéro."
+L.Settings.ClearSlotsConfirm = "Effacer"
 L.Settings.BlankSlot = "(espace)"
 L.Settings.UnknownSlot = "(vide)"
 L.Settings.NotInRaid = "pas dans un raid"

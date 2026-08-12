@@ -55,6 +55,7 @@ Options\AuraSpells.lua
 Options\AuraAppearance.lua
 Options\AuraTracked.lua
 Options\Auras.lua
+Options\Roster.lua
 Options\Profile.lua
 Options\ImportExport.lua
 

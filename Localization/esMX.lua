@@ -144,6 +144,12 @@ L.Settings.RosterHelp =
 L.Settings.SlotsHeader = "Ranuras configuradas"
 L.Settings.RaidHeader = "Miembros de la banda"
 L.Settings.AddSpacer = "Agregar un separador"
+L.Settings.NoSlots =
+"Aún no hay nadie resaltado. Agrega un miembro de la banda desde la lista de al lado, o arrastra uno hasta aquí."
+L.Settings.ClearSlots = "Vaciar todas las ranuras"
+L.Settings.ClearSlotsPrompt =
+"¿Quitar todas las ranuras configuradas? Se van tanto los jugadores como los separadores, y la cuadrícula empieza de cero."
+L.Settings.ClearSlotsConfirm = "Vaciar"
 L.Settings.BlankSlot = "(separador)"
 L.Settings.UnknownSlot = "(vacío)"
 L.Settings.NotInRaid = "no estás en una banda"

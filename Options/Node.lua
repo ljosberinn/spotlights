@@ -618,6 +618,15 @@ function Private.Node.SubTabs(parent, tabs, OnSelected)
 	return strip, pages
 end
 
+--- A scroll pane, which is a node that also hands out the frame doing the clipping.
+---
+--- For the drag path. A `ScrollFrame` clips its children when it *draws* them and leaves their
+--- rectangles alone, so a row scrolled out of view still reports a position that can land under the tab
+--- strip -- and the only way to exclude it is to test the cursor against the viewport as well. Nothing
+--- else may reach through this: the pane owns its scroll frame's anchors and its extent.
+---@class SpotlightsScrollPaneNode : SpotlightsNode
+---@field viewport Frame
+
 --- A fixed-height window onto a node that may be taller than it.
 ---
 --- The tab as a whole does not scroll in the reworked panel -- panes do, independently, which is the only
@@ -626,9 +635,9 @@ end
 ---@param parent Frame
 ---@param node SpotlightsNode
 ---@param height number
----@return SpotlightsNode
+---@return SpotlightsScrollPaneNode
 function Private.Node.ScrollPane(parent, node, height)
-	local pane = CreateFrame("Frame", nil, parent) --[[@as SpotlightsNode]]
+	local pane = CreateFrame("Frame", nil, parent) --[[@as SpotlightsScrollPaneNode]]
 
 	local scroll = CreateFrame("ScrollFrame", nil, pane)
 
@@ -646,6 +655,8 @@ function Private.Node.ScrollPane(parent, node, height)
 	scrollBar:SetPoint("BOTTOMLEFT", scroll, "BOTTOMRIGHT", 5, 3)
 
 	ScrollUtil.InitScrollFrameWithScrollBar(scroll, scrollBar)
+
+	pane.viewport = scroll
 
 	local content = CreateFrame("Frame", nil, scroll)
 

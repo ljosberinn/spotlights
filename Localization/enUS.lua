@@ -169,6 +169,12 @@ L.Settings.RosterHelp =
 L.Settings.SlotsHeader = "Configured slots"
 L.Settings.RaidHeader = "Raid members"
 L.Settings.AddSpacer = "Add a spacer"
+L.Settings.NoSlots =
+"No spotlights configured yet. Add a raid member from the list beside this one, or drag one onto it."
+L.Settings.ClearSlots = "Clear all slots"
+L.Settings.ClearSlotsPrompt =
+"Remove every configured slot? Players and spacers alike go, and the grid starts from nothing."
+L.Settings.ClearSlotsConfirm = "Clear"
 L.Settings.BlankSlot = "(spacer)"
 L.Settings.UnknownSlot = "(empty)"
 L.Settings.NotInRaid = "not in a raid"

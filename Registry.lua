@@ -456,6 +456,27 @@ function Private.Registry.SetBlank(index)
 	return true
 end
 
+--- Empties the grid: every player and every spacer.
+---
+--- Spacers go too, on the same grounds the leave-the-raid clear takes them: a grid with its players
+--- gone but its holes kept is not cleared, and the shape is a handful of clicks to lay out again.
+---
+--- Answers false on an already-empty grid rather than applying, so a caller can tell "nothing to do"
+--- from "done" without counting slots itself.
+---@return boolean cleared
+function Private.Registry.Clear()
+	local slots = Slots()
+
+	if not slots or #slots == 0 then
+		return false
+	end
+
+	table.wipe(slots)
+	Apply()
+
+	return true
+end
+
 --- Reorders a slot. Insert-after-remove, so the slots between the two ends shift by one rather than
 --- swapping -- dragging slot 5 to position 2 pushes 2, 3 and 4 down.
 ---@param from integer

@@ -144,6 +144,12 @@ L.Settings.RosterHelp =
 L.Settings.SlotsHeader = "Konfigurierte Plätze"
 L.Settings.RaidHeader = "Schlachtzugsmitglieder"
 L.Settings.AddSpacer = "Platzhalter hinzufügen"
+L.Settings.NoSlots =
+"Noch keine Hervorhebungen konfiguriert. Füge ein Schlachtzugsmitglied aus der Liste daneben hinzu oder zieh eines hierher."
+L.Settings.ClearSlots = "Alle Plätze leeren"
+L.Settings.ClearSlotsPrompt =
+"Jeden konfigurierten Platz entfernen? Spieler und Platzhalter verschwinden gleichermaßen, und das Raster beginnt bei null."
+L.Settings.ClearSlotsConfirm = "Leeren"
 L.Settings.BlankSlot = "(Platzhalter)"
 L.Settings.UnknownSlot = "(leer)"
 L.Settings.NotInRaid = "nicht in einem Schlachtzug"

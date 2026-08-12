@@ -67,6 +67,25 @@ local function SlotLabel(index)
 	return slot.name or L.UnknownSlot
 end
 
+--- Which options window the cursor is over, or nil.
+---
+--- **Two panels exist until the cutover** -- the old one and the rework's -- and either can be open,
+--- or both. Both are `PortraitFrameTemplate` frames at DIALOG strata created in whichever order the
+--- user opened them, so where they overlap the higher frame level is the one drawn on top and the one
+--- the user is pointing at. Anything else would resolve a drop to a panel the cursor is visibly not
+--- over.
+---@return Frame?
+local function PanelUnderCursor()
+	local settings = Private.Settings.IsCursorOver() and Private.Settings.GetFrame() or nil
+	local options = Private.Options.IsCursorOver() and Private.Options.GetFrame() or nil
+
+	if settings and options then
+		return options:GetFrameLevel() >= settings:GetFrameLevel() and options or settings
+	end
+
+	return settings or options
+end
+
 --- Where a release here would land: a specific position, and/or a block of the roster list.
 ---
 --- Either half can be the useful one. A `section` with no `slot` is still actionable -- appending to
@@ -78,8 +97,10 @@ end
 --- whichever cell is underneath.
 ---@return integer? slot, SpotlightsRowSection? section
 local function Target()
-	if Private.Settings.IsCursorOver() then
-		return Private.RosterList.TargetUnderCursor()
+	local panel = PanelUnderCursor()
+
+	if panel then
+		return Private.RosterList.TargetUnderCursor(panel)
 	end
 
 	local cell = Private.SlotHeader.CellUnderCursor()
@@ -242,8 +263,11 @@ function Private.DragAssign.Drop()
 	end
 
 	-- The list now shows stale slot numbers, a stale available/assigned split, or both. Refreshed
-	-- unconditionally: a rejected drop leaves it correct, but a repaint costs nothing.
+	-- unconditionally: a rejected drop leaves it correct, but a repaint costs nothing. Both panels,
+	-- because both can be open and each guards on being shown -- and a drop resolved against one of
+	-- them changes what the other is listing.
 	Private.Settings.Refresh()
+	Private.Options.Refresh()
 
 	return ok
 end

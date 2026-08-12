@@ -142,6 +142,12 @@ L.Settings.RosterHelp =
 L.Settings.SlotsHeader = "Настроенные слоты"
 L.Settings.RaidHeader = "Участники рейда"
 L.Settings.AddSpacer = "Добавить разделитель"
+L.Settings.NoSlots =
+"Пока никто не выделен. Добавьте участника рейда из списка рядом или перетащите его сюда."
+L.Settings.ClearSlots = "Очистить все слоты"
+L.Settings.ClearSlotsPrompt =
+"Удалить все настроенные слоты? Игроки и разделители удаляются вместе, и сетка начнётся с нуля."
+L.Settings.ClearSlotsConfirm = "Очистить"
 L.Settings.BlankSlot = "(разделитель)"
 L.Settings.UnknownSlot = "(пусто)"
 L.Settings.NotInRaid = "не в рейде"
