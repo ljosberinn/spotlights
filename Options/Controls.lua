@@ -48,6 +48,15 @@ local VALUE_WIDTH = 6 + VALUE_TEXT_WIDTH + 5
 --- own `OnShow` through `PixelUtil`, so it cannot be stretched across a control column.
 local SWATCH_BORDER = 1
 
+--- How far a swatch is drawn outside the rectangle its row was given, per side.
+---
+--- Not a margin but a *match*: `WowStyle1DropdownTemplate` anchors its background eight units outside its
+--- own frame on every side (`Blizzard_Menu/Mainline/MenuTemplates.xml`), so a dropdown laid out to a
+--- column looks sixteen wider than it is. A swatch under one is the only other control in this kit with a
+--- hard edge to compare against, and drawn honestly it stops short at both ends -- which at the right,
+--- where no label explains the gap, reads as a box that was cut off.
+local SWATCH_OVERHANG = 8
+
 ---@param parent Frame
 ---@return SpotlightsNode
 local function CreateRow(parent)
@@ -445,22 +454,26 @@ function Private.Controls.ColorSwatch(parent, label, get, set, enabled, full, la
 	--- and anything less leaves gold showing around it.
 	local button = CreateFrame("Button", nil, row)
 
-	button:SetHeight(BOX_HEIGHT)
+	PixelUtil.SetHeight(button, BOX_HEIGHT)
 
 	local edge = button:CreateTexture(nil, "BORDER")
 
 	edge:SetAllPoints(button)
 
+	--- Snapped, all three rectangles, and this is what keeps the swatch's right and bottom edges drawn:
+	--- a grid cell is rarely a whole number of pixels wide -- two columns and a gutter out of 527 leave
+	--- halves -- so a one-*unit* inset from a boundary that lands mid-pixel rasterises to nothing on that
+	--- side, and the swatch reads as a box left open at the right.
 	local innerEdge = button:CreateTexture(nil, "ARTWORK")
 
-	innerEdge:SetPoint("TOPLEFT", button, "TOPLEFT", SWATCH_BORDER, -SWATCH_BORDER)
-	innerEdge:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -SWATCH_BORDER, SWATCH_BORDER)
+	PixelUtil.SetPoint(innerEdge, "TOPLEFT", button, "TOPLEFT", SWATCH_BORDER, -SWATCH_BORDER)
+	PixelUtil.SetPoint(innerEdge, "BOTTOMRIGHT", button, "BOTTOMRIGHT", -SWATCH_BORDER, SWATCH_BORDER)
 	innerEdge:SetColorTexture(BLACK_FONT_COLOR:GetRGB())
 
 	local swatch = button:CreateTexture(nil, "OVERLAY")
 
-	swatch:SetPoint("TOPLEFT", innerEdge, "TOPLEFT", SWATCH_BORDER, -SWATCH_BORDER)
-	swatch:SetPoint("BOTTOMRIGHT", innerEdge, "BOTTOMRIGHT", -SWATCH_BORDER, SWATCH_BORDER)
+	PixelUtil.SetPoint(swatch, "TOPLEFT", innerEdge, "TOPLEFT", SWATCH_BORDER, -SWATCH_BORDER)
+	PixelUtil.SetPoint(swatch, "BOTTOMRIGHT", innerEdge, "BOTTOMRIGHT", -SWATCH_BORDER, SWATCH_BORDER)
 
 	--- The outer edge turning gold *is* the hover state, as `ColorSwatchMixin:OnEnter` does it. A separate
 	--- highlight texture would sit over the colour and misreport it.
@@ -519,9 +532,14 @@ function Private.Controls.ColorSwatch(parent, label, get, set, enabled, full, la
 
 		local column, control = Divide(self, width, labelWidth, caption)
 
+		--- Widened to the dropdown's own overhang, and shifted by it, so a swatch and a dropdown in the
+		--- same column line up. `WowStyle1DropdownTemplate` anchors its background eight units outside its
+		--- frame on every side (`MenuTemplates.xml`), so a control drawn to its rectangle stops eight short
+		--- of the one above it and reads as trimmed. The row still *occupies* only its column: the overhang
+		--- is art, and the gutter it reaches into is 26 wide.
 		button:ClearAllPoints()
-		button:SetPoint("LEFT", self, "LEFT", column, 0)
-		button:SetWidth(control)
+		PixelUtil.SetPoint(button, "LEFT", self, "LEFT", column - SWATCH_OVERHANG, 0)
+		PixelUtil.SetWidth(button, control + SWATCH_OVERHANG * 2)
 
 		return ROW_HEIGHT
 	end

@@ -30,12 +30,16 @@ local STRIP_Y = 2
 ---
 --- `DOT_INSET + DOT_SIZE` has to stay inside `DOT_SPACE`, or the dot reaches into the label.
 ---
+--- The inset clears the tab's own left cap rather than being a round number: `uiframe-tab-left` is
+--- anchored flush to the button's corner (`TabSystemTemplates.xml`), so a dot nearer than its bevel sits
+--- on the frame's edge art instead of inside the tab.
+---
 --- Five labels at the cap would total more than the window is wide, but only one is ever near it -- the
 --- Cooldowns category, whose name is a phrase in every locale -- and the four short ones leave it room.
 local MAX_TAB_WIDTH = 130
-local DOT_SPACE = 22
+local DOT_SPACE = 26
 local DOT_SIZE = 16
-local DOT_INSET = 4
+local DOT_INSET = 8
 
 --- What a switched-off category's label fades to.
 ---
