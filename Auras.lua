@@ -56,7 +56,7 @@ local ANY_FILTER = AuraUtil.CreateFilterString(AuraUtil.AuraFilters.Helpful)
 ---@field Size fun(config: table, size: SpotlightsChildSize): number, number
 ---@field Invalidated? fun(config: table, record: SpotlightsAuraDisplay): boolean whether a resize has broken something built-in
 
----@type table<integer, table<integer, true>>
+---@type table<integer, table<integer, boolean>>
 local COOLDOWNS = {
 	[Constants.UICharacterClasses.Warrior] = {
 		[1719] = true, -- Recklessness
@@ -220,39 +220,106 @@ local function Config()
 	return Private.DB and Private.DB.auras
 end
 
----@return table<integer, true>
-local function PrescienceCandidates()
-	return { [410089] = true }
-end
-
-local function ShiftingSandsCandidates()
-	return { [413984] = true }
-end
-
---- Sense Power's candidates: the spell, plus every major cooldown still switched on.
+--- One spell pool: a shipped catalogue grouped by class, sparse overrides over it, and the user's own
+--- IDs beside it.
 ---
---- Read from the database on every call: the set is what a slot's `includeSpellIDs` is built from,
---- so recomputing here is what makes a toggle reach a live display. Cached, it could disagree.
+--- Cooldowns and defensives are the same concern at runtime and differ only in what a catalogue entry
+--- *means*, so that difference lives in `DefaultEnabled` and every operation below is written once. A
+--- cooldown ships on -- `COOLDOWNS` is a membership list -- while a defensive ships on or off per
+--- spell, because the ones the game does not count as defensives were added by hand.
+---
+--- The two pools keep separate saved-variable tables and separate features. This is shared behaviour,
+--- not a merged pool.
+---@class SpotlightsAuraPool
+---@field catalog table<integer, table<integer, boolean>> the shipped spells, grouped by class
+---@field overridesKey string the `SpotlightsAurasConfig` field holding deviations from the catalogue
+---@field customKey string the `SpotlightsAurasConfig` field holding the user's own spell IDs
+---@field DefaultEnabled fun(shipped: boolean): boolean what a catalogue entry says about its default
+
+---@type table<string, SpotlightsAuraPool>
+local POOLS = {
+	cooldown = {
+		catalog = COOLDOWNS,
+		overridesKey = "cooldowns",
+		customKey = "custom",
+		DefaultEnabled = function()
+			return true
+		end,
+	},
+
+	defensive = {
+		catalog = DEFENSIVES,
+		overridesKey = "defensives",
+		customKey = "defensiveCustom",
+		DefaultEnabled = function(shipped)
+			return shipped
+		end,
+	},
+}
+
+--- A pool's two saved tables, or nils before the migration has run.
+---
+--- The one place either table is reached by key. Both are guaranteed by the migration and refilled by
+--- `Repair` on every load, so the nil case is the window before either has run -- a refresh driven by a
+--- slash command during login, which is a real order.
+---@param pool SpotlightsAuraPool
+---@return table<integer, boolean>? overrides, table<integer, boolean>? custom
+local function PoolTables(pool)
+	local auras = Config()
+
+	if not auras then
+		return nil, nil
+	end
+
+	return auras[pool.overridesKey], auras[pool.customKey]
+end
+
+--- Whether the pool ships this spell, and switched on or off if so.
+---@param pool SpotlightsAuraPool
+---@param spellID integer
+---@return boolean? default nil when the spell is not in the catalogue at all
+local function ShippedDefault(pool, spellID)
+	for _, spells in pairs(pool.catalog) do
+		local shipped = spells[spellID]
+
+		if shipped ~= nil then
+			return pool.DefaultEnabled(shipped)
+		end
+	end
+
+	return nil
+end
+
+--- Every spell in the pool a slot may currently show.
+---
+--- Read from the database on every call: the set is what a slot's `includeSpellIDs` is built from, so
+--- recomputing here is what makes a toggle reach a live display. Cached, it could disagree.
 ---
 --- Not narrowed to the watched unit's class. A container can be repointed at another player
---- (`OnUnitChanged` does so on every roster change), so a per-class set would have to be recomputed
---- in the right order relative to `SetUnit`. The union costs nothing to be right instead: no spell
---- belongs to two classes and nobody changes class. The class grouping in `COOLDOWNS` is for readers
---- and the options panel, not for this lookup.
+--- (`OnUnitChanged` does so on every roster change), so a per-class set would have to be recomputed in
+--- the right order relative to `SetUnit`. The union costs nothing to be right instead: no spell belongs
+--- to two classes and nobody changes class. The class grouping in the catalogues is for readers and the
+--- options panel, not for this lookup.
 ---
---- Absence means enabled, which is why the shipped list needs no migration when it grows: `cooldowns`
---- holds only the built-ins the user switched *off*.
+--- An absent override means the shipped default, which is why a catalogue needs no migration when it
+--- grows: the override table holds only the user's own decisions.
+---@param pool SpotlightsAuraPool
+---@param candidates table<integer, true>? a set to add to, for a slot pooling more than this pool
 ---@return table<integer, true>
-local function SensePowerCandidates()
-	local candidates = { [361022] = true }
-	local auras = Config()
-	local overrides = auras and auras.cooldowns
-	local custom = auras and auras.custom
+local function PoolCandidates(pool, candidates)
+	candidates = candidates or {}
+	local overrides, custom = PoolTables(pool)
 
-	for _, cooldowns in pairs(COOLDOWNS) do
-		for cooldownID in pairs(cooldowns) do
-			if not overrides or overrides[cooldownID] ~= false then
-				candidates[cooldownID] = true
+	for _, spells in pairs(pool.catalog) do
+		for spellID, shipped in pairs(spells) do
+			local enabled = overrides and overrides[spellID]
+
+			if enabled == nil then
+				enabled = pool.DefaultEnabled(shipped)
+			end
+
+			if enabled then
+				candidates[spellID] = true
 			end
 		end
 	end
@@ -270,58 +337,209 @@ local function SensePowerCandidates()
 	return candidates
 end
 
-local function CooldownCandidates()
-	local candidates = {}
-	local auras = Config()
-	local overrides = auras and auras.cooldowns
-	local custom = auras and auras.custom
-
-	for _, cooldowns in pairs(COOLDOWNS) do
-		for spellID in pairs(cooldowns) do
-			if not overrides or overrides[spellID] ~= false then
-				candidates[spellID] = true
-			end
-		end
-	end
+--- Whether one spell in the pool is switched on.
+---
+--- The asymmetry between the two lists lives here and nowhere else: a built-in is on unless it deviates
+--- from its catalogue entry, and a custom entry is off unless switched on. Both callers -- the panel
+--- drawing a checkbox and `PoolCandidates` building the set -- have to agree, so they ask the same
+--- function.
+---@param pool SpotlightsAuraPool
+---@param spellID integer
+---@param custom boolean? whether `spellID` is a user-added entry rather than a shipped one
+---@return boolean
+local function IsPoolEnabled(pool, spellID, custom)
+	local overrides, entries = PoolTables(pool)
 
 	if custom then
-		for spellID, enabled in pairs(custom) do
-			if enabled then
-				candidates[spellID] = true
-			end
-		end
+		return entries ~= nil and entries[spellID] == true
 	end
 
-	return candidates
+	local default = ShippedDefault(pool, spellID)
+
+	if default == nil then
+		return false
+	end
+
+	local override = overrides and overrides[spellID]
+
+	if override ~= nil then
+		return override
+	end
+
+	return default
 end
 
-local function DefensiveCandidates()
-	local candidates = {}
-	local auras = Config()
-	local overrides = auras and auras.defensives
-	local custom = auras and auras.defensiveCustom
+--- Switches one pooled spell on or off, and lands it on every live display.
+---
+--- A built-in returning to its default is **cleared rather than stored**, which keeps the override
+--- table holding only the user's actual decisions -- and therefore keeps a spell added to a catalogue
+--- in a later version at its shipped default for someone who once toggled a different one.
+---
+--- A built-in the catalogue does not list is refused. An override on one could never reach a candidate
+--- set, so writing it would leave a saved variable saying something the addon does not act on.
+---@param pool SpotlightsAuraPool
+---@param spellID integer
+---@param enabled boolean
+---@param custom boolean? whether `spellID` is a user-added entry rather than a shipped one
+---@return boolean applied
+local function SetPoolEnabled(pool, spellID, enabled, custom)
+	local overrides, entries = PoolTables(pool)
 
-	for _, defensives in pairs(DEFENSIVES) do
-		for spellID, enabled in pairs(defensives) do
-			if overrides and overrides[spellID] ~= nil then
-				enabled = overrides[spellID]
-			end
-
-			if enabled then
-				candidates[spellID] = true
-			end
-		end
+	if not overrides or not entries then
+		return false
 	end
 
 	if custom then
-		for spellID, enabled in pairs(custom) do
-			if enabled then
-				candidates[spellID] = true
-			end
+		if entries[spellID] == nil then
+			return false
+		end
+
+		entries[spellID] = enabled
+	else
+		local default = ShippedDefault(pool, spellID)
+
+		if default == nil then
+			return false
+		end
+
+		-- Spelled out rather than folded into an `and`/`or`: neither operator can yield nil from a
+		-- truthy branch, so `enabled ~= default and enabled or nil` stores *nil* when switching a
+		-- default-on spell off -- which reads as "default" to everything downstream and would leave the
+		-- spell enabled.
+		if enabled == default then
+			overrides[spellID] = nil
+		else
+			overrides[spellID] = enabled
 		end
 	end
 
-	return candidates
+	Private.Auras.RefreshCandidates()
+
+	return true
+end
+
+--- The user's own spell IDs, in ascending order.
+---
+--- Sorted rather than iterated, because `pairs` over an integer-keyed map has no order the user would
+--- recognise and a list that reshuffled itself whenever the panel reopened would look broken.
+---@param pool SpotlightsAuraPool
+---@return integer[]
+local function CustomPoolSpells(pool)
+	local _, entries = PoolTables(pool)
+	local spellIDs = {}
+
+	if entries then
+		for spellID in pairs(entries) do
+			spellIDs[#spellIDs + 1] = spellID
+		end
+	end
+
+	table.sort(spellIDs)
+
+	return spellIDs
+end
+
+--- Adds a spell the user typed in, switched on.
+---
+--- Enabled immediately, unlike the custom default of off, because adding one *is* the act of asking for
+--- it -- the default only governs an entry that arrived some other way, such as a hand-edited database.
+---@param pool SpotlightsAuraPool
+---@param spellID integer
+---@return boolean added false when it is already in the list
+local function AddCustomPoolSpell(pool, spellID)
+	local _, entries = PoolTables(pool)
+
+	if not entries or entries[spellID] ~= nil then
+		return false
+	end
+
+	entries[spellID] = true
+
+	Private.Auras.RefreshCandidates()
+
+	return true
+end
+
+--- Removes one of the user's own entries.
+---
+--- No reload is owed, though this is the case that looks most like it should: a spell *shown* this
+--- session leaves a slot currently displaying it. Clearing it from the filters is what
+--- `SetCandidateFilters` already does -- it drops every candidate and re-acquires from the next aura
+--- scan -- so the display empties on its own.
+---@param pool SpotlightsAuraPool
+---@param spellID integer
+---@return boolean removed
+local function RemoveCustomPoolSpell(pool, spellID)
+	local _, entries = PoolTables(pool)
+
+	if not entries or entries[spellID] == nil then
+		return false
+	end
+
+	entries[spellID] = nil
+
+	Private.Auras.RefreshCandidates()
+
+	return true
+end
+
+--- Puts every shipped spell in the pool back to its default, which is not the same as on: three
+--- defensives ship switched off, so this restores a *mix* rather than enabling everything.
+---
+--- Clearing the override table *is* the reset: it holds only the user's deviations, so an empty one
+--- means the catalogue as shipped -- and a spell added in a later version is unaffected either way,
+--- since it was never in there.
+---
+--- The user's own entries are left alone, and the panel offering this says so. They have no shipped
+--- default to return to: an entry exists only because it was typed in, so the only thing "default"
+--- could mean for one is deleting it, which is not what a reset button is for.
+---@param pool SpotlightsAuraPool
+---@return boolean applied
+local function ResetPool(pool)
+	local overrides = PoolTables(pool)
+
+	-- Nothing overridden is already the default state, and refreshing every live display to say so
+	-- would be a sweep over the whole raid for no change.
+	if not overrides or next(overrides) == nil then
+		return false
+	end
+
+	-- Emptied rather than replaced, so the table the migration installed stays the one in the database.
+	for spellID in pairs(overrides) do
+		overrides[spellID] = nil
+	end
+
+	Private.Auras.RefreshCandidates()
+
+	return true
+end
+
+---@return table<integer, true>
+local function PrescienceCandidates()
+	return { [410089] = true }
+end
+
+local function ShiftingSandsCandidates()
+	return { [413984] = true }
+end
+
+--- Sense Power's candidates: the spell, plus every major cooldown still switched on.
+---
+--- Its own composition rule rather than a pool of its own -- the cooldown pool, seeded with Sense
+--- Power. The defensive pool is deliberately not in it.
+---@return table<integer, true>
+local function SensePowerCandidates()
+	return PoolCandidates(POOLS.cooldown, { [361022] = true })
+end
+
+---@return table<integer, true>
+local function CooldownCandidates()
+	return PoolCandidates(POOLS.cooldown)
+end
+
+---@return table<integer, true>
+local function DefensiveCandidates()
+	return PoolCandidates(POOLS.defensive)
 end
 
 ---@param candidates table<integer, true>
@@ -2126,290 +2344,95 @@ function Private.Auras.HasDisplay(featureKey, displayKey)
 	return false
 end
 
---- The shipped cooldown list, for the options panel to draw rows from.
+--- The shipped spell lists, for the options panel to draw rows from.
 ---
---- Handed out rather than copied, because the panel only reads it -- and grouped by class, which is
+--- Handed out rather than copied, because the panel only reads them -- and grouped by class, which is
 --- the one thing the flat candidate set throws away and the panel needs back.
----@return table<integer, table<integer, true>>
+---
+--- Everything below is a wrapper over one pool operation. The pair exists so the options panel names a
+--- pool by asking for it, rather than by knowing which saved table and which default rule it wants.
+---@return table<integer, table<integer, boolean>>
 function Private.Auras.Cooldowns()
 	return COOLDOWNS
 end
 
+---@return table<integer, table<integer, boolean>>
 function Private.Auras.Defensives()
 	return DEFENSIVES
 end
 
---- Whether one spell in the pool is switched on.
----
---- The asymmetry between the two lists lives here and nowhere else: a built-in is on unless switched
---- off, and a custom entry is off unless switched on. Both callers -- the panel drawing a checkbox
---- and `SensePowerCandidates` building the set -- have to agree, so they ask the same function.
 ---@param spellID integer
 ---@param custom boolean? whether `spellID` is a user-added entry rather than a shipped one
 ---@return boolean
 function Private.Auras.IsCooldownEnabled(spellID, custom)
-	local auras = Config()
-
-	-- Both tables are guaranteed by the migration and refilled by `Repair` on every load, so the
-	-- guards are for the window before either has run -- a refresh driven by a slash command during
-	-- login, which is a real order.
-	if not auras then
-		return false
-	end
-
-	if custom then
-		return auras.custom ~= nil and auras.custom[spellID] == true
-	end
-
-	return auras.cooldowns == nil or auras.cooldowns[spellID] ~= false
+	return IsPoolEnabled(POOLS.cooldown, spellID, custom)
 end
 
---- Switches one pooled spell on or off, and lands it on every live display.
----
---- A built-in returning to its default is **cleared rather than set true**, which keeps the override
---- table holding only the user's actual decisions -- and therefore keeps a spell added to `COOLDOWNS`
---- in a later version enabled for someone who once toggled a different one.
 ---@param spellID integer
 ---@param enabled boolean
 ---@param custom boolean? whether `spellID` is a user-added entry rather than a shipped one
 ---@return boolean applied
 function Private.Auras.SetCooldownEnabled(spellID, enabled, custom)
-	local auras = Config()
-
-	if not auras or not auras.cooldowns or not auras.custom then
-		return false
-	end
-
-	if custom then
-		if auras.custom[spellID] == nil then
-			return false
-		end
-
-		auras.custom[spellID] = enabled
-	elseif enabled then
-		-- Cleared rather than written `true`, and spelled out rather than folded into an `and`/`or`:
-		-- neither operator can yield nil from a truthy branch, so `not enabled or nil` stores *true*
-		-- when disabling -- which reads as "off" to nobody and would leave the spell enabled.
-		auras.cooldowns[spellID] = nil
-	else
-		auras.cooldowns[spellID] = false
-	end
-
-	Private.Auras.RefreshCandidates()
-
-	return true
+	return SetPoolEnabled(POOLS.cooldown, spellID, enabled, custom)
 end
 
---- The user's own spell IDs, in ascending order.
----
---- Sorted rather than iterated, because `pairs` over an integer-keyed map has no order the user would
---- recognise and a list that reshuffled itself whenever the panel reopened would look broken.
 ---@return integer[]
 function Private.Auras.CustomCooldowns()
-	local auras = Config()
-	local spellIDs = {}
-
-	if not auras or not auras.custom then
-		return spellIDs
-	end
-
-	for spellID in pairs(auras.custom) do
-		spellIDs[#spellIDs + 1] = spellID
-	end
-
-	table.sort(spellIDs)
-
-	return spellIDs
+	return CustomPoolSpells(POOLS.cooldown)
 end
 
---- Adds a spell the user typed in, switched on.
----
---- Enabled immediately, unlike the `custom` default of off, because adding one *is* the act of
---- asking for it -- the default only governs an entry that arrived some other way, such as a
---- hand-edited database.
 ---@param spellID integer
 ---@return boolean added false when it is already in the list
 function Private.Auras.AddCustomCooldown(spellID)
-	local auras = Config()
-
-	if not auras or not auras.custom or auras.custom[spellID] ~= nil then
-		return false
-	end
-
-	auras.custom[spellID] = true
-
-	Private.Auras.RefreshCandidates()
-
-	return true
+	return AddCustomPoolSpell(POOLS.cooldown, spellID)
 end
 
---- Removes one of the user's own entries.
----
---- No reload is owed, though this is the case that looks most like it should: a spell *shown* this
---- session leaves a slot currently displaying it. Clearing it from the filters is what
---- `SetCandidateFilters` already does -- it drops every candidate and re-acquires from the next aura
---- scan -- so the display empties on its own.
 ---@param spellID integer
 ---@return boolean removed
 function Private.Auras.RemoveCustomCooldown(spellID)
-	local auras = Config()
-
-	if not auras or not auras.custom or auras.custom[spellID] == nil then
-		return false
-	end
-
-	auras.custom[spellID] = nil
-
-	Private.Auras.RefreshCandidates()
-
-	return true
+	return RemoveCustomPoolSpell(POOLS.cooldown, spellID)
 end
 
---- Puts every shipped cooldown back to its default, which is on.
----
---- Clearing the override table *is* the reset: it holds only the built-ins the user switched off, so
---- an empty one means the shipped list as shipped -- and a cooldown added in a later version is
---- unaffected either way, since it was never in there.
----
---- The user's own entries are left alone, and the panel offering this says so. They have no shipped
---- default to return to: an entry exists only because it was typed in, so the only thing "default"
---- could mean for one is deleting it, which is not what a reset button is for.
 ---@return boolean applied
 function Private.Auras.ResetCooldowns()
-	local auras = Config()
-
-	-- Nothing overridden is already the default state, and refreshing every live display to say so
-	-- would be a sweep over the whole raid for no change.
-	if not auras or not auras.cooldowns or next(auras.cooldowns) == nil then
-		return false
-	end
-
-	auras.cooldowns = {}
-
-	Private.Auras.RefreshCandidates()
-
-	return true
+	return ResetPool(POOLS.cooldown)
 end
 
+---@param spellID integer
+---@param custom boolean? whether `spellID` is a user-added entry rather than a shipped one
+---@return boolean
 function Private.Auras.IsDefensiveEnabled(spellID, custom)
-	local auras = Config()
-
-	if not auras then
-		return false
-	end
-
-	if custom then
-		return auras.defensiveCustom ~= nil and auras.defensiveCustom[spellID] == true
-	end
-
-	for _, defensives in pairs(DEFENSIVES) do
-		if defensives[spellID] ~= nil then
-			if auras.defensives[spellID] ~= nil then
-				return auras.defensives[spellID]
-			end
-
-			return defensives[spellID]
-		end
-	end
-
-	return false
+	return IsPoolEnabled(POOLS.defensive, spellID, custom)
 end
 
+---@param spellID integer
+---@param enabled boolean
+---@param custom boolean? whether `spellID` is a user-added entry rather than a shipped one
+---@return boolean applied
 function Private.Auras.SetDefensiveEnabled(spellID, enabled, custom)
-	local auras = Config()
-
-	if not auras or not auras.defensives or not auras.defensiveCustom then
-		return false
-	end
-
-	if custom then
-		if auras.defensiveCustom[spellID] == nil then
-			return false
-		end
-
-		auras.defensiveCustom[spellID] = enabled
-	else
-		local default
-		for _, defensives in pairs(DEFENSIVES) do
-			if defensives[spellID] ~= nil then
-				default = defensives[spellID]
-				break
-			end
-		end
-
-		if default == nil then
-			return false
-		end
-
-		if enabled == default then
-			auras.defensives[spellID] = nil
-		else
-			auras.defensives[spellID] = enabled
-		end
-	end
-
-	Private.Auras.RefreshCandidates()
-	return true
+	return SetPoolEnabled(POOLS.defensive, spellID, enabled, custom)
 end
 
+---@return integer[]
 function Private.Auras.CustomDefensives()
-	local auras = Config()
-	local spellIDs = {}
-
-	if auras and auras.defensiveCustom then
-		for spellID in pairs(auras.defensiveCustom) do
-			spellIDs[#spellIDs + 1] = spellID
-		end
-	end
-
-	table.sort(spellIDs)
-
-	return spellIDs
+	return CustomPoolSpells(POOLS.defensive)
 end
 
+---@param spellID integer
+---@return boolean added false when it is already in the list
 function Private.Auras.AddCustomDefensive(spellID)
-	local auras = Config()
-
-	if not auras or not auras.defensiveCustom or auras.defensiveCustom[spellID] ~= nil then
-		return false
-	end
-
-	auras.defensiveCustom[spellID] = true
-	Private.Auras.RefreshCandidates()
-
-	return true
+	return AddCustomPoolSpell(POOLS.defensive, spellID)
 end
 
+---@param spellID integer
+---@return boolean removed
 function Private.Auras.RemoveCustomDefensive(spellID)
-	local auras = Config()
-
-	if not auras or not auras.defensiveCustom or auras.defensiveCustom[spellID] == nil then
-		return false
-	end
-
-	auras.defensiveCustom[spellID] = nil
-	Private.Auras.RefreshCandidates()
-
-	return true
+	return RemoveCustomPoolSpell(POOLS.defensive, spellID)
 end
 
---- Puts every shipped defensive back to its default, which is not the same as on.
----
---- Three of them ship switched off, so this restores a *mix* rather than enabling everything -- which
---- is the whole reason it clears the overrides instead of writing `true` over the list.
 ---@return boolean applied
 function Private.Auras.ResetDefensives()
-	local auras = Config()
-
-	if not auras or not auras.defensives or next(auras.defensives) == nil then
-		return false
-	end
-
-	auras.defensives = {}
-
-	Private.Auras.RefreshCandidates()
-
-	return true
+	return ResetPool(POOLS.defensive)
 end
 
 --- Whether the user should be offered a reload, because frames have been abandoned or are about to
