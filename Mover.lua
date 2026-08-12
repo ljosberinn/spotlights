@@ -24,7 +24,9 @@ local previewingAuras = false
 --- hand would combat-block. Positioned against UIParent instead, it stays an unprotected frame of
 --- ours; the cost is `Sync`, which runs only when the container moves.
 ---
---- HIGH strata so previews parented here sit above the LOW-strata spotlights they cover.
+--- HIGH strata so previews parented here sit above the spotlights they cover. That is only the
+--- starting value: `Sync` re-reads it from the configured grid strata, since the user can raise the
+--- spotlights past this one.
 ---
 --- Split from the drag handle (once the same frame) so a preview can hang grid-aligned displays
 --- here without a mouse-enabled handle swallowing interaction with the panel behind it.
@@ -71,14 +73,19 @@ local function Handle()
 	return handle
 end
 
---- The cursor position in UIParent units.
+--- The cursor position in the container's units.
 ---
---- GetCursorPosition answers in raw screen pixels while every rectangle here is in UIParent units;
---- the two differ by the effective scale whenever the user is not at 100%. Mixing them makes a
---- dragged frame drift from the cursor, invisible at the default scale.
+--- GetCursorPosition answers in raw screen pixels while every rectangle the drag maths compares
+--- against is read off the container in its own units; the two differ by the effective scale
+--- whenever the user is not at 100%. Mixing them makes a dragged frame drift from the cursor,
+--- invisible at the default scale.
+---
+--- The container's effective scale rather than UIParent's, because the grid carries the user's
+--- frame scale on top of it -- and it is the container's rectangle, and the offsets stored from it,
+--- that this feeds.
 ---@return number x, number y
 local function CursorPosition()
-	local scale = UIParent:GetEffectiveScale()
+	local scale = Private.Container.Get():GetEffectiveScale()
 	local x, y = GetCursorPosition()
 
 	return x / scale, y / scale
@@ -159,6 +166,16 @@ function Private.Mover.Sync()
 	if not left or not bottom then
 		return
 	end
+
+	--- Set before the anchor below, and the reason that anchor can pass the container's numbers
+	--- straight through: `GetLeft` and `GetSize` answer in the container's own units while a SetPoint
+	--- offset is read in the anchored frame's. Matching the scale makes those the same units, and
+	--- makes a preview parented here the size of the spotlight it stands in for.
+	---
+	--- The strata follows for the same reason it was HIGH to begin with: previews have to draw over
+	--- the frames they preview, wherever the user has put those.
+	overlay:SetScale(container:GetScale())
+	overlay:SetFrameStrata(Private.Container.OverlayStrata())
 
 	overlay:ClearAllPoints()
 	PixelUtil.SetPoint(overlay, "BOTTOMLEFT", UIParent, "BOTTOMLEFT", left, bottom)

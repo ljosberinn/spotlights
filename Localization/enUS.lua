@@ -51,6 +51,7 @@ L.Settings.TabAppearance = "Appearance"
 L.Settings.TabGrid = "Grid"
 L.Settings.TabAuras = "Auras"
 L.Settings.TabRoster = "Roster"
+L.Settings.TabImportExport = "Import / Export"
 L.Settings.ShowMinimapButton = "Show Minimap Button"
 L.Settings.ClickToOpenSettings = "Click To Open Settings"
 L.Settings.Import = "Import"
@@ -59,9 +60,29 @@ L.Settings.ImportError = "Import failed: %s"
 L.Settings.ImportErrorPrefix = "the string does not start with SPOTLIGHTS!"
 L.Settings.ImportErrorDecode = "the string could not be decoded"
 L.Settings.ImportErrorPayload = "the decoded data is not a settings table"
+L.Settings.Copy = "Copy"
 
-L.Settings.ToggleMover = "Unlock / Lock"
 L.Settings.Recenter = "Return To Center"
+
+L.Settings.PlacementHeading = "Placement"
+L.Settings.InterfaceHeading = "Interface"
+L.Settings.UnlockFrames = "Unlock Frames For Dragging"
+L.Settings.Scale = "Frame Scale"
+L.Settings.FrameStrata = "Frame Strata"
+L.Settings.SlashHint = "Type |cffffd100/spotlights|r for every command."
+
+--- The frame strata, as display strings. Named for what the layer is rather than transliterated, since
+--- the value itself never reaches the user.
+L.Settings.Strata = {
+	BACKGROUND = "Background",
+	LOW = "Low",
+	MEDIUM = "Medium",
+	HIGH = "High",
+	DIALOG = "Dialog",
+	FULLSCREEN = "Fullscreen",
+	FULLSCREEN_DIALOG = "Fullscreen Dialog",
+	TOOLTIP = "Tooltip",
+}
 
 L.Settings.FrameHeading = "Frame"
 L.Settings.Width = "Frame Width"
@@ -104,6 +125,12 @@ L.Settings.HealthTextOffsetX = "Health Offset X"
 L.Settings.HealthTextOffsetY = "Health Offset Y"
 L.Settings.ResetHealthText = "Reset Health Settings"
 
+L.Settings.PreviewHeading = "Preview"
+
+-- The size the previewed frame really is, then what the pane had to shrink it by to fit -- so a
+-- preview that reads smaller than its own numbers is explained rather than misleading.
+L.Settings.PreviewCaption = "%d × %d · shown at %d%%"
+
 L.Settings.Orientation = "Fill Direction"
 L.Settings.Horizontal = "Across, Then Down"
 L.Settings.Vertical = "Down, Then Across"
@@ -114,25 +141,26 @@ L.Settings.GrowLeft = "Left"
 L.Settings.GrowY = "Grow Vertically"
 L.Settings.GrowDown = "Down"
 L.Settings.GrowUp = "Up"
-L.Settings.SpacingX = "Horizontal Spacing"
-L.Settings.SpacingY = "Vertical Spacing"
+
+L.Settings.FillHeading = "Fill"
+L.Settings.Spacing = "Spacing"
+L.Settings.SpacingHorizontalShort = "H"
+L.Settings.SpacingVerticalShort = "V"
+L.Settings.FillOrderHeading = "Fill Order"
+L.Settings.FillOrderCaption = "%s · wraps every %d · grows %s, %s"
 
 L.Settings.AllowGaps = "Render Empty Cells"
-L.Settings.AllowGapsHelp =
-"On, a player who leaves the raid leaves their cell empty and nothing else moves. Off, the remaining spotlights close the gap once you are out of combat."
 L.Settings.ClearOnLeave = "Clear Roster When Leaving The Group"
-L.Settings.ClearOnLeaveHelp =
-"Off, your spotlights are remembered between raids. On, leaving a raid empties the grid completely - every player and every spacer - so the next one starts from nothing. Logging out, reloading and reconnecting do not count as leaving."
-
-L.Settings.CombatHelp =
-"Spotlights are rebuilt out of combat only. Adding or removing one during a fight is remembered and applied the moment combat ends; nothing is lost, but the grid will not change mid-pull."
-
-L.Settings.RosterHelp =
-"You can drag & drop players in and out of the grouping below. You can also drag them on top of the Spotlights container if at least one other player is already present."
 
 L.Settings.SlotsHeader = "Configured slots"
 L.Settings.RaidHeader = "Raid members"
 L.Settings.AddSpacer = "Add a spacer"
+L.Settings.NoSlots =
+"No spotlights configured yet. Add a raid member from the list beside this one, or drag one onto it."
+L.Settings.ClearSlots = "Clear all slots"
+L.Settings.ClearSlotsPrompt =
+"Remove every configured slot? Players and spacers alike go, and the grid starts from nothing."
+L.Settings.ClearSlotsConfirm = "Clear"
 L.Settings.BlankSlot = "(spacer)"
 L.Settings.UnknownSlot = "(empty)"
 L.Settings.NotInRaid = "not in a raid"
@@ -142,9 +170,26 @@ L.Settings.DownShort = "v"
 L.Settings.RemoveShort = "x"
 L.Settings.PlusShort = "+"
 
-L.Settings.AurasRequiresTwelveOne =
-"Aura displays need patch 12.1 or later. This client does not have the system they are built on, so the rest of this tab is hidden rather than shown doing nothing."
-L.Settings.AurasEvokerOnly = "Aura tracking is an Evoker-only feature for Sense Power, Prescience, and Shifting Sands."
+-- The presets block under the raid list. A preset is a slot layout and nothing else, which is what the
+-- delete prompt says out loud: "delete" beside a list of slots could be read as deleting the slots.
+L.Settings.PresetsHeading = "Presets"
+L.Settings.PresetsCount = "%d saved"
+L.Settings.PresetsNone = "No presets saved yet. Save the slots you have configured to start one."
+L.Settings.PresetSave = "Save"
+L.Settings.PresetDelete = "Delete"
+L.Settings.PresetSavePrompt = "Name this preset:"
+L.Settings.PresetOverwritePrompt = "A preset called \"%s\" already exists. Replace it?"
+L.Settings.PresetOverwriteConfirm = "Replace"
+L.Settings.PresetDeletePrompt = "Delete the preset \"%s\"? Your configured slots are not touched."
+
+-- What commits the pasted string. It adds a preset to the library rather than applying one, so it says
+-- "add" where the Import/Export tab's button says "import".
+L.Settings.PresetImportAdd = "Add Preset"
+
+-- A preset string and a profile string cannot be swapped, and each says so in the other's words: this
+-- is the answer to a full profile pasted into the preset box.
+L.Settings.PresetImportErrorPrefix = "the string is not a Spotlights preset"
+L.Settings.PresetImportErrorPayload = "the decoded data is not a slot list"
 
 L.Settings.Prescience = "Prescience"
 L.Settings.ShiftingSands = "Shifting Sands"
@@ -153,8 +198,19 @@ L.Settings.Cooldowns = "Cooldowns & Custom Auras"
 L.Settings.Defensives = "Defensives"
 L.Settings.AuraAugmentationOnly = "Prescience, Shifting Sands, and Sense Power are available only to Augmentation Evokers."
 
+-- The Auras tab's second sub-tab, and the tooltip on a category tab's enable dot.
+L.Settings.AuraTracked = "Tracked"
+L.Settings.AuraFeatureToggle = "Track %s"
+
 L.Settings.AuraBar = "Status Bar"
 L.Settings.AuraIcon = "Icon"
+
+-- The third display: a coloured block with no spell art on it, for when presence and remaining time are
+-- the whole of what is wanted. One size, since it is square, and its colour is all that tells two of
+-- them apart -- which is why the label says what is being coloured.
+L.Settings.AuraSquare = "Square"
+L.Settings.AuraSquareSize = "Size"
+L.Settings.AuraSquareColor = "Block Color"
 L.Settings.AuraEnabled = "Show"
 L.Settings.AuraColor = "Bar Color"
 L.Settings.AuraAlpha = "Opacity"
@@ -175,25 +231,57 @@ L.Settings.AuraShowText = "Duration Text"
 L.Settings.AuraFont = "Duration Font"
 L.Settings.AuraFontSize = "Duration Size"
 L.Settings.AuraBorder = "Border"
+L.Settings.AuraBorderStyle = "Border Style"
 L.Settings.AuraBorderSize = "Border Size"
 L.Settings.AuraBorderColor = "Border Color"
+
+-- What a collapsed display section says about itself: its size, where it hangs, the one option that
+-- most changes how it reads, and its border. Formatted from the live config on every edit, so the
+-- header tracks the body -- and replaced outright by `AuraSummaryHidden` for a display that is off,
+-- since a size for something nothing will draw is worse than no summary at all.
+L.Settings.AuraSummary = "%d × %d · %s · %s · %s"
+L.Settings.AuraSummaryHidden = "Hidden"
+L.Settings.AuraSummarySwipeOn = "swipe on"
+L.Settings.AuraSummarySwipeOff = "swipe off"
+L.Settings.AuraSummaryInlineIcon = "inline icon"
+L.Settings.AuraSummaryNoInlineIcon = "no inline icon"
+L.Settings.AuraSummaryBorder = "%dpx border"
+L.Settings.AuraSummaryNoBorder = "no border"
 
 L.Settings.AuraReset = "Reset To Defaults"
 L.Settings.AuraResetConfirm = "Reset"
 -- Names the feature so the prompt is unambiguous when both sub-tabs share one button, and stays
 -- silent about the tracked cooldown list because a reset does not touch it and Prescience has none.
-L.Settings.AuraResetPrompt = "Reset %s's Status Bar And Icon To Their Default Settings?"
+
+-- The reworked panel resets one display at a time, since the two are configured independently: the
+-- display first, then the category it belongs to.
+L.Settings.AuraResetDisplayPrompt = "Reset The %s For %s To Its Default Settings?"
+
+-- The tracked list has a reset of its own, under the class rail. It says what it leaves alone, because
+-- a spell the user typed in has no default to return to and deleting it is not what a reset is for.
+L.Settings.AuraResetSpellsPrompt = "Reset Which Spells %s Tracks To The Shipped Defaults? Spells You Added Yourself Are Kept."
+
+-- How much of a class is switched on, beside its name in the rail: enabled over total.
+L.Settings.AuraGroupCount = "%d/%d"
+
+-- The bulk switches over the spell pane. They act on whatever the search box left showing, so that a
+-- filtered list does exactly what the buttons above it say.
+L.Settings.AuraEnableAll = "Enable All"
+L.Settings.AuraDisableAll = "Disable All"
+
+-- The second line of a spell row: its ID, and the client's own subtext for it where there is one -- a
+-- specialisation, a rank. Most spells have none, and the row is then the ID alone.
+L.Settings.AuraSpellMeta = "%d · %s"
+
+-- What stands in for the spell pane when there is no group to show. Prescience and Shifting Sands watch
+-- one specific aura each, so there is nothing to choose; the other is a search that matched nothing.
+L.Settings.AuraNoTrackedSpells = "%s watches one specific aura, so there is nothing to choose here."
+L.Settings.AuraNoSpellMatches = "No spells match your search."
 
 -- The one place the cost of the design is visible to the user, so it says what it costs rather than
 -- only that it costs something.
 L.Settings.AurasRebuildHelp =
 "Some settings may need a reload after application. You will get prompted to do so when you finished customizing."
-
-L.Settings.AuraBuiltinCooldowns = "Tracked Cooldowns"
-L.Settings.AuraBuiltinCooldownsNote =
-"Show these major cooldowns when the spotlighted player uses one."
-L.Settings.AuraBuiltinDefensives = "Tracked Defensives"
-L.Settings.AuraBuiltinDefensivesNote = "Show these defensive abilities when the spotlighted player uses one."
 
 L.Settings.AuraCustomCooldowns = "Custom Auras"
 

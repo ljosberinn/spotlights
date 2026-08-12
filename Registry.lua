@@ -456,6 +456,65 @@ function Private.Registry.SetBlank(index)
 	return true
 end
 
+--- Empties the grid: every player and every spacer.
+---
+--- Spacers go too, on the same grounds the leave-the-raid clear takes them: a grid with its players
+--- gone but its holes kept is not cleared, and the shape is a handful of clicks to lay out again.
+---
+--- Answers false on an already-empty grid rather than applying, so a caller can tell "nothing to do"
+--- from "done" without counting slots itself.
+---@return boolean cleared
+function Private.Registry.Clear()
+	local slots = Slots()
+
+	if not slots or #slots == 0 then
+		return false
+	end
+
+	table.wipe(slots)
+	Apply()
+
+	return true
+end
+
+--- Replaces the whole slot list, for the one caller that arrives with a list rather than an edit:
+--- applying a roster preset.
+---
+--- Copied rather than stored by reference. The list handed in belongs to the preset library and has
+--- to keep belonging to it -- assigning it directly would make every later edit of the grid an edit
+--- of the preset.
+---
+--- GUIDs are resolved from the names here rather than carried over, because a preset names the same
+--- people in every raid while their GUIDs are the ones it happened to see. A name is what the header
+--- matches on, and `SelfHeal` fills the GUID back in the first time the player is in the group.
+---@param slots SpotlightsSlot[]
+---@return boolean ok, string? reason
+function Private.Registry.SetSlots(slots)
+	local current = Slots()
+
+	if not current then
+		return false, Private.L.Registry.NotLoaded
+	end
+
+	table.wipe(current)
+
+	for i = 1, #slots do
+		local slot = slots[i]
+
+		-- Anything that is not a player is a spacer. `retired` is a header's state rather than a
+		-- slot's, so it cannot legitimately be stored here and is not worth a second branch.
+		if slot.kind == "player" and slot.name then
+			current[i] = { kind = "player", name = slot.name, guid = Private.Roster.GetGuid(slot.name) }
+		else
+			current[i] = { kind = "blank" }
+		end
+	end
+
+	Apply()
+
+	return true
+end
+
 --- Reorders a slot. Insert-after-remove, so the slots between the two ends shift by one rather than
 --- swapping -- dragging slot 5 to position 2 pushes 2, 3 and 4 down.
 ---@param from integer

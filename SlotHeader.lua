@@ -53,10 +53,6 @@ function Private.SlotHeader.ApplyAttributes(header, nameList, width, height)
 	-- cannot share one. And a container built here is built for every spotlight at header-creation
 	-- time, where `Private.Auras` builds one only for a switched-on display on a spotlight with a
 	-- unit.
-	--
-	-- Leaving it unset also avoids a 12.0.7 hazard: the AuraContainer frame type and
-	-- CustomAuraContainerTemplate arrived in 12.1.0, and the TOC still supports 120007, where that
-	-- CreateFrame errors *inside child creation* -- no spotlight at all, not just a missing display.
 	SetAttributeIfChanged(header, "nameList", nameList or SENTINEL)
 end
 

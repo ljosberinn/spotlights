@@ -5,7 +5,7 @@ local _, Private = ...
 Private.Migration = {}
 
 --- Bump this and add the matching step whenever the shape of SpotlightsSaved changes.
-Private.Migration.CurrentVersion = 3
+Private.Migration.CurrentVersion = 4
 
 --- The layout defaults, and the shape version 2 introduced.
 ---
@@ -40,12 +40,17 @@ end
 --- drifting toward the middle.
 ---
 --- `CENTER` is the default and the one point where both offsets are measured from the screen centre.
+---
+--- `scale` and `strata` were added later and ship at what the grid already did: unscaled, and the
+--- `LOW` the unit frame template used to declare for itself.
 ---@return SpotlightsPositionConfig
 local function DefaultPosition()
 	return {
 		point = "CENTER",
 		x = 0,
 		y = 0,
+		scale = 1,
+		strata = "LOW",
 	}
 end
 
@@ -119,7 +124,8 @@ local BORDER_NONE = "None"
 --- the same for both.
 ---
 --- The defaults reproduce the adjacent Prescience addon for the default 100x50 frame: 100px wide by
---- 25px high, pinned to the top, gold at half alpha. The fixed height keeps the bar off the player's name.
+--- 25px high, pinned to the top left, gold at half alpha. The fixed height keeps the bar off the
+--- player's name.
 ---
 --- Width and height are independent pixel dimensions, like the icon display.
 ---
@@ -188,17 +194,77 @@ local function DefaultAuraIcon(enabled, width, height)
 		borderR = 0,
 		borderG = 0,
 		borderB = 0,
+
+		-- Opaque, and it has to be *present*: `SetSetting` refuses a field the stored block does not
+		-- already have, so an icon without this one silently drops every border-alpha write -- and the
+		-- colour picker reads it back as the opacity it opens at. `Repair` fills it into a database
+		-- written before it was here, which is why no version step is needed.
+		borderA = 1,
 	}
 end
 
---- One feature's pair of displays at their shipped values, both freshly built.
+--- One aura display drawn as a coloured block.
+---
+--- **Ships disabled for every feature, without exception**, which is the whole of why it needs no
+--- version step: `Repair` fills the block into a database written before it existed, and a display that
+--- is off changes nothing about how that profile renders.
+---
+--- One `size` rather than a width and a height -- see `SpotlightsAuraSquareConfig`. 14px is the size the
+--- display exists for: too small for an icon's art to be read, large enough to be seen against a health
+--- bar. Anchored top right, which is the one free corner once the bar defaults have taken the top left
+--- and the icon defaults the bottom right, so all three switched on at once do not land on each other.
+---
+--- The colour is the feature's own, matching its bar, so a user switching between the two displays gets
+--- the same colour rather than a white block. No border by default: at this size a 4px edge is most of
+--- the display.
+---
+--- The duration text ships **off** while the swipe ships on. A square is sized where two digits do not
+--- fit, and the swipe is how it says "and this much is left" -- but the font fields are here and
+--- populated, because they are build-time and a field the stored block lacks is a write `SetSetting`
+--- silently refuses.
+---@param point AnchorPoint
+---@param r number
+---@param g number
+---@param b number
+---@return SpotlightsAuraSquareConfig
+local function DefaultAuraSquare(point, r, g, b)
+	return {
+		enabled = false,
+		size = 14,
+		r = r,
+		g = g,
+		b = b,
+		alpha = 1,
+		point = point,
+		x = 0,
+		y = 0,
+		showSwipe = true,
+		showText = false,
+		font = "Friz Quadrata TT",
+		fontSize = 10,
+		borderTexture = BORDER_NONE,
+		borderSize = 4,
+		borderR = 0,
+		borderG = 0,
+		borderB = 0,
+		borderA = 1,
+	}
+end
+
+--- One feature's set of displays at their shipped values, all freshly built.
 ---
 --- Which one starts on is per-feature: a duration bar is what Prescience wants; an icon with a swipe
---- is what Sense Power wants. The two bars would sit on top of each other if both were on, so the
---- second defaults to the bottom edge in a different colour.
+--- is what Sense Power wants. Every bar ships anchored **top left**, which is the corner a bar sized
+--- against a spotlight is measured from -- at `TOP` a bar narrower or wider than the frame stays
+--- centred, so a width dragged to match the frame never lines up with it. Only one bar ships enabled,
+--- so nothing overlaps out of the box; two switched on are told apart by their colours.
 ---
 --- Public and split out from `DefaultAuras` so the Reset button has one feature's defaults to write
 --- back. Fresh tables every call, so a reset cannot alias one feature's block onto another's.
+---
+--- Every feature ships **enabled**, which is what makes the field free to add: `Repair` fills it into
+--- a database written before it existed, and `true` is what those databases already behaved as. Which
+--- displays a feature draws stays the per-display question it was.
 ---@param featureKey SpotlightsAuraFeatureKey
 ---@return SpotlightsAuraFeatureConfig
 function Private.Migration.DefaultAuraFeature(featureKey)
@@ -208,27 +274,37 @@ function Private.Migration.DefaultAuraFeature(featureKey)
 		icon.point = "RIGHT"
 
 		return {
-			bar = DefaultAuraBar(false, "BOTTOM", 0.2, 0.8, 1, 0),
+			enabled = true,
+			bar = DefaultAuraBar(false, "TOPLEFT", 0.2, 0.8, 1, 0),
 			icon = icon,
+			square = DefaultAuraSquare("TOPRIGHT", 0.2, 0.8, 1),
 		}
 	end
 
 	if featureKey == "cooldownAuras" or featureKey == "defensiveAuras" then
 		return {
-			bar = DefaultAuraBar(false, "CENTER", 1, 1, 1, 0),
+			enabled = true,
+			bar = DefaultAuraBar(false, "TOPLEFT", 1, 1, 1, 0),
 			icon = DefaultAuraIcon(true, 25, 25),
+
+			-- Stored like every other display's block even though a pooled feature draws icons only, for
+			-- the reason its bar block is: the shapes are identical on purpose, and a feature missing one
+			-- is a nil index in anything that walks the set.
+			square = DefaultAuraSquare("TOPRIGHT", 1, 1, 1),
 		}
 	end
 
 	return {
-		bar = DefaultAuraBar(true, "TOP", 1, 1, 0, -2),
+		enabled = true,
+		bar = DefaultAuraBar(true, "TOPLEFT", 1, 1, 0, -2),
 		icon = DefaultAuraIcon(false, 25, 25),
+		square = DefaultAuraSquare("TOPRIGHT", 1, 1, 0),
 	}
 end
 
---- Both tracked auras, each with both displays, and the shape version 5 introduced.
+--- Every tracked aura, each with every display, and the shape version 5 introduced.
 ---
---- Every feature carries a full set of both displays even though it starts with one off: the two are
+--- Every feature carries a full set of displays even though it starts with most of them off: they are
 --- meant to be swappable, so the config a user turns *on* has to already exist.
 ---@return SpotlightsAurasConfig
 local function DefaultAuras()
@@ -290,6 +366,9 @@ local steps = {
 		auras.defensiveCustom = auras.defensiveCustom or {}
 		db.auras = auras
 	end,
+	[4] = function(db)
+		db.presets = db.presets or {}
+	end,
 }
 
 --- Fills in every field `defaults` has and `target` lacks, returning what to store: `target` patched,
@@ -331,7 +410,7 @@ end
 --- Field-by-field is right for layout and appearance because each field stands alone. Position is the
 --- exception and gets its own repair below.
 ---@param db SpotlightsDB
----@param key "layout" | "appearance" | "auras"
+---@param key "layout" | "appearance" | "auras" | "minimap" | "presets"
 ---@param build fun(): table
 local function RepairBlock(db, key, build)
 	db[key] = Filled(db[key], build())
@@ -339,9 +418,13 @@ end
 
 --- Fills in a missing or damaged position block, for the same reasons RepairBlock exists.
 ---
---- Stricter than RepairBlock's field-by-field fill: a position is only meaningful as a whole, so a
---- partial block is replaced rather than patched. `point` is validated against the set CalcPoint can
---- produce, because SetPoint errors outright on an unrecognised one.
+--- Stricter than RepairBlock's field-by-field fill: *where* the grid sits is only meaningful as a
+--- whole, so a partial anchor is replaced rather than patched. `point` is validated against the set
+--- CalcPoint can produce, because SetPoint errors outright on an unrecognised one.
+---
+--- Scale and strata are the exception and are repaired field by field, because neither is part of
+--- that anchor: a database written before they existed has a perfectly good position, and throwing
+--- it away over a field it could not have had would move the user's grid on first login.
 ---@param db SpotlightsDB
 local function RepairPosition(db)
 	local position = db.position
@@ -353,6 +436,20 @@ local function RepairPosition(db)
 		or not Private.Enum.AnchorPoints[position.point]
 	then
 		db.position = DefaultPosition()
+
+		return
+	end
+
+	local defaults = DefaultPosition()
+
+	-- Zero and negative are rejected rather than clamped to the slider's floor: `SetScale` errors on
+	-- them, and a database claiming either was not produced by the slider in the first place.
+	if type(position.scale) ~= "number" or position.scale <= 0 then
+		position.scale = defaults.scale
+	end
+
+	if not Private.Enum.FrameStrata[position.strata] then
+		position.strata = defaults.strata
 	end
 end
 
@@ -371,6 +468,13 @@ local function Repair(db)
 	RepairBlock(db, "minimap", function()
 		return { hide = false }
 	end)
+
+	--- Empty defaults, so this only ever replaces a `presets` that is not a table: the block is a
+	--- library the user filled rather than a set of fields we ship, and there is no such thing as a
+	--- preset missing from it.
+	RepairBlock(db, "presets", function()
+		return {}
+	end)
 end
 
 ---@return SpotlightsDB
@@ -383,6 +487,7 @@ local function CreateDefault()
 		appearance = DefaultAppearance(),
 		auras = DefaultAuras(),
 		minimap = { hide = false },
+		presets = {},
 	}
 end
 

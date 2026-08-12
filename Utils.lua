@@ -6,11 +6,6 @@ Private.Utils = {}
 
 local PREFIX = "|cff33ff99Spotlights|r: "
 
---- The aura container system (`AuraContainer` frame type, `CustomAuraContainerTemplate`,
---- `Blizzard_AuraContainer`) arrived whole in 12.1.0. The TOC still supports 120007, where none of
---- it exists, so anything touching it must ask first. Read once: build number is restart-stable.
-Private.IsTwelveDotOne = select(4, GetBuildInfo()) >= 120100
-
 ---@return boolean
 function Private.Utils.IsAugmentation()
 	return select(3, UnitClass("player")) == Constants.UICharacterClasses.Evoker

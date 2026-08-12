@@ -78,7 +78,7 @@ end
 --- whichever cell is underneath.
 ---@return integer? slot, SpotlightsRowSection? section
 local function Target()
-	if Private.Settings.IsCursorOver() then
+	if Private.Options.IsCursorOver() then
 		return Private.RosterList.TargetUnderCursor()
 	end
 
@@ -243,7 +243,7 @@ function Private.DragAssign.Drop()
 
 	-- The list now shows stale slot numbers, a stale available/assigned split, or both. Refreshed
 	-- unconditionally: a rejected drop leaves it correct, but a repaint costs nothing.
-	Private.Settings.Refresh()
+	Private.Options.Refresh()
 
 	return ok
 end

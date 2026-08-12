@@ -1,4 +1,4 @@
-## Interface: 120007, 120100
+## Interface: 120100
 ## Title: Spotlights
 ## DefaultState: Enabled
 ## SavedVariables: SpotlightsSaved
@@ -38,11 +38,26 @@ Mover.lua
 Media.lua
 Preview.lua
 AuraPreview.lua
-Widgets.lua
 DragAssign.lua
-RosterList.lua
 ContextMenu.lua
-Settings.lua
+
+Options\Node.lua
+Options\Controls.lua
+Options\Panel.lua
+Options\General.lua
+Options\PreviewPane.lua
+Options\Appearance.lua
+Options\FillOrder.lua
+Options\Grid.lua
+Options\AuraSpells.lua
+Options\AuraAppearance.lua
+Options\AuraTracked.lua
+Options\Auras.lua
+Options\RosterList.lua
+Options\Roster.lua
+Options\Profile.lua
+Options\RosterPresets.lua
+Options\ImportExport.lua
 
 SpotlightsUnitFrameMixin.lua
 

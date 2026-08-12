@@ -1,5 +1,6 @@
-v1.0.2
+v1.1.0
 
+- the options panel was rebuilt from scratch
 - added Health Text customization to Frame settings
 - color pickers now allow opacity
 - fixed a bug where unit range was not reliably asserted
@@ -16,4 +17,9 @@ v1.0.2
 - fixed a bug where player names were leaking out of the frame
 - added a checkbox per-class in order to toggle inclusion of all of that specs abilities
 - added Shifting Sands as dedicatedly trackable and customizable aura
-- added tentative Import / Export support
+- added Import / Export support
+- Status Bars can now be vertically aligned
+- added a third display option: Square
+- added Roster Presets which can also be imported and exported
+- fixed a bug where aura previews kept showing spells that were toggled off
+- fixed a bug where the gap between pooled aura icons only reached displays built afterwards

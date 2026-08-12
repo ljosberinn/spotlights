@@ -118,6 +118,31 @@ function Private.Roster.GetClass(guid)
 	return englishClass
 end
 
+--- The assigned role for a GUID, as `UnitGroupRolesAssigned` spells it, or nil.
+---
+--- Not cached beside the class, and could not be: the role comes off a *unit*, so it only exists for
+--- someone currently in the group. A slot configured for an absent player has no role to show, which
+--- is a state the options list draws rather than an answer worth reconstructing.
+---
+--- `NONE` is folded into nil. A member who has not picked a role and a member who is not there are
+--- the same thing to a caller that draws an icon for one.
+---
+--- Secret-guarded even though a secret GUID never reaches the roster maps: this one may be handed a
+--- GUID out of the database, and a slot's player could be in a rated match where unit identity is
+--- restricted. Comparing a secret is itself an error, so the test comes before the comparison.
+---@param guid string
+---@return string? role
+function Private.Roster.GetRole(guid)
+	local token = UnitTokenFromGUID(guid)
+	local role = token and UnitGroupRolesAssigned(token)
+
+	if not role or issecretvalue(role) or role == "NONE" then
+		return nil
+	end
+
+	return role
+end
+
 --- GUID -> unit token in O(1), so nothing here needs a name-scan loop.
 ---
 --- Ours and clean, unlike a token read off a secure child's `unit` attribute: that one is tainted,

@@ -134,12 +134,6 @@ end
 --- Hiding it hides every preview parented to it, so there is no hide loop on the way out.
 ---@param value boolean
 function Private.AuraPreview.SetShown(value)
-	-- Gated here rather than at the call site. The Auras tab exists on every client -- on one
-	-- without aura displays it holds a single line explaining why -- so "is the Auras tab open" is
-	-- true for a non-Evoker, and turning the layer on for them would light up the grid rectangle
-	-- and a raid's worth of fictional players to preview nothing.
-	value = value and Private.Auras.IsSupported
-
 	if shown == value then
 		return
 	end

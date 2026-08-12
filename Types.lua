@@ -13,9 +13,16 @@
 ---@field Preview SpotlightsPreview
 ---@field AuraPreview SpotlightsAuraPreviews
 ---@field Media SpotlightsMedia
----@field Widgets SpotlightsWidgets
+---@field Node SpotlightsNodeKit
+---@field Controls SpotlightsControls
+---@field PreviewPane SpotlightsPreviewPane
+---@field AuraAppearance SpotlightsAuraAppearance
+---@field AuraSpells SpotlightsAuraSpells
+---@field AuraTracked SpotlightsAuraTracked
+---@field Options SpotlightsOptions
+---@field Profile SpotlightsProfile
 ---@field RosterList SpotlightsRosterList
----@field Settings SpotlightsSettings
+---@field RosterPresets SpotlightsRosterPresets
 ---@field ContextMenu SpotlightsContextMenu
 ---@field DragAssign SpotlightsDragAssign
 ---@field SlotHeader SpotlightsSlotHeader
@@ -23,26 +30,56 @@
 ---@field Roster SpotlightsRoster
 ---@field Registry SpotlightsRegistry
 ---@field Layout SpotlightsLayout
+---@field FillOrder SpotlightsFillOrder
 ---@field NameStyle SpotlightsNameStyle
 ---@field Auras SpotlightsAuras
 ---@field SlashCommands SpotlightsSlashCommands
 ---@field DB SpotlightsDB? nil until ADDON_LOADED has run the migration
----@field IsTwelveDotOne boolean the aura container system exists only from 12.1 onwards
+
+--- The three XML templates in `Blizzard_SharedXML/TabSystemTemplates.xml` the tab strips inherit from.
+--- Declared here because the WoW API annotations model Lua mixins but not XML templates, so inheriting
+--- from one is otherwise an undefined class.
+---@class TabSystemTemplate
+---@class TabSystemTopButtonTemplate
+---@class TabSystemButtonTemplate
 
 --- A button acquired by `TabSystemTemplate` for a top-oriented tab strip.
 ---@class TabSystemTopButtonFrame : Button, TabSystemTopButtonTemplate
 
 --- A button acquired by `TabSystemTemplate` for a bottom-oriented tab strip.
+---
+--- `Text` and `SetTabWidth` come from `TabSystemButtonArtTemplate` and are written out because the
+--- category strip pads a tab beyond its label to make room for the enable dot beside it.
 ---@class TabSystemButtonFrame : Button, TabSystemButtonTemplate
+---@field Text FontString
+---@field SetTabWidth fun(self: TabSystemButtonFrame, width: number)
 
 --- A Lua-created tab system. The button type is selected through `tabTemplate` before `OnLoad` builds
 --- the pool, so the two concrete button frame types above describe the pooled children.
 ---@class SpotlightsTabSystemFrame : Frame, TabSystemTemplate
 ---@field tabTemplate string
----@field maxTabWidth number
+---@field maxTabWidth number? absent for a strip whose tabs may be as wide as their labels
+---@field minTabWidth number? absent for a strip whose tabs may be as narrow as their labels
+---@field spacing number? between one tab and the next, read by the layout frame under the mixin
 ---@field AddTab fun(self: SpotlightsTabSystemFrame, tabText: string): integer
+---@field GetTabButton fun(self: SpotlightsTabSystemFrame, tabID: integer): TabSystemButtonFrame
 ---@field SetTabSelectedCallback fun(self: SpotlightsTabSystemFrame, callback: fun(tabID: integer, isUserAction: boolean?): boolean?)
----@field SetTab fun(self: SpotlightsTabSystemFrame, tabID: integer, isUserAction: boolean?)
+---@field SetTab fun(self: SpotlightsTabSystemFrame, tabID: integer, isUserAction: boolean?) runs the selection callback
+---@field SetTabVisuallySelected fun(self: SpotlightsTabSystemFrame, tabID: integer) paints the selection without running the callback
+---@field SetTabEnabled fun(self: SpotlightsTabSystemFrame, tabID: integer, enabled: boolean, errorReason: string?) greys the label and refuses the click, with the reason in the tooltip
+
+--- The reworked options window.
+---
+--- A `PortraitFrameTemplate` with `TabSystemOwnerMixin` mixed in after the fact, which is how a frame
+--- created in Lua acquires the tab methods a template's own `OnLoad` would have installed. Written out
+--- here because neither half is visible to `CreateFrame`'s return type.
+---@class SpotlightsOptionsFrame : Frame
+---@field SetTitle fun(self: SpotlightsOptionsFrame, title: string)
+---@field SetPortraitToAsset fun(self: SpotlightsOptionsFrame, asset: string)
+---@field SetTabSystem fun(self: SpotlightsOptionsFrame, tabSystem: SpotlightsTabSystemFrame)
+---@field AddNamedTab fun(self: SpotlightsOptionsFrame, name: string, ...: Frame): integer
+---@field SetTabCallback fun(self: SpotlightsOptionsFrame, tabID: integer, callback: fun())
+---@field SetTab fun(self: SpotlightsOptionsFrame, tabID: integer, isUserAction: boolean?)
 
 ---@class SpotlightsNameStyle
 ---@field ApplyLayout fun(fontString: FontString, appearance: SpotlightsAppearanceConfig)
@@ -57,9 +94,20 @@
 ---@field guid string?
 ---@field name string? exactly as GetRaidRosterInfo spelled it — never synthesised
 
+--- Saved slot layouts, by the name the user gave each one.
+---
+--- Slots only: a preset is a raid composition, and nothing about how the frames look, where they sit
+--- or which auras they track belongs in one. Local to this account and deliberately outside the
+--- exported profile -- a preset library is a shelf, not a setting.
+---
+--- A stored slot carries its `kind` and `name` and never a GUID: the GUID a preset saw belongs to the
+--- raid it was saved in, and applying one resolves names against the raid it is applied to.
+---@alias SpotlightsPresets table<string, SpotlightsSlot[]>
+
 ---@class SpotlightsDB
 ---@field version integer
 ---@field slots SpotlightsSlot[]
+---@field presets SpotlightsPresets
 ---@field layout SpotlightsLayoutConfig
 ---@field position SpotlightsPositionConfig
 ---@field appearance SpotlightsAppearanceConfig
@@ -140,10 +188,19 @@
 ---@field defensives table<integer, boolean> defensive overrides; absent means the shipped default
 ---@field defensiveCustom table<integer, boolean> user-added defensive spell IDs
 
---- One aura's two displays, independent of each other and both optional.
+--- One aura's three displays, independent of each other and all optional, under one switch for the
+--- feature as a whole.
+---
+--- `enabled` is the feature-level switch behind the category strip's dot, and it **overrides** every
+--- display: a feature switched off renders nothing whatever its bar, icon and square say, and its
+--- containers stop listening for auras. Off is not the same as switching every display off -- that is
+--- three decisions the user has to remember to undo, where this is one, and it leaves the display
+--- settings exactly as they were for when the feature comes back.
 ---@class SpotlightsAuraFeatureConfig
+---@field enabled boolean
 ---@field bar SpotlightsAuraBarConfig
 ---@field icon SpotlightsAuraIconConfig
+---@field square SpotlightsAuraSquareConfig
 
 --- What every aura display shares, and the half of it that costs nothing to change.
 ---
@@ -206,15 +263,48 @@
 ---@field fontSize number
 ---@field gap number in pixels between multiple icons
 
---- Where the grid sits. A corner-relative anchor, never raw coordinates.
+--- A coloured block, optionally with a cooldown swipe and remaining duration across it.
+---
+--- One `size` rather than a width and a height: a square that can be told to be a rectangle is an icon
+--- without the art, and the shape is the whole of what this display is. It also keeps the swipe round,
+--- which a non-square Cooldown cannot be.
+---
+--- `r`/`g`/`b` are the block itself. Build-time like the bar's fill colour, and for the same reason:
+--- the texture lives below the aura button. The block carries no spell art at all, so the colour is the
+--- only thing that tells two squares apart -- and nothing here identifies *which* aura landed, which is
+--- why the display is offered for the single-aura features only.
+---
+--- `showSwipe`, `showText`, `font` and `fontSize` mean what they mean on an icon, and are build-time for
+--- the same reason.
+---@class SpotlightsAuraSquareConfig : SpotlightsAuraDisplayConfig
+---@field size number in pixels, both ways
+---@field r number
+---@field g number
+---@field b number
+---@field showSwipe boolean
+---@field showText boolean
+---@field font string
+---@field fontSize number
+
+--- Where the grid sits, how big it is drawn and what it stacks against. A corner-relative anchor,
+--- never raw coordinates.
 ---
 --- `point` is the frame point on the container *and* the point on UIParent it anchors to, so the
 --- offset is measured from the same corner of both -- which survives a resolution change. `x` and
---- `y` are in UIParent units and always mean right and up.
+--- `y` always mean right and up, and are in the **container's own units**: at scale 1 those are
+--- UIParent units, and at any other scale a stored offset is what the grid moves by at that scale,
+--- so scaling reads as the whole grid growing about its anchor rather than sliding across the
+--- screen.
+---
+--- `scale` and `strata` both reach the spotlights through inheritance: every slot header is a child
+--- of the container and every spotlight a child of a header, and none of them sets a scale or a
+--- strata of its own.
 ---@class SpotlightsPositionConfig
 ---@field point AnchorPoint
 ---@field x number
 ---@field y number
+---@field scale number
+---@field strata FrameStrata
 
 --- The nine points CalcPoint can produce. A subset of WoW's anchor points: the four corners,
 --- the four edge midpoints, and the centre.
@@ -311,8 +401,10 @@
 --- `Register`, `Preview`) are dispatched per kind anyway.
 ---@class SpotlightsAuraRegions
 ---@field bar StatusBar?
+---@field barTrack Texture? the unfilled remainder behind a **preview** bar, so its rect is visible
 ---@field barIcon Texture? the spell icon inline at one end of a bar
 ---@field icon Texture?
+---@field block Texture? the coloured square, which is the whole of what that display draws
 ---@field swipe Cooldown?
 ---@field text FontString?
 ---@field border SpotlightsAuraBorder?
@@ -329,13 +421,19 @@
 ---
 --- Carries its own `feature` and `display` because a preview is restyled from settings on every
 --- control change, and the record is the only thing that knows which settings are its own.
+---
+--- `slotIndex` is its place in a pooled feature's row, and `spellID` the spell it currently shows --
+--- which the pool moves under it, so the art is repainted whenever the two disagree. A feature tracking
+--- one spell has one item at index 1, and its spell never changes.
 ---@class SpotlightsAuraPreview
 ---@field anchor Frame
 ---@field regions SpotlightsAuraRegions
 ---@field feature SpotlightsAuraFeature
 ---@field display SpotlightsAuraKind
+---@field slotIndex integer
+---@field spellID integer? the spell its art was last painted for, `nil` until first styled
 
---- One built display: a bar or an icon, for one aura, on one spotlight.
+--- One built display: a bar, an icon or a square, for one aura, on one spotlight.
 ---
 --- Three frames stacked in a line, drawn by where the **access boundary** falls.
 --- `AuraContainerUtil.ApplyAccessRestrictions` stamps `DenyTaintedAccessWhenAurasAreSecret` onto the
