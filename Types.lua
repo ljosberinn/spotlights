@@ -183,18 +183,19 @@
 ---@field defensives table<integer, boolean> defensive overrides; absent means the shipped default
 ---@field defensiveCustom table<integer, boolean> user-added defensive spell IDs
 
---- One aura's two displays, independent of each other and both optional, under one switch for the
+--- One aura's three displays, independent of each other and all optional, under one switch for the
 --- feature as a whole.
 ---
---- `enabled` is the feature-level switch behind the category strip's dot, and it **overrides** both
---- displays: a feature switched off renders nothing whatever its bar and icon say, and its containers
---- stop listening for auras. Off is not the same as switching both displays off -- that is two
---- decisions the user has to remember to undo, where this is one, and it leaves the display settings
---- exactly as they were for when the feature comes back.
+--- `enabled` is the feature-level switch behind the category strip's dot, and it **overrides** every
+--- display: a feature switched off renders nothing whatever its bar, icon and square say, and its
+--- containers stop listening for auras. Off is not the same as switching every display off -- that is
+--- three decisions the user has to remember to undo, where this is one, and it leaves the display
+--- settings exactly as they were for when the feature comes back.
 ---@class SpotlightsAuraFeatureConfig
 ---@field enabled boolean
 ---@field bar SpotlightsAuraBarConfig
 ---@field icon SpotlightsAuraIconConfig
+---@field square SpotlightsAuraSquareConfig
 
 --- What every aura display shares, and the half of it that costs nothing to change.
 ---
@@ -256,6 +257,29 @@
 ---@field font string
 ---@field fontSize number
 ---@field gap number in pixels between multiple icons
+
+--- A coloured block, optionally with a cooldown swipe and remaining duration across it.
+---
+--- One `size` rather than a width and a height: a square that can be told to be a rectangle is an icon
+--- without the art, and the shape is the whole of what this display is. It also keeps the swipe round,
+--- which a non-square Cooldown cannot be.
+---
+--- `r`/`g`/`b` are the block itself. Build-time like the bar's fill colour, and for the same reason:
+--- the texture lives below the aura button. The block carries no spell art at all, so the colour is the
+--- only thing that tells two squares apart -- and nothing here identifies *which* aura landed, which is
+--- why the display is offered for the single-aura features only.
+---
+--- `showSwipe`, `showText`, `font` and `fontSize` mean what they mean on an icon, and are build-time for
+--- the same reason.
+---@class SpotlightsAuraSquareConfig : SpotlightsAuraDisplayConfig
+---@field size number in pixels, both ways
+---@field r number
+---@field g number
+---@field b number
+---@field showSwipe boolean
+---@field showText boolean
+---@field font string
+---@field fontSize number
 
 --- Where the grid sits, how big it is drawn and what it stacks against. A corner-relative anchor,
 --- never raw coordinates.
@@ -375,6 +399,7 @@
 ---@field barTrack Texture? the unfilled remainder behind a **preview** bar, so its rect is visible
 ---@field barIcon Texture? the spell icon inline at one end of a bar
 ---@field icon Texture?
+---@field block Texture? the coloured square, which is the whole of what that display draws
 ---@field swipe Cooldown?
 ---@field text FontString?
 ---@field border SpotlightsAuraBorder?
@@ -397,7 +422,7 @@
 ---@field feature SpotlightsAuraFeature
 ---@field display SpotlightsAuraKind
 
---- One built display: a bar or an icon, for one aura, on one spotlight.
+--- One built display: a bar, an icon or a square, for one aura, on one spotlight.
 ---
 --- Three frames stacked in a line, drawn by where the **access boundary** falls.
 --- `AuraContainerUtil.ApplyAccessRestrictions` stamps `DenyTaintedAccessWhenAurasAreSecret` onto the

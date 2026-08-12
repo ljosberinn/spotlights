@@ -7,8 +7,8 @@ Private.AuraAppearance = {}
 --- The Auras tab's Appearance sub-tab: one collapsible section per kind of display the selected
 --- category can draw, scrolling under a pinned reset button.
 ---
---- An aura feature has two independent display modes, each with its own size, placement, swipe, border
---- and colour. Flat, that is a wall of two dozen controls with nothing saying which mode is actually on
+--- An aura feature has three independent display modes, each with its own size, placement, swipe, border
+--- and colour. Flat, that is a wall of three dozen controls with nothing saying which mode is actually on
 --- or what it is set to. A section answers both in its header: the display's name, and a summary
 --- formatted from the very fields its body edits -- `25 × 25 · Bottom · swipe on · 4px border`.
 ---
@@ -36,6 +36,10 @@ local BORDER_NONE = "None"
 
 --- The bounds of every numeric setting, as the old panel already sets them.
 local ICON_SIZE_MIN, ICON_SIZE_MAX = 16, 128
+
+-- Reaches below the icon's floor deliberately: a block is the display for a size where spell art cannot
+-- be read, so its range has to cover sizes an icon has no business being.
+local SQUARE_SIZE_MIN, SQUARE_SIZE_MAX = 4, 128
 local BAR_WIDTH_MIN, BAR_WIDTH_MAX = 1, 500
 local BAR_HEIGHT_MIN, BAR_HEIGHT_MAX = 1, 200
 local GAP_MIN, GAP_MAX = 0, 40
@@ -99,13 +103,22 @@ local function Icon()
 	return Feature().icon
 end
 
---- Either display's block by key, for the read/write factories below. The two typed accessors above are
---- what the summaries use, since those read named fields.
+---@return SpotlightsAuraSquareConfig
+local function Square()
+	return Feature().square
+end
+
+--- Any display's block by key, for the read/write factories below. The typed accessors above are what
+--- the summaries use, since those read named fields.
 ---@param displayKey SpotlightsAuraDisplayKey
 ---@return SpotlightsAuraDisplayConfig
 local function Display(displayKey)
 	if displayKey == "bar" then
 		return Bar()
+	end
+
+	if displayKey == "square" then
+		return Square()
 	end
 
 	return Icon()
@@ -286,6 +299,19 @@ local function BarSummary()
 
 	return HiddenSummary(config) or string.format(L.AuraSummary, config.width, config.height,
 		AnchorName(config), config.showIcon and L.AuraSummaryInlineIcon or L.AuraSummaryNoInlineIcon,
+		BorderPhrase(config))
+end
+
+--- The square's summary, in the same five fields as the other two: its size twice over, since one field
+--- drives both axes, and the swipe as the option that most changes how it reads -- a block with no swipe
+--- and no text says only that something is up.
+---@return string
+local function SquareSummary()
+	local L = Private.L.Settings
+	local config = Square()
+
+	return HiddenSummary(config) or string.format(L.AuraSummary, config.size, config.size,
+		AnchorName(config), config.showSwipe and L.AuraSummarySwipeOn or L.AuraSummarySwipeOff,
 		BorderPhrase(config))
 end
 
@@ -536,6 +562,51 @@ local function BuildBarBody(page)
 	}, "bar", L.AuraBar)
 end
 
+---@param page Frame
+---@return SpotlightsNode
+local function BuildSquareBody(page)
+	local L = Private.L.Settings
+
+	return BuildBody(page, {
+		Private.Controls.Checkbox(page, L.AuraEnabled, Getter("square", "enabled"),
+			Setter("square", "enabled")),
+		Private.Controls.Slider(page, L.AuraAlpha, ALPHA_MIN, ALPHA_MAX, ALPHA_STEP,
+			Getter("square", "alpha"), Setter("square", "alpha")),
+
+		--- One slider where the other sections have two, because one field drives both axes -- and paired
+		--- with the colour rather than given a row of its own, so the rows below it stay in the two-column
+		--- rhythm the icon and the bar have.
+		Private.Controls.Slider(page, L.AuraSquareSize, SQUARE_SIZE_MIN, SQUARE_SIZE_MAX, 1,
+			Getter("square", "size"), Setter("square", "size")),
+
+		--- The picker's own opacity writes `alpha`, which is the slider above it -- the same one field with
+		--- two controls over it the bar's colour has.
+		Private.Controls.ColorSwatch(page, L.AuraSquareColor,
+			ColorGetter("square", "r", "g", "b", "alpha"),
+			ColorSetter("square", "r", "g", "b", "alpha")),
+
+		Private.Controls.Checkbox(page, L.AuraShowSwipe, Getter("square", "showSwipe"),
+			Setter("square", "showSwipe")),
+		Private.Controls.Checkbox(page, L.AuraShowText, Getter("square", "showText"),
+			Setter("square", "showText")),
+
+		Private.Controls.Dropdown(page, L.AuraFont, function()
+			return Private.Controls.MediaChoices(Private.Media.FontList(),
+				Private.Media.IsFontRegistered, Square().font)
+		end, Getter("square", "font"), Setter("square", "font")),
+		Private.Controls.Slider(page, L.AuraFontSize, FONT_SIZE_MIN, FONT_SIZE_MAX, 1,
+			Getter("square", "fontSize"), Setter("square", "fontSize")),
+
+		Full(Private.Controls.Dropdown(page, L.AuraAnchor, Private.Controls.AnchorChoices,
+			Getter("square", "point"), Setter("square", "point"))),
+
+		Private.Controls.Slider(page, L.AuraOffsetX, OFFSET_MIN, OFFSET_MAX, 1, Getter("square", "x"),
+			Setter("square", "x")),
+		Private.Controls.Slider(page, L.AuraOffsetY, OFFSET_MIN, OFFSET_MAX, 1, Getter("square", "y"),
+			Setter("square", "y")),
+	}, "square", L.AuraSquare)
+end
+
 --- Collapses nothing and expands everything: the open state is transient, and this is what makes it so.
 ---
 --- Called when the tab goes off screen rather than tracked as a setting. Persisting it would mean a
@@ -567,14 +638,22 @@ function Private.AuraAppearance.Build(page, GetFeature, GetName)
 		return L.AuraBar
 	end, BarSummary, BuildBarBody(page))
 
-	--- A pooled category draws icons only, so there is no status bar to configure and no section for one.
-	--- Asked of `Private.Auras` rather than decided here: which display kinds a category renders is the
-	--- build path's rule, and a second copy of it could only be wrong.
+	local square = Private.Node.Section(page, function()
+		return L.AuraSquare
+	end, SquareSummary, BuildSquareBody(page))
+
+	--- A pooled category draws icons only, so there is neither a status bar nor a square to configure and
+	--- no section for either. Asked of `Private.Auras` rather than decided here: which display kinds a
+	--- category renders is the build path's rule, and a second copy of it could only be wrong.
 	OnlyWhen(bar, function()
 		return Private.Auras.HasDisplay(ActiveFeature(), "bar")
 	end)
 
-	sections = { icon, bar }
+	OnlyWhen(square, function()
+		return Private.Auras.HasDisplay(ActiveFeature(), "square")
+	end)
+
+	sections = { icon, bar, square }
 
 	local scrollHeight = math.max(page:GetHeight() - Private.Node.SubTabHeight - CHROME_RESERVE,
 		MIN_SCROLL_HEIGHT)
@@ -582,6 +661,7 @@ function Private.AuraAppearance.Build(page, GetFeature, GetName)
 	return Private.Node.ScrollPane(page, Private.Node.Column(page, {
 		icon,
 		bar,
+		square,
 
 		-- Last, and the explanation of everything above it: the one place the cost of a frozen setting
 		-- is visible to the user.

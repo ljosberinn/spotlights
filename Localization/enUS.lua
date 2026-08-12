@@ -220,6 +220,13 @@ L.Settings.AuraFeatureToggle = "Track %s"
 
 L.Settings.AuraBar = "Status Bar"
 L.Settings.AuraIcon = "Icon"
+
+-- The third display: a coloured block with no spell art on it, for when presence and remaining time are
+-- the whole of what is wanted. One size, since it is square, and its colour is all that tells two of
+-- them apart -- which is why the label says what is being coloured.
+L.Settings.AuraSquare = "Square"
+L.Settings.AuraSquareSize = "Size"
+L.Settings.AuraSquareColor = "Block Color"
 L.Settings.AuraEnabled = "Show"
 L.Settings.AuraColor = "Bar Color"
 L.Settings.AuraAlpha = "Opacity"

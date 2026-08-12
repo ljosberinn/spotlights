@@ -39,10 +39,10 @@ local ANY_FILTER = AuraUtil.CreateFilterString(AuraUtil.AuraFilters.Helpful)
 ---@field Candidates fun(): table<integer, true> every spell its slot may show, `spellID` included
 ---@field multiple boolean
 
---- One kind of display, and the only place the difference between a bar and an icon lives.
+--- One kind of display, and the only place the difference between a bar, an icon and a square lives.
 ---
---- `config` is loose: bars and icons are configured by different shapes, and a narrower annotation
---- would be a lie in one direction. The four verbs are split because a live display and a preview
+--- `config` is loose: the three kinds are configured by different shapes, and a narrower annotation
+--- would be a lie in two directions. The four verbs are split because a live display and a preview
 --- need different subsets — a live display runs `Create`, `Style`, `Register` once and is then
 --- untouchable, while a preview runs `Create`/`Preview` once and `Style` on every settings change.
 --- Sharing `Style` is what makes a preview show what will ship.
@@ -460,7 +460,13 @@ Private.Events.RegisterEvent("PLAYER_LOGIN", SetFeatureMode)
 --- Declared rather than derived: the difference between a frozen `r` and a free `alpha` is which side
 --- of the aura button's access restriction the value lands on, which nothing about the field names
 --- says. A field missing from this table is treated as free, so every addition to
---- `SpotlightsAuraBarConfig` or `SpotlightsAuraIconConfig` has to visit here.
+--- `SpotlightsAuraBarConfig`, `SpotlightsAuraIconConfig` or `SpotlightsAuraSquareConfig` has to visit
+--- here.
+---
+--- Keyed by field name across all three display kinds, so a name shared by two of them is frozen for
+--- both -- which is correct as it stands: a square's `r`/`g`/`b` reach a colour texture under the button
+--- exactly as a bar's reach its fill, and its duration fields are the icon's fields. A field that needed
+--- to be frozen for one kind and free for another would need this table split per kind.
 ---
 --- `enabled` is absent: switching a display off/on is a `SetShown` on the anchor or a first build,
 --- which `EnsureDisplays` already handles. Neither is a rebuild.
@@ -632,6 +638,112 @@ local function StyleBorder(regions, config)
 	})
 	border:SetBackdropBorderColor(config.borderR, config.borderG, config.borderB, config.borderA)
 	border:Show()
+end
+
+--- The swipe and the countdown text, which an icon and a square draw identically: neither is about the
+--- thing underneath it, and both are wanted over spell art and over a plain block alike.
+---
+--- Shared rather than written twice because every line of it is a decision with a reason, and two copies
+--- of those reasons is two places for one of them to be corrected.
+---
+--- Either region is created only when the config wants it, unless `everything` says otherwise -- see the
+--- note on `Create` above.
+---@param host Frame|table
+---@param config SpotlightsAuraIconConfig|SpotlightsAuraSquareConfig
+---@param regions SpotlightsAuraRegions
+---@param everything boolean
+local function CreateDuration(host, config, regions, everything)
+	if config.showSwipe or everything then
+		-- CooldownFrameTemplate carries `setAllPoints` and starts hidden. Both are wanted: the
+		-- container shows it through `SetCooldownFromDurationObject`, and `Shown` is a secret aspect
+		-- from the moment `SetDurationCooldown` returns, so it could not be shown from here anyway.
+		regions.swipe = CreateFrame("Cooldown", nil, host, "CooldownFrameTemplate")
+
+		regions.swipe:SetDrawEdge(false)
+
+		-- The swipe is driven by an aura timer, not a spell cooldown, and the two display slightly
+		-- differently: this keeps the sweep in sync with the aura's own duration. Blizzard sets the
+		-- same flag on every aura-fed Cooldown it owns.
+		regions.swipe:SetUseAuraDisplayTime(true)
+
+		-- Ours is the only countdown on this display. The cooldown's own numbers would otherwise sit
+		-- under the duration text saying the same thing a pixel out of alignment.
+		regions.swipe:SetHideCountdownNumbers(true)
+	end
+
+	if config.showText or everything then
+		-- On a layer of its own, above the swipe rather than *on* it.
+		--
+		-- A Cooldown is a frame, so its shading draws above anything on the host whatever draw layer
+		-- we ask for. Hanging the text off the swipe made switching the swipe off take the duration
+		-- with it, so the two settings could not be set independently. One frame above both fixes it.
+		local layer = CreateFrame("Frame", nil, host)
+
+		layer:SetAllPoints()
+		layer:SetFrameLevel(host:GetFrameLevel() + 6)
+
+		regions.text = layer:CreateFontString(nil, "OVERLAY")
+		regions.text:SetPoint("CENTER")
+	end
+end
+
+--- Applies both duration settings. The `SetShown` calls are no-ops on a live display, where a region
+--- exists only when wanted, and are the point on a preview.
+---@param regions SpotlightsAuraRegions
+---@param config SpotlightsAuraIconConfig|SpotlightsAuraSquareConfig
+local function StyleDuration(regions, config)
+	if regions.swipe then
+		regions.swipe:SetShown(config.showSwipe)
+	end
+
+	if regions.text then
+		-- `OUTLINE` unconditionally: a duration sits over spell art, a coloured block and a cooldown
+		-- swipe, and unoutlined text on any of those is illegible at every font and size.
+		regions.text:SetFont(Private.Media.Font(config.font), config.fontSize, "OUTLINE")
+		regions.text:SetShown(config.showText)
+	end
+end
+
+--- Hands the swipe and the countdown to the aura button, after which neither is ours.
+---
+--- `SetDurationText` is given a `textFormatter` rather than left to pick
+--- `DefaultAuraDurationFormatter` -- see `DURATION_FORMATTER`. The formatter is the only thing we are
+--- still allowed to decide: the moment this returns the text gains `Text`, `Alpha` and `VertexColor`
+--- as secret aspects. The options table is copied in, so passing the one shared formatter to every
+--- display is safe.
+---@param button table
+---@param regions SpotlightsAuraRegions
+local function RegisterDuration(button, regions)
+	if regions.swipe then
+		button:SetDurationCooldown(regions.swipe)
+	end
+
+	if regions.text then
+		button:SetDurationText(regions.text, { textFormatter = DURATION_FORMATTER })
+	end
+end
+
+--- Fills a preview's swipe and countdown with a made-up moment.
+---
+--- Re-armed on every restyle rather than looped, so a preview is a snapshot: it runs down and stops if
+--- left alone, and starts again the moment any control moves.
+---
+--- **The swipe is guarded on the setting here rather than left to `Style`, because `SetCooldown` shows
+--- the frame it arms.** So a swipe the user had just switched off was hidden by the styling pass and
+--- un-hidden one line later by this — the setting appeared to do nothing.
+---@param regions SpotlightsAuraRegions
+---@param config SpotlightsAuraIconConfig|SpotlightsAuraSquareConfig
+local function PreviewDuration(regions, config)
+	if regions.swipe and config.showSwipe then
+		regions.swipe:SetCooldown(GetTime() - 8, 20)
+	end
+
+	-- No such guard needed: `SetText` on a hidden font string leaves it hidden. A fractional sample,
+	-- because the sub-three-second decimal is the visible part of the format and the preview is the
+	-- one place to show it.
+	if regions.text then
+		regions.text:SetText("2.5")
+	end
 end
 
 --- The regions a duration bar is made of.
@@ -812,38 +924,7 @@ local function CreateIcon(host, config, spellID, everything)
 	-- which is why an uncropped one reads as subtly wrong beside them.
 	regions.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
 
-	if config.showSwipe or everything then
-		-- CooldownFrameTemplate carries `setAllPoints` and starts hidden. Both are wanted: the
-		-- container shows it through `SetCooldownFromDurationObject`, and `Shown` is a secret aspect
-		-- from the moment `SetDurationCooldown` returns, so it could not be shown from here anyway.
-		regions.swipe = CreateFrame("Cooldown", nil, host, "CooldownFrameTemplate")
-
-		regions.swipe:SetDrawEdge(false)
-
-		-- The swipe is driven by an aura timer, not a spell cooldown, and the two display slightly
-		-- differently: this keeps the sweep in sync with the aura's own duration. Blizzard sets the
-		-- same flag on every aura-fed Cooldown it owns.
-		regions.swipe:SetUseAuraDisplayTime(true)
-
-		-- Ours is the only countdown on this icon. The cooldown's own numbers would otherwise sit
-		-- under the duration text saying the same thing a pixel out of alignment.
-		regions.swipe:SetHideCountdownNumbers(true)
-	end
-
-	if config.showText or everything then
-		-- On a layer of its own, above the swipe rather than *on* it.
-		--
-		-- A Cooldown is a frame, so its shading draws above anything on the host whatever draw layer
-		-- we ask for. Hanging the text off the swipe made switching the swipe off take the duration
-		-- with it, so the two settings could not be set independently. One frame above both fixes it.
-		local layer = CreateFrame("Frame", nil, host)
-
-		layer:SetAllPoints()
-		layer:SetFrameLevel(host:GetFrameLevel() + 6)
-
-		regions.text = layer:CreateFontString(nil, "OVERLAY")
-		regions.text:SetPoint("CENTER")
-	end
+	CreateDuration(host, config, regions, everything)
 
 	-- Last, so it draws over the icon art and the swipe both.
 	regions.border = CreateBorder(host)
@@ -853,73 +934,72 @@ end
 
 --- Applies every icon setting.
 ---
---- Shorter than its bar counterpart because an icon has less to decide. The `SetShown` calls are
---- no-ops on a live display, where a region exists only when wanted, and are the point on a preview.
+--- Shorter than its bar counterpart because an icon has less to decide, and both halves of what it does
+--- decide are shared with the square.
 ---@param regions SpotlightsAuraRegions
 ---@param _ Frame the anchor, which an icon has no use for because it is sized directly by config
 ---@param config SpotlightsAuraIconConfig
 local function StyleIcon(regions, _, config)
-	if regions.swipe then
-		regions.swipe:SetShown(config.showSwipe)
-	end
-
-	if regions.text then
-		-- `OUTLINE` unconditionally: a duration sits over spell art and a cooldown swipe, and
-		-- unoutlined text on that is illegible at every font and size.
-		regions.text:SetFont(Private.Media.Font(config.font), config.fontSize, "OUTLINE")
-		regions.text:SetShown(config.showText)
-	end
-
+	StyleDuration(regions, config)
 	StyleBorder(regions, config)
 end
 
 --- Hands the art, the swipe and the countdown to the aura button, after which none is ours.
----
---- `SetDurationText` is given a `textFormatter` rather than left to pick
---- `DefaultAuraDurationFormatter` -- see `DURATION_FORMATTER`. The formatter is the only thing we are
---- still allowed to decide: the moment this returns the text gains `Text`, `Alpha` and `VertexColor`
---- as secret aspects. The options table is copied in, so passing the one shared formatter to every
---- icon is safe.
 ---@param button table
 ---@param regions SpotlightsAuraRegions
 local function RegisterIcon(button, regions)
 	SetAuraIcon(button, regions.icon --[[@as Texture]])
-
-	if regions.swipe then
-		button:SetDurationCooldown(regions.swipe)
-	end
-
-	if regions.text then
-		button:SetDurationText(regions.text, { textFormatter = DURATION_FORMATTER })
-	end
+	RegisterDuration(button, regions)
 end
 
---- Fills a preview icon with a made-up countdown.
+--- The regions a coloured square is made of: the block, an optional swipe, an optional countdown.
 ---
---- Re-armed on every restyle rather than looped, so a preview is a snapshot of one moment. It runs
---- down and stops if left alone, and starts again the moment any control moves.
+--- No spell art and therefore **no `SetIcon`**, which is the whole difference between this and an icon:
+--- the display says an aura is up and how long is left, and nothing about which aura it is. That is what
+--- makes it readable at a size where an icon is not.
 ---
---- **The swipe is guarded on the setting here rather than left to `Style`, because `SetCooldown`
---- shows the frame it arms.** So a swipe the user had just switched off was hidden by `StyleIcon` and
---- un-hidden one line later by this — the setting appeared to do nothing.
+--- The block is a plain colour texture rather than a LibSharedMedia one. A material would be a second
+--- way to say what the border already says, and it would put this display on the media-registration
+--- rebuild path for no visible gain -- see `UnresolvedMedia`, which finds nothing here but the border.
+---@param host Frame|table
+---@param config SpotlightsAuraSquareConfig
+---@param _ integer the spell, which a display drawing no art has nothing to do with
+---@param everything boolean
+---@return SpotlightsAuraRegions
+local function CreateSquare(host, config, _, everything)
+	---@type SpotlightsAuraRegions
+	local regions = { block = host:CreateTexture(nil, "ARTWORK") }
+
+	regions.block:SetAllPoints()
+
+	CreateDuration(host, config, regions, everything)
+
+	-- Last, so it draws over the block and the swipe both.
+	regions.border = CreateBorder(host)
+
+	return regions
+end
+
+--- Applies every square setting.
+---
+--- `SetColorTexture` rather than a white texture tinted by `SetVertexColor`: the two look the same, and
+--- one call that means "be this colour" is the honest spelling of a display whose colour is all it has.
+--- Three channels, not four -- opacity is the anchor's, which is what keeps it live.
 ---@param regions SpotlightsAuraRegions
----@param config SpotlightsAuraIconConfig
-local function PreviewIcon(regions, config)
-	if regions.swipe and config.showSwipe then
-		regions.swipe:SetCooldown(GetTime() - 8, 20)
-	end
+---@param _ Frame the anchor, which a square has no use for because it is sized directly by config
+---@param config SpotlightsAuraSquareConfig
+local function StyleSquare(regions, _, config)
+	local block = regions.block --[[@as Texture]]
 
-	-- No such guard needed: `SetText` on a hidden font string leaves it hidden. A fractional sample,
-	-- because the sub-three-second decimal is the visible part of the format and the preview is the
-	-- one place to show it.
-	if regions.text then
-		regions.text:SetText("2.5")
-	end
+	block:SetColorTexture(config.r, config.g, config.b)
+
+	StyleDuration(regions, config)
+	StyleBorder(regions, config)
 end
 
---- The two displays a feature can draw.
+--- The three displays a feature can draw.
 ---
---- `Size` is a function rather than a flag because the two display kinds have different config shapes.
+--- `Size` is a function rather than a flag because the display kinds have different config shapes.
 ---@type SpotlightsAuraKind[]
 local DISPLAYS = {
 	{
@@ -944,7 +1024,7 @@ local DISPLAYS = {
 		Create = CreateIcon,
 		Style = StyleIcon,
 		Register = RegisterIcon,
-		Preview = PreviewIcon,
+		Preview = PreviewDuration,
 		Size = function(config)
 			return config.width, config.height
 		end,
@@ -952,13 +1032,33 @@ local DISPLAYS = {
 		-- No `Invalidated`. Everything under an icon's button fills it, so the anchor's rect is the
 		-- display's rect at every size, forever.
 	},
+	{
+		key = "square",
+		Create = CreateSquare,
+		Style = StyleSquare,
+		Register = RegisterDuration,
+		Preview = PreviewDuration,
+
+		-- One field for both axes: a square that could be told to be a rectangle would be an icon
+		-- without the art.
+		Size = function(config)
+			return config.size, config.size
+		end,
+
+		-- No `Invalidated`, for the icon's reason: block, swipe and text all fill the button.
+	},
 }
 
 --- Whether a feature draws a given kind of display at all.
 ---
 --- A pooled feature shows several of the spotlighted player's auras at once, and a column of duration
---- bars over one spotlight is unreadable -- so it draws icons only. The build path, the preview layer
---- and the options panel all ask here rather than each restating the rule.
+--- bars over one spotlight is unreadable -- so it draws icons only. A square is left out of a pooled
+--- feature for the opposite reason to the bar's: it fits, but it carries no spell art, so several of
+--- them side by side are identical blocks saying only that *something* is up. A pooled feature is about
+--- which cooldown landed, which is the one thing this display does not say.
+---
+--- The build path, the preview layer and the options panel all ask here rather than each restating the
+--- rule.
 ---@param feature SpotlightsAuraFeature
 ---@param display SpotlightsAuraKind
 ---@return boolean
@@ -1612,9 +1712,13 @@ local function CheckSensePower()
 	local auras = Config()
 	local sensePower = auras and auras[SENSE_POWER_KEY]
 
-	-- Nothing to warn about if nothing is being tracked. A user who switched the feature off, or both
-	-- of its displays, has already answered the question this prompt asks.
-	if not sensePower or not sensePower.enabled or not (sensePower.bar.enabled or sensePower.icon.enabled) then
+	-- Nothing to warn about if nothing is being tracked. A user who switched the feature off, or every
+	-- one of its displays, has already answered the question this prompt asks.
+	if not sensePower or not sensePower.enabled then
+		return
+	end
+
+	if not (sensePower.bar.enabled or sensePower.icon.enabled or sensePower.square.enabled) then
 		return
 	end
 
@@ -1794,7 +1898,7 @@ function Private.Auras.SetFeatureEnabled(featureKey, enabled)
 	return true
 end
 
---- Restores one feature's bar and icon at once, for a caller offering a reset per category.
+--- Restores every one of a feature's displays at once, for a caller offering a reset per category.
 ---@param featureKey SpotlightsAuraFeatureKey
 function Private.Auras.ResetFeature(featureKey)
 	for i = 1, #DISPLAYS do
@@ -1806,9 +1910,9 @@ end
 --- own switch where the user put it: a reset is about how a display looks, and silently switching a
 --- category back on would undo a decision the button does not mention.
 ---
---- Per display rather than per feature because that is the unit the user edits -- the two are
---- independent, configured one at a time, and a button that reset both would discard the one they were
---- happy with.
+--- Per display rather than per feature because that is the unit the user edits -- the displays are
+--- independent, configured one at a time, and a button that reset all of them would discard the ones
+--- they were happy with.
 ---
 --- Written through `SetSetting` field by field rather than swapping the block, so a reset takes the
 --- same free/frozen routing every other write does: frozen fields coalesce into one rebuild, free ones
@@ -1818,7 +1922,7 @@ end
 ---
 --- Unchanged fields cost nothing: `SetSetting` early-outs when the stored value already matches.
 ---
---- `Private.Migration.DefaultAuraFeature` hands back a freshly built pair every call, so the values
+--- `Private.Migration.DefaultAuraFeature` hands back a freshly built set every call, so the values
 --- read here are never aliased to the database being written.
 ---@param featureKey SpotlightsAuraFeatureKey
 ---@param displayKey SpotlightsAuraDisplayKey

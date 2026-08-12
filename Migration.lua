@@ -203,7 +203,55 @@ local function DefaultAuraIcon(enabled, width, height)
 	}
 end
 
---- One feature's pair of displays at their shipped values, both freshly built.
+--- One aura display drawn as a coloured block.
+---
+--- **Ships disabled for every feature, without exception**, which is the whole of why it needs no
+--- version step: `Repair` fills the block into a database written before it existed, and a display that
+--- is off changes nothing about how that profile renders.
+---
+--- One `size` rather than a width and a height -- see `SpotlightsAuraSquareConfig`. 14px is the size the
+--- display exists for: too small for an icon's art to be read, large enough to be seen against a health
+--- bar. Anchored top right, which is the one free corner once the bar defaults have taken the top left
+--- and the icon defaults the bottom right, so all three switched on at once do not land on each other.
+---
+--- The colour is the feature's own, matching its bar, so a user switching between the two displays gets
+--- the same colour rather than a white block. No border by default: at this size a 4px edge is most of
+--- the display.
+---
+--- The duration text ships **off** while the swipe ships on. A square is sized where two digits do not
+--- fit, and the swipe is how it says "and this much is left" -- but the font fields are here and
+--- populated, because they are build-time and a field the stored block lacks is a write `SetSetting`
+--- silently refuses.
+---@param point AnchorPoint
+---@param r number
+---@param g number
+---@param b number
+---@return SpotlightsAuraSquareConfig
+local function DefaultAuraSquare(point, r, g, b)
+	return {
+		enabled = false,
+		size = 14,
+		r = r,
+		g = g,
+		b = b,
+		alpha = 1,
+		point = point,
+		x = 0,
+		y = 0,
+		showSwipe = true,
+		showText = false,
+		font = "Friz Quadrata TT",
+		fontSize = 10,
+		borderTexture = BORDER_NONE,
+		borderSize = 4,
+		borderR = 0,
+		borderG = 0,
+		borderB = 0,
+		borderA = 1,
+	}
+end
+
+--- One feature's set of displays at their shipped values, all freshly built.
 ---
 --- Which one starts on is per-feature: a duration bar is what Prescience wants; an icon with a swipe
 --- is what Sense Power wants. Every bar ships anchored **top left**, which is the corner a bar sized
@@ -229,6 +277,7 @@ function Private.Migration.DefaultAuraFeature(featureKey)
 			enabled = true,
 			bar = DefaultAuraBar(false, "TOPLEFT", 0.2, 0.8, 1, 0),
 			icon = icon,
+			square = DefaultAuraSquare("TOPRIGHT", 0.2, 0.8, 1),
 		}
 	end
 
@@ -237,6 +286,11 @@ function Private.Migration.DefaultAuraFeature(featureKey)
 			enabled = true,
 			bar = DefaultAuraBar(false, "TOPLEFT", 1, 1, 1, 0),
 			icon = DefaultAuraIcon(true, 25, 25),
+
+			-- Stored like every other display's block even though a pooled feature draws icons only, for
+			-- the reason its bar block is: the shapes are identical on purpose, and a feature missing one
+			-- is a nil index in anything that walks the set.
+			square = DefaultAuraSquare("TOPRIGHT", 1, 1, 1),
 		}
 	end
 
@@ -244,12 +298,13 @@ function Private.Migration.DefaultAuraFeature(featureKey)
 		enabled = true,
 		bar = DefaultAuraBar(true, "TOPLEFT", 1, 1, 0, -2),
 		icon = DefaultAuraIcon(false, 25, 25),
+		square = DefaultAuraSquare("TOPRIGHT", 1, 1, 0),
 	}
 end
 
---- Both tracked auras, each with both displays, and the shape version 5 introduced.
+--- Every tracked aura, each with every display, and the shape version 5 introduced.
 ---
---- Every feature carries a full set of both displays even though it starts with one off: the two are
+--- Every feature carries a full set of displays even though it starts with most of them off: they are
 --- meant to be swappable, so the config a user turns *on* has to already exist.
 ---@return SpotlightsAurasConfig
 local function DefaultAuras()
