@@ -53,6 +53,8 @@ local CUSTOM_KEY = "CUSTOM"
 ---@field IsEnabled fun(spellID: integer, custom: boolean?): boolean
 ---@field SetEnabled fun(spellID: integer, enabled: boolean, custom: boolean?): boolean
 ---@field Custom fun(): integer[]
+---@field AddCustom fun(spellID: integer): boolean
+---@field RemoveCustom fun(spellID: integer): boolean
 ---@field Reset fun(): boolean
 ---@field groups SpotlightsAuraSpellGroup[]?
 ---@field flat table[]?
@@ -64,6 +66,8 @@ local POOLS = {
 		IsEnabled = Private.Auras.IsCooldownEnabled,
 		SetEnabled = Private.Auras.SetCooldownEnabled,
 		Custom = Private.Auras.CustomCooldowns,
+		AddCustom = Private.Auras.AddCustomCooldown,
+		RemoveCustom = Private.Auras.RemoveCustomCooldown,
 		Reset = Private.Auras.ResetCooldowns,
 	},
 
@@ -72,6 +76,8 @@ local POOLS = {
 		IsEnabled = Private.Auras.IsDefensiveEnabled,
 		SetEnabled = Private.Auras.SetDefensiveEnabled,
 		Custom = Private.Auras.CustomDefensives,
+		AddCustom = Private.Auras.AddCustomDefensive,
+		RemoveCustom = Private.Auras.RemoveCustomDefensive,
 		Reset = Private.Auras.ResetDefensives,
 	},
 }
@@ -287,6 +293,28 @@ function Private.AuraSpells.SetEnabled(featureKey, spellID, enabled, custom)
 	return pool ~= nil and pool.SetEnabled(spellID, enabled, custom)
 end
 
+--- Takes a spell the user typed in, and answers whether it was new.
+---
+--- `false` covers both refusals -- a category with no pool to add to, and an ID already in the list -- and
+--- the panel treats them the same way: the number stays in the box, so it is still there to look at.
+---@param featureKey SpotlightsAuraFeatureKey
+---@param spellID integer
+---@return boolean added
+function Private.AuraSpells.AddCustom(featureKey, spellID)
+	local pool = FEATURE_POOLS[featureKey]
+
+	return pool ~= nil and pool.AddCustom(spellID)
+end
+
+---@param featureKey SpotlightsAuraFeatureKey
+---@param spellID integer
+---@return boolean removed
+function Private.AuraSpells.RemoveCustom(featureKey, spellID)
+	local pool = FEATURE_POOLS[featureKey]
+
+	return pool ~= nil and pool.RemoveCustom(spellID)
+end
+
 --- How much of a group is switched on, for the count beside its name.
 ---@param featureKey SpotlightsAuraFeatureKey
 ---@param group SpotlightsAuraSpellGroup
@@ -373,6 +401,53 @@ function Private.AuraSpells.SpellMatches(spellID, query)
 	local name = C_Spell.GetSpellName(spellID)
 
 	return name ~= nil and string.find(name:lower(), query, 1, true) ~= nil
+end
+
+--- The spells in a group the query admits, which is what the pane beside the rail lists.
+---
+--- A query naming the *group* admits all of it. The rail lists a class whose name was typed, and a pane
+--- that then showed none of its spells -- no spell is called "Warrior" -- would read as a class with
+--- nothing in it rather than as the class that was just asked for.
+---
+--- The group's own array is handed back where nothing is filtered, so **the result must not be mutated**:
+--- it is the cached shipped list, and a caller reordering it would reorder every later pass with it.
+---@param group SpotlightsAuraSpellGroup
+---@param query string lowercased by the caller
+---@return integer[]
+function Private.AuraSpells.MatchingSpells(group, query)
+	if query == "" or string.find(group.heading:lower(), query, 1, true) then
+		return group.spellIDs
+	end
+
+	local matches = {}
+
+	for i = 1, #group.spellIDs do
+		if Private.AuraSpells.SpellMatches(group.spellIDs[i], query) then
+			matches[#matches + 1] = group.spellIDs[i]
+		end
+	end
+
+	return matches
+end
+
+--- Switches a run of spells on or off in one write each, for the pane's bulk actions.
+---
+--- Takes the IDs rather than the group, which is the whole point: "Enable all" acts on what the filter
+--- left showing, so a bulk action does what the list in front of the user says it will.
+---@param featureKey SpotlightsAuraFeatureKey
+---@param spellIDs integer[]
+---@param enabled boolean
+---@param custom boolean?
+function Private.AuraSpells.SetSpellsEnabled(featureKey, spellIDs, enabled, custom)
+	local pool = FEATURE_POOLS[featureKey]
+
+	if not pool then
+		return
+	end
+
+	for i = 1, #spellIDs do
+		pool.SetEnabled(spellIDs[i], enabled, custom)
+	end
 end
 
 --- Whether a group is worth listing for what was typed: its own name, or any spell in it.

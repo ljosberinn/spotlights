@@ -202,6 +202,12 @@ L.Settings.AuraResetDisplayPrompt = "%s von %s auf die Standardeinstellungen zur
 L.Settings.AuraResetSpellsPrompt =
 "Die von %s überwachten Zauber auf die Standardauswahl zurücksetzen? Selbst hinzugefügte Zauber bleiben erhalten."
 L.Settings.AuraGroupCount = "%d/%d"
+L.Settings.AuraEnableAll = "Alle aktivieren"
+L.Settings.AuraDisableAll = "Alle deaktivieren"
+L.Settings.AuraSpellMeta = "%d · %s"
+L.Settings.AuraNoTrackedSpells =
+"%s überwacht genau einen Aura-Effekt, daher gibt es hier nichts auszuwählen."
+L.Settings.AuraNoSpellMatches = "Keine Zauber entsprechen deiner Suche."
 L.Settings.AurasRebuildHelp =
 "Einige Einstellungen benötigen nach der Anwendung möglicherweise ein Neuladen. Du wirst dazu aufgefordert, sobald du mit dem Anpassen fertig bist."
 L.Settings.AuraBuiltinCooldowns = "Verfolgte Abklingzeiten"

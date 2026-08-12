@@ -202,6 +202,11 @@ L.Settings.AuraResetDisplayPrompt = "Restaurar «%s» de %s para suas configura�
 L.Settings.AuraResetSpellsPrompt =
 "Restaurar as magias que %s acompanha para a seleção padrão? As magias que você adicionou são mantidas."
 L.Settings.AuraGroupCount = "%d/%d"
+L.Settings.AuraEnableAll = "Ativar tudo"
+L.Settings.AuraDisableAll = "Desativar tudo"
+L.Settings.AuraSpellMeta = "%d · %s"
+L.Settings.AuraNoTrackedSpells = "%s observa uma aura específica, então não há nada para escolher aqui."
+L.Settings.AuraNoSpellMatches = "Nenhuma magia corresponde à sua busca."
 L.Settings.AurasRebuildHelp =
 "Algumas configurações podem precisar de um recarregamento após a aplicação. Você será solicitado a fazê-lo quando terminar de personalizar."
 L.Settings.AuraBuiltinCooldowns = "Recargas rastreadas"

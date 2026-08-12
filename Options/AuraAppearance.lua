@@ -289,32 +289,7 @@ local function BarSummary()
 		BorderPhrase(config))
 end
 
---- Makes a node belong to the categories a predicate admits.
----
---- Wrapping `Refresh` rather than asking the node to check for itself, because the node is a section or a
---- control that must not learn what a category is. A container skips a hidden child outright -- no
---- anchor, no height, no gap -- so hiding is all this has to do, and a node that is not on screen is not
---- worth the dropdown menu its refresh would regenerate.
----
---- Wraps in place, so a caller holding a more specific node keeps its own reference and its type.
----@param node SpotlightsNode
----@param Applies fun(): boolean
----@return SpotlightsNode
-local function OnlyWhen(node, Applies)
-	local Refresh = node.Refresh
-
-	function node:Refresh()
-		local shown = Applies()
-
-		self:SetShown(shown)
-
-		if shown then
-			Refresh(self)
-		end
-	end
-
-	return node
-end
+local OnlyWhen = Private.Node.OnlyWhen
 
 --- Gives a control a row of its own, closing whatever row was being filled.
 ---

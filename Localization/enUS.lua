@@ -247,6 +247,20 @@ L.Settings.AuraResetSpellsPrompt = "Reset Which Spells %s Tracks To The Shipped 
 -- How much of a class is switched on, beside its name in the rail: enabled over total.
 L.Settings.AuraGroupCount = "%d/%d"
 
+-- The bulk switches over the spell pane. They act on whatever the search box left showing, so that a
+-- filtered list does exactly what the buttons above it say.
+L.Settings.AuraEnableAll = "Enable All"
+L.Settings.AuraDisableAll = "Disable All"
+
+-- The second line of a spell row: its ID, and the client's own subtext for it where there is one -- a
+-- specialisation, a rank. Most spells have none, and the row is then the ID alone.
+L.Settings.AuraSpellMeta = "%d · %s"
+
+-- What stands in for the spell pane when there is no group to show. Prescience and Shifting Sands watch
+-- one specific aura each, so there is nothing to choose; the other is a search that matched nothing.
+L.Settings.AuraNoTrackedSpells = "%s watches one specific aura, so there is nothing to choose here."
+L.Settings.AuraNoSpellMatches = "No spells match your search."
+
 -- The one place the cost of the design is visible to the user, so it says what it costs rather than
 -- only that it costs something.
 L.Settings.AurasRebuildHelp =

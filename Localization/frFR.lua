@@ -195,6 +195,11 @@ L.Settings.AuraResetDisplayPrompt = "Réinitialiser « %s » de %s à ses régla
 L.Settings.AuraResetSpellsPrompt =
 "Réinitialiser les sorts suivis par %s à la sélection par défaut ? Les sorts que vous avez ajoutés sont conservés."
 L.Settings.AuraGroupCount = "%d/%d"
+L.Settings.AuraEnableAll = "Tout activer"
+L.Settings.AuraDisableAll = "Tout désactiver"
+L.Settings.AuraSpellMeta = "%d · %s"
+L.Settings.AuraNoTrackedSpells = "%s surveille une aura précise, il n'y a donc rien à choisir ici."
+L.Settings.AuraNoSpellMatches = "Aucun sort ne correspond à votre recherche."
 L.Settings.AurasRebuildHelp = "Certains réglages peuvent nécessiter un rechargement après application. Vous serez invité à le faire une fois la personnalisation terminée."
 L.Settings.AuraBuiltinCooldowns = "Temps de recharge suivis"
 L.Settings.AuraBuiltinCooldownsNote = "L'affichage de Détection de puissance montre aussi ces temps de recharge majeurs lorsque le joueur mis en avant en utilise un."

@@ -201,6 +201,11 @@ L.Settings.AuraResetDisplayPrompt = "¿Restablecer «%s» de %s a sus ajustes pr
 L.Settings.AuraResetSpellsPrompt =
 "¿Restablecer los hechizos que %s sigue a la selección predeterminada? Los hechizos que hayas añadido se conservan."
 L.Settings.AuraGroupCount = "%d/%d"
+L.Settings.AuraEnableAll = "Activar todo"
+L.Settings.AuraDisableAll = "Desactivar todo"
+L.Settings.AuraSpellMeta = "%d · %s"
+L.Settings.AuraNoTrackedSpells = "%s vigila un aura concreta, así que aquí no hay nada que elegir."
+L.Settings.AuraNoSpellMatches = "Ningún hechizo coincide con tu búsqueda."
 L.Settings.AurasRebuildHelp =
 "Algunos ajustes pueden requerir una recarga tras aplicarse. Se te pedirá que lo hagas cuando termines de personalizar."
 L.Settings.AuraBuiltinCooldowns = "Reutilizaciones rastreadas"

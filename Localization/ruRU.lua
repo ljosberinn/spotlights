@@ -200,6 +200,11 @@ L.Settings.AuraResetDisplayPrompt = "Сбросить «%s» для %s к нас
 L.Settings.AuraResetSpellsPrompt =
 "Сбросить отслеживаемые для %s заклинания к выбору по умолчанию? Добавленные вами заклинания сохранятся."
 L.Settings.AuraGroupCount = "%d/%d"
+L.Settings.AuraEnableAll = "Включить все"
+L.Settings.AuraDisableAll = "Отключить все"
+L.Settings.AuraSpellMeta = "%d · %s"
+L.Settings.AuraNoTrackedSpells = "%s отслеживает один конкретный эффект, поэтому выбирать здесь нечего."
+L.Settings.AuraNoSpellMatches = "Нет заклинаний, соответствующих запросу."
 L.Settings.AurasRebuildHelp =
 "Некоторым настройкам может потребоваться перезагрузка после применения. Вам предложат сделать это, когда вы закончите настройку."
 L.Settings.AuraBuiltinCooldowns = "Отслеживаемые перезарядки"
