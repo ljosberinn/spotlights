@@ -199,6 +199,9 @@ L.Settings.AuraReset = "Restaurar padrões"
 L.Settings.AuraResetConfirm = "Restaurar"
 L.Settings.AuraResetPrompt = "Restaurar a barra de status e o ícone de %s para suas configurações padrão?"
 L.Settings.AuraResetDisplayPrompt = "Restaurar «%s» de %s para suas configurações padrão?"
+L.Settings.AuraResetSpellsPrompt =
+"Restaurar as magias que %s acompanha para a seleção padrão? As magias que você adicionou são mantidas."
+L.Settings.AuraGroupCount = "%d/%d"
 L.Settings.AurasRebuildHelp =
 "Algumas configurações podem precisar de um recarregamento após a aplicação. Você será solicitado a fazê-lo quando terminar de personalizar."
 L.Settings.AuraBuiltinCooldowns = "Recargas rastreadas"

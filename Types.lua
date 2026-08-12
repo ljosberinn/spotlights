@@ -18,6 +18,8 @@
 ---@field Controls SpotlightsControls
 ---@field PreviewPane SpotlightsPreviewPane
 ---@field AuraAppearance SpotlightsAuraAppearance
+---@field AuraSpells SpotlightsAuraSpells
+---@field AuraTracked SpotlightsAuraTracked
 ---@field Options SpotlightsOptions
 ---@field Profile SpotlightsProfile
 ---@field RosterList SpotlightsRosterList

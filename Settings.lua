@@ -993,143 +993,6 @@ end
 
 local RESET_POPUP = "SPOTLIGHTS_AURA_RESET"
 
---- The built-in rows: a class heading, then that class's cooldowns, for every class that has any.
----
---- Built once and kept, unlike the custom list beside it. The shipped table cannot change while the
---- game is running. The *toggles* are read per row by the widget, not baked in here.
----@type { heading: string?, spellID: integer?, r: number?, g: number?, b: number? }[]?
-local cooldownEntries
-
----@return { heading: string?, spellID: integer?, r: number?, g: number?, b: number? }[]
-local function CooldownEntries()
-	if cooldownEntries then
-		return cooldownEntries
-	end
-
-	local cooldowns = Private.Auras.Cooldowns()
-
-	cooldownEntries = {}
-
-	for _, classID in pairs(Constants.UICharacterClasses) do
-		local spells = cooldowns[classID]
-
-		-- A class with no cooldowns left in the list gets no heading. Pruning the shipped table is
-		-- expected, and an empty class heading would advertise a group with nothing in it.
-		if spells then
-			local info = C_CreatureInfo.GetClassInfo(classID)
-			local color = info and RAID_CLASS_COLORS[info.classFile]
-			local spellIDs = {}
-
-			for spellID in pairs(spells) do
-				spellIDs[#spellIDs + 1] = spellID
-			end
-
-			table.sort(spellIDs)
-
-			cooldownEntries[#cooldownEntries + 1] = {
-				heading = info and info.className or tostring(classID),
-				spellIDs = spellIDs,
-				r = color and color.r or 1,
-				g = color and color.g or 1,
-				b = color and color.b or 1,
-			}
-
-			for j = 1, #spellIDs do
-				cooldownEntries[#cooldownEntries + 1] = { spellID = spellIDs[j] }
-			end
-		end
-	end
-
-	return cooldownEntries
-end
-
-local function IsCooldownClassEnabled(entry)
-	for i = 1, #entry.spellIDs do
-		if not Private.Auras.IsCooldownEnabled(entry.spellIDs[i]) then
-			return false
-		end
-	end
-
-	return true
-end
-
-local function SetCooldownClassEnabled(entry, enabled)
-	for i = 1, #entry.spellIDs do
-		Private.Auras.SetCooldownEnabled(entry.spellIDs[i], enabled)
-	end
-end
-
-local function IsDefensiveClassEnabled(entry)
-	for i = 1, #entry.spellIDs do
-		if not Private.Auras.IsDefensiveEnabled(entry.spellIDs[i]) then
-			return false
-		end
-	end
-
-	return true
-end
-
-local function SetDefensiveClassEnabled(entry, enabled)
-	for i = 1, #entry.spellIDs do
-		Private.Auras.SetDefensiveEnabled(entry.spellIDs[i], enabled)
-	end
-end
-
-local defensiveEntries
-
-local function DefensiveEntries()
-	if defensiveEntries then
-		return defensiveEntries
-	end
-
-	local defensives = Private.Auras.Defensives()
-	defensiveEntries = {}
-
-	for _, classID in pairs(Constants.UICharacterClasses) do
-		local spells = defensives[classID]
-
-		if spells then
-			local info = C_CreatureInfo.GetClassInfo(classID)
-			local color = info and RAID_CLASS_COLORS[info.classFile]
-			local spellIDs = {}
-
-			for spellID in pairs(spells) do
-				spellIDs[#spellIDs + 1] = spellID
-			end
-
-			table.sort(spellIDs)
-			defensiveEntries[#defensiveEntries + 1] = {
-				heading = info and info.className or tostring(classID),
-				spellIDs = spellIDs,
-				r = color and color.r or 1,
-				g = color and color.g or 1,
-				b = color and color.b or 1,
-			}
-
-			for j = 1, #spellIDs do
-				defensiveEntries[#defensiveEntries + 1] = { spellID = spellIDs[j] }
-			end
-		end
-	end
-
-	return defensiveEntries
-end
-
---- The custom rows, which are whatever the user has added.
----@return { spellID: integer }[]
-local function CustomEntries()
-	local spellIDs = activeFeature == "defensiveAuras"
-		and Private.Auras.CustomDefensives()
-		or Private.Auras.CustomCooldowns()
-	local entries = {}
-
-	for i = 1, #spellIDs do
-		entries[i] = { spellID = spellIDs[i] }
-	end
-
-	return entries
-end
-
 --- Makes a widget belong to the cooldown/defensive spell-pool sub-tabs alone.
 ---
 --- Wrapping `Refresh` rather than asking every widget to check for itself, because the check is the
@@ -1526,42 +1389,32 @@ local function BuildAurasTab(content)
 				or L.AuraBuiltinCooldownsNote
 		end)),
 
-		-- Both accessors passed straight through, no wrapper. Their `custom` parameter is the third and
-		-- the widget only ever passes two, so omitting it *is* saying "a shipped cooldown" -- which is
-		-- why the custom list below wraps them and this one does not.
+		--- Every one of these asks `Private.AuraSpells` about the *category*, rather than picking a list
+		--- and a pair of accessors per feature key as this file used to. Which pool a category draws
+		--- from lives there now, so the reworked panel and this one cannot disagree about it -- and the
+		--- rows survive this file's deletion.
+		---
+		--- The `custom` parameter is the third on both accessors and only two are ever passed, so
+		--- omitting it *is* saying "a shipped spell" -- which is why the custom list below wraps them
+		--- and this one does not.
 		AuraPoolOnly(
 			Widgets.CreateSpellList(
 				content,
 				function()
-					return activeFeature == "defensiveAuras" and DefensiveEntries() or CooldownEntries()
+					return Private.AuraSpells.Entries(activeFeature)
 				end,
 				function(spellID)
-					return activeFeature == "defensiveAuras" and Private.Auras.IsDefensiveEnabled(spellID)
-						or Private.Auras.IsCooldownEnabled(spellID)
+					return Private.AuraSpells.IsEnabled(activeFeature, spellID)
 				end,
 				function(spellID, enabled)
-					if activeFeature == "defensiveAuras" then
-						Private.Auras.SetDefensiveEnabled(spellID, enabled)
-					else
-						Private.Auras.SetCooldownEnabled(spellID, enabled)
-					end
+					Private.AuraSpells.SetEnabled(activeFeature, spellID, enabled)
 				end,
 				nil,
 				function(entry)
-					if activeFeature == "cooldownAuras" or activeFeature == "sensePower" then
-						return IsCooldownClassEnabled(entry)
-					elseif activeFeature == "defensiveAuras" then
-						return IsDefensiveClassEnabled(entry)
-					else
-						return nil
-					end
+					return Private.AuraSpells.IsGroupEnabled(activeFeature, entry)
 				end,
 				function(entry, enabled)
-					if activeFeature == "cooldownAuras" or activeFeature == "sensePower" then
-						SetCooldownClassEnabled(entry, enabled)
-					elseif activeFeature == "defensiveAuras" then
-						SetDefensiveClassEnabled(entry, enabled)
-					end
+					Private.AuraSpells.SetGroupEnabled(activeFeature, entry, enabled)
 				end
 			)
 		),
@@ -1581,15 +1434,12 @@ local function BuildAurasTab(content)
 	local customList
 
 	customList = AuraPoolOnly(
-		Widgets.CreateSpellList(content, CustomEntries, function(spellID)
-			return activeFeature == "defensiveAuras" and Private.Auras.IsDefensiveEnabled(spellID, true)
-				or Private.Auras.IsCooldownEnabled(spellID, true)
+		Widgets.CreateSpellList(content, function()
+			return Private.AuraSpells.CustomEntries(activeFeature)
+		end, function(spellID)
+			return Private.AuraSpells.IsEnabled(activeFeature, spellID, true)
 		end, function(spellID, enabled)
-			if activeFeature == "defensiveAuras" then
-				Private.Auras.SetDefensiveEnabled(spellID, enabled, true)
-			else
-				Private.Auras.SetCooldownEnabled(spellID, enabled, true)
-			end
+			Private.AuraSpells.SetEnabled(activeFeature, spellID, enabled, true)
 		end, function(spellID)
 			if activeFeature == "defensiveAuras" then
 				Private.Auras.RemoveCustomDefensive(spellID)

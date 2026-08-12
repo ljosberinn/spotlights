@@ -199,6 +199,9 @@ L.Settings.AuraReset = "Auf Standard zurücksetzen"
 L.Settings.AuraResetConfirm = "Zurücksetzen"
 L.Settings.AuraResetPrompt = "Statusleiste und Symbol von %s auf die Standardeinstellungen zurücksetzen?"
 L.Settings.AuraResetDisplayPrompt = "%s von %s auf die Standardeinstellungen zurücksetzen?"
+L.Settings.AuraResetSpellsPrompt =
+"Die von %s überwachten Zauber auf die Standardauswahl zurücksetzen? Selbst hinzugefügte Zauber bleiben erhalten."
+L.Settings.AuraGroupCount = "%d/%d"
 L.Settings.AurasRebuildHelp =
 "Einige Einstellungen benötigen nach der Anwendung möglicherweise ein Neuladen. Du wirst dazu aufgefordert, sobald du mit dem Anpassen fertig bist."
 L.Settings.AuraBuiltinCooldowns = "Verfolgte Abklingzeiten"

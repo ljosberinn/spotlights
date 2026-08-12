@@ -51,7 +51,9 @@ Options\PreviewPane.lua
 Options\Appearance.lua
 Options\FillOrder.lua
 Options\Grid.lua
+Options\AuraSpells.lua
 Options\AuraAppearance.lua
+Options\AuraTracked.lua
 Options\Auras.lua
 Options\Profile.lua
 Options\ImportExport.lua

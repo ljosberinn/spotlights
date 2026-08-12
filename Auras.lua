@@ -2088,6 +2088,32 @@ function Private.Auras.RemoveCustomCooldown(spellID)
 	return true
 end
 
+--- Puts every shipped cooldown back to its default, which is on.
+---
+--- Clearing the override table *is* the reset: it holds only the built-ins the user switched off, so
+--- an empty one means the shipped list as shipped -- and a cooldown added in a later version is
+--- unaffected either way, since it was never in there.
+---
+--- The user's own entries are left alone, and the panel offering this says so. They have no shipped
+--- default to return to: an entry exists only because it was typed in, so the only thing "default"
+--- could mean for one is deleting it, which is not what a reset button is for.
+---@return boolean applied
+function Private.Auras.ResetCooldowns()
+	local auras = Config()
+
+	-- Nothing overridden is already the default state, and refreshing every live display to say so
+	-- would be a sweep over the whole raid for no change.
+	if not auras or not auras.cooldowns or next(auras.cooldowns) == nil then
+		return false
+	end
+
+	auras.cooldowns = {}
+
+	Private.Auras.RefreshCandidates()
+
+	return true
+end
+
 function Private.Auras.IsDefensiveEnabled(spellID, custom)
 	local auras = Config()
 
@@ -2185,6 +2211,25 @@ function Private.Auras.RemoveCustomDefensive(spellID)
 	end
 
 	auras.defensiveCustom[spellID] = nil
+	Private.Auras.RefreshCandidates()
+
+	return true
+end
+
+--- Puts every shipped defensive back to its default, which is not the same as on.
+---
+--- Three of them ship switched off, so this restores a *mix* rather than enabling everything -- which
+--- is the whole reason it clears the overrides instead of writing `true` over the list.
+---@return boolean applied
+function Private.Auras.ResetDefensives()
+	local auras = Config()
+
+	if not auras or not auras.defensives or next(auras.defensives) == nil then
+		return false
+	end
+
+	auras.defensives = {}
+
 	Private.Auras.RefreshCandidates()
 
 	return true

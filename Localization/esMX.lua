@@ -200,6 +200,9 @@ L.Settings.AuraReset = "Restablecer valores predeterminados"
 L.Settings.AuraResetConfirm = "Restablecer"
 L.Settings.AuraResetPrompt = "¿Restablecer la barra de estado y el icono de %s a sus ajustes predeterminados?"
 L.Settings.AuraResetDisplayPrompt = "¿Restablecer «%s» de %s a sus ajustes predeterminados?"
+L.Settings.AuraResetSpellsPrompt =
+"¿Restablecer los hechizos que %s rastrea a la selección predeterminada? Los hechizos que hayas agregado se conservan."
+L.Settings.AuraGroupCount = "%d/%d"
 L.Settings.AurasRebuildHelp =
 "Algunos ajustes pueden requerir una recarga después de aplicarse. Se te pedirá que lo hagas cuando termines de personalizar."
 L.Settings.AuraBuiltinCooldowns = "Reutilizaciones rastreadas"

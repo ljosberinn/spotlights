@@ -240,6 +240,13 @@ L.Settings.AuraResetPrompt = "Reset %s's Status Bar And Icon To Their Default Se
 -- display first, then the category it belongs to.
 L.Settings.AuraResetDisplayPrompt = "Reset The %s For %s To Its Default Settings?"
 
+-- The tracked list has a reset of its own, under the class rail. It says what it leaves alone, because
+-- a spell the user typed in has no default to return to and deleting it is not what a reset is for.
+L.Settings.AuraResetSpellsPrompt = "Reset Which Spells %s Tracks To The Shipped Defaults? Spells You Added Yourself Are Kept."
+
+-- How much of a class is switched on, beside its name in the rail: enabled over total.
+L.Settings.AuraGroupCount = "%d/%d"
+
 -- The one place the cost of the design is visible to the user, so it says what it costs rather than
 -- only that it costs something.
 L.Settings.AurasRebuildHelp =

@@ -13,8 +13,9 @@ local _, Private = ...
 --- the same: the shell shows and hides that per tab, which is exactly when the strip should come and
 --- go, so it follows the Auras tab without the shell being told about it.
 ---
---- The Appearance sub-tab lives in `Options/AuraAppearance.lua`, which is handed the selected category
---- as an accessor rather than a copy. The Tracked one is still a stub; issue 09 fills it in.
+--- Both sub-tabs live in files of their own -- `Options/AuraAppearance.lua` and
+--- `Options/AuraTracked.lua` -- and each is handed the selected category as an accessor rather than a
+--- copy, since neither of them owns it.
 
 --- Where the strip starts along the window's bottom edge, and how far its art hangs below it. Both as
 --- the old panel already places its own.
@@ -266,16 +267,6 @@ local function CreateCategoryStrip(page)
 	end)
 end
 
---- What a sub-tab shows until the issue that fills it lands: the category it is about, so that a
---- change on either strip is visible in what the other one draws.
----@param page Frame
----@return SpotlightsNode
-local function BuildStub(page)
-	return Private.Controls.SubHeading(page, function()
-		return CategoryNames()[activeFeature]
-	end)
-end
-
 ---@return SpotlightsAuraFeatureKey
 local function ActiveFeature()
 	return activeFeature
@@ -294,9 +285,11 @@ end
 local function OnPageHidden()
 	Private.AuraPreview.SetShown(false)
 
-	-- A section's open state belongs to the visit rather than to the panel, and this is the moment the
-	-- visit ends -- on a tab switch as well as on a close, which is the same answer either way.
+	-- A section's open state and the Tracked rail's search belong to the visit rather than to the panel,
+	-- and this is the moment the visit ends -- on a tab switch as well as on a close, which is the same
+	-- answer either way.
 	Private.AuraAppearance.ResetSections()
+	Private.AuraTracked.ResetSearch()
 end
 
 ---@param page Frame
@@ -310,7 +303,7 @@ local function BuildAuras(page)
 
 	local subTabs, pages = Private.Node.SubTabs(page, {
 		{ name = L.TabAppearance, node = Private.AuraAppearance.Build(page, ActiveFeature, ActiveName) },
-		{ name = L.AuraTracked,   node = BuildStub(page) },
+		{ name = L.AuraTracked,   node = Private.AuraTracked.Build(page, ActiveFeature, ActiveName) },
 	}, Private.Options.Refresh)
 
 	local root = Private.Node.Column(page, { subTabs, pages })

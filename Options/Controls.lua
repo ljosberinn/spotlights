@@ -14,6 +14,11 @@ local ROW_HEIGHT = 26
 local DEFAULT_LABEL_WIDTH = 130
 local LABEL_GAP = 6
 
+--- What one row of controls costs, published for the same reason `Node.SubTabHeight` is: a pane that
+--- fits a scroll pane into whatever a pinned button leaves has to subtract the button's height, and a
+--- restated constant would drift the moment a row changes.
+Private.Controls.RowHeight = ROW_HEIGHT
+
 --- What a control keeps for itself when the label column would not leave it that much. A leaf dropped
 --- into a 196px rail cannot honour 130px of label and still be a control, and a clipped label is
 --- recoverable where a 20px dropdown is not.
