@@ -39,6 +39,10 @@ local ANY_FILTER = AuraUtil.CreateFilterString(AuraUtil.AuraFilters.Helpful)
 ---@field Candidates fun(): table<integer, true> every spell its slot may show, `spellID` included
 ---@field multiple boolean
 
+--- Which pass a changed setting needs: a re-anchor on the next frame, or a replacement container once
+--- the value stops moving.
+---@alias SpotlightsAuraInvalidation "live" | "rebuild"
+
 --- One kind of display, and the only place the difference between a bar, an icon and a square lives.
 ---
 --- `config` is loose: the three kinds are configured by different shapes, and a narrower annotation
@@ -54,6 +58,7 @@ local ANY_FILTER = AuraUtil.CreateFilterString(AuraUtil.AuraFilters.Helpful)
 ---@field Preview fun(regions: SpotlightsAuraRegions, config: table)
 ---@field PreviewArt? fun(regions: SpotlightsAuraRegions, spellID: integer) absent on a display drawing no spell art
 ---@field Size fun(config: table, size: SpotlightsChildSize): number, number
+---@field Invalidation fun(feature: SpotlightsAuraFeature, field: string): SpotlightsAuraInvalidation which pass one of this kind's settings needs
 ---@field Invalidated? fun(config: table, record: SpotlightsAuraDisplay): boolean whether a resize has broken something built-in
 
 ---@type table<integer, table<integer, boolean>>
@@ -674,45 +679,6 @@ end
 
 Private.Events.RegisterEvent("PLAYER_LOGIN", SetFeatureMode)
 
---- The settings that cannot reach a live display and need the button built again.
----
---- Declared rather than derived: the difference between a frozen `r` and a free `alpha` is which side
---- of the aura button's access restriction the value lands on, which nothing about the field names
---- says. A field missing from this table is treated as free, so every addition to
---- `SpotlightsAuraBarConfig`, `SpotlightsAuraIconConfig` or `SpotlightsAuraSquareConfig` has to visit
---- here.
----
---- Keyed by field name across all three display kinds, so a name shared by two of them is frozen for
---- both -- which is correct as it stands: a square's `r`/`g`/`b` reach a colour texture under the button
---- exactly as a bar's reach its fill, and its duration fields are the icon's fields. A field that needed
---- to be frozen for one kind and free for another would need this table split per kind.
----
---- `enabled` is absent: switching a display off/on is a `SetShown` on the anchor or a first build,
---- which `EnsureDisplays` already handles. Neither is a rebuild.
-local FROZEN = {
-	texture = true,
-	r = true,
-	g = true,
-	b = true,
-	showIcon = true,
-	iconSide = true,
-	showSwipe = true,
-	showText = true,
-	font = true,
-	fontSize = true,
-	borderTexture = true,
-	borderSize = true,
-	borderR = true,
-	borderG = true,
-	borderB = true,
-
-	-- With its three channels, and for the same reason: all four reach the backdrop through one
-	-- `SetBackdropBorderColor` below the access restriction. Left out, an alpha write took the free
-	-- path, which re-anchors a display without restyling it -- so it changed nothing anywhere but the
-	-- preview.
-	borderA = true,
-}
-
 --- How faint a preview bar's unfilled remainder is against its own fill. Enough to read the bar's
 --- extent against a spotlight, little enough that the fill still reads as the fill -- and multiplied by
 --- the display's own opacity on top, since it sits under the same anchor.
@@ -1239,6 +1205,101 @@ local function StyleSquare(regions, _, config)
 	StyleBorder(regions, config)
 end
 
+--- What every kind's anchor carries, and therefore what stays live on all three.
+---
+--- The anchor is a plain frame of ours above the aura button's access restriction, so everything
+--- `ApplyAnchor` writes reaches a built display for free. `enabled` looks the most drastic of the five
+--- and is the cheapest: one `SetShown` on that frame, or a first build `EnsureDisplays` was going to do
+--- anyway.
+---@type table<string, SpotlightsAuraInvalidation>
+local ANCHOR_INVALIDATION = {
+	enabled = "live",
+	alpha = "live",
+	point = "live",
+	x = "live",
+	y = "live",
+}
+
+--- The border, which all three kinds draw the same way and none can change after the fact: a backdrop
+--- belongs to a frame under the aura button.
+---
+--- `borderA` is classified with the other three channels because all four reach that backdrop through
+--- one `SetBackdropBorderColor`. Left out, an alpha write took the live path, which re-anchors a display
+--- without restyling it -- so it changed nothing anywhere but the preview.
+---@type table<string, SpotlightsAuraInvalidation>
+local BORDER_INVALIDATION = {
+	borderTexture = "rebuild",
+	borderSize = "rebuild",
+	borderR = "rebuild",
+	borderG = "rebuild",
+	borderB = "rebuild",
+	borderA = "rebuild",
+}
+
+--- The swipe and the countdown, shared by the icon and the square because their duration halves are
+--- the same code. All four decide which regions exist under the button, or what the font string sitting
+--- there is made of.
+---@type table<string, SpotlightsAuraInvalidation>
+local DURATION_INVALIDATION = {
+	showSwipe = "rebuild",
+	showText = "rebuild",
+	font = "rebuild",
+	fontSize = "rebuild",
+}
+
+--- One kind's classification, merged from the groups it shares with the others and the fields that are
+--- its own.
+---
+--- Every field of that kind's config block has to appear in exactly one of the tables handed in.
+--- `Invalidation` answers `rebuild` for a field it does not find, which is the safe direction -- a
+--- setting wrongly rebuilt still lands, where one wrongly called live is silently dropped below the
+--- access restriction -- but it costs a container per assigned spotlight, so an omission is a bug
+--- rather than a default worth relying on.
+---@param ... table<string, SpotlightsAuraInvalidation>
+---@return table<string, SpotlightsAuraInvalidation>
+local function Classification(...)
+	local merged = {}
+
+	for i = 1, select("#", ...) do
+		for field, invalidation in pairs((select(i, ...))) do
+			merged[field] = invalidation
+		end
+	end
+
+	return merged
+end
+
+--- A bar's own half: the fill, its colour, and the inline icon. All of it is built into regions under
+--- the button. Width and height are the anchor's, so a bar is resized live.
+local BAR_INVALIDATION = Classification(ANCHOR_INVALIDATION, BORDER_INVALIDATION, {
+	width = "live",
+	height = "live",
+	texture = "rebuild",
+	r = "rebuild",
+	g = "rebuild",
+	b = "rebuild",
+	showIcon = "rebuild",
+	iconSide = "rebuild",
+})
+
+--- An icon's own half is nothing but its dimensions and the spacing between pooled copies of it: the
+--- art is the button's, and everything else it draws is shared. `gap` is the group's flow-layout
+--- spacing rather than a property of the button, which `ApplyGroupLayout` writes to a live container.
+local ICON_INVALIDATION = Classification(ANCHOR_INVALIDATION, BORDER_INVALIDATION, DURATION_INVALIDATION, {
+	width = "live",
+	height = "live",
+	gap = "live",
+})
+
+--- A square's own half is the block's colour, which is a texture under the button. `size` is the
+--- anchor's, both ways.
+local SQUARE_INVALIDATION = Classification(ANCHOR_INVALIDATION, BORDER_INVALIDATION, DURATION_INVALIDATION, {
+	size = "live",
+	r = "rebuild",
+	g = "rebuild",
+	b = "rebuild",
+})
+
 --- The three displays a feature can draw.
 ---
 --- `Size` is a function rather than a flag because the display kinds have different config shapes.
@@ -1253,6 +1314,10 @@ local DISPLAYS = {
 		PreviewArt = PreviewBarArt,
 		Size = function(config, size)
 			return config.width, config.height
+		end,
+
+		Invalidation = function(_, field)
+			return BAR_INVALIDATION[field] or "rebuild"
 		end,
 
 		-- The inline icon and nothing else. It was made square against a height measured at build
@@ -1273,6 +1338,18 @@ local DISPLAYS = {
 			return config.width, config.height
 		end,
 
+		-- The one classification a kind cannot state as a table: a pooled feature sizes each button
+		-- inside `initializeFrame`, below the access restriction, so there the dimensions are build-time
+		-- like everything else down there. A single-aura icon's button fills the anchor instead, which
+		-- `ApplyAnchor` resizes live.
+		Invalidation = function(feature, field)
+			if feature.multiple and (field == "width" or field == "height") then
+				return "rebuild"
+			end
+
+			return ICON_INVALIDATION[field] or "rebuild"
+		end,
+
 		-- No `Invalidated`. Everything under an icon's button fills it, so the anchor's rect is the
 		-- display's rect at every size, forever.
 	},
@@ -1289,6 +1366,10 @@ local DISPLAYS = {
 		-- without the art.
 		Size = function(config)
 			return config.size, config.size
+		end,
+
+		Invalidation = function(_, field)
+			return SQUARE_INVALIDATION[field] or "rebuild"
 		end,
 
 		-- No `Invalidated`, for the icon's reason: block, swipe and text all fill the button.
@@ -1310,6 +1391,22 @@ local DISPLAYS = {
 ---@return boolean
 local function DrawsDisplay(feature, display)
 	return not feature.multiple or display.key == "icon"
+end
+
+--- One display kind by key, the counterpart to `FeatureByKey`.
+---
+--- Answers for a kind a feature does not draw: this is the lookup, not the rule. `DrawsDisplay` is the
+--- rule, and a settings write to a display nothing renders is still a write.
+---@param displayKey SpotlightsAuraDisplayKey
+---@return SpotlightsAuraKind?
+local function DisplayByKey(displayKey)
+	for i = 1, #DISPLAYS do
+		if DISPLAYS[i].key == displayKey then
+			return DISPLAYS[i]
+		end
+	end
+
+	return nil
 end
 
 --- Everything a settings change gets for free, in one call.
@@ -2087,9 +2184,10 @@ end)
 
 --- Writes one aura setting and asks for whichever pass it invalidated.
 ---
---- **The one entry point for changing anything**, and where the free/frozen split is enforced rather
---- than documented: `FROZEN` decides between a debounced rebuild and a next-frame reapply, and no
---- caller has to know which kind of setting it is holding. The options tab writes through here.
+--- **The one entry point for changing anything**, and where the live/frozen split is enforced rather
+--- than documented -- though not decided: the display kind classifies its own fields, and this asks.
+--- So no caller has to know which kind of setting it is holding, and nothing here has to be revisited
+--- when a display grows a field.
 ---
 --- The nil test is a validity check. Every field has a non-nil default and `Private.Migration`'s
 --- repair guarantees it, so a `nil` reading back means the caller named a field that does not exist.
@@ -2105,8 +2203,8 @@ end)
 ---@return boolean applied
 function Private.Auras.SetSetting(featureKey, displayKey, field, value)
 	local auras = Config()
-	local feature = auras and auras[featureKey]
-	local config = feature and feature[displayKey]
+	local featureConfig = auras and auras[featureKey]
+	local config = featureConfig and featureConfig[displayKey]
 
 	if not config or config[field] == nil then
 		return false
@@ -2118,16 +2216,19 @@ function Private.Auras.SetSetting(featureKey, displayKey, field, value)
 
 	config[field] = value
 
-	if field == "gap" and feature.multiple then
+	local feature = FeatureByKey(featureKey)
+	local display = DisplayByKey(displayKey)
+
+	if field == "gap" and feature and feature.multiple then
 		ApplyGroupLayout(featureKey, displayKey, value or 0)
 	end
 
-	local groupIconSizeChanged = (featureKey == "cooldownAuras"
-			or featureKey == "defensiveAuras")
-		and displayKey == "icon"
-		and (field == "width" or field == "height")
+	-- Neither lookup can fail for a key the database holds a block for, so the fallback is about a
+	-- caller inventing one: rebuilding a display that does not exist finds nothing and leaks nothing,
+	-- where treating it as live would quietly promise an update the frame never gets.
+	local invalidation = feature and display and display.Invalidation(feature, field) or "rebuild"
 
-	if groupIconSizeChanged or FROZEN[field] then
+	if invalidation == "rebuild" then
 		RequestRebuild(featureKey, displayKey)
 	else
 		Private.Events.Request(DeferralKey.Auras)
@@ -2335,13 +2436,9 @@ function Private.Auras.HasDisplay(featureKey, displayKey)
 		return false
 	end
 
-	for i = 1, #DISPLAYS do
-		if DISPLAYS[i].key == displayKey then
-			return DrawsDisplay(feature, DISPLAYS[i])
-		end
-	end
+	local display = DisplayByKey(displayKey)
 
-	return false
+	return display ~= nil and DrawsDisplay(feature, display)
 end
 
 --- The shipped spell lists, for the options panel to draw rows from.

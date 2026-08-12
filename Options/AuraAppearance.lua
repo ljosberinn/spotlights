@@ -143,8 +143,8 @@ end
 
 --- Writes one aura setting through the one entry point that knows what it costs.
 ---
---- Requests nothing itself, unlike the appearance tab's setter: `Private.Auras` decides between a
---- next-frame reapply and a debounced rebuild from the field name, and that decision has to live with
+--- Requests nothing itself, unlike the appearance tab's setter: `Private.Auras` asks the display kind
+--- whether the field is a next-frame reapply or a debounced rebuild, and that decision has to live with
 --- the frames -- a settings file that knew which fields are frozen would be a second copy of a list that
 --- can only be wrong.
 ---@param displayKey SpotlightsAuraDisplayKey
