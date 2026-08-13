@@ -430,21 +430,15 @@ end
 --- until the client has the data and fills it in afterwards, so the ID stands in for the name and the next
 --- pass picks up the real one. An ID that is genuinely not a spell keeps showing as its own number.
 ---
---- The subtext is the client's own second line for a spell -- a specialisation, a rank -- and is empty for
---- most of them, so the meta line is the ID alone unless there is something to put beside it.
----
 --- The texture is a **file ID** when the spell has one and a path when it does not, which is why the
 --- annotation admits both: `SetTexture` takes either.
 ---@param spellID integer
 ---@return string label, string meta, string|integer texture
 local function SpellDisplay(spellID)
-	local L = Private.L.Settings
 	local name = C_Spell.GetSpellName(spellID)
-	local subtext = C_Spell.GetSpellSubtext(spellID)
 
 	return name or tostring(spellID),
-		subtext ~= nil and subtext ~= "" and string.format(L.AuraSpellMeta, spellID, subtext)
-		or tostring(spellID),
+		tostring(spellID),
 		C_Spell.GetSpellTexture(spellID) or QUESTION_MARK_ICON
 end
 
@@ -458,8 +452,8 @@ end
 ---@field check CheckButton
 ---@field remove Button
 
---- One pooled spell row: the icon, the name over its `id · spec` line, the toggle, and the remove button a
---- custom entry gets.
+--- One pooled spell row: the icon, the name over its ID, the toggle, and the remove button a custom entry
+--- gets.
 ---
 --- A `Button` rather than a frame, so the whole row is the toggle: the checkbox at its far end is a small
 --- target beside a name that reads as the thing being switched on. The checkbox and the remove button sit

@@ -235,7 +235,6 @@ L.Settings.AuraResetSpellsPrompt =
 L.Settings.AuraGroupCount = "%d/%d"
 L.Settings.AuraEnableAll = "Alle aktivieren"
 L.Settings.AuraDisableAll = "Alle deaktivieren"
-L.Settings.AuraSpellMeta = "%d · %s"
 L.Settings.AuraNoTrackedSpells =
 "%s überwacht genau einen Aura-Effekt, daher gibt es hier nichts auszuwählen."
 L.Settings.AuraNoSpellMatches = "Keine Zauber entsprechen deiner Suche."

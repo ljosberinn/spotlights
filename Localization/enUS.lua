@@ -313,10 +313,6 @@ L.Settings.AuraGroupCount = "%d/%d"
 L.Settings.AuraEnableAll = "Enable All"
 L.Settings.AuraDisableAll = "Disable All"
 
--- The second line of a spell row: its ID, and the client's own subtext for it where there is one -- a
--- specialisation, a rank. Most spells have none, and the row is then the ID alone.
-L.Settings.AuraSpellMeta = "%d · %s"
-
 -- What stands in for the spell pane when there is no group to show. Prescience and Shifting Sands watch
 -- one specific aura each, so there is nothing to choose; the other is a search that matched nothing.
 L.Settings.AuraNoTrackedSpells = "%s watches one specific aura, so there is nothing to choose here."

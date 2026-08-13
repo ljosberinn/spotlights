@@ -227,7 +227,6 @@ L.Settings.AuraResetSpellsPrompt = "%s이(가) 추적하는 주문을 기본 선
 L.Settings.AuraGroupCount = "%d/%d"
 L.Settings.AuraEnableAll = "모두 활성화"
 L.Settings.AuraDisableAll = "모두 비활성화"
-L.Settings.AuraSpellMeta = "%d · %s"
 L.Settings.AuraNoTrackedSpells = "%s은(는) 특정 효과 하나만 감시하므로 여기서 선택할 항목이 없습니다."
 L.Settings.AuraNoSpellMatches = "검색과 일치하는 주문이 없습니다."
 L.Settings.AurasRebuildHelp = "일부 설정은 적용 후 다시 불러오기가 필요할 수 있습니다. 사용자 지정을 마치면 안내가 표시됩니다."

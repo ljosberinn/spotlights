@@ -233,7 +233,6 @@ L.Settings.AuraResetSpellsPrompt =
 L.Settings.AuraGroupCount = "%d/%d"
 L.Settings.AuraEnableAll = "Включить все"
 L.Settings.AuraDisableAll = "Отключить все"
-L.Settings.AuraSpellMeta = "%d · %s"
 L.Settings.AuraNoTrackedSpells = "%s отслеживает один конкретный эффект, поэтому выбирать здесь нечего."
 L.Settings.AuraNoSpellMatches = "Нет заклинаний, соответствующих запросу."
 L.Settings.AurasRebuildHelp =

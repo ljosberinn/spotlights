@@ -227,7 +227,6 @@ L.Settings.AuraResetSpellsPrompt = "將 %s 追蹤的法術重置為預設選擇�
 L.Settings.AuraGroupCount = "%d/%d"
 L.Settings.AuraEnableAll = "全部啟用"
 L.Settings.AuraDisableAll = "全部停用"
-L.Settings.AuraSpellMeta = "%d · %s"
 L.Settings.AuraNoTrackedSpells = "%s只追蹤一個特定光環，因此這裡沒有可選項目。"
 L.Settings.AuraNoSpellMatches = "沒有符合搜尋的法術。"
 L.Settings.AurasRebuildHelp = "部分設定在套用後可能需要重載。你完成自訂後會收到重載提示。"

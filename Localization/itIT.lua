@@ -234,7 +234,6 @@ L.Settings.AuraResetSpellsPrompt =
 L.Settings.AuraGroupCount = "%d/%d"
 L.Settings.AuraEnableAll = "Attiva tutto"
 L.Settings.AuraDisableAll = "Disattiva tutto"
-L.Settings.AuraSpellMeta = "%d · %s"
 L.Settings.AuraNoTrackedSpells = "%s sorveglia una singola aura, quindi qui non c'è nulla da scegliere."
 L.Settings.AuraNoSpellMatches = "Nessuna magia corrisponde alla tua ricerca."
 L.Settings.AurasRebuildHelp =

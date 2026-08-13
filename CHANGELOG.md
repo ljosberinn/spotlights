@@ -32,3 +32,4 @@ v1.1.0
 - Clear Roster When Leaving The Group now also clears when a party becomes a raid, or a raid a party
 - the options panel is taller, and the Import / Export boxes with it
 - the Tracked sub-tab is no longer offered for Prescience and Shifting Sands, which track one spell each
+- tracked spell rows show the spell ID alone, without the client's rank or specialisation subtext

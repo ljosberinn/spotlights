@@ -233,7 +233,6 @@ L.Settings.AuraResetSpellsPrompt =
 L.Settings.AuraGroupCount = "%d/%d"
 L.Settings.AuraEnableAll = "Tout activer"
 L.Settings.AuraDisableAll = "Tout désactiver"
-L.Settings.AuraSpellMeta = "%d · %s"
 L.Settings.AuraNoTrackedSpells = "%s surveille une aura précise, il n'y a donc rien à choisir ici."
 L.Settings.AuraNoSpellMatches = "Aucun sort ne correspond à votre recherche."
 L.Settings.AurasRebuildHelp = "Certains réglages peuvent nécessiter un rechargement après application. Vous serez invité à le faire une fois la personnalisation terminée."

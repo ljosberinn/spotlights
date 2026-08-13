@@ -233,7 +233,6 @@ L.Settings.AuraResetSpellsPrompt =
 L.Settings.AuraGroupCount = "%d/%d"
 L.Settings.AuraEnableAll = "Activar todo"
 L.Settings.AuraDisableAll = "Desactivar todo"
-L.Settings.AuraSpellMeta = "%d · %s"
 L.Settings.AuraNoTrackedSpells = "%s vigila un aura concreta, así que aquí no hay nada que elegir."
 L.Settings.AuraNoSpellMatches = "Ningún hechizo coincide con tu búsqueda."
 L.Settings.AurasRebuildHelp =
