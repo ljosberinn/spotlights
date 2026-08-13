@@ -182,8 +182,11 @@ L.Settings.FillOrderCaption = "%s · wraps every %d · grows %s, %s"
 L.Settings.AllowGaps = "Render Empty Cells"
 L.Settings.ClearOnLeave = "Clear Roster When Leaving The Group"
 
-L.Settings.SlotsHeader = "Configured slots"
-L.Settings.RaidHeader = "Raid members"
+-- The two pane headings are read as a pair: each names the people in its own list rather than the
+-- structure behind it, and the right one is not "group members" because anyone already spotlighted is
+-- left out of it.
+L.Settings.SpotlightedHeader = "Spotlighted"
+L.Settings.UnrosteredHeader = "Unrostered"
 L.Settings.AddSpacer = "Add a spacer"
 L.Settings.NoSlots =
 "No spotlights configured yet. Add a group member from the list beside this one, or drag one onto it."
@@ -200,8 +203,9 @@ L.Settings.DownShort = "v"
 L.Settings.RemoveShort = "x"
 L.Settings.PlusShort = "+"
 
--- The presets block under the raid list. A preset is a slot layout and nothing else, which is what the
--- delete prompt says out loud: "delete" beside a list of slots could be read as deleting the slots.
+-- The presets block under the unrostered list. A preset is a slot layout and nothing else, which is
+-- what the delete prompt says out loud: "delete" beside a list of slots could be read as deleting the
+-- slots.
 L.Settings.PresetsHeading = "Presets"
 L.Settings.PresetsCount = "%d saved"
 L.Settings.PresetsNone = "No presets saved yet. Save the slots you have configured to start one."
@@ -373,7 +377,7 @@ L.DragAssign.HintDrag = "Drag %s onto a spotlight"
 L.DragAssign.HintAdd = "Add %s as slot %d"
 L.DragAssign.HintAppend = "Add %s to the end"
 L.DragAssign.HintAlready = "%s already holds slot %d"
-L.DragAssign.HintReorder = "Drag %s to a cell to reorder, or to Raid members to remove"
+L.DragAssign.HintReorder = "Drag %s to a cell to reorder, or to Unrostered to remove"
 L.DragAssign.HintMove = "Move %s to slot %d"
 L.DragAssign.HintRemove = "Remove %s"
 

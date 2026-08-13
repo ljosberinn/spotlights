@@ -33,3 +33,4 @@ v1.1.0
 - the options panel is taller, and the Import / Export boxes with it
 - the Tracked sub-tab is no longer offered for Prescience and Shifting Sands, which track one spell each
 - tracked spell rows show the spell ID alone, without the client's rank or specialisation subtext
+- the Roster tab's two panes are now headed Spotlighted and Unrostered

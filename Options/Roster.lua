@@ -7,8 +7,8 @@ local _, Private = ...
 --- worth redoing: those two lists are read against each other -- "who is in, who is left" -- and a
 --- single column made that a scroll rather than a glance.
 ---
---- The presets block under the raid list is `Options/RosterPresets.lua`'s: it is a library with its
---- own storage and its own codec, and the only thing this file owes it is the height it takes.
+--- The presets block under the unrostered list is `Options/RosterPresets.lua`'s: it is a library with
+--- its own storage and its own codec, and the only thing this file owes it is the height it takes.
 ---
 --- Every row here is `RosterList.lua`'s pooled row, configured through the same two functions the old
 --- panel configures its own with. What this file owns is the arrangement: which rows each pane holds,
@@ -17,8 +17,8 @@ local _, Private = ...
 --- No model code, like every other front-end onto the slot list: each action calls the same
 --- `Private.Registry` entry point the slash commands do.
 
---- The raid list's width, as the design specifies it: 250 of the content rectangle's 748.
-local RAID_WIDTH = 250
+--- The unrostered list's width, as the design specifies it: 250 of the content rectangle's 748.
+local UNROSTERED_WIDTH = 250
 
 --- What a checkbox spends on its caption. Both of these are sentences rather than nouns, and the kit's
 --- 130 default would lose the half that says what the box does.
@@ -176,7 +176,7 @@ local function BuildSlotList(page, rows)
 						onClick = function()
 							Private.Registry.Unassign(index)
 
-							-- A row has gone, which is a height as well as a repaint, and the raid list
+							-- A row has gone, which is a height as well as a repaint, and the list
 							-- beside this one has gained the player back. So the tab rather than the pane.
 							Private.Options.Refresh()
 						end,
@@ -350,7 +350,7 @@ local function BuildPane(page, heading, height, section, Note, IsEmpty, BuildLis
 	}, PANE_GAP)
 end
 
---- The trailing column: the raid list with the presets block pinned under it.
+--- The trailing column: the unrostered list with the presets block pinned under it.
 ---
 --- A `Column` would do this if the list could be sized last, and it cannot: a `ScrollPane` is a
 --- *window*, so the list has to be told its height, and what is left for it is whatever the block
@@ -408,8 +408,8 @@ local function BuildRoster(page)
 	--- block, whose height is decided per pass rather than here.
 	---
 	--- Both are counted from the same page height, which is why the two lists do not end level: the
-	--- design puts the controls under the slots, and a raid list cropped to match them would waste a
-	--- quarter of the tab on nothing.
+	--- design puts the controls under the slots, and an unrostered list cropped to match them would
+	--- waste a quarter of the tab on nothing.
 	local heading = Private.Controls.HeadingHeight
 	local row = Private.Controls.RowHeight
 
@@ -424,7 +424,7 @@ local function BuildRoster(page)
 	end
 
 	local slots = Private.Node.Column(page, {
-		BuildPane(page, L.SlotsHeader, slotsHeight, "slots", function()
+		BuildPane(page, L.SpotlightedHeader, slotsHeight, "slots", function()
 			return L.NoSlots
 		end, function()
 			return #Private.Registry.GetSlots() == 0
@@ -439,7 +439,7 @@ local function BuildRoster(page)
 			CHECKBOX_LABEL_WIDTH),
 	}, PANE_GAP)
 
-	local members = BuildPane(page, L.RaidHeader, MembersHeight, "members", function()
+	local members = BuildPane(page, L.UnrosteredHeader, MembersHeight, "members", function()
 		local _, count = Private.RosterList.Available()
 
 		-- The two empty states say which one this is: nobody to list, or nobody left to list.
@@ -464,7 +464,7 @@ local function BuildRoster(page)
 		reserved = height
 	end)
 
-	return Private.Node.Split(page, slots, right, { rightWidth = RAID_WIDTH })
+	return Private.Node.Split(page, slots, right, { rightWidth = UNROSTERED_WIDTH })
 end
 
 Private.Options.Builders.roster = BuildRoster
