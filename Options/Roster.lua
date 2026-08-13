@@ -45,6 +45,18 @@ local ARROW_SCALE = 1.5
 --- time by whoever was clicked, and a second key would stack a second identical prompt.
 local CLEAR_POPUP = "SPOTLIGHTS_ROSTER_CLEAR"
 
+--- The roles the Unrostered list can be narrowed to, in the order the game lists them.
+---
+--- Labelled from the globals rather than from our own keys, which is how the default UI labels the same
+--- three tokens (`LFGList.lua:3757` resolves `_G[role]`) -- eleven locales of "Tank" for free, and the
+--- exact wording the rest of the interface uses. Built at load because `GlobalStrings` is filled long
+--- before an addon runs.
+local ROLE_CHOICES = {
+	{ value = "TANK", label = TANK },
+	{ value = "HEALER", label = HEALER },
+	{ value = "DAMAGER", label = DAMAGER },
+}
+
 ---@return SpotlightsLayoutConfig?
 local function Layout()
 	return Private.Layout.GetConfig()
@@ -95,6 +107,40 @@ end
 ---@param value boolean
 local function SetClearOnLeave(value)
 	SetLayoutField("clearOnLeave", value)
+end
+
+---@param role string
+---@return boolean
+local function GetRoleOffered(role)
+	local layout = Layout()
+	local roles = layout and layout.unrosteredRoles
+
+	return roles ~= nil and roles[role] == true
+end
+
+--- Ticks or unticks a role in the Unrostered list's filter.
+---
+--- Not through `SetLayoutField`, which writes a whole field: this one mutates a table inside the block,
+--- and there is no geometry to invalidate either -- what the *options list* offers changes nothing about
+--- where a spotlight sits or what it holds.
+---
+--- Stored `false` rather than removed, because the default is not empty: see `Migration.DefaultLayout`.
+---
+--- The tab rather than the pane, because rows come and go -- that is a height, not a repaint. The menu
+--- survives it: a checkbox click responds `MenuResponse.Refresh`, and the kit's multiselect declines to
+--- regenerate while its list is down.
+---@param role string
+---@param offered boolean
+local function SetRoleOffered(role, offered)
+	local layout = Layout()
+
+	if not layout or not layout.unrosteredRoles then
+		return
+	end
+
+	layout.unrosteredRoles[role] = offered
+
+	Private.Options.Refresh()
 end
 
 --- Appends a spacer, which is the one slot the grid can hold that nobody is in.
@@ -321,6 +367,10 @@ end
 ---
 --- The pane's rows are registered for drops here rather than by their list, because the viewport that
 --- clips them belongs to the scroll pane and the block a drop lands in belongs to the pane as a whole.
+---
+--- A `filter` sits between the heading and the list, on the list it filters: a pane that looks short is
+--- explained by the control directly above it, and the heading is the caption a labelless control would
+--- otherwise need. The caller pays for its height, since only the caller knows what the column has left.
 ---@param page Frame
 ---@param heading string
 ---@param height number | fun(): number what the column has to spend on the list
@@ -328,8 +378,9 @@ end
 ---@param Note fun(): string what to say instead of an empty list
 ---@param IsEmpty fun(): boolean
 ---@param BuildList fun(page: Frame, rows: SpotlightsRosterRow[]): SpotlightsNode
+---@param filter SpotlightsNode? a control over what the list shows, under the heading
 ---@return SpotlightsNode
-local function BuildPane(page, heading, height, section, Note, IsEmpty, BuildList)
+local function BuildPane(page, heading, height, section, Note, IsEmpty, BuildList, filter)
 	---@type SpotlightsRosterRow[]
 	local rows = {}
 
@@ -344,10 +395,15 @@ local function BuildPane(page, heading, height, section, Note, IsEmpty, BuildLis
 		rows = rows,
 	})
 
-	return Private.Node.Column(page, {
-		Private.Controls.SubHeading(page, heading),
-		pane,
-	}, PANE_GAP)
+	local children = { Private.Controls.SubHeading(page, heading) }
+
+	if filter then
+		children[#children + 1] = filter
+	end
+
+	children[#children + 1] = pane
+
+	return Private.Node.Column(page, children, PANE_GAP)
 end
 
 --- The trailing column: the unrostered list with the presets block pinned under it.
@@ -419,8 +475,9 @@ local function BuildRoster(page)
 	--- out. Zero until then, which is only ever the case before the first pass.
 	local reserved = 0
 
+	--- One row and one gap of this is the role filter's, which sits between the heading and the list.
 	local function MembersHeight()
-		return math.max(page:GetHeight() - heading - PANE_GAP * 2 - reserved, MIN_LIST_HEIGHT)
+		return math.max(page:GetHeight() - heading - row - PANE_GAP * 3 - reserved, MIN_LIST_HEIGHT)
 	end
 
 	local slots = Private.Node.Column(page, {
@@ -439,16 +496,27 @@ local function BuildRoster(page)
 			CHECKBOX_LABEL_WIDTH),
 	}, PANE_GAP)
 
-	local members = BuildPane(page, L.UnrosteredHeader, MembersHeight, "members", function()
-		local _, count = Private.RosterList.Available()
+	--- No label: the heading above says what the list holds, and a label column here would leave the
+	--- dropdown a hundred pixels of the 250 -- the same reasoning the presets dropdown spans its column on.
+	local roleFilter = Private.Controls.MultiselectDropdown(page, nil, ROLE_CHOICES, GetRoleOffered,
+		SetRoleOffered)
 
-		-- The two empty states say which one this is: nobody to list, or nobody left to list.
-		return count == 0 and L.NotInGroup or L.AllSpotlighted
+	local members = BuildPane(page, L.UnrosteredHeader, MembersHeight, "members", function()
+		local _, count, offered = Private.RosterList.Available()
+
+		-- Three empty states, because the filter splits what used to be two: nobody to list, nobody the
+		-- filter shows, or nobody left to list. Reporting the middle one as the last would tell a raid of
+		-- tanks and healers that everyone is spotlighted.
+		if count == 0 then
+			return L.NotInGroup
+		end
+
+		return offered == 0 and L.NoOfferedRoles or L.AllSpotlighted
 	end, function()
 		local available = Private.RosterList.Available()
 
 		return #available == 0
-	end, BuildMemberList)
+	end, BuildMemberList, roleFilter)
 
 	--- The one tab that goes stale on its own; everything else changes only when the user changes it.
 	---

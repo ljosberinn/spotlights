@@ -29,6 +29,19 @@ local function DefaultLayout()
 		-- Off by default: the alternative is quietly destroying a grid the user built. Stored with
 		-- layout (like `allowGaps`) because it is a grid behaviour the Roster tab surfaces.
 		clearOnLeave = false,
+
+		-- Damage alone, because those are the players anyone spotlights: a full raid's tanks and healers
+		-- are twenty rows scrolled past on the way to them.
+		--
+		-- All three keys are written, and a deselected role is stored `false` rather than removed. `Filled`
+		-- recurses into a table default and fills whatever the stored one lacks, so a hole here would be
+		-- read as "missing" and come back at the default -- turning Damage back on every load for the user
+		-- who switched it off.
+		unrosteredRoles = {
+			TANK = false,
+			HEALER = false,
+			DAMAGER = true,
+		},
 	}
 end
 

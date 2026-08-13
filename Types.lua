@@ -356,6 +356,7 @@
 ---@field frameHeight number
 ---@field allowGaps boolean
 ---@field clearOnLeave boolean wipe every configured slot when the kind of group changes
+---@field unrosteredRoles table<string, boolean> which roles the Unrostered list offers, keyed by the tokens `UnitGroupRolesAssigned` answers with. A display filter on that list only: nothing here decides who may be spotlighted
 
 --- A header's child button. Every region is declared by our template and every method is the
 --- mixin's; nothing here comes from Blizzard but SecureUnitButtonTemplate's OnClick.

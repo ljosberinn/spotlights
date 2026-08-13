@@ -200,6 +200,10 @@ L.Settings.BlankSlot = "(spacer)"
 L.Settings.UnknownSlot = "(empty)"
 L.Settings.NotInGroup = "not in a group"
 L.Settings.AllSpotlighted = "everyone is spotlighted"
+-- The third empty state, and the one the role filter above the list adds: the group has members, but
+-- none playing a role the list was told to show. Names no role itself, because which ones are shown is
+-- the user's to change and the dropdown right above says so.
+L.Settings.NoOfferedRoles = "no one in the group plays the roles this list shows"
 L.Settings.UpShort = "^"
 L.Settings.DownShort = "v"
 L.Settings.RemoveShort = "x"

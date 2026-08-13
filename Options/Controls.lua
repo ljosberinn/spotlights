@@ -426,6 +426,81 @@ function Private.Controls.Dropdown(parent, label, choices, get, set, labelWidth,
 	return row
 end
 
+--- A dropdown over a list of choices where any number may be picked at once.
+---
+--- `CreateCheckbox` rather than `CreateRadio` is the whole difference, and it is what keeps the menu open
+--- on a click: the description ships `MenuResponse.Refresh`
+--- (`Blizzard_Menu/Mainline/MenuTemplates.lua:341`), so a tick re-runs the generator in place instead of
+--- dismissing the list. Three separate opens to pick three roles is the alternative.
+---
+--- `SetSelected` is handed the new state rather than left to derive it, so a caller storing a set does
+--- not have to read its own database back to know which way the click went.
+---
+--- The button's text is derived the same way `Dropdown`'s is -- from whichever descriptions report
+--- themselves selected, joined -- so `SetDefaultText` is the only way to name the empty case. `NONE` is
+--- the game's own word for it, and every multiselect this panel grows wants the same one.
+---@param parent Frame
+---@param label string? omitted for a dropdown that spans its column, where a heading above says what it picks
+---@param choices { value: any, label: string }[] | fun(): { value: any, label: string }[]
+---@param IsSelected fun(value: any): boolean
+---@param SetSelected fun(value: any, selected: boolean)
+---@param labelWidth number?
+---@return SpotlightsNode
+function Private.Controls.MultiselectDropdown(parent, label, choices, IsSelected, SetSelected, labelWidth)
+	local row = CreateRow(parent)
+
+	local caption = label and CreateLabel(row, label) or nil
+	local dropdown = CreateFrame("DropdownButton", nil, row, "WowStyle1DropdownTemplate")
+
+	dropdown:SetDefaultText(NONE)
+
+	dropdown:SetupMenu(function(_, rootDescription)
+		local current = type(choices) == "function" and choices() or choices
+
+		for i = 1, #current do
+			local choice = current[i]
+
+			rootDescription:CreateCheckbox(choice.label, function()
+				return IsSelected(choice.value)
+			end, function()
+				SetSelected(choice.value, not IsSelected(choice.value))
+			end)
+		end
+	end)
+
+	--- Regenerating the menu, for the reason `Dropdown:Refresh` does it: the button's text is derived from
+	--- the generated descriptions, so there is nothing to `SetText`.
+	---
+	--- **Not while the menu is open**, which is the one thing separating this from `Dropdown:Refresh`: a
+	--- multiselect's setter refreshes the tab on every tick, and the tick leaves the list down. The click
+	--- already re-derives the text on its own -- a checkbox response signals an update, which walks the
+	--- descriptions the same way (`Blizzard_Menu/DropdownButton.lua:290-299`), and the responder runs before
+	--- the response is processed, so what it reads is the write that just happened. Regenerating on top of
+	--- that reinitialises the open list under the cursor for nothing. `CloseMenu` signals an update too, so
+	--- a database change from anywhere else lands on the button as the menu goes away.
+	function row:Refresh()
+		if dropdown:IsMenuOpen() then
+			return
+		end
+
+		dropdown:GenerateMenu()
+	end
+
+	function row:Layout(width)
+		self:SetWidth(width)
+
+		local column, control = Divide(self, width, labelWidth, caption)
+
+		dropdown:ClearAllPoints()
+		dropdown:SetPoint("LEFT", self, "LEFT", column, 0)
+		dropdown:SetWidth(control)
+
+		return ROW_HEIGHT
+	end
+
+	return row
+end
+
 --- The choices for a media picker, rebuilt per call from whatever LibSharedMedia currently knows.
 ---
 --- Not cached: another addon can register media after a tab is built, and a list captured then would omit

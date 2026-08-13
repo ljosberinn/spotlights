@@ -419,24 +419,56 @@ function Private.RosterList.SlotDisplay(slot)
 	return slot.name or L.UnknownSlot, slot.guid
 end
 
---- Everyone in the group who is not already in the grid, keeping the alphabetical order
---- `Roster.List` produced.
+--- Whether the list offers a role, against the set the user picked.
+---
+--- **A member with no role is always offered.** `GetRole` answers nil both for someone who has not picked
+--- one and for a group that has had no role check, and hiding on an absence of information would empty
+--- the pane for a whole raid -- the opposite of what a filter narrowing it to the damage dealers is for.
+--- Which is also why the dropdown has no "no role" entry to switch off.
+---
+--- A missing set offers everything, so a database this ran against before the field existed lists the
+--- group rather than nobody.
+---@param roles table<string, boolean>?
+---@param role string?
+---@return boolean
+local function Offers(roles, role)
+	if not role or not roles then
+		return true
+	end
+
+	return roles[role] == true
+end
+
+--- Everyone in the group whose role the list offers and who is not already in the grid, keeping the
+--- alphabetical order `Roster.List` produced.
 ---
 --- Anyone spotlighted is left out rather than listed under a subheading: the configured slots already
 --- are that list, with the same names, the same colour and a remove button. Listing them twice would
 --- make every assignment visibly change two places.
----@return { guid: string, name: string }[] available, integer members
+---
+--- The third return is how many members the *filter* leaves, spotlighted or not, which is what separates
+--- an empty pane's three causes: nobody in the group, nobody the filter shows, nobody left to show. The
+--- first two collapse without it, and a group of tanks and healers would report that everyone is
+--- spotlighted.
+---@return { guid: string, name: string }[] available, integer members, integer offered
 function Private.RosterList.Available()
 	local members = Private.Roster.List()
+	local layout = Private.Layout.GetConfig()
+	local roles = layout and layout.unrosteredRoles
 	local available = {}
+	local offered = 0
 
 	for i = 1, #members do
 		local member = members[i]
 
-		if not Private.Registry.SlotOf(member.guid) then
-			available[#available + 1] = member
+		if Offers(roles, Private.Roster.GetRole(member.guid)) then
+			offered = offered + 1
+
+			if not Private.Registry.SlotOf(member.guid) then
+				available[#available + 1] = member
+			end
 		end
 	end
 
-	return available, #members
+	return available, #members, offered
 end
