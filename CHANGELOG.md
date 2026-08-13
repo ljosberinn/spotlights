@@ -39,3 +39,4 @@ v1.1.0
 - importing a preset no longer selects it, and the preset dropdown now reads "None selected" while none is in play
 - the Roster tab's role icons now appear as soon as roles are assigned, instead of waiting on a group change
 - the Unrostered list can now be narrowed to chosen roles, and ships showing damage dealers only
+- roles can now be set to be removed from the grid automatically, keeping tanks or healers out of every preset and every add

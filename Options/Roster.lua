@@ -45,7 +45,8 @@ local ARROW_SCALE = 1.5
 --- time by whoever was clicked, and a second key would stack a second identical prompt.
 local CLEAR_POPUP = "SPOTLIGHTS_ROSTER_CLEAR"
 
---- The roles the Unrostered list can be narrowed to, in the order the game lists them.
+--- The three roles, in the order the game lists them. Both dropdowns on this tab pick from them: the
+--- one narrowing the Unrostered list, and the one keeping roles out of the grid.
 ---
 --- Labelled from the globals rather than from our own keys, which is how the default UI labels the same
 --- three tokens (`LFGList.lua:3757` resolves `_G[role]`) -- eleven locales of "Tank" for free, and the
@@ -140,6 +141,38 @@ local function SetRoleOffered(role, offered)
 
 	layout.unrosteredRoles[role] = offered
 
+	Private.Options.Refresh()
+end
+
+---@param role string
+---@return boolean
+local function GetRoleRemoved(role)
+	local layout = Layout()
+	local roles = layout and layout.autoRemoveRoles
+
+	return roles ~= nil and roles[role] == true
+end
+
+--- Ticks or unticks a role in the set kept out of the grid, and acts on the grid at once, so a tick
+--- takes the healers already on screen out rather than waiting for the next roster event.
+---
+--- The removal is the registry's rather than this file's, like every other action on this tab: it is
+--- a model mutation with an apply behind it, and the panel is a front-end onto the same entry points
+--- the slash commands use.
+---@param role string
+---@param removed boolean
+local function SetRoleRemoved(role, removed)
+	local layout = Layout()
+
+	if not layout or not layout.autoRemoveRoles then
+		return
+	end
+
+	layout.autoRemoveRoles[role] = removed
+
+	Private.Registry.EnforceAutoRemoveRoles()
+
+	-- The tab: slots leave the left list and their players come back to the right one.
 	Private.Options.Refresh()
 end
 
@@ -316,7 +349,14 @@ local function BuildMemberList(page, rows)
 						label = L.PlusShort,
 						texture = PLUS_TEXTURE,
 						onClick = function()
-							Private.Registry.AssignByGuid(member.guid)
+							local ok, reason = Private.Registry.AssignByGuid(member.guid)
+
+							-- Said out loud, as the drop path says it: the button can be refused now that a
+							-- role can be set to be kept out of the grid, and a `+` that does nothing at all
+							-- reads as a broken button.
+							if not ok and reason then
+								Private.Utils.Print(reason)
+							end
 
 							-- This row goes and a slot row appears, so the tab rather than the pane.
 							Private.Options.Refresh()
@@ -460,7 +500,7 @@ local function BuildRoster(page)
 	local L = Private.L.Settings
 
 	--- What each column spends on something other than its list. The left one carries the two slot
-	--- buttons and the two settings under its list; the right one carries its heading and the presets
+	--- buttons and the three settings under its list; the right one carries its heading and the presets
 	--- block, whose height is decided per pass rather than here.
 	---
 	--- Both are counted from the same page height, which is why the two lists do not end level: the
@@ -469,7 +509,7 @@ local function BuildRoster(page)
 	local heading = Private.Controls.HeadingHeight
 	local row = Private.Controls.RowHeight
 
-	local slotsHeight = math.max(page:GetHeight() - heading - row * 4 - PANE_GAP * 5, MIN_LIST_HEIGHT)
+	local slotsHeight = math.max(page:GetHeight() - heading - row * 5 - PANE_GAP * 6, MIN_LIST_HEIGHT)
 
 	--- What the presets block took on this pass, written by the column below before it lays the list
 	--- out. Zero until then, which is only ever the case before the first pass.
@@ -494,6 +534,12 @@ local function BuildRoster(page)
 			CHECKBOX_LABEL_WIDTH),
 		Private.Controls.Checkbox(page, L.ClearOnLeave, GetClearOnLeave, SetClearOnLeave, nil, true,
 			CHECKBOX_LABEL_WIDTH),
+
+		-- In the label column rather than captioned above a full-width dropdown, which the two
+		-- checkboxes over it already establish: the caption reads as the third of three settings, and
+		-- the column is wide enough that the dropdown still shows two role names at once.
+		Private.Controls.MultiselectDropdown(page, L.AutoRemoveRoles, ROLE_CHOICES, GetRoleRemoved,
+			SetRoleRemoved, CHECKBOX_LABEL_WIDTH),
 	}, PANE_GAP)
 
 	--- No label: the heading above says what the list holds, and a label column here would leave the

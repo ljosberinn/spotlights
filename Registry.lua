@@ -41,6 +41,61 @@ function Private.Registry.SlotOf(guid)
 	return nil
 end
 
+--- The role a slot's player is playing right now, or nil when there is nobody to ask about.
+---
+--- Resolves the name when the slot carries no GUID, because `SelfHeal` fills those in a deferral
+--- later than the callers here run: a slot configured while its player was away would otherwise read
+--- as roleless for one more event after they turned up.
+---@param slot SpotlightsSlot
+---@return string? role
+local function SlotRole(slot)
+	if slot.kind ~= "player" then
+		return nil
+	end
+
+	local guid = slot.guid or (slot.name and Private.Roster.GetGuid(slot.name))
+
+	return guid and Private.Roster.GetRole(guid) or nil
+end
+
+--- Takes every slot whose player is playing a role the user set to be removed back out of the grid.
+---
+--- **Backwards**, because a removal shifts the rest up: forwards would skip the slot after each one
+--- and leave half the healers in.
+---
+--- Only a slot that resolves to a role is a candidate. `GetRole` answers nil for a player who is not
+--- in the group, one who has not picked a role, and one whose identity is secret -- and an absent
+--- raider's slot is the thing the grid exists to hold open, so an absence of information never
+--- removes anything.
+---
+--- Silent, unlike the leave-the-group clear. That one is a single wipe of everything the user has,
+--- announced because it is indistinguishable from data loss; this runs on every roster event and
+--- takes out exactly what the setting names, so a line per healer joining would be chat spam.
+---@return boolean removed
+local function AutoRemoveRoles()
+	local slots = Slots()
+	local layout = Private.Layout.GetConfig()
+	local roles = layout and layout.autoRemoveRoles
+
+	if not slots or not roles then
+		return false
+	end
+
+	local removed = false
+
+	for i = #slots, 1, -1 do
+		local role = SlotRole(slots[i])
+
+		if role and roles[role] then
+			table.remove(slots, i)
+
+			removed = true
+		end
+	end
+
+	return removed
+end
+
 --- Schedules the model onto the headers. Both keys, always: Build creates or grows the
 --- pool, Refresh applies the model to it, and DeferralOrder guarantees that sequence
 --- within one pass.
@@ -50,11 +105,17 @@ end
 --- model is a plain Lua table write and always legal; only applying it to a protected header is
 --- restricted, and that guard belongs in Build and Refresh where the restricted calls are.
 ---
+--- The role removal runs here rather than beside each caller because every mutation in this file
+--- ends here: a preset, a drop, a slash command and a roster event all arrive at one place. It never
+--- calls back into Apply, so the recursion that would otherwise follow cannot happen.
+---
 --- A burst of in-combat mutations is recorded in order and applied in a single pass on
 --- PLAYER_REGEN_ENABLED, with nothing lost. The cost is that the model and the frames can disagree
 --- for the length of a pull, which is why the slash commands say so and `/spotlights list` reads the
 --- model.
 local function Apply()
+	AutoRemoveRoles()
+
 	Private.Events.Request(DeferralKey.Build)
 	Private.Events.Request(DeferralKey.Registry)
 
@@ -362,6 +423,18 @@ local function Assign(guid, name, index)
 		return false, string.format(Private.L.Registry.Duplicate, name, occupant)
 	end
 
+	local layout = Private.Layout.GetConfig()
+	local roles = layout and layout.autoRemoveRoles
+	local role = guid and Private.Roster.GetRole(guid)
+
+	-- Refused rather than left to the sweep in `Apply`, which would take the slot straight back out.
+	-- The outcome is the same either way; what differs is that `/spotlights add` gets to say why
+	-- instead of reporting a slot that is gone by the time the line is printed, and a drag that goes
+	-- nowhere is explained rather than watched.
+	if role and roles and roles[role] then
+		return false, string.format(Private.L.Registry.RoleAutoRemoved, name)
+	end
+
 	---@type SpotlightsSlot
 	local slot = { kind = "player", guid = guid, name = name }
 
@@ -655,9 +728,31 @@ local function ClearOnLeave()
 	return true
 end
 
+--- Runs the role removal for a caller that just changed the setting, so ticking Healer acts on the
+--- grid already on screen rather than at the next roster event.
+---@return boolean removed
+function Private.Registry.EnforceAutoRemoveRoles()
+	if not AutoRemoveRoles() then
+		return false
+	end
+
+	Apply()
+
+	return true
+end
+
 Private.Events.RegisterEvent("GROUP_ROSTER_UPDATE", function()
 	ClearOnLeave()
 	Apply()
+end)
+
+-- A role change moves nobody in or out of the group, so nothing else in this file hears it. Without
+-- it, a spotlighted damage dealer who switches to healing with Healer set to be removed keeps their
+-- slot until the next membership change.
+Private.Events.RegisterEvent("PLAYER_ROLES_ASSIGNED", function()
+	if AutoRemoveRoles() then
+		Apply()
+	end
 end)
 
 -- Deliberately **not** wired to the clear. This fires on login, on every loading screen and on

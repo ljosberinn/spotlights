@@ -28,6 +28,9 @@ L.Registry.Unknown = "no group member matches '%s'"
 L.Registry.IdentitySecret = "cannot match '%s' - %d group member(s) have secret identities here"
 L.Registry.NotInRoster = "that player is not in the group, so their name cannot be matched reliably"
 L.Registry.Duplicate = "%s already holds slot %d"
+-- Refused rather than added and taken straight back out, so the setting explains itself the first time
+-- it stops someone from being spotlighted.
+L.Registry.RoleAutoRemoved = "%s plays a role set to be removed from the grid"
 L.Registry.NoSuchSlot = "there is no slot %d"
 L.Registry.Assigned = "slot %d spotlights %s"
 L.Registry.Deferred = "in combat - the frames catch up when it ends"
@@ -183,6 +186,9 @@ L.Settings.FillOrderCaption = "%s · wraps every %d · grows %s, %s"
 
 L.Settings.AllowGaps = "Render Empty Cells"
 L.Settings.ClearOnLeave = "Clear Roster When Leaving The Group"
+-- Says what it does to the grid rather than what it does to the list, because it is destructive: the
+-- roles picked here are taken out of the grid and kept out, not merely hidden somewhere.
+L.Settings.AutoRemoveRoles = "Automatically Remove These Roles"
 
 -- The two pane headings are read as a pair: each names the people in its own list rather than the
 -- structure behind it, and the right one is not "group members" because anyone already spotlighted is

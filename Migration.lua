@@ -42,6 +42,16 @@ local function DefaultLayout()
 			HEALER = false,
 			DAMAGER = true,
 		},
+
+		-- Every role off, on the grounds `clearOnLeave` ships off: this one discards slots the user
+		-- arranged, and a default that threw any of them away would be a setting nobody asked for.
+		--
+		-- All three keys written, as above, so the shape matches what the panel writes back.
+		autoRemoveRoles = {
+			TANK = false,
+			HEALER = false,
+			DAMAGER = false,
+		},
 	}
 end
 
