@@ -10,9 +10,9 @@ local _, Private = ...
 --- The presets block under the unrostered list is `Options/RosterPresets.lua`'s: it is a library with
 --- its own storage and its own codec, and the only thing this file owes it is the height it takes.
 ---
---- Every row here is `RosterList.lua`'s pooled row, configured through the same two functions the old
---- panel configures its own with. What this file owns is the arrangement: which rows each pane holds,
---- what its buttons do, and how much height each list gets.
+--- Every row in either pane is `RosterList.lua`'s pooled row, built by `AcquireRow` and configured by
+--- `ConfigureRow`. What this file owns is the arrangement: which rows each pane holds, what its buttons
+--- do, and how much height each list gets.
 ---
 --- No model code, like every other front-end onto the slot list: each action calls the same
 --- `Private.Registry` entry point the slash commands do.
@@ -224,7 +224,7 @@ end
 --- says depends on the database, and where it sits depends on a width this node is not handed until
 --- afterwards.
 ---
---- The list is rebuilt wholesale rather than diffed, as the old panel's is: it is at most twenty rows,
+--- The list is rebuilt wholesale rather than diffed: it is at most twenty rows,
 --- it runs only when the panel is open and something changed, and a diff would have to track identity
 --- across a reorder -- the one operation this pane exists to perform.
 ---@param page Frame

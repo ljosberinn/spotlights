@@ -19,8 +19,8 @@ Private.AuraTracked = {}
 --- The rail's width, as the design specifies it: 196 of the content rectangle's 748.
 local RAIL_WIDTH = 196
 
---- One class row. Shorter than a control row, as the old panel's spell rows are and for the same
---- reason: fourteen rows at the kit's 26 read as a ladder rather than as a list.
+--- One class row. Shorter than a control row: fourteen rows at the kit's 26 read as a ladder rather
+--- than as a list.
 local ROW_HEIGHT = 22
 
 --- What a row keeps clear at each end, and between a long class name and the count it must not reach.
@@ -44,7 +44,7 @@ local SEARCH_INSET = 5
 --- bands.
 local RAIL_GAP = 6
 
---- A spell row, which is two lines: the name, and the `id · spec` under it. Taller than a rail row for
+--- A spell row, which is two lines: the name, and the spell ID under it. Taller than a rail row for
 --- that reason, and the icon is sized to both lines rather than to either.
 local SPELL_ROW_HEIGHT = 32
 local SPELL_ICON_SIZE = 24
@@ -72,8 +72,8 @@ local BUTTON_HEIGHT = 22
 local BULK_TEXT_PADDING = 20
 local BULK_GAP = 4
 
---- The add-spell row: the box, the Add button, and the preview of what is currently typed. All as the
---- old panel already sizes them -- at most nine digits, which is more than any spell ID has needed.
+--- The add-spell row: the box, the Add button, and the preview of what is currently typed. The box
+--- holds at most nine digits, which is more than any spell ID has needed.
 local INPUT_WIDTH = 70
 local INPUT_GAP = 14
 local ADD_WIDTH = 52

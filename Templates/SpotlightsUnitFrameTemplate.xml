@@ -3,13 +3,13 @@
 
 	     Inheriting CompactUnitFrameTemplate put every spotlight inside CompactUnitFrame.lua's
 	     shared module state, and taint.log named that file as the only place our taint crossed
-	     onto Blizzard's own raid frames: `frame.updateAllSetupFunc` at :431, and :2280, where
+	     onto Blizzard's own raid frames: `frame.updateAllSetupFunc` at :437, and :2281-2284, where
 	     GetIconAnchor writes `self` into a module-level table shared by every CompactUnitFrame
 	     in the game before handing it to C_UnitAuras.AddPrivateAuraAnchor. We were only ever in
 	     that file because of the template.
 
 	     The two Blizzard scripts below are the only inherited behaviour left, and both come from
-	     UnitFrame.lua rather than CompactUnitFrame.lua. Script attributes take a *global*
+	     Mainline/UnitFrame.lua rather than CompactUnitFrame.lua. Script attributes take a *global*
 	     function name, which is why nothing of ours appears here: the only global this addon
 	     defines is the mixin table.
 
@@ -36,8 +36,9 @@
 				     Anchored to both edges so the name uses the full frame width. Blizzard's layout
 				     reserved space for a role icon we never display, which left the name visibly
 				     offset to the right of a gap; the second anchor is also what gives
-				     `wordwrap="false"` a width to truncate against. WU-7 turns the insets into
-				     settings. -->
+				     `wordwrap="false"` a width to truncate against. The offsets here are only what
+				     a frame shows before the appearance block lands: `NameStyle.ApplyLayout`
+				     re-anchors the name from `nameX`/`nameY`, which default to these. -->
 				<FontString parentKey="name" inherits="GameFontHighlightSmall" wordwrap="false" justifyH="LEFT">
 					<Anchors>
 						<Anchor point="TOPLEFT" x="3" y="-3"/>
@@ -88,7 +89,7 @@
 			</StatusBar>
 		</Frames>
 		<Scripts>
-			<!-- UnitFrame.lua:380-387. Both read `self.unit`, which the attribute mirror owns, and
+			<!-- Mainline/UnitFrame.lua:380-387. Both read `self.unit`, which the attribute mirror owns, and
 			     neither touches CompactUnitFrame. Declaring OnEnter and OnLeave here does not
 			     disturb the OnClick inherited from SecureUnitButtonTemplate. -->
 			<OnEnter function="UnitFrame_OnEnter"/>

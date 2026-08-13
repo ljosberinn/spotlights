@@ -4,7 +4,8 @@ local _, Private = ...
 ---@class SpotlightsDragAssign
 Private.DragAssign = {}
 
---- Assignment path (b): drag out of the options roster and drop on a grid cell.
+--- The drag assignment path: pick a row up out of the Roster tab and drop it on a grid cell. The other
+--- two ways into `Private.Registry` are the unit menu's "Spotlight this player" and `/spotlights add`.
 ---
 --- **Two gestures, one mechanism.** Dragging a *raid member* adds them to the grid at the drop cell;
 --- dragging a *configured slot* reorders it. Both are picked up from the Roster tab, both land on a
@@ -21,16 +22,17 @@ Private.DragAssign = {}
 --- - A preview (`Private.Preview.CellUnderCursor`), which out of a group is the only thing on screen
 ---   and is what makes the grid assignable before there is a group. It can never answer at the same
 ---   time as a live cell: a preview is shown exactly where a live spotlight is not.
---- - The configured-slots block (`Private.RosterList.TargetUnderCursor`) -- on a row to insert at that
----   position, anywhere else in the block to append.
+--- - The Spotlighted pane (`Private.RosterList.TargetUnderCursor`, section `"slots"`) -- on a row to
+---   insert at that position, anywhere else in the pane to append.
 ---
---- **Where a slot can be dropped** is a cell or another slot row, which reorders -- or the *raid
---- members* block, which removes it. The member list is where players come from, so dragging one back
---- into it is the one place a removal gesture can point at without meaning something else.
+--- **Where a slot can be dropped** is a cell or another slot row, which reorders -- or the Unrostered
+--- pane (section `"members"`), which removes it. That pane is where players come from, so dragging one
+--- back into it is the one place a removal gesture can point at without meaning something else.
 ---
---- Neither block being a target only through its rows is deliberate. With nothing configured there are
---- no cells and no slot rows, so without the *block* the add gesture could not create the first slot;
---- with no group there are no member rows, so without the block the remove gesture would stop working.
+--- Neither pane being a target only through its rows is deliberate. With nothing configured there are
+--- no cells and no slot rows, so without the *pane* the add gesture could not create the first slot;
+--- with no group there are no Unrostered rows, so without the pane the remove gesture would stop
+--- working.
 
 --- What is being dragged, or nil when nothing is. Exactly one of `guid` and `slot` is set.
 ---@class SpotlightsDrag
@@ -70,12 +72,11 @@ end
 --- Where a release here would land: a specific position, and/or a block of the roster list.
 ---
 --- Either half can be the useful one. A `section` with no `slot` is still actionable -- appending to
---- or removing from the configured slots -- which lets both gestures work against a block with no rows
+--- or removing from the Spotlighted pane -- which lets both gestures work against a pane with no rows
 --- yet. A `slot` with no section is a cell out on the grid.
 ---
---- The panel is checked first and exclusively. It sits at DIALOG strata while the grid does not, so a
---- panel overlapping the grid hides it, and a cursor over the panel's background must not act on
---- whichever cell is underneath.
+--- The panel is checked first and exclusively: a cursor over the panel's background must not act on
+--- whichever cell is underneath, whichever of the two the user's `position.strata` puts on top.
 ---@return integer? slot, SpotlightsRowSection? section
 local function Target()
 	if Private.Options.IsCursorOver() then
@@ -125,7 +126,7 @@ local function HintText(drag)
 		return string.format(L.HintAlready, drag.label, occupied)
 	end
 
-	-- No member row carries a position, so the section test is redundant today. Written anyway,
+	-- No Unrostered row carries a position, so the section test is redundant today. Written anyway,
 	-- because "a slot came back" and "that slot is somewhere a player may be added" are two claims and
 	-- only the second licenses an insert.
 	if slot and section ~= "members" then
@@ -202,8 +203,8 @@ function Private.DragAssign.Drop()
 
 	local slot, section = Target()
 
-	-- A drop with no slot is still actionable inside either block: appending to the configured slots,
-	-- or removing from them. That is how the first slot gets added and the last one gets removed.
+	-- A drop with no slot is still actionable inside either pane: appending to the Spotlighted pane, or
+	-- removing from it. That is how the first slot gets added and the last one gets removed.
 	if not slot and not section then
 		return false
 	end
@@ -227,13 +228,13 @@ function Private.DragAssign.Drop()
 		-- would give one outcome two gestures. The hint has been saying so, which is why this is silent.
 		return false
 	elseif section == "members" then
-		-- The member list is where players are dragged *from*. Released back into it, a player has not
+		-- The Unrostered pane is where players are dragged *from*. Released back into it, a player has not
 		-- been pointed at a position -- and `AssignByGuid` with no index appends, so without this the
 		-- gesture would quietly add them to the end of the grid.
 		return false
 	else
-		-- Everything left is a cell or the configured-slots block. A nil slot appends, which is what a
-		-- drop in that block but not on one of its rows means.
+		-- Everything left is a cell or the Spotlighted pane. A nil slot appends, which is what a drop in
+		-- that pane but not on one of its rows means.
 		ok, reason = Private.Registry.AssignByGuid(drag.guid, slot)
 	end
 

@@ -65,14 +65,15 @@ local VALUE_TEXT_WIDTH = 40
 local VALUE_WIDTH = 6 + VALUE_TEXT_WIDTH + 5
 
 --- The nested squares of `ColorSwatchTemplate`: a light outer edge, a black inner one, then the colour
---- (`ColorSwatch.xml`). Reproduced rather than inherited because that template hard-codes 16x16 in its
---- own `OnShow` through `PixelUtil`, so it cannot be stretched across a control column.
+--- (`ColorSwatch.xml`). Reproduced rather than inherited because that template's `OnShow` re-pins those
+--- three regions at 14, 12 and 10 pixels through `PixelUtil` (`ColorSwatch.lua:23-27`), so it snaps back
+--- to its own size every time it is shown and cannot be stretched across a control column.
 local SWATCH_BORDER = 1
 
 --- How far a swatch is drawn outside the rectangle its row was given, per side.
 ---
---- Not a margin but a *match*: `WowStyle1DropdownTemplate` anchors its background eight units outside its
---- own frame on every side (`Blizzard_Menu/Mainline/MenuTemplates.xml`), so a dropdown laid out to a
+--- Not a margin but a *match*: `WowStyle1DropdownTemplate` anchors its background eight units past each
+--- of its own side edges (`Blizzard_Menu/Mainline/MenuTemplates.xml`), so a dropdown laid out to a
 --- column looks sixteen wider than it is. A swatch under one is the only other control in this kit with a
 --- hard edge to compare against, and drawn honestly it stops short at both ends -- which at the right,
 --- where no label explains the gap, reads as a box that was cut off.
@@ -180,6 +181,13 @@ function Private.Controls.Checkbox(parent, label, get, set, enabled, full, label
 	return row
 end
 
+--- What a fractional slider steps by, whatever step its caller asked for.
+---
+--- The value box prints two decimals for any step below one, so the stepper has to be able to reach
+--- every value that box will show: at a coarser step the arrows walk past a number the user typed and
+--- can never come back to it.
+local FRACTION_STEP = 0.01
+
 --- A slider over a numeric setting, with the value in an edit box that can be typed into.
 ---
 --- Writes on `OnValueChanged` rather than on mouse-up, so a size drag reads as an adjustment rather than a
@@ -188,13 +196,6 @@ end
 --- The mixin's `Init(value, min, max, steps, formatters)` takes a *count* of steps and derives the step
 --- from it, so the caller's `step` is converted back to a count here. `formatters` maps the mixin's label
 --- enum to a function; `RightText` is the live value slot the edit box overlays.
---- What a fractional slider steps by, whatever step its caller asked for.
----
---- The value box prints two decimals for any step below one, so the stepper has to be able to reach
---- every value that box will show: at a coarser step the arrows walk past a number the user typed and
---- can never come back to it.
-local FRACTION_STEP = 0.01
-
 ---@param parent Frame
 ---@param label string
 ---@param minimum number
@@ -404,7 +405,8 @@ function Private.Controls.Dropdown(parent, label, choices, get, set, labelWidth,
 	--- here.
 	---
 	--- `DropdownButtonMixin` derives its own label by walking the generated descriptions and combining
-	--- whichever report themselves selected (`DropdownButton.lua:137-139`). Writing the text ourselves
+	--- whichever report themselves selected (`DropdownButton.lua:17-40` collects them, `:326-328` applies
+	--- them to the button). Writing the text ourselves
 	--- would be overwritten the first time the menu opened, so a stale label would appear to fix itself on
 	--- click.
 	function row:Refresh()
@@ -430,7 +432,7 @@ end
 ---
 --- `CreateCheckbox` rather than `CreateRadio` is the whole difference, and it is what keeps the menu open
 --- on a click: the description ships `MenuResponse.Refresh`
---- (`Blizzard_Menu/Mainline/MenuTemplates.lua:341`), so a tick re-runs the generator in place instead of
+--- (`Blizzard_Menu/MenuTemplates.lua:341`), so a tick re-runs the generator in place instead of
 --- dismissing the list. Three separate opens to pick three roles is the alternative.
 ---
 --- `SetSelected` is handed the new state rather than left to derive it, so a caller storing a set does
@@ -660,8 +662,8 @@ function Private.Controls.ColorSwatch(parent, label, get, set, enabled, full, la
 		local column, control = Divide(self, width, labelWidth, caption)
 
 		--- Widened to the dropdown's own overhang, and shifted by it, so a swatch and a dropdown in the
-		--- same column line up. `WowStyle1DropdownTemplate` anchors its background eight units outside its
-		--- frame on every side (`MenuTemplates.xml`), so a control drawn to its rectangle stops eight short
+		--- same column line up. `WowStyle1DropdownTemplate` anchors its background eight units past each of
+		--- its own side edges (`MenuTemplates.xml`), so a control drawn to its rectangle stops eight short
 		--- of the one above it and reads as trimmed. The row still *occupies* only its column: the overhang
 		--- is art, and the gutter it reaches into is 26 wide.
 		button:ClearAllPoints()
@@ -943,9 +945,10 @@ end
 ---
 --- `destructive` swaps the template rather than tinting the caption, and has to: red text on
 --- `UI-DialogBox-goldbutton-up-middle` is dark on dark, and it would not survive a mouseover either --
---- `UIPanelButtonTemplate` declares `GameFontNormalOutline` and `GameFontHighlightOutline`, and swapping
---- font objects discards a `SetTextColor`. `SharedButtonTemplate` is the red button the game already ships
---- (`ThreeSliceButtonTemplate.xml:70`), with its own pressed and disabled states.
+--- `UIPanelButtonTemplate` inherits a `NormalFont`/`HighlightFont` pair from
+--- `UIPanelButtonNoTooltipTemplate`, and swapping font objects on hover discards a `SetTextColor`.
+--- `SharedButtonTemplate` is the red button the game already ships
+--- (`ThreeSliceButtonTemplate.xml:69`), with its own pressed and disabled states.
 ---@param parent Frame
 ---@param label string
 ---@param onClick fun()

@@ -7,7 +7,7 @@ Private.Migration = {}
 --- Bump this and add the matching step whenever the shape of SpotlightsSaved changes.
 Private.Migration.CurrentVersion = 4
 
---- The layout defaults, and the shape version 2 introduced.
+--- The layout defaults.
 ---
 --- A function rather than a shared table: handing the same table to two callers would alias one
 --- user's settings onto another's.
@@ -55,8 +55,7 @@ local function DefaultLayout()
 	}
 end
 
---- Where the grid sits, as a **corner-relative point plus an offset** rather than raw coordinates,
---- and the shape version 3 introduced.
+--- Where the grid sits, as a **corner-relative point plus an offset** rather than raw coordinates.
 ---
 --- The point is picked from which region of the screen the grid was dropped in, and the offset is
 --- measured from that corner, so a position stays in the same *region* across resolutions instead of
@@ -77,13 +76,14 @@ local function DefaultPosition()
 	}
 end
 
---- How a spotlight looks, and the shape version 3 introduced.
+--- How a spotlight looks.
 ---
 --- `barTexture` is a LibSharedMedia **key**, never a resolved path: the path a key maps to depends
 --- on which addons are loaded, so storing the path breaks when a media pack is removed. Resolution
 --- happens at apply time, in `Private.Media`.
 ---
---- The colour and name fields were added by version 8, reproducing the earlier hardcoded look. Static
+--- The colour and name fields arrived after the block did, reproducing the hardcoded look that
+--- preceded them. Static
 --- colours are stored even while class colour is on, so switching it off reveals a chosen colour
 --- rather than a blank one. `healthBgColor` is the background shown through unfilled health, used only
 --- in static mode; its default is the static bar colour at a fifth (what class mode derives).
@@ -153,7 +153,7 @@ Private.Migration.DefaultAppearance = DefaultAppearance
 --- and every border dropdown already offers it.
 local BORDER_NONE = "None"
 
---- One aura display drawn as a duration bar, and the shape version 5 introduced.
+--- One aura display drawn as a duration bar.
 ---
 --- The parameters are exactly the fields the feature defaults disagree on; everything else about a bar is
 --- the same for both.
@@ -203,7 +203,7 @@ local function DefaultAuraBar(enabled, point, r, g, b, y)
 	}
 end
 
---- One aura display drawn as a spell icon, and the other half of version 5's shape.
+--- One aura display drawn as a spell icon.
 ---
 --- Width and height are independent pixel dimensions, so icons can match non-square frame layouts.
 ---@param enabled boolean
@@ -343,7 +343,7 @@ function Private.Migration.DefaultAuraFeature(featureKey)
 	}
 end
 
---- Every tracked aura, each with every display, and the shape version 5 introduced.
+--- Every tracked aura, each with every display.
 ---
 --- Every feature carries a full set of displays even though it starts with most of them off: they are
 --- meant to be swappable, so the config a user turns *on* has to already exist.

@@ -17,8 +17,9 @@ Private.AuraPreview = {}
 ---
 --- Parented to the mover's rectangle, like the player previews (`Private.Mover.GetOverlay`): the
 --- only frame both unprotected and grid-aligned, so these inherit correct positioning and their
---- whole lifetime from it. It is also HIGH strata where spotlights are LOW, so a preview sits on top
---- of a live spotlight -- in a raid the real frames are the backdrop to style against.
+--- whole lifetime from it. `Mover.Sync` also keeps it one strata above the configured grid strata,
+--- so a preview sits on top of a live spotlight -- in a raid the real frames are the backdrop to
+--- style against.
 
 local shown = false
 

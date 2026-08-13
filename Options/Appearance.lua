@@ -9,8 +9,9 @@ local _, Private = ...
 --- sitting. The strip runs the full content width and the pane sits beside the pages rather than inside
 --- each one, so switching sub-tabs moves the controls and leaves the preview where it was.
 ---
---- Every setting here already existed on the old panel's Appearance tab; what is new is the shape,
---- the pane, and one writer per kind of write instead of a closure per control.
+--- One writer per *kind* of write rather than a closure per control -- see the getter and setter
+--- factories below -- because two dozen fields are read and written identically and only a handful
+--- need anything more than the plain pair.
 
 --- What the label column costs in a ~260px half of the left pane. Wider than General's 100 because
 --- these labels are noun phrases -- `Out Of Range Alpha`, `Static Health Color` -- where that tab's

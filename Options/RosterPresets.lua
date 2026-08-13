@@ -4,7 +4,7 @@ local _, Private = ...
 ---@class SpotlightsRosterPresets
 Private.RosterPresets = {}
 
---- The Presets block under the raid list: a saved slot layout per raid composition, and the four
+--- The Presets block under the Unrostered list: a saved slot layout per raid composition, and the four
 --- things that can be done with one.
 ---
 --- A preset is a **slot list and nothing else**. Appearance, auras and the grid's position are the
@@ -18,8 +18,8 @@ Private.RosterPresets = {}
 --- Nothing here writes a slot itself: applying goes through `Private.Registry.SetSlots`, like every
 --- other front-end onto the slot list.
 
---- What a text box in this column costs. Shorter than the Import/Export tab's 130, because the block
---- shares its column with the raid list and every pixel it takes is a raid member the list stops
+--- What a text box in this column costs. Less than half the Import/Export tab's 160, because the block
+--- shares its column with the Unrostered list and every pixel it takes is a raid member that list stops
 --- showing -- and a preset string is read by selecting it, not by reading it.
 local BOX_HEIGHT = 70
 
