@@ -108,6 +108,13 @@
 --- raid it was saved in, and applying one resolves names against the raid it is applied to.
 ---@alias SpotlightsPresets table<string, SpotlightsSlot[]>
 
+--- One preset as it travels between clients: the library's key and its value together, because a
+--- string leaving this account has no library to be keyed by. The name arrives as a suggestion the
+--- importer is shown and may overrule, not as the name it will be stored under.
+---@class SpotlightsPresetPayload
+---@field name string
+---@field slots SpotlightsSlot[]
+
 ---@class SpotlightsDB
 ---@field version integer
 ---@field slots SpotlightsSlot[]

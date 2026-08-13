@@ -8,21 +8,27 @@ Private.Profile = {}
 --- whole profile and the Roster tab's presets carry a slot list, and neither should have to reach into
 --- the other's file to find the encoder they share.
 
---- The two kinds of string this codec produces, and why neither can be mistaken for the other: a
---- preset string does not start with the profile's prefix, and a profile string does not start with
---- the preset's. Both checks are a plain prefix test, so the pair only has to disagree on their
---- eleventh character -- which they do.
+--- The two kinds of string this codec produces. The preset prefix *extends* the profile's rather than
+--- sitting beside it, so a preset string reads as a Spotlights string first and a preset second, and
+--- the two cannot drift apart when one of them is edited.
 ---
---- A profile carries settings and a preset carries a slot list, and applying either as the other
---- would be silently destructive: a preset imported as a profile is a database with no settings in
---- it, and a profile imported as a preset is a preset of nothing.
+--- The price of that nesting is that a preset string passes the profile's prefix test as well as its
+--- own, so `ImportString` refuses one by hand before it decodes anything. Applying either kind as the
+--- other would be silently destructive: a preset imported as a profile is a database with no settings
+--- in it, and a profile imported as a preset is a preset of nothing.
 local EXPORT_PREFIX = "SPOTLIGHTS!"
-local PRESET_PREFIX = "SPOTLIGHTSPRESET!"
+local PRESET_PREFIX = EXPORT_PREFIX .. "PRESET!"
 
 --- The maximum number of slots a preset string may carry, which is a sanity bound rather than a
 --- product limit: the grid has no cap of its own, and this exists so a hand-made string cannot ask
 --- the panel to build an arbitrarily long list.
 local MAX_PRESET_SLOTS = 200
+
+--- The longest name a preset may carry. Kept here rather than beside the dialog that enforces it,
+--- because the two have to be the same number: the dialog caps what is typed, and this caps what
+--- arrives in a string that never went through the dialog. 32 is what Blizzard's own layout naming
+--- allows.
+Private.Profile.MAX_PRESET_NAME_LETTERS = 32
 
 ---@param prefix string
 ---@param payload table
@@ -91,6 +97,13 @@ end
 ---@param text string
 ---@return boolean, string?
 function Private.Profile.ImportString(text)
+	--- Refused up front, because a preset string starts with the profile's prefix too: `Decode` tests
+	--- one prefix at a time and cannot know the pair. Reported as the wrong kind of string rather than
+	--- as a damaged one, which is what the leftover `PRESET!` would otherwise decode to.
+	if string.sub(text, 1, #PRESET_PREFIX) == PRESET_PREFIX then
+		return false, "prefix"
+	end
+
 	local payload, reason = Decode(EXPORT_PREFIX, text)
 
 	if not payload then
@@ -112,20 +125,26 @@ function Private.Profile.ImportString(text)
 	return true
 end
 
---- A preset as a string: the slot list alone, under its own prefix.
+--- A preset as a string: the slot list and the name it was saved under, under its own prefix.
 ---
---- Names and kinds only. The GUIDs a slot carries are one raid's answer to "who is this", and a
+--- The name travels so that the arrangement its author labelled arrives labelled. It is a suggestion
+--- and not a key -- the library it lands in may already hold that name, and the importer is shown it
+--- and can rename before anything is stored.
+---
+--- Slot names and kinds only. The GUIDs a slot carries are one raid's answer to "who is this", and a
 --- string meant to be pasted into someone else's client has no business claiming them -- `SetSlots`
 --- resolves the names against whatever raid the preset lands in.
+---@param name string
 ---@param slots SpotlightsSlot[]
 ---@return string
-function Private.Profile.ExportPresetString(slots)
-	local payload = {}
+function Private.Profile.ExportPresetString(name, slots)
+	---@type SpotlightsPresetPayload
+	local payload = { name = name, slots = {} }
 
 	for i = 1, #slots do
 		local slot = slots[i]
 
-		payload[i] = slot.kind == "player" and { kind = "player", name = slot.name } or { kind = "blank" }
+		payload.slots[i] = slot.kind == "player" and { kind = "player", name = slot.name } or { kind = "blank" }
 	end
 
 	return Encode(PRESET_PREFIX, payload)
@@ -136,8 +155,12 @@ end
 --- Validated element by element rather than trusted, because this is the one input to the panel that
 --- came from outside it: a pasted string is whatever the clipboard held. Anything that is not a
 --- player with a name is stored as a spacer, which is what the grid does with such a slot anyway.
+---
+--- A payload that is a bare slot array -- what this format encoded before it carried a name -- is
+--- refused as a payload the panel does not understand. That format never shipped, and reading it
+--- would mean a nameless branch through the naming dialog for the rest of the addon's life.
 ---@param text string
----@return SpotlightsSlot[]? slots, string? reason
+---@return SpotlightsPresetPayload? preset, string? reason
 function Private.Profile.ImportPresetString(text)
 	local payload, reason = Decode(PRESET_PREFIX, text)
 
@@ -145,18 +168,31 @@ function Private.Profile.ImportPresetString(text)
 		return nil, reason
 	end
 
+	local name = type(payload.name) == "string" and strtrim(payload.name) or nil
+
+	-- Counted in letters, not bytes, so the bound and the dialog's `maxLetters` mean the same thing in
+	-- a language whose letters cost more than one byte.
+	if
+		not name
+		or name == ""
+		or strlenutf8(name) > Private.Profile.MAX_PRESET_NAME_LETTERS
+		or type(payload.slots) ~= "table"
+	then
+		return nil, "payload"
+	end
+
 	--- An empty list is refused rather than stored. A preset of nothing is indistinguishable from
 	--- "clear the grid" once it is in the dropdown, and selecting one is the one action here that has
 	--- no confirmation in front of it.
-	if #payload == 0 or #payload > MAX_PRESET_SLOTS then
+	if #payload.slots == 0 or #payload.slots > MAX_PRESET_SLOTS then
 		return nil, "payload"
 	end
 
 	---@type SpotlightsSlot[]
 	local slots = {}
 
-	for i = 1, #payload do
-		local slot = payload[i]
+	for i = 1, #payload.slots do
+		local slot = payload.slots[i]
 
 		if type(slot) ~= "table" then
 			return nil, "payload"
@@ -167,5 +203,5 @@ function Private.Profile.ImportPresetString(text)
 			or { kind = "blank" }
 	end
 
-	return slots
+	return { name = name, slots = slots }
 end

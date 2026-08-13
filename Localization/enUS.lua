@@ -61,7 +61,9 @@ L.Settings.RightClickToOpenRoster = "Right-Click To Open The Roster Tab"
 L.Settings.Import = "Import"
 L.Settings.Export = "Export"
 L.Settings.ImportError = "Import failed: %s"
-L.Settings.ImportErrorPrefix = "the string does not start with SPOTLIGHTS!"
+-- Said in terms of the kind of string rather than the prefix it lacks, because a preset string does
+-- start with SPOTLIGHTS! and is still refused here.
+L.Settings.ImportErrorPrefix = "the string is not a Spotlights profile"
 L.Settings.ImportErrorDecode = "the string could not be decoded"
 L.Settings.ImportErrorPayload = "the decoded data is not a settings table"
 L.Settings.Copy = "Copy"
@@ -212,6 +214,10 @@ L.Settings.PresetsNone = "No presets saved yet. Save the slots you have configur
 L.Settings.PresetSave = "Save"
 L.Settings.PresetDelete = "Delete"
 L.Settings.PresetSavePrompt = "Name this preset:"
+
+-- The same dialog, asked of an imported string, which arrives with the name its author gave it: the
+-- question is whether to keep that name rather than what to call an unnamed thing.
+L.Settings.PresetImportNamePrompt = "Preset name is currently %s - do you wish to rename it?"
 L.Settings.PresetOverwritePrompt = "A preset called \"%s\" already exists. Replace it?"
 L.Settings.PresetOverwriteConfirm = "Replace"
 L.Settings.PresetDeletePrompt = "Delete the preset \"%s\"? Your configured slots are not touched."

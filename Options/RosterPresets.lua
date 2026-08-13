@@ -23,10 +23,6 @@ Private.RosterPresets = {}
 --- showing -- and a preset string is read by selecting it, not by reading it.
 local BOX_HEIGHT = 70
 
---- The longest name a preset may be given. `hasEditBox` enforces it in the dialog, so a name is never
---- truncated after the fact; 32 is what Blizzard's own layout naming allows.
-local MAX_NAME_LETTERS = 32
-
 --- Registered at click time by whoever raised them, so the localisation table is filled by then --
 --- and shared keys deliberately, as every other prompt in this panel: `StaticPopup_Show` reuses the
 --- dialog already on screen for a key, where a second key would stack a second identical one.
@@ -178,8 +174,13 @@ end
 --- An existing name is a second prompt rather than a refusal: overwriting a preset is what the user
 --- means most of the time they type a name they have used, and refusing it would leave them renaming
 --- around their own library.
+---
+--- A `suggested` name is what an imported string carried. It changes the question the dialog asks --
+--- naming something is not the same act as keeping or rejecting the name it arrived with -- and
+--- nothing else about it.
 ---@param slots SpotlightsSlot[]
-local function PromptName(slots)
+---@param suggested string?
+local function PromptName(slots, suggested)
 	local L = Private.L.Settings
 
 	--- Typed loosely because the dialog is Blizzard's: `GetEditBox` and `GetButton1` come from
@@ -202,7 +203,7 @@ local function PromptName(slots)
 	end
 
 	StaticPopupDialogs[NAME_POPUP] = {
-		text = L.PresetSavePrompt,
+		text = suggested and string.format(L.PresetImportNamePrompt, suggested) or L.PresetSavePrompt,
 		button1 = L.PresetSave,
 		button2 = CANCEL,
 		timeout = 0,
@@ -210,12 +211,21 @@ local function PromptName(slots)
 		hideOnEscape = true,
 		preferredIndex = 3,
 		hasEditBox = true,
-		maxLetters = MAX_NAME_LETTERS,
+		-- The codec's bound, so a name typed here and a name arriving in a string are held to the one
+		-- limit. `hasEditBox` enforces it as the user types, so a name is never truncated after the fact.
+		maxLetters = Private.Profile.MAX_PRESET_NAME_LETTERS,
 
 		OnShow = function(dialog)
-			-- Nothing to save under no name, so the button says so until there is one.
-			dialog:GetButton1():Disable()
-			dialog:GetEditBox():SetFocus()
+			local editBox = dialog:GetEditBox()
+
+			-- Filled with the imported name and selected, so accepting keeps it and typing replaces it.
+			-- Empty when saving the grid, where there is nothing to save under no name and the button
+			-- says so until there is one.
+			editBox:SetText(suggested or "")
+			editBox:HighlightText()
+			editBox:SetFocus()
+
+			dialog:GetButton1():SetEnabled(suggested ~= nil)
 		end,
 
 		-- Blizzard's own handler for exactly this: it enables the accept button once the box holds
@@ -301,23 +311,24 @@ local function ShowImportError(reason)
 	StaticPopup_Show(IMPORT_ERROR_POPUP)
 end
 
---- Reads the pasted string and, if it is a preset, asks what to call it.
+--- Reads the pasted string and, if it is a preset, offers the name it arrived under.
 ---
---- Named on arrival rather than carrying a name inside the string: a preset string is a slot list, and
---- a name that travelled with it would collide with the library it lands in without the user ever
---- seeing the name they were given.
+--- Still a prompt rather than a straight store, because the name is the author's and the library is
+--- this account's: the two can collide, and a preset that appeared under a name nobody was shown
+--- would be a preset nobody could find. The prompt answers both -- it says what the string calls
+--- itself and it is the place to say otherwise.
 ---
 --- Nothing is applied to the grid. An import fills the shelf; selecting is what puts a preset in play.
 local function DoImport()
-	local slots, reason = Private.Profile.ImportPresetString(strtrim(pending))
+	local preset, reason = Private.Profile.ImportPresetString(strtrim(pending))
 
-	if not slots then
+	if not preset then
 		ShowImportError(reason)
 
 		return
 	end
 
-	PromptName(slots)
+	PromptName(preset.slots, preset.name)
 end
 
 --- Opens one of the two boxes, or closes the one that is open.
@@ -401,7 +412,7 @@ function Private.RosterPresets.Build(page)
 		Private.Node.OnlyWhen(Private.Controls.TextArea(page, BOX_HEIGHT, function()
 			local name = Selected()
 
-			return name and Private.Profile.ExportPresetString(Presets()[name]) or ""
+			return name and Private.Profile.ExportPresetString(name, Presets()[name]) or ""
 		end), function()
 			return box == "export" and HasSelection()
 		end),
