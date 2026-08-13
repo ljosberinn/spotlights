@@ -242,10 +242,11 @@ end
 ---
 --- `CVarCallbackRegistry:GetCVarValueBool` is not a cache read here. It only consults
 --- `cvarValueCache` for CVars marked with `SetCVarCachable`, and **this CVar is not one of them** --
---- its single reader in the entire client is `UnitFrame.lua:29`. Every call is a `GetCVar` C call.
+--- its single reader in the entire client is `Shared/UnitFrame.lua:29`. Every call is a `GetCVar` C
+--- call.
 ---
 --- A tainted execution could not use that cache even if it existed: `GetCVarValue` populates it only
---- under `issecure()` (`CvarUtil.lua:150-152`), which is never us. So the only cache we can have is
+--- under `issecure()` (`CvarUtil.lua:150-155`), which is never us. So the only cache we can have is
 --- our own.
 ---
 --- Worth caching because UpdateTempMaxHealthLoss runs on UNIT_MAXHEALTH,
@@ -476,7 +477,7 @@ end
 
 --- Temporary maximum-health loss: the slice of the bar the unit cannot currently heal into.
 ---
---- Reimplemented from TempMaxHealthLossMixin (`UnitFrame.lua:25-53`): it pulls the health bar's
+--- Reimplemented from TempMaxHealthLossMixin (`Shared/UnitFrame.lua:25-53`): it pulls the health bar's
 --- right edge in by the lost fraction and fills the gap, but also drives a divider texture that only
 --- the player frame declares.
 ---
@@ -765,7 +766,7 @@ function SpotlightsUnitFrameMixin:OnUnitAttributeChanged(value)
 end
 
 CVarCallbackRegistry:RegisterCallback(TEMP_MAX_HEALTH_LOSS_CVAR, function(_, value)
-	-- Blizzard's own conversion (`CvarUtil.lua:158-161`), not `not not value`: CVAR_UPDATE carries
+	-- Blizzard's own conversion (`CvarUtil.lua:160-163`), not `not not value`: CVAR_UPDATE carries
 	-- the value as a *string*, so "0" is the disabled case and is truthy in Lua.
 	showTempMaxHealthLoss = value ~= nil and value ~= "0"
 

@@ -33,7 +33,7 @@ local SECTION_BODY_GAP = 6
 local SECTION_ARROW_X = 2
 local SECTION_TITLE_GAP = 10
 
---- `TabSystemButtonTemplate`'s own height, and what the selected tab's art reaches above its
+--- `TabSystemTopButtonTemplate`'s own height, and what the selected tab's art reaches above its
 --- rectangle -- the same emphasis the panel's own strip is nudged down for. Reserved above the strip
 --- rather than let overlap whatever the sub-tabs sit under.
 local SUBTAB_HEIGHT = 32
@@ -131,7 +131,8 @@ local function RefreshAll(children)
 	end
 end
 
---- Stacks children down a column, which is `Widgets.Stack` with the width handed in instead of assumed.
+--- Stacks children down a column, each laid out against the width handed in rather than one the column
+--- assumes.
 ---
 --- A hidden child is skipped entirely: no anchor, no height, no gap. A child that is shown but lays out
 --- to nothing -- an empty column, a grid whose every row hid itself -- gets its anchor but still costs no
@@ -277,7 +278,7 @@ end
 --- Two nodes side by side, one of them a fixed width.
 ---
 --- Which one is fixed is the difference between a preview pane and a navigation rail: `rightWidth` pins the
---- trailing pane (the 174px preview, the 250px raid list), `leftWidth` a leading one (the 196px class
+--- trailing pane (the 174px preview, the 250px Unrostered list), `leftWidth` a leading one (the 196px class
 --- rail). Neither given, the width is halved.
 ---
 --- The divider is drawn only while both sides are visible -- either may hide itself, and a divider with
@@ -531,8 +532,8 @@ end
 --- `TabSystemTopButtonTemplate` rather than the bottom-oriented `TabSystemButtonTemplate`: a top tab
 --- carries its art on its *lower* edge, which is what makes a strip read as sitting on the page under
 --- it. Blizzard's own inner strips (`Blizzard_HousingDashboardHouseInfoContent.xml`) are that one for
---- the same reason; the bottom variant is for tabs hanging off a frame, as the old panel's aura strip
---- does.
+--- the same reason; the bottom variant is for tabs hanging off the bottom edge of a frame, which is
+--- what the Auras tab's category strip is and the only place this panel uses it.
 ---
 --- The page nodes are built by the caller before this is called, and all of them up front rather than
 --- on first selection: a page here is a handful of controls whose dropdowns already resolve their

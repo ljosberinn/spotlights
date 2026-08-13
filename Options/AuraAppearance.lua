@@ -16,8 +16,9 @@ Private.AuraAppearance = {}
 --- the window, and reaches this file as an accessor rather than a copy: the Tracked sub-tab beside this
 --- one is about the same category, and neither of them owns it.
 ---
---- Every setting here was on the old panel's Auras tab and writes the same field. What is new is the
---- shape, the per-section preview, and the summary.
+--- Every control here writes through `Private.Auras.SetSetting`, which decides on its own whether the
+--- change is one a live display can hear or one that costs a replacement container -- so nothing in this
+--- file has to know which kind of setting it is holding.
 
 local Orientation = Private.Enum.Orientation
 
@@ -36,7 +37,8 @@ local SECTION_GAP = 12
 --- tests and the two can never disagree about whether a border is drawn.
 local BORDER_NONE = "None"
 
---- The bounds of every numeric setting, as the old panel already sets them.
+--- The bounds of every numeric setting. The icon's floor is where spell art is still recognisable; its
+--- ceiling is well past any spotlight the frame sliders can produce.
 local ICON_SIZE_MIN, ICON_SIZE_MAX = 16, 128
 
 -- Reaches below the icon's floor deliberately: a block is the display for a size where spell art cannot
@@ -602,7 +604,7 @@ local function BuildBarBody(page)
 		}, Getter("bar", "orientation"), OrientationSetter),
 
 		--- The picker's own opacity writes `alpha`, which is the slider above it -- one field with two
-		--- controls over it, as the old panel also has. The slider re-reads on the next full refresh.
+		--- controls over it. The slider re-reads on the next full refresh.
 		Private.Controls.ColorSwatch(page, L.AuraColor, ColorGetter("bar", "r", "g", "b", "alpha"),
 			ColorSetter("bar", "r", "g", "b", "alpha")),
 

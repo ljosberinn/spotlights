@@ -9,9 +9,9 @@ local GrowX = Private.Enum.GrowX
 local GrowY = Private.Enum.GrowY
 local DeferralKey = Private.Enum.DeferralKey
 
---- Falls back to the migration's defaults rather than erroring, so a geometry pass that runs
---- before the database is ready lays out sensibly instead of throwing arithmetic-on-nil in the
---- cell maths.
+--- Nil until the database has loaded, which a geometry pass fired at load can outrun. Every caller
+--- early-outs on that rather than substituting defaults: a grid laid out against numbers the user
+--- never chose would be visibly wrong for the frame before the real pass replaced it.
 ---@return SpotlightsLayoutConfig?
 local function Config()
 	return Private.DB and Private.DB.layout
@@ -97,8 +97,8 @@ end
 --- The container's size for a given slot count.
 ---
 --- Computed from the **configured** count, never the currently-present one. A container that
---- resized as players came and went would move its own drag box mid-raid, and WU-6's
---- SetClampedToScreen needs a bounding box that means something.
+--- resized as players came and went would move its own drag box mid-raid, and the container's
+--- `SetClampedToScreen` needs a bounding box that means something.
 ---@param count integer
 ---@param config SpotlightsLayoutConfig
 ---@return number width, number height

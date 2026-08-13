@@ -180,12 +180,12 @@
 ---@field healthTextX number
 ---@field healthTextY number
 
---- Tracked auras. They carry identical shapes on purpose: the feature is one customisation
---- set pointed at either spell, so neither may grow a field the other lacks.
+--- Tracked auras. Every feature carries an identical shape on purpose: one customisation set pointed
+--- at whichever spells the feature watches, so none may grow a field the others lack.
 ---
---- `cooldowns` and `custom` sit beside the tracked features rather than inside `sensePower` (the only
---- feature that reads them), keeping that rule true: the spell pool is one list belonging to the
---- aura block, not to a customisation set.
+--- The four pool tables sit beside the features rather than inside any one of them, keeping that rule
+--- true: a spell pool is a list belonging to the aura block, not to a customisation set -- and the
+--- cooldown pool is read by two features, `sensePower` and `cooldownAuras`.
 ---
 --- Both are **sparse**, holding only what the user changed. `cooldowns` overrides the built-in list
 --- in `Auras.lua` and is only ever written `false`; a built-in absent from it is on, so adding a
@@ -226,10 +226,10 @@
 --- `point` is the point on the display *and* on the spotlight, so the offset is measured from the
 --- same corner of both -- the same convention `SpotlightsPositionConfig` uses against UIParent. `x`
 --- and `y` always mean right and up.
---- The border fields are the exception to that split but sit here because both displays draw one the
---- same way. `borderTexture` is a LibSharedMedia **border** key; `None` (LSM's name for the empty
---- path) means "no border", so there is no separate toggle. All five are build-time: a backdrop
---- belongs to a frame under the aura button.
+--- The border fields are the exception to that split but sit here because all three displays draw one
+--- the same way. `borderTexture` is a LibSharedMedia **border** key; `None` (LSM's name for the empty
+--- path) means "no border", so there is no separate toggle. All six are build-time: a backdrop belongs
+--- to a frame under the aura button.
 ---@class SpotlightsAuraDisplayConfig
 ---@field enabled boolean
 ---@field alpha number

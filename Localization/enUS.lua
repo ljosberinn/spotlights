@@ -319,11 +319,9 @@ L.Settings.AuraSummaryNoBorder = "no border"
 
 L.Settings.AuraReset = "Reset To Defaults"
 L.Settings.AuraResetConfirm = "Reset"
--- Names the feature so the prompt is unambiguous when both sub-tabs share one button, and stays
--- silent about the tracked cooldown list because a reset does not touch it and Prescience has none.
-
--- The reworked panel resets one display at a time, since the two are configured independently: the
--- display first, then the category it belongs to.
+-- Names the display and then the category it belongs to, because the Appearance sub-tab carries one
+-- reset per display and the three are configured independently. Silent about the tracked spell list,
+-- which a display reset does not touch and which two of the five categories do not have.
 L.Settings.AuraResetDisplayPrompt = "Reset The %s For %s To Its Default Settings?"
 
 -- The tracked list has a reset of its own, under the class rail. It says what it leaves alone, because

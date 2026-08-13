@@ -145,8 +145,8 @@ function Private.RosterList.AcquireRow(parent, rows, index)
 	-- their clicks.
 	row:EnableMouse(true)
 
-	-- Assignment path (b): a raid member row drags a player onto the grid; a slot row drags itself
-	-- to a new position. Resolved by the getter, because a pooled frame is a different row after each
+	-- The drag path: an Unrostered row drags a player onto the grid; a Spotlighted row drags itself to a
+	-- new position. Resolved by the getter, because a pooled frame is a different row after each
 	-- rebuild.
 	Private.DragAssign.Enable(row, function()
 		if row.dragGuid then
@@ -442,8 +442,8 @@ end
 --- Everyone in the group whose role the list offers and who is not already in the grid, keeping the
 --- alphabetical order `Roster.List` produced.
 ---
---- Anyone spotlighted is left out rather than listed under a subheading: the configured slots already
---- are that list, with the same names, the same colour and a remove button. Listing them twice would
+--- Anyone spotlighted is left out rather than listed under a subheading: the Spotlighted pane already
+--- is that list, with the same names, the same colour and a remove button. Listing them twice would
 --- make every assignment visibly change two places.
 ---
 --- The third return is how many members the *filter* leaves, spotlighted or not, which is what separates

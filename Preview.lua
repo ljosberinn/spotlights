@@ -22,8 +22,7 @@ Private.Preview = {}
 --- why locking the mover mid-pull needs no protected call.
 ---
 --- Built from the real template, so what you position is what you get: same regions, inset and bar
---- texture the appearance settings resolve to. Replaces WU-5's placeholder textures rather than
---- coexisting with them.
+--- texture the appearance settings resolve to.
 
 local shown = false
 

@@ -689,7 +689,7 @@ local TRACK_ALPHA = 0.35
 --- A drag writes the database every frame it moves; a restart-on-change timer turns the gesture into
 --- one rebuild when the user's hand stops, instead of sixty leaked containers per spotlight. Long
 --- enough to cover a slow drag, short enough that a deliberate click still feels immediate. The
---- phase-4 preview layer fills the gap with live feedback while dragging, at no cost.
+--- aura preview layer fills the gap with live feedback while dragging, at no cost.
 local REBUILD_DELAY = 0.4
 
 --- Displays waiting on a rebuild, keyed `feature.display`. A set, so a burst of writes to the same
@@ -2060,11 +2060,6 @@ Private.Events.RegisterHandler(DeferralKey.Auras, Private.Auras.Apply)
 Private.Events.RegisterEvent("GROUP_ROSTER_UPDATE", Private.Auras.RefreshAssistability)
 Private.Events.RegisterEvent("PLAYER_ENTERING_WORLD", Private.Auras.RefreshAssistability)
 
---- Augmentation, and the only specialisation this next part has anything to say to.
----
---- Narrower than the class gate the displays use: the *reminder* below is about an ability only
---- Augmentation has, and telling a Devastation Evoker to switch on a spell they do not own would be
---- worse than saying nothing.
 --- What the player casts to toggle Sense Power, which is **not** the ID the displays track. 361022 is
 --- what the toggle puts on the allies it senses; 361021 is the toggle itself, and the only one of the
 --- two that appears on an action bar.
@@ -2143,6 +2138,9 @@ local function CheckSensePower()
 		return
 	end
 
+	-- Narrower than the class gate the displays use: this reminder is about an ability only
+	-- Augmentation has, and telling a Devastation Evoker to switch on a spell they do not own would be
+	-- worse than saying nothing.
 	if not Private.Utils.IsAugmentation() then
 		return
 	end
@@ -2242,9 +2240,9 @@ end)
 --- repair guarantees it, so a `nil` reading back means the caller named a field that does not exist.
 ---
 --- A write of the value already stored does nothing, and for a frozen field that is the difference
---- between a leak and none: re-picking the current texture from a dropdown, or a `RefreshActive`
---- echoing a widget's own value back, would otherwise cost a container and a button on every assigned
---- spotlight for no visible change. A caller that means "rebuild regardless" wants `RequestRebuild`.
+--- between a leak and none: re-picking the current texture from a dropdown, or a panel refresh echoing
+--- a widget's own value back, would otherwise cost a container and a button on every assigned spotlight
+--- for no visible change. A caller that means "rebuild regardless" wants `RequestRebuild`.
 ---@param featureKey SpotlightsAuraFeatureKey
 ---@param displayKey SpotlightsAuraDisplayKey
 ---@param field string
@@ -2445,10 +2443,10 @@ end
 --- The tracked feature keys, for callers that need to walk the aura config block.
 ---
 --- **Exists because `pairs` over `Private.DB.auras` is no longer a list of features.** That block
---- gained `cooldowns` and `custom` beside the two features, and anything walking it whole finds a
---- table with no `bar` and no `icon` and indexes nil -- which is how `Media.lua` broke. Answering
---- with the keys is safer than every caller knowing them: a third feature added to `FEATURES` reaches
---- those callers on its own.
+--- gained the pools' own tables -- `cooldowns`, `custom`, `defensives`, `defensiveCustom` -- beside the
+--- features, and anything walking it whole finds a table with no `bar` and no `icon` and indexes nil,
+--- which is how `Media.lua` broke. Answering with the keys is safer than every caller knowing them: a
+--- feature added to `FEATURES` reaches those callers on its own.
 ---@return string[]
 function Private.Auras.FeatureKeys()
 	local keys = {}

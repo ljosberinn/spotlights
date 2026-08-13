@@ -17,8 +17,8 @@ local _, Private = ...
 --- `Options/AuraTracked.lua` -- and each is handed the selected category as an accessor rather than a
 --- copy, since neither of them owns it.
 
---- Where the strip starts along the window's bottom edge, and how far its art hangs below it. Both as
---- the old panel already places its own.
+--- Where the strip starts along the window's bottom edge, and how far its art hangs below it. Small
+--- enough that the strip reads as attached to the window rather than floating under it.
 local STRIP_X = 6
 local STRIP_Y = 2
 
@@ -65,8 +65,9 @@ local CATEGORIES = {
 	{ key = "defensiveAuras", augmentation = false },
 }
 
---- Which feature both sub-tabs are about. Starts where the old panel starts, and is corrected against
---- the specialisation by the first refresh -- which happens before anything is drawn.
+--- Which feature both sub-tabs are about. Starts on the category every specialisation but Augmentation
+--- has, and is corrected against the specialisation by the first refresh -- which happens before
+--- anything is drawn.
 ---@type SpotlightsAuraFeatureKey
 local activeFeature = "cooldownAuras"
 
@@ -136,9 +137,9 @@ end
 --- Brings the strip in line with the specialisation and with the switches behind its dots.
 ---
 --- Gating is `TabSystemButtonMixin`'s own `SetTabEnabled`, which greys the label, refuses the click and
---- carries the reason into the tooltip. Unlike the old panel there is therefore no click handler to
---- swap out and nothing to re-apply after a selection: the mixin preserves the disabled state across
---- `SetTabSelected`, which is where the old panel had to put it back.
+--- carries the reason into the tooltip -- so no click handler is swapped out and nothing is re-applied
+--- after a selection. The mixin preserves the disabled state across `SetTabSelected`, which is the one
+--- point a hand-rolled gate would have to restore it at.
 local function RefreshCategories()
 	if not categoryStrip then
 		return
@@ -164,10 +165,10 @@ local function RefreshCategories()
 		local applies = category.augmentation == augmentation
 		local enabled = Private.Auras.IsFeatureEnabled(category.key)
 
-		-- A reason only where there is one to give. The three Evoker features say who they are for;
-		-- the two pooled ones are simply not an Augmentation Evoker's, which the old panel also leaves
-		-- unexplained -- a sentence about a category that specialisation does not have would be one
-		-- more thing to read than to act on.
+		-- A reason only where there is one to give. The three Evoker features say who they are for; the
+		-- two pooled ones are simply not an Augmentation Evoker's, and left unexplained -- a sentence
+		-- about a category that specialisation does not have would be one more thing to read than to act
+		-- on.
 		categoryStrip:SetTabEnabled(categoryTabs[category.key], applies,
 			category.augmentation and L.AuraAugmentationOnly or nil)
 

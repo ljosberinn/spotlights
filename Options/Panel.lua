@@ -67,13 +67,13 @@ local TAB_KEYS = {
 --- What each tab builds, filled by the tab's own file rather than looked up here: a content issue
 --- adds a file and a line, and the shell does not learn six file names to find out.
 ---
---- A key with nothing behind it falls back to the stub below, which is what keeps every tab openable
---- while the content lands one at a time.
+--- A key with nothing behind it falls back to the stub below, so a tab whose file failed to load
+--- opens empty rather than erroring on a nil builder.
 ---@type table<string, fun(page: Frame): SpotlightsNode>
 Private.Options.Builders = {}
 
---- Stand-in content. The six content issues replace these builders one tab at a time; until then a tab
---- proves it was built and reused by naming itself.
+--- Stand-in content for a tab with no builder registered. Every shipped tab has one, so this is
+--- reached only when a tab's file did not load: it names the tab rather than leaving a blank page.
 ---@param page Frame
 ---@param name string
 ---@return SpotlightsNode
@@ -140,9 +140,9 @@ local function MaybePromptReload()
 	StaticPopup_Show(AURA_RELOAD_POPUP)
 end
 
---- The aura previews are *not* taken down here, unlike the old panel's `OnHide`. They belong to one tab
---- rather than to the window, so the Auras tab turns them on and off from its own page's `OnShow` and
---- `OnHide` -- which the shell hiding fires anyway, and which a tab switch fires too.
+--- The aura previews are deliberately *not* taken down here. They belong to one tab rather than to the
+--- window, so the Auras tab turns them on and off from its own page's `OnShow` and `OnHide` -- which
+--- the shell hiding fires anyway, and which a tab switch fires too.
 local function OnPanelHidden()
 	MaybePromptReload()
 end
@@ -362,9 +362,12 @@ end
 --- Whether the cursor is anywhere over the panel.
 ---
 --- For the drag path, which has two kinds of drop target -- a slot row in this panel, and a cell on the
---- grid -- and no way to tell them apart by geometry alone. The panel is at DIALOG strata and the grid is
---- not, so a panel over the grid hides it; without this, releasing on a dead part of the panel that
---- overlaps a cell would assign to the cell underneath.
+--- grid -- and no way to tell them apart by geometry alone. Without this, releasing on a dead part of the
+--- panel that overlaps a cell would assign to the cell underneath.
+---
+--- Answered from geometry rather than from strata, because strata does not settle it: the panel is at
+--- DIALOG and the grid defaults below that, but `position.strata` goes as high as TOOLTIP. A release on
+--- the panel means the panel either way.
 ---@return boolean
 function Private.Options.IsCursorOver()
 	return panel ~= nil and Private.Utils.IsCursorOver(panel)

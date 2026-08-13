@@ -125,7 +125,7 @@ end
 --- Clamping *during* the drag rather than on release is why this is not `SetClampedToScreen`'s
 --- job: the frame stops dead at the screen edge and the cursor carries on, so releasing outside
 --- the screen leaves the grid where it was last legal. Clamping on release instead reads as the
---- frame snapping back out from under the cursor ([notes.md:13](notes.md#L13)).
+--- frame snapping back out from under the cursor.
 ---
 --- Combat is re-checked here, not only at drag start: a pull beginning mid-drag would otherwise
 --- keep issuing protected SetPoint calls while the button is held.
