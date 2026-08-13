@@ -454,11 +454,18 @@ local function BuildRoster(page)
 	---
 	--- Guarded on the page rather than on the panel, so a roster event while the user is on Appearance
 	--- costs nothing -- the tab is refreshed on selection anyway.
-	Private.Events.RegisterEvent("GROUP_ROSTER_UPDATE", function()
+	---
+	--- Two events, because a row states two things: who is in the group, and what they are. Only the
+	--- first is a membership change; a role check finishing or a member picking a role fires
+	--- PLAYER_ROLES_ASSIGNED and nothing else, so the role column stays blank without it.
+	local function RefreshIfVisible()
 		if page:IsVisible() then
 			Private.Options.Refresh()
 		end
-	end)
+	end
+
+	Private.Events.RegisterEvent("GROUP_ROSTER_UPDATE", RefreshIfVisible)
+	Private.Events.RegisterEvent("PLAYER_ROLES_ASSIGNED", RefreshIfVisible)
 
 	local right = BuildRightColumn(page, members, Private.RosterPresets.Build(page), function(height)
 		reserved = height

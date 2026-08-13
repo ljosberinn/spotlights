@@ -37,3 +37,4 @@ v1.1.0
 - roster rows light up under the cursor, like the tracked spell rows do
 - hovering a tracked spell row, or the preview under the custom spell box, shows that spell's tooltip
 - importing a preset no longer selects it, and the preset dropdown now reads "None selected" while none is in play
+- the Roster tab's role icons now appear as soon as roles are assigned, instead of waiting on a group change
