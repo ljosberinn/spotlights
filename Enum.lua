@@ -4,8 +4,12 @@ local _, Private = ...
 ---@class SpotlightsEnums
 Private.Enum = {}
 
---- Grid fill direction. Horizontal fills across then wraps down; vertical fills down then wraps
---- across. `stride` means columns when horizontal, rows when vertical.
+--- An axis, used for two unrelated things. As the grid's fill direction: horizontal fills across then
+--- wraps down, vertical fills down then wraps across, and `stride` means columns when horizontal, rows
+--- when vertical. As an aura status bar's fill direction: which way the bar drains.
+---
+--- Shared rather than duplicated per setting, since both are the same two-valued choice -- but the
+--- labels are not shared, because "Across, Then Down" says nothing about a bar.
 ---@enum SpotlightsOrientation
 Private.Enum.Orientation = {
 	Horizontal = 1,

@@ -19,6 +19,8 @@ Private.AuraAppearance = {}
 --- Every setting here was on the old panel's Auras tab and writes the same field. What is new is the
 --- shape, the per-section preview, and the summary.
 
+local Orientation = Private.Enum.Orientation
+
 --- What the label column costs in the ~250px half of a section's control grid. Narrower than the
 --- Appearance tab's 120 because these labels are one or two short words where that tab's are noun
 --- phrases, and the sliders here are the ones dragged against a preview -- so the bar is worth the room.
@@ -193,6 +195,17 @@ local function BorderStyleSetter(displayKey)
 	end
 end
 
+--- Writes the bar's fill direction and re-reads the whole tab.
+---
+--- The plain setter would leave the icon-side dropdown offering "Left Of The Bar" for what is now the top
+--- end of the bar: its labels are generated per menu-open, and only a refresh regenerates the *closed*
+--- button's text. No relayout is owed -- no control appears or disappears with the direction.
+---@param value SpotlightsOrientation
+local function OrientationSetter(value)
+	SetAura("bar", "orientation", value)
+	Private.Options.Refresh()
+end
+
 --- Reads a colour stored as four separately named fields.
 ---
 --- Named rather than derived from a prefix: a bar's own colour is `r`/`g`/`b`/`alpha` while its border's
@@ -293,14 +306,27 @@ local function IconSummary()
 		BorderPhrase(config))
 end
 
+--- Which axis a bar's fill runs along, in prose. Shared by the summary and the dropdown that sets it, so
+--- the header names the direction with the same words the control does.
+---@param config SpotlightsAuraBarConfig
+---@return string
+local function FillName(config)
+	local L = Private.L.Settings
+
+	return config.orientation == Orientation.Vertical and L.AuraFillVertical
+		or L.AuraFillHorizontal
+end
+
+--- The bar's summary, in its own format string: a `100 × 25` that drains upward reads as a lie without
+--- the direction beside it, and the other two displays have no direction to name.
 ---@return string
 local function BarSummary()
 	local L = Private.L.Settings
 	local config = Bar()
 
-	return HiddenSummary(config) or string.format(L.AuraSummary, config.width, config.height,
-		AnchorName(config), config.showIcon and L.AuraSummaryInlineIcon or L.AuraSummaryNoInlineIcon,
-		BorderPhrase(config))
+	return HiddenSummary(config) or string.format(L.AuraSummaryBar, config.width, config.height,
+		FillName(config), AnchorName(config),
+		config.showIcon and L.AuraSummaryInlineIcon or L.AuraSummaryNoInlineIcon, BorderPhrase(config))
 end
 
 --- The square's summary, in the same five fields as the other two: its size twice over, since one field
@@ -567,6 +593,14 @@ local function BuildBarBody(page)
 				Private.Media.IsRegistered, Bar().texture)
 		end, Getter("bar", "texture"), Setter("bar", "texture")),
 
+		--- Beside the texture rather than with the width and the height, though it is the setting that
+		--- decides what those two mean: it is a property of the fill, and the size group is a pair of
+		--- sliders dragged against the pane.
+		Private.Controls.Dropdown(page, L.Orientation, {
+			{ value = Orientation.Horizontal, label = L.AuraFillHorizontal },
+			{ value = Orientation.Vertical,   label = L.AuraFillVertical },
+		}, Getter("bar", "orientation"), OrientationSetter),
+
 		--- The picker's own opacity writes `alpha`, which is the slider above it -- one field with two
 		--- controls over it, as the old panel also has. The slider re-reads on the next full refresh.
 		Private.Controls.ColorSwatch(page, L.AuraColor, ColorGetter("bar", "r", "g", "b", "alpha"),
@@ -583,10 +617,24 @@ local function BuildBarBody(page)
 
 		Private.Controls.Checkbox(page, L.AuraShowIcon, Getter("bar", "showIcon"),
 			Setter("bar", "showIcon")),
-		Private.Controls.Dropdown(page, L.AuraIconSide, {
-			{ value = "LEFT",  label = L.AuraIconLeft },
-			{ value = "RIGHT", label = L.AuraIconRight },
-		}, Getter("bar", "iconSide"), Setter("bar", "iconSide")),
+
+		--- Passed as a function for the reason the media pickers are, though the list is fixed: the two
+		--- labels are the *ends of the bar*, which the fill direction decides, and a list built once would
+		--- keep offering "Left Of The Bar" for the top of a vertical one. The stored `LEFT`/`RIGHT` is what
+		--- reaches the database either way.
+		Private.Controls.Dropdown(page, L.AuraIconSide, function()
+			if Bar().orientation == Orientation.Vertical then
+				return {
+					{ value = "LEFT",  label = L.AuraIconTop },
+					{ value = "RIGHT", label = L.AuraIconBottom },
+				}
+			end
+
+			return {
+				{ value = "LEFT",  label = L.AuraIconLeft },
+				{ value = "RIGHT", label = L.AuraIconRight },
+			}
+		end, Getter("bar", "iconSide"), Setter("bar", "iconSide")),
 	}, "bar", L.AuraBar)
 end
 

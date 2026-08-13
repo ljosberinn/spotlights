@@ -243,6 +243,11 @@
 ---
 --- `showIcon` puts the spell's icon inline at one end of the bar. Both it and `iconSide` are
 --- build-time: they shape regions below the aura button.
+---
+--- `orientation` is which axis the fill runs along, and `Private.Enum.Orientation` rather than a second
+--- enum of its own. Build-time as well: `SetOrientation` is a call on the status bar, which lives below
+--- the button, not on the anchor frame above it. `iconSide`'s two values name the two *ends* of the bar
+--- whichever axis that is -- `LEFT` is the top end of a vertical one.
 ---@class SpotlightsAuraBarConfig : SpotlightsAuraDisplayConfig
 ---@field texture string
 ---@field r number
@@ -250,6 +255,7 @@
 ---@field b number
 ---@field width number in pixels
 ---@field height number in pixels
+---@field orientation SpotlightsOrientation
 ---@field showIcon boolean
 ---@field iconSide "LEFT" | "RIGHT"
 
@@ -462,9 +468,10 @@
 ---
 --- `button` is listed only so a diagnostic can name it. Every widget call on it from our tainted
 --- code is refused while auras are secret -- including `HasAnyAccessRestrictions`.
---- `builtHeight` is the anchor's height when the button was built. A bar's inline icon is square and
---- a region cannot be told to be as wide as it is tall, so its width was measured then; comparing
---- this against the live height tells a resize whether it invalidated that square.
+--- `builtWidth` and `builtHeight` are the anchor's rect when the button was built. A bar's inline icon
+--- is square and a region cannot be told to be as wide as it is tall, so one of the two was measured
+--- then -- the height for a horizontal bar, the width for a vertical one; comparing that axis against
+--- the live one tells a resize whether it invalidated that square.
 --- `unresolved` is the set of media keys (namespaced by type) LibSharedMedia could not resolve when
 --- the button was built, so the display wears a fallback for each. It lets a late registration
 --- rebuild only the displays it actually fixes: matching the *stored* key would instead rebuild
@@ -473,6 +480,7 @@
 ---@class SpotlightsAuraDisplay
 ---@field anchor Frame ours, unrestricted, and the only thing a settings change can reach
 ---@field container SpotlightsAuraContainer
+---@field builtWidth number
 ---@field builtHeight number
 ---@field unresolved table<string, true>
 

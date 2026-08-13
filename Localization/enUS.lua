@@ -254,6 +254,16 @@ L.Settings.AuraIconSide = "Icon Side"
 L.Settings.AuraGap = "Gap"
 L.Settings.AuraIconLeft = "Left Of The Bar"
 L.Settings.AuraIconRight = "Right Of The Bar"
+
+-- The same two stored values as above, named for a bar that fills along its height: `LEFT` is the end
+-- the labels above call left, which on a vertical bar is its top.
+L.Settings.AuraIconTop = "Above The Bar"
+L.Settings.AuraIconBottom = "Below The Bar"
+
+-- Which axis a bar's fill runs along, under the `L.Settings.Orientation` label the Grid tab also uses.
+-- Not that tab's own two choices: "Across, Then Down" is a wrapping rule and says nothing about a bar.
+L.Settings.AuraFillHorizontal = "Horizontal"
+L.Settings.AuraFillVertical = "Vertical"
 L.Settings.AuraIconWidth = "Width"
 L.Settings.AuraIconHeight = "Height"
 L.Settings.AuraShowSwipe = "Cooldown Swipe"
@@ -270,6 +280,10 @@ L.Settings.AuraBorderColor = "Border Color"
 -- header tracks the body -- and replaced outright by `AuraSummaryHidden` for a display that is off,
 -- since a size for something nothing will draw is worse than no summary at all.
 L.Settings.AuraSummary = "%d × %d · %s · %s · %s"
+
+-- The bar's own, one field longer: its fill direction goes between the size and the anchor, because a
+-- `100 × 25` that drains upward reads as a lie without it.
+L.Settings.AuraSummaryBar = "%d × %d · %s · %s · %s · %s"
 L.Settings.AuraSummaryHidden = "Hidden"
 L.Settings.AuraSummarySwipeOn = "swipe on"
 L.Settings.AuraSummarySwipeOff = "swipe off"

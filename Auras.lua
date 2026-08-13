@@ -994,9 +994,18 @@ local function StyleBar(regions, anchor, config)
 	local bar = regions.bar --[[@as StatusBar]]
 	local icon = regions.barIcon
 	local path = Private.Media.StatusBar(config.texture)
+	local vertical = config.orientation == Private.Enum.Orientation.Vertical
 
 	bar:SetStatusBarTexture(path)
 	bar:SetStatusBarColor(config.r, config.g, config.b)
+
+	-- **Before `RegisterBar`**, which is the order `InitializeFrame` runs the two in. From the moment
+	-- `SetDurationBar` returns the bar carries `SecretAspect.BarValue` and the container owns its fill;
+	-- nothing here is written for a bar already being driven. The direction the fill *drains* is
+	-- `Enum.StatusBarTimerDirection.RemainingTime`, which is a property of the timer rather than of the
+	-- axis, so it needs nothing said about it here.
+	bar:SetOrientation(vertical and "VERTICAL" or "HORIZONTAL")
+
 	bar:ClearAllPoints()
 
 	-- The same material and colour as the fill, faint: the remainder has to read as the rest of *this*
@@ -1012,23 +1021,44 @@ local function StyleBar(regions, anchor, config)
 		icon:SetShown(config.showIcon)
 	end
 
+	--- The inline icon takes one end of the bar and spans the other axis, and the bar gets what is left.
+	---
+	--- **The one measurement here that a resize invalidates.** A square needs one dimension told to it,
+	--- and there is no anchor for "as wide as I am tall" — so the icon is square against the axis the
+	--- fill does *not* run along, at the size the display has now. On a live display that is frozen until
+	--- a rebuild; on a preview it is re-measured on every restyle.
+	---
+	--- Two branches rather than one with the points computed, because the vertical case is the horizontal
+	--- one transposed in three separate ways -- which pair of points each region pins, which way round
+	--- `iconSide` reads, and which dimension makes the square.
 	if config.showIcon and icon then
-		local side = config.iconSide == "RIGHT" and "RIGHT" or "LEFT"
-		local opposite = side == "LEFT" and "RIGHT" or "LEFT"
-
 		icon:ClearAllPoints()
-		icon:SetPoint("TOP" .. side)
-		icon:SetPoint("BOTTOM" .. side)
 
-		-- **The one measurement here that a resize invalidates.** A square needs its width told to it,
-		-- and there is no anchor for "as wide as I am tall" — so the icon is square at the height the
-		-- display has *now*. On a live display that is frozen until a rebuild; on a preview it is
-		-- re-measured on every restyle.
-		PixelUtil.SetWidth(icon, anchor:GetHeight())
+		if vertical then
+			-- `iconSide` keeps its `LEFT`/`RIGHT` storage in both orientations: the pair means one end of
+			-- the bar and the other, and a vertical bar's ends are its top and its bottom.
+			local side = config.iconSide == "RIGHT" and "BOTTOM" or "TOP"
+			local opposite = side == "TOP" and "BOTTOM" or "TOP"
 
-		bar:SetPoint("TOP" .. opposite)
-		bar:SetPoint("BOTTOM" .. opposite)
-		bar:SetPoint(side, icon, opposite)
+			icon:SetPoint(side .. "LEFT")
+			icon:SetPoint(side .. "RIGHT")
+			PixelUtil.SetHeight(icon, anchor:GetWidth())
+
+			bar:SetPoint(opposite .. "LEFT")
+			bar:SetPoint(opposite .. "RIGHT")
+			bar:SetPoint(side, icon, opposite)
+		else
+			local side = config.iconSide == "RIGHT" and "RIGHT" or "LEFT"
+			local opposite = side == "LEFT" and "RIGHT" or "LEFT"
+
+			icon:SetPoint("TOP" .. side)
+			icon:SetPoint("BOTTOM" .. side)
+			PixelUtil.SetWidth(icon, anchor:GetHeight())
+
+			bar:SetPoint("TOP" .. opposite)
+			bar:SetPoint("BOTTOM" .. opposite)
+			bar:SetPoint(side, icon, opposite)
+		end
 	else
 		bar:SetAllPoints()
 	end
@@ -1278,6 +1308,7 @@ local BAR_INVALIDATION = Classification(ANCHOR_INVALIDATION, BORDER_INVALIDATION
 	r = "rebuild",
 	g = "rebuild",
 	b = "rebuild",
+	orientation = "rebuild",
 	showIcon = "rebuild",
 	iconSide = "rebuild",
 })
@@ -1320,11 +1351,21 @@ local DISPLAYS = {
 			return BAR_INVALIDATION[field] or "rebuild"
 		end,
 
-		-- The inline icon and nothing else. It was made square against a height measured at build
-		-- time, and it sits below the access restriction, so a spotlight resize leaves it a rectangle
-		-- that only a new button can fix. A bar without one survives any resize.
+		-- The inline icon and nothing else. It was made square against one axis measured at build time,
+		-- and it sits below the access restriction, so a spotlight resize leaves it a rectangle that only
+		-- a new button can fix. Which axis is the orientation's answer: a vertical bar's icon spans the
+		-- width, so a height change leaves it square and a width change does not. A bar without an icon
+		-- survives any resize.
 		Invalidated = function(config, record)
-			return config.showIcon and record.builtHeight ~= record.anchor:GetHeight()
+			if not config.showIcon then
+				return false
+			end
+
+			if config.orientation == Private.Enum.Orientation.Vertical then
+				return record.builtWidth ~= record.anchor:GetWidth()
+			end
+
+			return record.builtHeight ~= record.anchor:GetHeight()
 		end,
 	},
 	{
@@ -1592,6 +1633,7 @@ local function CreateDisplay(child, feature, display, config)
 	return {
 		anchor = anchor,
 		container = container,
+		builtWidth = anchor:GetWidth(),
 		builtHeight = anchor:GetHeight(),
 		unresolved = UnresolvedMedia(config),
 	}
@@ -1639,6 +1681,7 @@ local function RebuildDisplay(child, feature, display, config, record)
 	record.container:Hide()
 
 	record.container = container
+	record.builtWidth = record.anchor:GetWidth()
 	record.builtHeight = record.anchor:GetHeight()
 
 	-- A fresh container is shown. `Apply` settles assistability before this loop runs, so it settled it

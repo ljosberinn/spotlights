@@ -163,6 +163,12 @@ local function DefaultAuraBar(enabled, point, r, g, b, y)
 		point = point,
 		x = 0,
 		y = y,
+
+		-- Horizontal, which needs no version step for the reason `enabled` and the square block do not:
+		-- it is what every bar written before this field already drew, so `Repair` filling it in changes
+		-- nothing about how an existing profile renders.
+		orientation = Private.Enum.Orientation.Horizontal,
+
 		showIcon = false,
 		iconSide = "LEFT",
 		borderTexture = BORDER_NONE,

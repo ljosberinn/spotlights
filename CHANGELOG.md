@@ -18,7 +18,7 @@ v1.1.0
 - added a checkbox per-class in order to toggle inclusion of all of that specs abilities
 - added Shifting Sands as dedicatedly trackable and customizable aura
 - added Import / Export support
-- Status Bars can now be vertically aligned
+- added Fill Direction to aura Status Bars, so a bar can drain along its height instead of its width
 - added a third display option: Square
 - added Roster Presets which can also be imported and exported
 - fixed a bug where aura previews kept showing spells that were toggled off
