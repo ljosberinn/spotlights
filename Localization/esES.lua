@@ -165,6 +165,7 @@ L.Settings.PresetsHeading = "Preajustes"
 L.Settings.PresetsCount = "%d guardados"
 L.Settings.PresetsNone =
 "Aún no hay preajustes guardados. Guarda las posiciones configuradas para crear uno."
+L.Settings.PresetNoneSelected = "Ninguno seleccionado"
 L.Settings.PresetSave = "Guardar"
 L.Settings.PresetDelete = "Eliminar"
 L.Settings.PresetSavePrompt = "Nombra este preajuste:"

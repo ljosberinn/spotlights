@@ -166,6 +166,7 @@ L.Settings.PresetsHeading = "Predefinições"
 L.Settings.PresetsCount = "%d salvas"
 L.Settings.PresetsNone =
 "Nenhuma predefinição salva. Salve os espaços configurados para criar uma."
+L.Settings.PresetNoneSelected = "Nenhum selecionado"
 L.Settings.PresetSave = "Salvar"
 L.Settings.PresetDelete = "Excluir"
 L.Settings.PresetSavePrompt = "Dê um nome a esta predefinição:"

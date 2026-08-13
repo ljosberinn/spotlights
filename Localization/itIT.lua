@@ -166,6 +166,7 @@ L.Settings.PresetsHeading = "Preimpostazioni"
 L.Settings.PresetsCount = "%d salvate"
 L.Settings.PresetsNone =
 "Nessuna preimpostazione salvata. Salva gli slot configurati per crearne una."
+L.Settings.PresetNoneSelected = "Nessuno selezionato"
 L.Settings.PresetSave = "Salva"
 L.Settings.PresetDelete = "Elimina"
 L.Settings.PresetSavePrompt = "Assegna un nome a questa preimpostazione:"

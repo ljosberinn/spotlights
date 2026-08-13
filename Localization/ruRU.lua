@@ -165,6 +165,7 @@ L.Settings.PresetsHeading = "Шаблоны"
 L.Settings.PresetsCount = "Сохранено: %d"
 L.Settings.PresetsNone =
 "Пока нет сохранённых шаблонов. Сохраните настроенные места, чтобы создать первый."
+L.Settings.PresetNoneSelected = "Ничего не выбрано"
 L.Settings.PresetSave = "Сохранить"
 L.Settings.PresetDelete = "Удалить"
 L.Settings.PresetSavePrompt = "Название шаблона:"

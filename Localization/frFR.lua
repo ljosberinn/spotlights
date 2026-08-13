@@ -165,6 +165,7 @@ L.Settings.PresetsHeading = "Préréglages"
 L.Settings.PresetsCount = "%d enregistrés"
 L.Settings.PresetsNone =
 "Aucun préréglage enregistré. Enregistrez les emplacements configurés pour en créer un."
+L.Settings.PresetNoneSelected = "Aucun sélectionné"
 L.Settings.PresetSave = "Enregistrer"
 L.Settings.PresetDelete = "Supprimer"
 L.Settings.PresetSavePrompt = "Nommez ce préréglage :"

@@ -167,6 +167,7 @@ L.Settings.PresetsHeading = "Vorlagen"
 L.Settings.PresetsCount = "%d gespeichert"
 L.Settings.PresetsNone =
 "Noch keine Vorlagen gespeichert. Speichere die konfigurierten Plätze, um eine anzulegen."
+L.Settings.PresetNoneSelected = "Keine Auswahl"
 L.Settings.PresetSave = "Speichern"
 L.Settings.PresetDelete = "Löschen"
 L.Settings.PresetSavePrompt = "Namen für diese Vorlage:"

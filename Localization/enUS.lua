@@ -211,6 +211,11 @@ L.Settings.PlusShort = "+"
 L.Settings.PresetsHeading = "Presets"
 L.Settings.PresetsCount = "%d saved"
 L.Settings.PresetsNone = "No presets saved yet. Save the slots you have configured to start one."
+-- The dropdown with nothing picked, which is what a fresh session and a finished import both leave
+-- behind: an import fills the library without applying anything, so the block has to be able to say
+-- that the grid is nobody's preset.
+L.Settings.PresetNoneSelected = "None selected"
+
 L.Settings.PresetSave = "Save"
 L.Settings.PresetDelete = "Delete"
 L.Settings.PresetSavePrompt = "Name this preset:"

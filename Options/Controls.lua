@@ -352,14 +352,20 @@ end
 --- are built once, on the first open of their tab, so a list passed as a table is captured then and never
 --- revisited -- silently dropping any media another addon registers afterwards. Resolved per menu-open
 --- instead, the list is as current as the media library is.
+---
+--- A `placeholder` is for the dropdowns whose `get` can legitimately return `nil`. Without one the button
+--- falls back to the template's default text, which is unset -- a blank button, which reads as a broken
+--- setting rather than as an empty selection. Said as an entry rather than through `SetDefaultText`
+--- because the *list* has the same gap: presets with none of them ticked and no line saying so.
 ---@param parent Frame
 ---@param label string? omitted for a dropdown that spans its column, where a heading above says what it picks
 ---@param choices { value: any, label: string }[] | fun(): { value: any, label: string }[]
 ---@param get fun(): any
 ---@param set fun(value: any)
 ---@param labelWidth number?
+---@param placeholder string? what the button reads while `get` returns nil
 ---@return SpotlightsNode
-function Private.Controls.Dropdown(parent, label, choices, get, set, labelWidth)
+function Private.Controls.Dropdown(parent, label, choices, get, set, labelWidth, placeholder)
 	local row = CreateRow(parent)
 
 	local caption = label and CreateLabel(row, label) or nil
@@ -369,6 +375,19 @@ function Private.Controls.Dropdown(parent, label, choices, get, set, labelWidth)
 	-- open time rather than tracked.
 	dropdown:SetupMenu(function(_, rootDescription)
 		local current = type(choices) == "function" and choices() or choices
+
+		-- Only while nothing is selected, so there is no entry to come back to once something is: it is a
+		-- name for the empty state rather than a choice, and there is no setting it answers.
+		--
+		-- Disabled and still selected: `MenuUtil.GetSelections` does not test `IsEnabled`, so the entry the
+		-- user cannot click is the one the closed button reads.
+		if placeholder and get() == nil then
+			local none = rootDescription:CreateRadio(placeholder, function()
+				return true
+			end)
+
+			none:SetEnabled(false)
+		end
 
 		for i = 1, #current do
 			local choice = current[i]
