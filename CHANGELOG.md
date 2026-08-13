@@ -34,3 +34,4 @@ v1.1.0
 - the Tracked sub-tab is no longer offered for Prescience and Shifting Sands, which track one spell each
 - tracked spell rows show the spell ID alone, without the client's rank or specialisation subtext
 - the Roster tab's two panes are now headed Spotlighted and Unrostered
+- roster rows light up under the cursor, like the tracked spell rows do

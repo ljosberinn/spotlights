@@ -40,6 +40,10 @@ local HEADING_HEIGHT = HEADING_TOP_PAD + HEADING_TEXT_HEIGHT
 --- heading above it and the controls below it leave over.
 Private.Controls.HeadingHeight = HEADING_HEIGHT
 
+--- The white wash a hovered row or header wears. Published rather than restated in each list, because
+--- every list in the panel is meant to answer the cursor the same way and a per-file number drifts.
+Private.Controls.HighlightAlpha = 0.06
+
 --- Both templates draw their own border, and one at the full row height sits proud of the sliders beside
 --- it.
 local BUTTON_HEIGHT = ROW_HEIGHT - 4

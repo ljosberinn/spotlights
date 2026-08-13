@@ -66,6 +66,7 @@ local HEIGHTS = {
 ---@field dot Texture the class colour, hidden where there is no class to show
 ---@field role Texture the assigned role, hidden for anyone not currently in the group
 ---@field divider Texture a rule above a heading, hidden on every other row
+---@field highlight Texture the hover wash, hidden on a heading
 ---@field buttons SpotlightsRosterButton[]
 ---@field slotIndex integer? which slot this row currently stands for, nil unless it is a slot row
 ---@field dragGuid string? the player this row can be dragged as, nil unless it is a raid member row
@@ -159,6 +160,15 @@ function Private.RosterList.AcquireRow(parent, rows, index)
 		return nil
 	end)
 
+	--- The same wash the Tracked pane's rows wear, so a row that can be dragged, and whose buttons act on
+	--- it, shows which row the cursor is on.
+	---
+	--- A `HIGHLIGHT` texture is drawn only while the frame is under the cursor, so the row stays a
+	--- `Frame`: as a `Button` it would take clicks its own buttons sit on top of.
+	row.highlight = row:CreateTexture(nil, "HIGHLIGHT")
+	row.highlight:SetAllPoints(row)
+	row.highlight:SetColorTexture(1, 1, 1, Private.Controls.HighlightAlpha)
+
 	-- A rule along the top edge, shown only on headings, to make the list look sectioned.
 	row.divider = row:CreateTexture(nil, "ARTWORK")
 	row.divider:SetPoint("TOPLEFT", row, "TOPLEFT", 0, 0)
@@ -243,6 +253,9 @@ function Private.RosterList.ConfigureRow(row, spec)
 	row.label:SetFontObject(FONTS[spec.style] or "GameFontHighlightSmall")
 	row.label:SetText(spec.text)
 	row.divider:SetShown(spec.style == "heading")
+
+	-- A heading is nothing to drag, drop or click, so it does not answer the cursor.
+	row.highlight:SetShown(spec.style ~= "heading")
 
 	row:SetHeight(HEIGHTS[spec.style] or ROW_HEIGHT)
 

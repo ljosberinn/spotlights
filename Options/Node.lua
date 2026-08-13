@@ -403,7 +403,7 @@ function Private.Node.Section(parent, Title, Summary, body, startOpen)
 	local highlight = header:CreateTexture(nil, "HIGHLIGHT")
 
 	highlight:SetAllPoints(header)
-	highlight:SetColorTexture(1, 1, 1, 0.06)
+	highlight:SetColorTexture(1, 1, 1, Private.Controls.HighlightAlpha)
 
 	local arrow = header:CreateTexture(nil, "ARTWORK")
 

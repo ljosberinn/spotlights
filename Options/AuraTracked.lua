@@ -32,7 +32,7 @@ local COUNT_GAP = 6
 --- Both `SetColorTexture`, since the design's accent is a colour rather than art, and the selected one
 --- is roughly twice the hover so that hovering the selected row still reads as hovering something.
 local ACCENT_ALPHA = 0.12
-local HIGHLIGHT_ALPHA = 0.06
+local HIGHLIGHT_ALPHA = Private.Controls.HighlightAlpha
 
 --- `InputBoxVisualTemplate`'s own height, and how far its left cap is drawn outside the box
 --- (`InputBoxTemplates.xml`). The box is inset by the overhang rather than sized to it, so the art
