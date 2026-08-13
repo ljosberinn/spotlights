@@ -41,6 +41,61 @@ function Private.Registry.SlotOf(guid)
 	return nil
 end
 
+--- The role a slot's player is playing right now, or nil when there is nobody to ask about.
+---
+--- Resolves the name when the slot carries no GUID, because `SelfHeal` fills those in a deferral
+--- later than the callers here run: a slot configured while its player was away would otherwise read
+--- as roleless for one more event after they turned up.
+---@param slot SpotlightsSlot
+---@return string? role
+local function SlotRole(slot)
+	if slot.kind ~= "player" then
+		return nil
+	end
+
+	local guid = slot.guid or (slot.name and Private.Roster.GetGuid(slot.name))
+
+	return guid and Private.Roster.GetRole(guid) or nil
+end
+
+--- Takes every slot whose player is playing a role the user set to be removed back out of the grid.
+---
+--- **Backwards**, because a removal shifts the rest up: forwards would skip the slot after each one
+--- and leave half the healers in.
+---
+--- Only a slot that resolves to a role is a candidate. `GetRole` answers nil for a player who is not
+--- in the group, one who has not picked a role, and one whose identity is secret -- and an absent
+--- raider's slot is the thing the grid exists to hold open, so an absence of information never
+--- removes anything.
+---
+--- Silent, unlike the leave-the-group clear. That one is a single wipe of everything the user has,
+--- announced because it is indistinguishable from data loss; this runs on every roster event and
+--- takes out exactly what the setting names, so a line per healer joining would be chat spam.
+---@return boolean removed
+local function AutoRemoveRoles()
+	local slots = Slots()
+	local layout = Private.Layout.GetConfig()
+	local roles = layout and layout.autoRemoveRoles
+
+	if not slots or not roles then
+		return false
+	end
+
+	local removed = false
+
+	for i = #slots, 1, -1 do
+		local role = SlotRole(slots[i])
+
+		if role and roles[role] then
+			table.remove(slots, i)
+
+			removed = true
+		end
+	end
+
+	return removed
+end
+
 --- Schedules the model onto the headers. Both keys, always: Build creates or grows the
 --- pool, Refresh applies the model to it, and DeferralOrder guarantees that sequence
 --- within one pass.
@@ -50,11 +105,17 @@ end
 --- model is a plain Lua table write and always legal; only applying it to a protected header is
 --- restricted, and that guard belongs in Build and Refresh where the restricted calls are.
 ---
+--- The role removal runs here rather than beside each caller because every mutation in this file
+--- ends here: a preset, a drop, a slash command and a roster event all arrive at one place. It never
+--- calls back into Apply, so the recursion that would otherwise follow cannot happen.
+---
 --- A burst of in-combat mutations is recorded in order and applied in a single pass on
 --- PLAYER_REGEN_ENABLED, with nothing lost. The cost is that the model and the frames can disagree
 --- for the length of a pull, which is why the slash commands say so and `/spotlights list` reads the
 --- model.
 local function Apply()
+	AutoRemoveRoles()
+
 	Private.Events.Request(DeferralKey.Build)
 	Private.Events.Request(DeferralKey.Registry)
 
@@ -362,6 +423,18 @@ local function Assign(guid, name, index)
 		return false, string.format(Private.L.Registry.Duplicate, name, occupant)
 	end
 
+	local layout = Private.Layout.GetConfig()
+	local roles = layout and layout.autoRemoveRoles
+	local role = guid and Private.Roster.GetRole(guid)
+
+	-- Refused rather than left to the sweep in `Apply`, which would take the slot straight back out.
+	-- The outcome is the same either way; what differs is that `/spotlights add` gets to say why
+	-- instead of reporting a slot that is gone by the time the line is printed, and a drag that goes
+	-- nowhere is explained rather than watched.
+	if role and roles and roles[role] then
+		return false, string.format(Private.L.Registry.RoleAutoRemoved, name)
+	end
+
 	---@type SpotlightsSlot
 	local slot = { kind = "player", guid = guid, name = name }
 
@@ -382,13 +455,13 @@ local function Assign(guid, name, index)
 	return true, nil, target
 end
 
---- Assigns by name, resolving the GUID if the player is in the raid.
+--- Assigns by name, resolving the GUID if the player is in the group.
 ---
 --- A name with no GUID behind it is a legitimate state, not a failure: GetPlayerInfoByGUID only
 --- goes GUID to name, so there is no way to obtain a GUID for someone not currently in the group.
 --- The slot works regardless -- the name is what the header matches on -- and SelfHeal fills the
 --- GUID in the first time they appear.
----@param name string exactly as GetRaidRosterInfo spells it
+---@param name string exactly as the roster scan spells it
 ---@param index integer?
 ---@return boolean ok, string? reason, integer? assignedTo
 function Private.Registry.AssignByName(name, index)
@@ -401,7 +474,7 @@ end
 ---
 --- Refuses when only the client name cache knows the name, rather than storing a reassembled
 --- `Name-Realm` the header would fail to match. Every front-end that produces a GUID sources it from
---- the current raid, so this rejection should be unreachable -- hence loud rather than silent.
+--- the current group, so this rejection should be unreachable -- hence loud rather than silent.
 ---@param guid string
 ---@param index integer?
 ---@return boolean ok, string? reason, integer? assignedTo
@@ -458,7 +531,7 @@ end
 
 --- Empties the grid: every player and every spacer.
 ---
---- Spacers go too, on the same grounds the leave-the-raid clear takes them: a grid with its players
+--- Spacers go too, on the same grounds the leave-the-group clear takes them: a grid with its players
 --- gone but its holes kept is not cleared, and the shape is a handful of clicks to lay out again.
 ---
 --- Answers false on an already-empty grid rather than applying, so a caller can tell "nothing to do"
@@ -545,7 +618,7 @@ end
 --- sentinel and back.
 ---
 --- Exposed as `/spotlights rescan` and deliberately wired to no event. It is the recovery path for
---- one unproven case: a spotlighted player who leaves and rejoins the raid while in combat, if the
+--- one unproven case: a spotlighted player who leaves and rejoins the group while in combat, if the
 --- header's own scan does not pick them up. Wire it to PLAYER_REGEN_ENABLED only once that is known
 --- to happen -- an unconditional bounce costs two full roster scans per slot and defeats the diff
 --- guard the whole cost model rests on.
@@ -593,17 +666,34 @@ end
 Private.Events.RegisterHandler(DeferralKey.Build, Build)
 Private.Events.RegisterHandler(DeferralKey.Registry, Refresh)
 
---- Whether the player was in a raid the last time the group changed.
+--- Which kind of group the player was in the last time the roster changed.
 ---
---- What makes this setting safe, and the reason it is a remembered edge rather than a test of
---- `IsInRaid`. A bare "not in a raid, so clear" would fire on the `PLAYER_ENTERING_WORLD` below and
+--- A kind rather than a boolean because one set of slots serves both party and raid, and the two are
+--- different lists in practice -- so converting between them is a leave as much as disbanding is.
+---@return "none"|"party"|"raid"
+local function GroupKind()
+	if IsInRaid() then
+		return "raid"
+	end
+
+	if IsInGroup() then
+		return "party"
+	end
+
+	return "none"
+end
+
+--- What makes this setting safe, and the reason it is a remembered edge rather than a live test of
+--- `GroupKind`. A bare "not in a group, so clear" would fire on the `PLAYER_ENTERING_WORLD` below and
 --- wipe the user's entire configuration on every login, reload and reconnect.
 ---
---- Starting false is correct: a session that begins outside a raid has not left one, and a session
---- that begins inside one sees its first roster event as an arrival.
-local wasInRaid = false
+--- Starting at `none` is correct: a session that begins outside a group has not left one, and a
+--- session that begins inside one sees its first roster event as an arrival.
+---@type "none"|"party"|"raid"
+local lastGroupKind = "none"
 
---- Wipes every configured slot when the player leaves a raid, if the setting says to.
+--- Wipes every configured slot when the kind of group the player is in changes, if the setting says
+--- to. Leaving, and converting in either direction, all count; arriving from nothing does not.
 ---
 --- Everything, including spacers. The setting says "clear the roster" and a grid with its players
 --- gone but its holes kept is not cleared; anyone who wants the shape back has the mover and an
@@ -616,10 +706,10 @@ local wasInRaid = false
 --- from data loss.
 ---@return boolean cleared
 local function ClearOnLeave()
-	local inRaid = IsInRaid()
-	local left = wasInRaid and not inRaid
+	local kind = GroupKind()
+	local left = lastGroupKind ~= "none" and kind ~= lastGroupKind
 
-	wasInRaid = inRaid
+	lastGroupKind = kind
 
 	if not left then
 		return false
@@ -638,9 +728,31 @@ local function ClearOnLeave()
 	return true
 end
 
+--- Runs the role removal for a caller that just changed the setting, so ticking Healer acts on the
+--- grid already on screen rather than at the next roster event.
+---@return boolean removed
+function Private.Registry.EnforceAutoRemoveRoles()
+	if not AutoRemoveRoles() then
+		return false
+	end
+
+	Apply()
+
+	return true
+end
+
 Private.Events.RegisterEvent("GROUP_ROSTER_UPDATE", function()
 	ClearOnLeave()
 	Apply()
+end)
+
+-- A role change moves nobody in or out of the group, so nothing else in this file hears it. Without
+-- it, a spotlighted damage dealer who switches to healing with Healer set to be removed keeps their
+-- slot until the next membership change.
+Private.Events.RegisterEvent("PLAYER_ROLES_ASSIGNED", function()
+	if AutoRemoveRoles() then
+		Apply()
+	end
 end)
 
 -- Deliberately **not** wired to the clear. This fires on login, on every loading screen and on

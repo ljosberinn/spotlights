@@ -23,10 +23,6 @@ Private.RosterPresets = {}
 --- showing -- and a preset string is read by selecting it, not by reading it.
 local BOX_HEIGHT = 70
 
---- The longest name a preset may be given. `hasEditBox` enforces it in the dialog, so a name is never
---- truncated after the fact; 32 is what Blizzard's own layout naming allows.
-local MAX_NAME_LETTERS = 32
-
 --- Registered at click time by whoever raised them, so the localisation table is filled by then --
 --- and shared keys deliberately, as every other prompt in this panel: `StaticPopup_Show` reuses the
 --- dialog already on screen for a key, where a second key would stack a second identical one.
@@ -94,15 +90,17 @@ end
 --- The selection, corrected first.
 ---
 --- Re-read rather than trusted, because a preset can go while it is selected -- the user deletes it,
---- or an import replaces the database under the panel. A selection pointing at nothing would dim the
---- buttons that act on it and show an empty export box, which reads as a broken preset rather than as
---- no preset.
+--- or an import replaces the database under the panel.
+---
+--- Dropped rather than moved to a neighbour, for the reason deleting one is: the grid still holds what
+--- it held, so naming any remaining preset would claim an arrangement that was never applied. No
+--- selection is a state the dropdown can say out loud.
 ---@return string?
 local function Selected()
 	local presets = Presets()
 
 	if selected and not presets[selected] then
-		selected = Names()[1]
+		selected = nil
 	end
 
 	return selected
@@ -126,13 +124,19 @@ local function Snapshot()
 	return copy
 end
 
---- Stores a preset under a name and selects it, closing whatever box was open.
+--- Stores a preset under a name, closing whatever box was open.
 ---
---- Selecting it is the confirmation: the dropdown reads back what was just saved, so a name that was
---- typed and a name that was stored are visibly the same thing.
+--- Saving the grid selects what was stored, and that is the confirmation: the dropdown reads back what
+--- was just saved, so a name that was typed and a name that was stored are visibly the same thing. An
+--- import stores without selecting -- it fills the shelf and touches nothing else, so a selection here
+--- would name an arrangement the grid does not have.
+---
+--- An import landing on the selected preset drops the selection instead of leaving it: the name still
+--- exists, but its slots are no longer the grid's, which is the same lie by another route.
 ---@param name string
 ---@param slots SpotlightsSlot[]
-local function Store(name, slots)
+---@param selecting boolean
+local function Store(name, slots, selecting)
 	local db = Private.DB
 
 	if not db then
@@ -140,7 +144,13 @@ local function Store(name, slots)
 	end
 
 	db.presets[name] = slots
-	selected = name
+
+	if selecting then
+		selected = name
+	elseif selected == name then
+		selected = nil
+	end
+
 	box = nil
 	pending = ""
 
@@ -149,7 +159,8 @@ end
 
 ---@param name string
 ---@param slots SpotlightsSlot[]
-local function ConfirmOverwrite(name, slots)
+---@param selecting boolean
+local function ConfirmOverwrite(name, slots, selecting)
 	local L = Private.L.Settings
 
 	StaticPopupDialogs[OVERWRITE_POPUP] = {
@@ -162,7 +173,7 @@ local function ConfirmOverwrite(name, slots)
 		preferredIndex = 3,
 
 		OnAccept = function()
-			Store(name, slots)
+			Store(name, slots, selecting)
 		end,
 	}
 
@@ -178,8 +189,18 @@ end
 --- An existing name is a second prompt rather than a refusal: overwriting a preset is what the user
 --- means most of the time they type a name they have used, and refusing it would leave them renaming
 --- around their own library.
+---
+--- A `suggested` name is what an imported string carried. It changes the question the dialog asks --
+--- naming something is not the same act as keeping or rejecting the name it arrived with -- and
+--- nothing else about it.
+---
+--- `selecting` is carried rather than derived from `suggested`, which happens to answer the same
+--- question today: the two are about different things, and a dialog's wording is no place to keep
+--- whether the grid is about to be claimed.
 ---@param slots SpotlightsSlot[]
-local function PromptName(slots)
+---@param selecting boolean
+---@param suggested string?
+local function PromptName(slots, selecting, suggested)
 	local L = Private.L.Settings
 
 	--- Typed loosely because the dialog is Blizzard's: `GetEditBox` and `GetButton1` come from
@@ -193,16 +214,16 @@ local function PromptName(slots)
 		end
 
 		if Presets()[name] then
-			ConfirmOverwrite(name, slots)
+			ConfirmOverwrite(name, slots, selecting)
 
 			return
 		end
 
-		Store(name, slots)
+		Store(name, slots, selecting)
 	end
 
 	StaticPopupDialogs[NAME_POPUP] = {
-		text = L.PresetSavePrompt,
+		text = suggested and string.format(L.PresetImportNamePrompt, suggested) or L.PresetSavePrompt,
 		button1 = L.PresetSave,
 		button2 = CANCEL,
 		timeout = 0,
@@ -210,12 +231,21 @@ local function PromptName(slots)
 		hideOnEscape = true,
 		preferredIndex = 3,
 		hasEditBox = true,
-		maxLetters = MAX_NAME_LETTERS,
+		-- The codec's bound, so a name typed here and a name arriving in a string are held to the one
+		-- limit. `hasEditBox` enforces it as the user types, so a name is never truncated after the fact.
+		maxLetters = Private.Profile.MAX_PRESET_NAME_LETTERS,
 
 		OnShow = function(dialog)
-			-- Nothing to save under no name, so the button says so until there is one.
-			dialog:GetButton1():Disable()
-			dialog:GetEditBox():SetFocus()
+			local editBox = dialog:GetEditBox()
+
+			-- Filled with the imported name and selected, so accepting keeps it and typing replaces it.
+			-- Empty when saving the grid, where there is nothing to save under no name and the button
+			-- says so until there is one.
+			editBox:SetText(suggested or "")
+			editBox:HighlightText()
+			editBox:SetFocus()
+
+			dialog:GetButton1():SetEnabled(suggested ~= nil)
 		end,
 
 		-- Blizzard's own handler for exactly this: it enables the accept button once the box holds
@@ -269,9 +299,9 @@ local function ConfirmDelete()
 
 			db.presets[name] = nil
 
-			-- Dropped rather than moved along: `Selected` picks the first remaining preset on the next
-			-- pass, and choosing a neighbour here would silently arm Delete over whatever was beside
-			-- what was just deleted.
+			-- Said here as well as in `Selected`, which would drop it on the next pass anyway: the grid
+			-- keeps the slots the deleted preset gave it, and a neighbour picked to fill the gap would
+			-- silently arm Delete over whatever was beside what was just deleted.
 			selected = nil
 			box = nil
 
@@ -301,23 +331,24 @@ local function ShowImportError(reason)
 	StaticPopup_Show(IMPORT_ERROR_POPUP)
 end
 
---- Reads the pasted string and, if it is a preset, asks what to call it.
+--- Reads the pasted string and, if it is a preset, offers the name it arrived under.
 ---
---- Named on arrival rather than carrying a name inside the string: a preset string is a slot list, and
---- a name that travelled with it would collide with the library it lands in without the user ever
---- seeing the name they were given.
+--- Still a prompt rather than a straight store, because the name is the author's and the library is
+--- this account's: the two can collide, and a preset that appeared under a name nobody was shown
+--- would be a preset nobody could find. The prompt answers both -- it says what the string calls
+--- itself and it is the place to say otherwise.
 ---
 --- Nothing is applied to the grid. An import fills the shelf; selecting is what puts a preset in play.
 local function DoImport()
-	local slots, reason = Private.Profile.ImportPresetString(strtrim(pending))
+	local preset, reason = Private.Profile.ImportPresetString(strtrim(pending))
 
-	if not slots then
+	if not preset then
 		ShowImportError(reason)
 
 		return
 	end
 
-	PromptName(slots)
+	PromptName(preset.slots, false, preset.name)
 end
 
 --- Opens one of the two boxes, or closes the one that is open.
@@ -357,6 +388,9 @@ function Private.RosterPresets.Build(page)
 
 		--- No label: the section header above already says what the dropdown lists, and this column is
 		--- 250 wide -- a label column here would leave a dropdown too narrow to read a name in.
+		---
+		--- The placeholder is what a library nobody has picked from reads as, which is every session's
+		--- first open, everything after a delete, and everything after an import.
 		Private.Node.OnlyWhen(Private.Controls.Dropdown(page, nil, Choices, Selected, function(name)
 			selected = name
 
@@ -364,14 +398,14 @@ function Private.RosterPresets.Build(page)
 			-- second click on an Apply button that could never mean anything else.
 			Private.Registry.SetSlots(Presets()[name] or {})
 			Private.Options.Refresh()
-		end), HasPresets),
+		end, nil, L.PresetNoneSelected), HasPresets),
 
 		Private.Controls.ButtonRow(page, {
 			{
 				label = L.PresetSave,
 				enabled = HasSlots,
 				onClick = function()
-					PromptName(Snapshot())
+					PromptName(Snapshot(), true)
 				end,
 			},
 			{
@@ -401,7 +435,7 @@ function Private.RosterPresets.Build(page)
 		Private.Node.OnlyWhen(Private.Controls.TextArea(page, BOX_HEIGHT, function()
 			local name = Selected()
 
-			return name and Private.Profile.ExportPresetString(Presets()[name]) or ""
+			return name and Private.Profile.ExportPresetString(name, Presets()[name]) or ""
 		end), function()
 			return box == "export" and HasSelection()
 		end),

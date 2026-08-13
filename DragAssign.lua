@@ -18,8 +18,8 @@ Private.DragAssign = {}
 --- **Where a player can be dropped** is three things:
 ---
 --- - A live spotlight (`Private.SlotHeader.CellUnderCursor`).
---- - A preview (`Private.Preview.CellUnderCursor`), which out of a raid is the only thing on screen
----   and is what makes the grid assignable before there is a raid. It can never answer at the same
+--- - A preview (`Private.Preview.CellUnderCursor`), which out of a group is the only thing on screen
+---   and is what makes the grid assignable before there is a group. It can never answer at the same
 ---   time as a live cell: a preview is shown exactly where a live spotlight is not.
 --- - The configured-slots block (`Private.RosterList.TargetUnderCursor`) -- on a row to insert at that
 ---   position, anywhere else in the block to append.
@@ -30,7 +30,7 @@ Private.DragAssign = {}
 ---
 --- Neither block being a target only through its rows is deliberate. With nothing configured there are
 --- no cells and no slot rows, so without the *block* the add gesture could not create the first slot;
---- with no raid there are no member rows, so without the block the remove gesture would stop working.
+--- with no group there are no member rows, so without the block the remove gesture would stop working.
 
 --- What is being dragged, or nil when nothing is. Exactly one of `guid` and `slot` is set.
 ---@class SpotlightsDrag

@@ -212,7 +212,7 @@ end
 --- open must leave previews up.
 ---
 --- Player previews follow either reason. Unlocked, the grid must be legible as a shape, and out of
---- a raid there is otherwise nothing on screen -- secure headers cannot show a nonexistent unit,
+--- a group there is otherwise nothing on screen -- secure headers cannot show a nonexistent unit,
 --- so an empty grid would mean dragging an invisible rectangle. The aura tab needs them because an
 --- aura display is styled against a spotlight.
 local function Apply()
@@ -236,7 +236,7 @@ end
 ---
 --- Previewing is tied to the mover rather than the options panel because unlocking means
 --- "positioning this", whether from the panel button or from `/spotlights mover`. Keying it on the
---- panel would leave `/spotlights mover` useless out of a raid and would show fictional players to
+--- panel would leave `/spotlights mover` useless out of a group and would show fictional players to
 --- anyone who opened the settings.
 ---@param value boolean
 function Private.Mover.SetUnlocked(value)

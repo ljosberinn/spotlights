@@ -19,6 +19,8 @@ Private.AuraAppearance = {}
 --- Every setting here was on the old panel's Auras tab and writes the same field. What is new is the
 --- shape, the per-section preview, and the summary.
 
+local Orientation = Private.Enum.Orientation
+
 --- What the label column costs in the ~250px half of a section's control grid. Narrower than the
 --- Appearance tab's 120 because these labels are one or two short words where that tab's are noun
 --- phrases, and the sliders here are the ones dragged against a preview -- so the bar is worth the room.
@@ -193,6 +195,17 @@ local function BorderStyleSetter(displayKey)
 	end
 end
 
+--- Writes the bar's fill direction and re-reads the whole tab.
+---
+--- The plain setter would leave the icon-side dropdown offering "Left Of The Bar" for what is now the top
+--- end of the bar: its labels are generated per menu-open, and only a refresh regenerates the *closed*
+--- button's text. No relayout is owed -- no control appears or disappears with the direction.
+---@param value SpotlightsOrientation
+local function OrientationSetter(value)
+	SetAura("bar", "orientation", value)
+	Private.Options.Refresh()
+end
+
 --- Reads a colour stored as four separately named fields.
 ---
 --- Named rather than derived from a prefix: a bar's own colour is `r`/`g`/`b`/`alpha` while its border's
@@ -293,14 +306,27 @@ local function IconSummary()
 		BorderPhrase(config))
 end
 
+--- Which axis a bar's fill runs along, in prose. Shared by the summary and the dropdown that sets it, so
+--- the header names the direction with the same words the control does.
+---@param config SpotlightsAuraBarConfig
+---@return string
+local function FillName(config)
+	local L = Private.L.Settings
+
+	return config.orientation == Orientation.Vertical and L.AuraFillVertical
+		or L.AuraFillHorizontal
+end
+
+--- The bar's summary, in its own format string: a `100 × 25` that drains upward reads as a lie without
+--- the direction beside it, and the other two displays have no direction to name.
 ---@return string
 local function BarSummary()
 	local L = Private.L.Settings
 	local config = Bar()
 
-	return HiddenSummary(config) or string.format(L.AuraSummary, config.width, config.height,
-		AnchorName(config), config.showIcon and L.AuraSummaryInlineIcon or L.AuraSummaryNoInlineIcon,
-		BorderPhrase(config))
+	return HiddenSummary(config) or string.format(L.AuraSummaryBar, config.width, config.height,
+		FillName(config), AnchorName(config),
+		config.showIcon and L.AuraSummaryInlineIcon or L.AuraSummaryNoInlineIcon, BorderPhrase(config))
 end
 
 --- The square's summary, in the same five fields as the other two: its size twice over, since one field
@@ -448,21 +474,52 @@ local function BorderRows(page, displayKey)
 	}
 end
 
---- One section's body: its own controls, then the border group, then the reset that belongs to it.
----
---- The reset is per display rather than one for the category, because the two displays are configured
---- independently and one button for both would discard the half the user was happy with. Inside the
---- grid, so it ends the controls it resets rather than floating under the pane beside them.
+--- The anchor and the two offsets that refine it, identical for all three displays and always the last
+--- group in a body.
 ---@param page Frame
----@param rows SpotlightsNode[]
+---@param displayKey SpotlightsAuraDisplayKey
+---@return SpotlightsNode[]
+local function PositioningRows(page, displayKey)
+	local L = Private.L.Settings
+
+	return {
+		Private.Controls.SubHeading(page, L.GroupPositioning),
+
+		Full(Private.Controls.Dropdown(page, L.AuraAnchor, Private.Controls.AnchorChoices,
+			Getter(displayKey, "point"), Setter(displayKey, "point"))),
+
+		-- Sliders rather than the kit's number pair: an offset is dragged against what it moves, and the
+		-- pane beside these is what it moves.
+		Private.Controls.Slider(page, L.AuraOffsetX, OFFSET_MIN, OFFSET_MAX, 1,
+			Getter(displayKey, "x"), Setter(displayKey, "x")),
+		Private.Controls.Slider(page, L.AuraOffsetY, OFFSET_MIN, OFFSET_MAX, 1,
+			Getter(displayKey, "y"), Setter(displayKey, "y")),
+	}
+end
+
+--- One section's body: its own groups, then the border group, then positioning, then the reset.
+---
+--- Two lists rather than one because the border group sits *between* what a display alone decides and
+--- where it ends up, and it is shared -- so a body cannot simply be one literal with `BorderRows`
+--- spliced into the middle of it.
+---
+--- The reset is per display rather than one for the category, because the displays are configured
+--- independently and one button for all of them would discard the parts the user was happy with. It
+--- stays outside every group: it ends the body rather than belonging to one part of it.
+---@param page Frame
+---@param rows SpotlightsNode[] everything above the border group
 ---@param displayKey SpotlightsAuraDisplayKey
 ---@param label string
 ---@return SpotlightsNode
 local function BuildBody(page, rows, displayKey, label)
-	local border = BorderRows(page, displayKey)
+	local trailing = { BorderRows(page, displayKey), PositioningRows(page, displayKey) }
 
-	for i = 1, #border do
-		rows[#rows + 1] = border[i]
+	for group = 1, #trailing do
+		local list = trailing[group]
+
+		for i = 1, #list do
+			rows[#rows + 1] = list[i]
+		end
 	end
 
 	rows[#rows + 1] = Private.Controls.ActionButton(page, Private.L.Settings.AuraReset, function()
@@ -479,10 +536,14 @@ local function BuildIconBody(page)
 	local L = Private.L.Settings
 
 	return BuildBody(page, {
+		Private.Controls.SubHeading(page, L.GroupDisplay),
+
 		Private.Controls.Checkbox(page, L.AuraEnabled, Getter("icon", "enabled"),
 			Setter("icon", "enabled")),
 		Private.Controls.Slider(page, L.AuraAlpha, ALPHA_MIN, ALPHA_MAX, ALPHA_STEP,
 			Getter("icon", "alpha"), Setter("icon", "alpha")),
+
+		Private.Controls.SubHeading(page, L.GroupSize),
 
 		Private.Controls.Slider(page, L.AuraIconWidth, ICON_SIZE_MIN, ICON_SIZE_MAX, 1,
 			Getter("icon", "width"), Setter("icon", "width")),
@@ -496,6 +557,8 @@ local function BuildIconBody(page)
 			return Private.Auras.IsPooled(ActiveFeature())
 		end),
 
+		Private.Controls.SubHeading(page, L.GroupCooldown),
+
 		Private.Controls.Checkbox(page, L.AuraShowSwipe, Getter("icon", "showSwipe"),
 			Setter("icon", "showSwipe")),
 		Private.Controls.Checkbox(page, L.AuraShowText, Getter("icon", "showText"),
@@ -507,16 +570,6 @@ local function BuildIconBody(page)
 		end, Getter("icon", "font"), Setter("icon", "font")),
 		Private.Controls.Slider(page, L.AuraFontSize, FONT_SIZE_MIN, FONT_SIZE_MAX, 1,
 			Getter("icon", "fontSize"), Setter("icon", "fontSize")),
-
-		Full(Private.Controls.Dropdown(page, L.AuraAnchor, Private.Controls.AnchorChoices,
-			Getter("icon", "point"), Setter("icon", "point"))),
-
-		-- Sliders rather than the kit's number pair: an offset is dragged against what it moves, and the
-		-- pane beside these is what it moves.
-		Private.Controls.Slider(page, L.AuraOffsetX, OFFSET_MIN, OFFSET_MAX, 1, Getter("icon", "x"),
-			Setter("icon", "x")),
-		Private.Controls.Slider(page, L.AuraOffsetY, OFFSET_MIN, OFFSET_MAX, 1, Getter("icon", "y"),
-			Setter("icon", "y")),
 	}, "icon", L.AuraIcon)
 end
 
@@ -526,40 +579,62 @@ local function BuildBarBody(page)
 	local L = Private.L.Settings
 
 	return BuildBody(page, {
+		Private.Controls.SubHeading(page, L.GroupDisplay),
+
 		Private.Controls.Checkbox(page, L.AuraEnabled, Getter("bar", "enabled"),
 			Setter("bar", "enabled")),
 		Private.Controls.Slider(page, L.AuraAlpha, ALPHA_MIN, ALPHA_MAX, ALPHA_STEP,
 			Getter("bar", "alpha"), Setter("bar", "alpha")),
+
+		Private.Controls.SubHeading(page, L.GroupBar),
 
 		Private.Controls.Dropdown(page, L.BarTexture, function()
 			return Private.Controls.MediaChoices(Private.Media.StatusBarList(),
 				Private.Media.IsRegistered, Bar().texture)
 		end, Getter("bar", "texture"), Setter("bar", "texture")),
 
+		--- Beside the texture rather than with the width and the height, though it is the setting that
+		--- decides what those two mean: it is a property of the fill, and the size group is a pair of
+		--- sliders dragged against the pane.
+		Private.Controls.Dropdown(page, L.Orientation, {
+			{ value = Orientation.Horizontal, label = L.AuraFillHorizontal },
+			{ value = Orientation.Vertical,   label = L.AuraFillVertical },
+		}, Getter("bar", "orientation"), OrientationSetter),
+
 		--- The picker's own opacity writes `alpha`, which is the slider above it -- one field with two
 		--- controls over it, as the old panel also has. The slider re-reads on the next full refresh.
 		Private.Controls.ColorSwatch(page, L.AuraColor, ColorGetter("bar", "r", "g", "b", "alpha"),
 			ColorSetter("bar", "r", "g", "b", "alpha")),
+
+		Private.Controls.SubHeading(page, L.GroupSize),
 
 		Private.Controls.Slider(page, L.AuraWidth, BAR_WIDTH_MIN, BAR_WIDTH_MAX, 1,
 			Getter("bar", "width"), Setter("bar", "width")),
 		Private.Controls.Slider(page, L.AuraHeight, BAR_HEIGHT_MIN, BAR_HEIGHT_MAX, 1,
 			Getter("bar", "height"), Setter("bar", "height")),
 
+		Private.Controls.SubHeading(page, L.GroupIcon),
+
 		Private.Controls.Checkbox(page, L.AuraShowIcon, Getter("bar", "showIcon"),
 			Setter("bar", "showIcon")),
-		Private.Controls.Dropdown(page, L.AuraIconSide, {
-			{ value = "LEFT",  label = L.AuraIconLeft },
-			{ value = "RIGHT", label = L.AuraIconRight },
-		}, Getter("bar", "iconSide"), Setter("bar", "iconSide")),
 
-		Full(Private.Controls.Dropdown(page, L.AuraAnchor, Private.Controls.AnchorChoices,
-			Getter("bar", "point"), Setter("bar", "point"))),
+		--- Passed as a function for the reason the media pickers are, though the list is fixed: the two
+		--- labels are the *ends of the bar*, which the fill direction decides, and a list built once would
+		--- keep offering "Left Of The Bar" for the top of a vertical one. The stored `LEFT`/`RIGHT` is what
+		--- reaches the database either way.
+		Private.Controls.Dropdown(page, L.AuraIconSide, function()
+			if Bar().orientation == Orientation.Vertical then
+				return {
+					{ value = "LEFT",  label = L.AuraIconTop },
+					{ value = "RIGHT", label = L.AuraIconBottom },
+				}
+			end
 
-		Private.Controls.Slider(page, L.AuraOffsetX, OFFSET_MIN, OFFSET_MAX, 1, Getter("bar", "x"),
-			Setter("bar", "x")),
-		Private.Controls.Slider(page, L.AuraOffsetY, OFFSET_MIN, OFFSET_MAX, 1, Getter("bar", "y"),
-			Setter("bar", "y")),
+			return {
+				{ value = "LEFT",  label = L.AuraIconLeft },
+				{ value = "RIGHT", label = L.AuraIconRight },
+			}
+		end, Getter("bar", "iconSide"), Setter("bar", "iconSide")),
 	}, "bar", L.AuraBar)
 end
 
@@ -568,11 +643,18 @@ end
 local function BuildSquareBody(page)
 	local L = Private.L.Settings
 
+	--- Grouped like the other two, though the issue that asked for this only named them: a body left flat
+	--- beside two grouped ones reads as the one that was forgotten. `Block` rather than `Size`, because
+	--- one field drives both axes and the colour belongs beside it -- it is what tells two squares apart.
 	return BuildBody(page, {
+		Private.Controls.SubHeading(page, L.GroupDisplay),
+
 		Private.Controls.Checkbox(page, L.AuraEnabled, Getter("square", "enabled"),
 			Setter("square", "enabled")),
 		Private.Controls.Slider(page, L.AuraAlpha, ALPHA_MIN, ALPHA_MAX, ALPHA_STEP,
 			Getter("square", "alpha"), Setter("square", "alpha")),
+
+		Private.Controls.SubHeading(page, L.GroupBlock),
 
 		--- One slider where the other sections have two, because one field drives both axes -- and paired
 		--- with the colour rather than given a row of its own, so the rows below it stay in the two-column
@@ -586,6 +668,8 @@ local function BuildSquareBody(page)
 			ColorGetter("square", "r", "g", "b", "alpha"),
 			ColorSetter("square", "r", "g", "b", "alpha")),
 
+		Private.Controls.SubHeading(page, L.GroupCooldown),
+
 		Private.Controls.Checkbox(page, L.AuraShowSwipe, Getter("square", "showSwipe"),
 			Setter("square", "showSwipe")),
 		Private.Controls.Checkbox(page, L.AuraShowText, Getter("square", "showText"),
@@ -597,14 +681,6 @@ local function BuildSquareBody(page)
 		end, Getter("square", "font"), Setter("square", "font")),
 		Private.Controls.Slider(page, L.AuraFontSize, FONT_SIZE_MIN, FONT_SIZE_MAX, 1,
 			Getter("square", "fontSize"), Setter("square", "fontSize")),
-
-		Full(Private.Controls.Dropdown(page, L.AuraAnchor, Private.Controls.AnchorChoices,
-			Getter("square", "point"), Setter("square", "point"))),
-
-		Private.Controls.Slider(page, L.AuraOffsetX, OFFSET_MIN, OFFSET_MAX, 1, Getter("square", "x"),
-			Setter("square", "x")),
-		Private.Controls.Slider(page, L.AuraOffsetY, OFFSET_MIN, OFFSET_MAX, 1, Getter("square", "y"),
-			Setter("square", "y")),
 	}, "square", L.AuraSquare)
 end
 

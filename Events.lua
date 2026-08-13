@@ -98,6 +98,57 @@ function Private.Events.Request(key)
 	dispatcher:Show()
 end
 
+--- Wraps a listener so it runs at most once per `interval`, on the leading edge and the trailing one.
+---
+--- The leading call is what keeps a lone roster change immediate: a single join has to land now, not in
+--- a second. The trailing call is what makes the throttle safe -- a burst whose last event is dropped
+--- leaves its listener showing the state before it, and a roster burst is exactly the case where the
+--- last event is the true one.
+---
+--- `C_Timer` rather than the dispatcher frame, against this file's own preference: that frame exists to
+--- fold requests within one frame and holds no per-key deadline. One timer per burst at 1Hz is not the
+--- cost that comment was written about.
+---
+--- Arguments are not forwarded. Every listener this is meant for reads current state rather than the
+--- event's payload, and a trailing call could only carry the stale arguments of the event that
+--- scheduled it.
+---@param interval number seconds
+---@param handler fun()
+---@return fun() listener
+function Private.Events.Throttled(interval, handler)
+	--- One interval in the past, so the first call is always a leading one. Zero would not do it:
+	--- `GetTime` is seconds since the client started, and an addon loading into an already-running
+	--- client is not the only case -- at login it can legitimately be under one.
+	local last = -interval
+	local scheduled = false
+
+	local function Fire()
+		last = GetTime()
+		scheduled = false
+
+		handler()
+	end
+
+	return function()
+		-- Already waiting on a trailing call, which will read the state this event produced.
+		if scheduled then
+			return
+		end
+
+		local remaining = last + interval - GetTime()
+
+		if remaining <= 0 then
+			Fire()
+
+			return
+		end
+
+		scheduled = true
+
+		C_Timer.After(remaining, Fire)
+	end
+end
+
 --- Holds `key` until combat ends.
 ---@param key string
 function Private.Events.QueueOOC(key)

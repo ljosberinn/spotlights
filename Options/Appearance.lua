@@ -151,20 +151,41 @@ local function ColorSetter(prefix)
 	end
 end
 
---- Writes a class-colour toggle and refreshes the whole tab.
+--- Writes a field another control's enablement is gated on, and refreshes the whole tab.
 ---
---- The static swatches beside it gate `enabled` on this value but only sample it on `Refresh`, so the
---- plain setter would repaint the frames and leave the just-disabled swatch looking clickable. No
---- relayout: a disabled swatch dims rather than hides, so nothing moves.
+--- The gated control samples that value only in its own `Refresh`, so the plain setter would repaint the
+--- frames and leave a just-disabled swatch looking clickable, or a hover-only toggle offering a setting
+--- for a region that is not drawn. No relayout: a disabled control dims rather than hides, so nothing
+--- moves.
 ---@param field string
----@return fun(value: boolean)
-local function ColorModeSetter(field)
+---@return fun(value: any)
+local function GatingSetter(field)
 	local Set = Setter(field)
 
 	return function(value)
 		Set(value)
 		Private.Options.Refresh()
 	end
+end
+
+--- Writes the name strata, which is the one field on this tab the appearance sweep cannot carry.
+---
+--- The name layer is parented to a secure unit button, so `SetFrameStrata` on it is a protected call
+--- and goes through the deferral queue -- the panel refuses to open in combat, but this setter is also
+--- what a reset ends up in.
+---@param value string
+local function SetNameStrata(value)
+	local appearance = Private.DB and Private.DB.appearance
+
+	if not appearance then
+		return
+	end
+
+	appearance.nameStrata = value
+
+	Private.NameStyle.Request()
+	Private.Preview.Restyle()
+	RefreshPreview()
 end
 
 --- Whether the static colour beside a mode dropdown is the one in use.
@@ -174,6 +195,31 @@ local function IsStaticColor(field)
 	return function()
 		return not Appearance()[field]
 	end
+end
+
+--- Whether there is a name to qualify. Hover-only decides *when* the name shows, so with the name off
+--- it is a setting for nothing.
+---@return boolean
+local function IsNameShown()
+	return Appearance().nameEnabled
+end
+
+--- The strata list with `Inherit` at its head, built per call because the labels are localised and this
+--- file loads before the localisation table is filled.
+---
+--- Labelled from `L.Settings.Strata` exactly as the General tab's Frame Strata dropdown is, so the two
+--- cannot end up calling the same layer different things.
+---@return { value: any, label: string }[]
+local function NameStrataChoices()
+	local L = Private.L.Settings
+	local order = Private.Enum.FrameStrataOrder
+	local choices = { { value = Private.Enum.NameStrataInherit, label = L.NameStrataInherit } }
+
+	for i = 1, #order do
+		choices[i + 1] = { value = order[i], label = L.Strata[order[i]] }
+	end
+
+	return choices
 end
 
 ---@param field "frameWidth" | "frameHeight"
@@ -254,6 +300,9 @@ local FRAME_FIELDS = {
 }
 
 local NAME_FIELDS = {
+	"nameEnabled",
+	"nameHoverOnly",
+	"nameStrata",
 	"nameUseClassColor",
 	"nameColorR",
 	"nameColorG",
@@ -326,6 +375,9 @@ end
 
 local function ResetName()
 	ResetFields(NAME_FIELDS)
+
+	-- The one field in that list the appearance sweep does not carry -- see `SetNameStrata`.
+	Private.NameStyle.Request()
 end
 
 local function ResetHealthText()
@@ -337,18 +389,25 @@ end
 local function BuildFrameSubTab(page)
 	local L = Private.L.Settings
 
+	--- A heading spans, so each group below starts back in the left column and an odd group leaves a
+	--- hole. Members are ordered so that hole falls at the group's end rather than in its middle: the
+	--- absorb checkbox ends the health bar group, the frame opacity ends the opacity one.
 	return Private.Node.Grid(page, {
+		Private.Controls.SubHeading(page, L.GroupSize),
+
 		Private.Controls.Slider(page, L.Width, FRAME_WIDTH_MIN, FRAME_WIDTH_MAX, 1,
 			SizeGetter("frameWidth"), SizeSetter("frameWidth")),
 		Private.Controls.Slider(page, L.Height, FRAME_HEIGHT_MIN, FRAME_HEIGHT_MAX, 1,
 			SizeGetter("frameHeight"), SizeSetter("frameHeight")),
+
+		Private.Controls.SubHeading(page, L.GroupHealthBar),
 
 		-- Passed as a function, not its result: the list has to be re-read every time the menu opens.
 		Private.Controls.Dropdown(page, L.BarTexture, TextureChoices, Getter("barTexture"),
 			Setter("barTexture")),
 
 		Private.Controls.Dropdown(page, L.HealthColorMode, ColorModeChoices(),
-			Getter("healthUseClassColor"), ColorModeSetter("healthUseClassColor")),
+			Getter("healthUseClassColor"), GatingSetter("healthUseClassColor")),
 
 		Private.Controls.ColorSwatch(page, L.HealthColor, ColorGetter("healthColor"),
 			ColorSetter("healthColor"), IsStaticColor("healthUseClassColor")),
@@ -360,6 +419,8 @@ local function BuildFrameSubTab(page)
 
 		Private.Controls.Checkbox(page, L.ShowAbsorb, Getter("showAbsorb"), Setter("showAbsorb")),
 
+		Private.Controls.SubHeading(page, L.GroupOpacity),
+
 		Private.Controls.Slider(page, L.OutOfRangeAlpha, ALPHA_MIN, ALPHA_MAX, ALPHA_STEP,
 			Getter("outOfRangeAlpha"), Setter("outOfRangeAlpha")),
 		Private.Controls.Slider(page, L.DeadAlpha, ALPHA_MIN, ALPHA_MAX, ALPHA_STEP,
@@ -367,6 +428,7 @@ local function BuildFrameSubTab(page)
 		Private.Controls.Slider(page, L.FrameAlpha, ALPHA_MIN, ALPHA_MAX, ALPHA_STEP,
 			Getter("frameAlpha"), Setter("frameAlpha")),
 
+		-- Outside every group: it ends the body rather than belonging to one part of it.
 		Private.Controls.ActionButton(page, L.ResetFrame, ResetFrame, true),
 	}, 2, COLUMN_LABEL_WIDTH)
 end
@@ -377,19 +439,39 @@ local function BuildNameSubTab(page)
 	local L = Private.L.Settings
 
 	return Private.Node.Grid(page, {
-		Private.Controls.Dropdown(page, L.NameColorMode, ColorModeChoices(),
-			Getter("nameUseClassColor"), ColorModeSetter("nameUseClassColor")),
+		Private.Controls.SubHeading(page, L.GroupText),
 
-		Private.Controls.ColorSwatch(page, L.NameColor, ColorGetter("nameColor"),
-			ColorSetter("nameColor"), IsStaticColor("nameUseClassColor")),
+		Private.Controls.Checkbox(page, L.ShowName, Getter("nameEnabled"),
+			GatingSetter("nameEnabled")),
+
+		--- Dims while Show Name is off rather than disappearing, so the pair reads as one decision with a
+		--- qualifier instead of a control that comes and goes.
+		Private.Controls.Checkbox(page, L.NameHoverOnly, Getter("nameHoverOnly"),
+			Setter("nameHoverOnly"), IsNameShown),
 
 		Private.Controls.Dropdown(page, L.NameFont, FontChoices("nameFont"), Getter("nameFont"),
 			Setter("nameFont")),
 		Private.Controls.Slider(page, L.NameFontSize, FONT_SIZE_MIN, FONT_SIZE_MAX, 1,
 			Getter("nameFontSize"), Setter("nameFontSize")),
 
+		Private.Controls.SubHeading(page, L.GroupColor),
+
+		Private.Controls.Dropdown(page, L.NameColorMode, ColorModeChoices(),
+			Getter("nameUseClassColor"), GatingSetter("nameUseClassColor")),
+
+		Private.Controls.ColorSwatch(page, L.NameColor, ColorGetter("nameColor"),
+			ColorSetter("nameColor"), IsStaticColor("nameUseClassColor")),
+
+		Private.Controls.SubHeading(page, L.GroupPositioning),
+
 		Private.Controls.Dropdown(page, L.NameAnchor, Private.Controls.AnchorChoices, Getter("namePoint"),
 			Setter("namePoint")),
+
+		--- Which layer the name is drawn in, rather than where on the frame it sits -- but it belongs
+		--- here for the same reason the anchor does: both answer "where does the name end up", and an
+		--- aura display over the name is a placement problem however it is solved.
+		Private.Controls.Dropdown(page, L.NameStrata, NameStrataChoices(), Getter("nameStrata"),
+			SetNameStrata),
 
 		-- Sliders rather than the kit's number pair, unlike the Grid tab's spacing: an offset is
 		-- dragged against what it moves, and the pane beside these is what it moves.
@@ -408,6 +490,8 @@ local function BuildHealthSubTab(page)
 	local L = Private.L.Settings
 
 	return Private.Node.Grid(page, {
+		Private.Controls.SubHeading(page, L.GroupText),
+
 		Private.Controls.Checkbox(page, L.HealthTextEnabled, Getter("healthTextEnabled"),
 			Setter("healthTextEnabled")),
 
@@ -417,16 +501,20 @@ local function BuildHealthSubTab(page)
 			{ value = "absValueAbbreviated", label = L.HealthTextAbsValueAbbreviated },
 		}, Getter("healthTextFormat"), Setter("healthTextFormat")),
 
-		Private.Controls.Dropdown(page, L.HealthTextColorMode, ColorModeChoices(),
-			Getter("healthTextUseClassColor"), ColorModeSetter("healthTextUseClassColor")),
-
-		Private.Controls.ColorSwatch(page, L.HealthTextColor, ColorGetter("healthTextColor"),
-			ColorSetter("healthTextColor"), IsStaticColor("healthTextUseClassColor")),
-
 		Private.Controls.Dropdown(page, L.HealthTextFont, FontChoices("healthTextFont"),
 			Getter("healthTextFont"), Setter("healthTextFont")),
 		Private.Controls.Slider(page, L.HealthTextFontSize, FONT_SIZE_MIN, FONT_SIZE_MAX, 1,
 			Getter("healthTextFontSize"), Setter("healthTextFontSize")),
+
+		Private.Controls.SubHeading(page, L.GroupColor),
+
+		Private.Controls.Dropdown(page, L.HealthTextColorMode, ColorModeChoices(),
+			Getter("healthTextUseClassColor"), GatingSetter("healthTextUseClassColor")),
+
+		Private.Controls.ColorSwatch(page, L.HealthTextColor, ColorGetter("healthTextColor"),
+			ColorSetter("healthTextColor"), IsStaticColor("healthTextUseClassColor")),
+
+		Private.Controls.SubHeading(page, L.GroupPositioning),
 
 		Private.Controls.Dropdown(page, L.HealthTextAnchor, Private.Controls.AnchorChoices,
 			Getter("healthTextPoint"), Setter("healthTextPoint")),

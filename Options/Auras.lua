@@ -301,9 +301,18 @@ local function BuildAuras(page)
 
 	CreateCategoryStrip(page)
 
+	--- Tracked is a tab only where there is a list behind it. Prescience and Shifting Sands watch one
+	--- spell each, so the pane would be its own chrome and nothing else -- and a tab offering that
+	--- advertises a choice the category does not have.
 	local subTabs, pages = Private.Node.SubTabs(page, {
 		{ name = L.TabAppearance, node = Private.AuraAppearance.Build(page, ActiveFeature, ActiveName) },
-		{ name = L.AuraTracked,   node = Private.AuraTracked.Build(page, ActiveFeature, ActiveName) },
+		{
+			name = L.AuraTracked,
+			node = Private.AuraTracked.Build(page, ActiveFeature, ActiveName),
+			Applies = function()
+				return Private.AuraSpells.HasSpells(ActiveFeature())
+			end,
+		},
 	}, Private.Options.Refresh)
 
 	local root = Private.Node.Column(page, { subTabs, pages })

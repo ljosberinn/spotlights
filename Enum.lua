@@ -4,8 +4,12 @@ local _, Private = ...
 ---@class SpotlightsEnums
 Private.Enum = {}
 
---- Grid fill direction. Horizontal fills across then wraps down; vertical fills down then wraps
---- across. `stride` means columns when horizontal, rows when vertical.
+--- An axis, used for two unrelated things. As the grid's fill direction: horizontal fills across then
+--- wraps down, vertical fills down then wraps across, and `stride` means columns when horizontal, rows
+--- when vertical. As an aura status bar's fill direction: which way the bar drains.
+---
+--- Shared rather than duplicated per setting, since both are the same two-valued choice -- but the
+--- labels are not shared, because "Across, Then Down" says nothing about a bar.
 ---@enum SpotlightsOrientation
 Private.Enum.Orientation = {
 	Horizontal = 1,
@@ -48,6 +52,7 @@ Private.Enum.DeferralKey = {
 	Geometry = "geometry",
 	Layout = "layout",
 	Position = "position",
+	NameStrata = "nameStrata",
 	Auras = "auras",
 }
 
@@ -57,6 +62,10 @@ Private.Enum.DeferralKey = {
 ---
 --- Position is last of the geometry passes because clamping the container to the screen needs its
 --- *final* size, and Layout sizes it. The other order clamps against the previous slot count.
+---
+--- NameStrata follows Position and does have an ordering constraint: a name layer set to inherit takes
+--- the strata the container currently has, and Position is the pass that changes it. The other order
+--- pins every inheriting name to the strata the grid just left.
 ---
 --- Auras is last outright, but not by ordering constraint: nothing it does is read by another pass
 --- and nothing it reads is written by one. A spotlight gains aura displays from the unit the secure
@@ -69,6 +78,7 @@ Private.Enum.DeferralOrder = {
 	Private.Enum.DeferralKey.Geometry,
 	Private.Enum.DeferralKey.Layout,
 	Private.Enum.DeferralKey.Position,
+	Private.Enum.DeferralKey.NameStrata,
 	Private.Enum.DeferralKey.Auras,
 }
 
@@ -124,6 +134,15 @@ Private.Enum.FrameStrataOrder = {
 	"TOOLTIP",
 }
 
+--- What `appearance.nameStrata` holds when the name layer is to set no strata of its own.
+---
+--- A member of the setting's value space rather than a nil, so the dropdown has an entry to select and
+--- `Filled` has something to fill an older database with -- a nil would be indistinguishable from a
+--- field that never arrived, and would be re-filled on every load.
+---
+--- Deliberately not one of `FrameStrataOrder`'s names, so it can never be handed to `SetFrameStrata`.
+Private.Enum.NameStrataInherit = "INHERIT"
+
 --- The same strata as a set, for validating a stored one before `SetFrameStrata`, which errors
 --- outright on a name it does not know and takes the container pass with it.
 ---
@@ -138,5 +157,5 @@ end
 
 --- A name no player can hold, used as the `nameList` value for blank and retired slots. Never
 --- leave `nameList` nil: with `groupFilter` and `roleFilter` also nil, SecureGroupHeader_Update
---- falls back to groupFilter "1,2,3,4,5,6,7,8" and renders the entire raid into one slot.
+--- falls back to groupFilter "1,2,3,4,5,6,7,8" and renders the entire group into one slot.
 Private.Enum.NameListSentinel = "\1"

@@ -109,12 +109,22 @@ EventUtil.ContinueOnAddOnLoaded(addonName, function()
 			type = "launcher",
 			text = addonName,
 			icon = iconTexture,
-			OnClick = function()
+			--- LibDBIcon forwards the button it registered `anyUp` for, so a right-click is ours to route
+			--- rather than another plain open. Assigning a slot is the most common reason to open the panel
+			--- at all, and the Roster tab is where that happens.
+			OnClick = function(_, button)
+				if button == "RightButton" then
+					Private.Options.SelectTab("roster")
+
+					return
+				end
+
 				Private.Options.SetShown()
 			end,
 			OnTooltipShow = function(tooltip)
 				tooltip:AddLine(addonName)
 				tooltip:AddLine(Private.L.Settings.ClickToOpenSettings, 1, 1, 1)
+				tooltip:AddLine(Private.L.Settings.RightClickToOpenRoster, 1, 1, 1)
 			end,
 		}), db.minimap)
 

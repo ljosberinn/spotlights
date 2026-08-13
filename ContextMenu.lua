@@ -34,8 +34,9 @@ local MENU_TAGS = {
 --- The GUID this menu is about, if it is someone we can actually spotlight.
 ---
 --- Gated on our own roster map rather than `UnitInRaid`: the map (`Private.Roster.Rebuild`) guards
---- every entry with `issecretvalue`, so anything in it is a raid member with a readable name --
---- whereas `UnitInRaid` returns a raid *index*, which `CompactUnitFrame` treats as a secret hazard.
+--- every entry with `issecretvalue`, so anything in it is a group member with a readable name, in a
+--- party as much as in a raid -- whereas `UnitInRaid` returns a raid *index*, which
+--- `CompactUnitFrame` treats as a secret hazard, and answers nothing at all in a party.
 --- The entry then appears exactly when the assignment would succeed (`Registry.AssignByGuid`
 --- applies the same `fromRoster` test).
 ---@param unit string?

@@ -4,8 +4,11 @@ local _, Private = ...
 --- The Import/Export tab: two in-place boxes rather than the pair of `StaticPopup`s a button opens. The
 --- codec itself lives in `Options/Profile.lua`, which the Roster tab's presets share.
 
-local EXPORT_HEIGHT = 130
-local IMPORT_HEIGHT = 130
+--- Re-judged against the 610px window rather than scaled with it: two boxes, two headings, two buttons
+--- and the gaps between them still leave room over at 160, and a box a profile string does not fill is
+--- an empty tab rather than a generous one.
+local EXPORT_HEIGHT = 160
+local IMPORT_HEIGHT = 160
 
 --- What the user pasted, since it is not a setting -- there is nothing in the database to read it back
 --- from between a paste and the Import click, and nothing to forget it once the tab is left and

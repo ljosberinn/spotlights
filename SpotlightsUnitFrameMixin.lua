@@ -104,16 +104,117 @@ local function JustifyForPoint(point)
 	return "CENTER"
 end
 
---- Applies the font, size, placement and justification of the name, but not its colour.
+--- The frame the name is drawn in, created on first ask.
+---
+--- The name used to be a FontString in the button's own `OVERLAY` layer, which is *below* every layer of
+--- every child frame -- so an aura display, which hangs off a child frame, covered it and no draw-layer
+--- change could rescue it. A layer of our own is a sibling of those child frames rather than a region
+--- under them, which is what makes `nameStrata` expressible at all.
+---
+--- Shared with `Private.Preview` so a preview and a live spotlight stack their names the same way.
+---
+--- **Out of combat only on a live spotlight.** The layer is parented to a secure unit button, so
+--- `SetAllPoints` and `SetFrameLevel` on it are protected calls for the same reason the container's
+--- `SetSize` is. Preview frames are ours and need no such care.
+---@param frame SpotlightsUnitFrame
+---@return Frame
+function Private.NameStyle.EnsureLayer(frame)
+	local layer = frame.spotlightsNameLayer
+
+	if layer then
+		return layer
+	end
+
+	layer = CreateFrame("Frame", nil, frame)
+
+	--- Load-bearing rather than incidental, which is why it is said out loud even though frames ship
+	--- with the mouse off: a mouse-enabled frame across the whole spotlight would swallow the clicks the
+	--- secure button exists to receive, and take the hover-only setting down with them.
+	layer:EnableMouse(false)
+
+	--- The parent's own level rather than the `+1` a new frame defaults to. An aura display's anchor is
+	--- a child frame at that `+1`, so at the default the name would rise over every aura the moment this
+	--- layer existed -- a profile rendering differently on the first load of a build it never configured.
+	--- Raising the name is what `nameStrata` is for, and it should take saying so.
+	layer:SetFrameLevel(frame:GetFrameLevel())
+	layer:SetAllPoints(frame)
+
+	--- `ApplyLayout` anchors the name against `fontString:GetParent()`, so a layer covering the same
+	--- rectangle preserves every stored offset without that arithmetic learning the layer exists.
+	frame.name:SetParent(layer)
+
+	frame.spotlightsNameLayer = layer
+
+	return layer
+end
+
+--- Puts the configured strata on the name layer.
+---
+--- `SetFrameStrata` has no inverse, so `INHERIT` is expressed by naming the strata the layer *would*
+--- have inherited rather than by leaving the call out -- a layer raised once and then set back to
+--- inherit has to come back down. Read off the frame rather than out of the position block, so the
+--- answer is also right for a preview, whose parent is not the container.
+---
+--- **A protected call on a live spotlight.** Callers on that path go through the deferral queue; the
+--- preview path may call it outright.
+---@param frame SpotlightsUnitFrame
+---@param appearance SpotlightsAppearanceConfig
+function Private.NameStyle.ApplyStrata(frame, appearance)
+	local layer = frame.spotlightsNameLayer
+
+	if not layer then
+		return
+	end
+
+	local strata = appearance.nameStrata
+
+	layer:SetFrameStrata(Private.Enum.FrameStrata[strata] and strata or frame:GetFrameStrata())
+end
+
+--- Puts the configured strata on every live spotlight's name layer.
+---
+--- Deferred rather than run inline because it is a protected call on every frame it touches. The panel
+--- refuses to open in combat, but a slash command and an import do not -- and under `INHERIT` this also
+--- runs off the container's own pass, which a fight starting can catch mid-flight.
+local function ApplyNameStrata()
+	if Private.Events.DeferIfInCombat(Private.Enum.DeferralKey.NameStrata) then
+		return
+	end
+
+	local appearance = Appearance()
+
+	if not appearance then
+		return
+	end
+
+	Private.SlotHeader.ForEachChild(function(child)
+		Private.NameStyle.ApplyStrata(child, appearance)
+	end)
+end
+
+Private.Events.RegisterHandler(Private.Enum.DeferralKey.NameStrata, ApplyNameStrata)
+
+--- Requests that pass. For the setting itself, and for anything that changes what `INHERIT` resolves to.
+function Private.NameStyle.Request()
+	Private.Events.Request(Private.Enum.DeferralKey.NameStrata)
+end
+
+--- Applies the font, size, placement, justification and *visibility* of the name, but not its colour.
 ---
 --- The opposed anchors follow the selected row and preserve the selected point's offset. Keeping both
 --- edges is important: a single anchor leaves the FontString unconstrained and allows names to bleed
 --- outside the frame.
 ---
+--- `nameEnabled` is applied here rather than by each caller, so the live frames, the grid previews and
+--- the options pane all answer it from one place. `nameHoverOnly` is the live mixin's alone: a preview
+--- has no cursor over it in the sense that setting means, and one that hid its name to be accurate
+--- would be a preview of nothing.
+---
 --- The shadow is re-asserted after `SetFont`, which clears it.
 ---@param fontString FontString
 ---@param appearance SpotlightsAppearanceConfig
 function Private.NameStyle.ApplyLayout(fontString, appearance)
+	fontString:SetShown(appearance.nameEnabled)
 	fontString:SetFont(Private.Media.Font(appearance.nameFont), appearance.nameFontSize, "")
 	fontString:SetShadowColor(0, 0, 0, 1)
 	fontString:SetShadowOffset(1, -1)
@@ -297,6 +398,10 @@ function SpotlightsUnitFrameMixin:UpdateNameStyle()
 
 	Private.NameStyle.ApplyLayout(self.name, appearance)
 
+	-- After `ApplyLayout`, which decides visibility from `nameEnabled` alone. Hover-only is the term it
+	-- cannot know about.
+	self:UpdateNameVisibility()
+
 	local r, g, b, a = appearance.nameColorR, appearance.nameColorG, appearance.nameColorB, appearance.nameColorA
 	local unit = self.displayedUnit
 
@@ -312,6 +417,27 @@ function SpotlightsUnitFrameMixin:UpdateNameStyle()
 	-- SetVertexColor rather than SetTextColor, matching Blizzard's own name updater: it colours a
 	-- FontString whose Text aspect may be secret, and the vertex colour is not that aspect.
 	self.name:SetVertexColor(r, g, b, a)
+end
+
+--- Whether the name is drawn right now: the two toggles, and -- while hover-only is on -- whether the
+--- cursor is over this spotlight.
+---
+--- **Nothing here is derived from the unit.** The name *text* may arrive secret, but the two settings
+--- and the mouse state are ours, so `SetShown` on the FontString is legal and is what to use. There is
+--- no secret in this path to justify an alpha trick, and reaching for one would make the FontString's
+--- Alpha aspect secret for nothing.
+---
+--- Not a protected call: a FontString is a region, not a frame, and hiding one on a secure button is
+--- what Blizzard's own name updater does.
+function SpotlightsUnitFrameMixin:UpdateNameVisibility()
+	local appearance = Appearance()
+
+	if not appearance then
+		return
+	end
+
+	self.name:SetShown(appearance.nameEnabled
+		and (not appearance.nameHoverOnly or self.spotlightsHovered == true))
 end
 
 --- The outline shown while this unit is the player's target.
@@ -620,7 +746,7 @@ function SpotlightsUnitFrameMixin:OnUnitAttributeChanged(value)
 	self.displayedUnit = value
 
 	-- Above the nil branch so it is told about a released unit too, and the aura container is not
-	-- left watching someone who has left the raid.
+	-- left watching someone who has left the group.
 	Private.Auras.OnUnitChanged(self, value)
 
 	if value == nil then

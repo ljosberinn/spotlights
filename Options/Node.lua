@@ -403,7 +403,7 @@ function Private.Node.Section(parent, Title, Summary, body, startOpen)
 	local highlight = header:CreateTexture(nil, "HIGHLIGHT")
 
 	highlight:SetAllPoints(header)
-	highlight:SetColorTexture(1, 1, 1, 0.06)
+	highlight:SetColorTexture(1, 1, 1, Private.Controls.HighlightAlpha)
 
 	local arrow = header:CreateTexture(nil, "ARTWORK")
 
@@ -515,10 +515,11 @@ function Private.Node.TabSystem(parent, template, constraints)
 	return tabSystem
 end
 
---- One sub-tab: the name on its button, and the node it shows.
+--- One sub-tab: the name on its button, the node it shows, and optionally the states it exists in.
 ---@class SpotlightsSubTab
 ---@field name string
 ---@field node SpotlightsNode
+---@field Applies (fun(): boolean)? absent means always, which is what every unconditional tab passes
 
 --- A strip of tabs and the pages behind it, handed back as **two nodes** rather than one.
 ---
@@ -542,6 +543,9 @@ end
 --- re-lays-out the tree -- the page that just became visible has never been refreshed, or was
 --- refreshed against a state that has since moved on. `Relayout` alone would not do: visibility is
 --- decided in `Refresh`.
+---
+--- A tab carrying an `Applies` predicate comes and goes with it, and the strip goes with the last one:
+--- a strip over a single tab is chrome around a choice of one.
 ---@param parent Frame
 ---@param tabs SpotlightsSubTab[]
 ---@param OnSelected fun()
@@ -582,7 +586,48 @@ function Private.Node.SubTabs(parent, tabs, OnSelected)
 		OnSelected()
 	end)
 
-	function strip:Refresh() end
+	---@type table<integer, boolean>
+	local applies = {}
+
+	--- Brings the strip in line with the predicates, and the selection in line with the strip.
+	---
+	--- Run from both nodes rather than from the strip alone: the two are handed back separately and a
+	--- caller is free to place them where the strip is not the one refreshed first, while the selection
+	--- has to be corrected before a page draws. Idempotent, so the second run is a re-read.
+	---@return integer visible
+	local function ResolveTabs()
+		local visible = 0
+		local first
+
+		for i = 1, #tabs do
+			local Applies = tabs[i].Applies
+
+			applies[i] = not Applies or Applies()
+
+			tabSystem:SetTabShown(i, applies[i])
+
+			if applies[i] then
+				visible = visible + 1
+				first = first or i
+			end
+		end
+
+		-- A tab that has just gone leaves its own page selected, which would be drawn with no tab left
+		-- to navigate back out of it.
+		if not applies[selected] and first then
+			selected = first
+
+			-- Painted rather than selected, for the same reason as above: `SetTab` runs the callback,
+			-- and the callback refreshes the tree this is a pass over.
+			tabSystem:SetTabVisuallySelected(selected)
+		end
+
+		return visible
+	end
+
+	function strip:Refresh()
+		self:SetShown(ResolveTabs() > 1)
+	end
 
 	function strip:Layout(width)
 		local height = Private.Node.SubTabHeight
@@ -593,6 +638,8 @@ function Private.Node.SubTabs(parent, tabs, OnSelected)
 	end
 
 	function pages:Refresh()
+		ResolveTabs()
+
 		for i = 1, #nodes do
 			nodes[i]:SetShown(i == selected)
 		end

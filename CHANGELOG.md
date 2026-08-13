@@ -23,3 +23,21 @@ v1.1.0
 - added Roster Presets which can also be imported and exported
 - fixed a bug where aura previews kept showing spells that were toggled off
 - fixed a bug where the gap between pooled aura icons only reached displays built afterwards
+- right-clicking the minimap button now opens the Roster tab directly
+- settings are now grouped under headings on the Appearance and Auras tabs
+- added Show Name, so a spotlight's name can be turned off
+- added Show Name On Hover Only, showing the name only while the cursor is over the frame
+- added Name Strata, so the name can be raised over an overlapping aura display
+- spotlights now render in a party, not only in a raid
+- Clear Roster When Leaving The Group now also clears when a party becomes a raid, or a raid a party
+- the options panel is taller, and the Import / Export boxes with it
+- the Tracked sub-tab is no longer offered for Prescience and Shifting Sands, which track one spell each
+- tracked spell rows show the spell ID alone, without the client's rank or specialisation subtext
+- the Roster tab's two panes are now headed Spotlighted and Unrostered
+- roster rows light up under the cursor, like the tracked spell rows do
+- hovering a tracked spell row, or the preview under the custom spell box, shows that spell's tooltip
+- importing a preset no longer selects it, and the preset dropdown now reads "None selected" while none is in play
+- the Roster tab's role icons now appear as soon as roles are assigned, instead of waiting on a group change
+- the Unrostered list can now be narrowed to chosen roles, and ships showing damage dealers only
+- roles can now be set to be removed from the grid automatically, keeping tanks or healers out of every preset and every add
+- the Roster tab's lists no longer flicker while a raid fills, repainting at most once a second

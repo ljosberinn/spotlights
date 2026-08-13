@@ -10,7 +10,7 @@ L.SlashCommands.Usage = "Commands:"
 L.SlashCommands.Help = "Lists every command"
 L.SlashCommands.Mover = "Unlocks the grid for dragging"
 L.SlashCommands.Recenter = "Returns the grid to the screen center"
-L.SlashCommands.Add = "Spotlights a raid member by name"
+L.SlashCommands.Add = "Spotlights a group member by name"
 L.SlashCommands.List = "Lists the configured slots"
 L.SlashCommands.Rescan = "Forces every occupied slot to re-match the roster"
 L.SlashCommands.Options = "Opens the settings panel"
@@ -24,10 +24,13 @@ L.Registry = {}
 
 L.Registry.NotLoaded = "saved settings have not loaded yet"
 L.Registry.AddUsage = "usage: /spotlights add <name>"
-L.Registry.Unknown = "no raid member matches '%s'"
-L.Registry.IdentitySecret = "cannot match '%s' - %d raid member(s) have secret identities here"
-L.Registry.NotInRoster = "that player is not in the raid, so their name cannot be matched reliably"
+L.Registry.Unknown = "no group member matches '%s'"
+L.Registry.IdentitySecret = "cannot match '%s' - %d group member(s) have secret identities here"
+L.Registry.NotInRoster = "that player is not in the group, so their name cannot be matched reliably"
 L.Registry.Duplicate = "%s already holds slot %d"
+-- Refused rather than added and taken straight back out, so the setting explains itself the first time
+-- it stops someone from being spotlighted.
+L.Registry.RoleAutoRemoved = "%s plays a role set to be removed from the grid"
 L.Registry.NoSuchSlot = "there is no slot %d"
 L.Registry.Assigned = "slot %d spotlights %s"
 L.Registry.Deferred = "in combat - the frames catch up when it ends"
@@ -36,7 +39,7 @@ L.Registry.Empty = "no slots configured - try /spotlights add <name>"
 L.Registry.ListHeader = "%d slot(s), %d roster name(s) readable, %d secret"
 L.Registry.ListPlayer = "  %d. %s |cff808080%s|r"
 L.Registry.ListBlank = "  %d. |cff808080(spacer)|r"
-L.Registry.Absent = "not in raid"
+L.Registry.Absent = "not in group"
 L.Layout = {}
 
 L.Layout.NotLoaded = "saved settings have not loaded yet"
@@ -54,10 +57,16 @@ L.Settings.TabRoster = "Roster"
 L.Settings.TabImportExport = "Import / Export"
 L.Settings.ShowMinimapButton = "Show Minimap Button"
 L.Settings.ClickToOpenSettings = "Click To Open Settings"
+
+-- The second tooltip line. Assigning a slot is the most common reason to open the panel, so the button
+-- says the shortcut rather than leaving it to be found.
+L.Settings.RightClickToOpenRoster = "Right-Click To Open The Roster Tab"
 L.Settings.Import = "Import"
 L.Settings.Export = "Export"
 L.Settings.ImportError = "Import failed: %s"
-L.Settings.ImportErrorPrefix = "the string does not start with SPOTLIGHTS!"
+-- Said in terms of the kind of string rather than the prefix it lacks, because a preset string does
+-- start with SPOTLIGHTS! and is still refused here.
+L.Settings.ImportErrorPrefix = "the string is not a Spotlights profile"
 L.Settings.ImportErrorDecode = "the string could not be decoded"
 L.Settings.ImportErrorPayload = "the decoded data is not a settings table"
 L.Settings.Copy = "Copy"
@@ -101,7 +110,33 @@ L.Settings.HealthColor = "Static Bar Color"
 L.Settings.HealthBgColor = "Background Color"
 L.Settings.ResetFrame = "Reset Frame Settings"
 
+--- Group headings, one level between a section title and a control's own label. Kept under their own
+--- prefix rather than reusing the control labels they sit over: `Size` heads a group whose members are
+--- `Frame Width` and `Frame Height`, and a heading that repeated a label would read as a duplicate row.
+---
+--- Shared across tabs on purpose -- `Text`, `Color` and `Positioning` mean the same thing over the name
+--- as over the health text, and one string each is what keeps them spelled the same way.
+L.Settings.GroupSize = "Size"
+L.Settings.GroupHealthBar = "Health Bar"
+L.Settings.GroupOpacity = "Opacity"
+L.Settings.GroupText = "Text"
+L.Settings.GroupColor = "Color"
+L.Settings.GroupPositioning = "Positioning"
+L.Settings.GroupDisplay = "Display"
+L.Settings.GroupCooldown = "Cooldown"
+L.Settings.GroupBar = "Bar"
+L.Settings.GroupIcon = "Icon"
+L.Settings.GroupBlock = "Block"
+
 L.Settings.NameHeading = "Name"
+L.Settings.ShowName = "Show Name"
+L.Settings.NameHoverOnly = "Show Name On Hover Only"
+L.Settings.NameStrata = "Name Strata"
+
+-- Not a strata but the absence of one: the name draws in the layer the grid is already in. Named for
+-- what it does rather than "Default", since every other entry in the list is a layer.
+L.Settings.NameStrataInherit = "Inherit"
+
 L.Settings.NameColorMode = "Name Color"
 L.Settings.NameColor = "Static Name Color"
 L.Settings.NameFont = "Name Font"
@@ -151,33 +186,53 @@ L.Settings.FillOrderCaption = "%s · wraps every %d · grows %s, %s"
 
 L.Settings.AllowGaps = "Render Empty Cells"
 L.Settings.ClearOnLeave = "Clear Roster When Leaving The Group"
+-- Says what it does to the grid rather than what it does to the list, because it is destructive: the
+-- roles picked here are taken out of the grid and kept out, not merely hidden somewhere.
+L.Settings.AutoRemoveRoles = "Automatically Remove These Roles"
 
-L.Settings.SlotsHeader = "Configured slots"
-L.Settings.RaidHeader = "Raid members"
+-- The two pane headings are read as a pair: each names the people in its own list rather than the
+-- structure behind it, and the right one is not "group members" because anyone already spotlighted is
+-- left out of it.
+L.Settings.SpotlightedHeader = "Spotlighted"
+L.Settings.UnrosteredHeader = "Unrostered"
 L.Settings.AddSpacer = "Add a spacer"
 L.Settings.NoSlots =
-"No spotlights configured yet. Add a raid member from the list beside this one, or drag one onto it."
+"No spotlights configured yet. Add a group member from the list beside this one, or drag one onto it."
 L.Settings.ClearSlots = "Clear all slots"
 L.Settings.ClearSlotsPrompt =
 "Remove every configured slot? Players and spacers alike go, and the grid starts from nothing."
 L.Settings.ClearSlotsConfirm = "Clear"
 L.Settings.BlankSlot = "(spacer)"
 L.Settings.UnknownSlot = "(empty)"
-L.Settings.NotInRaid = "not in a raid"
+L.Settings.NotInGroup = "not in a group"
 L.Settings.AllSpotlighted = "everyone is spotlighted"
+-- The third empty state, and the one the role filter above the list adds: the group has members, but
+-- none playing a role the list was told to show. Names no role itself, because which ones are shown is
+-- the user's to change and the dropdown right above says so.
+L.Settings.NoOfferedRoles = "no one in the group plays the roles this list shows"
 L.Settings.UpShort = "^"
 L.Settings.DownShort = "v"
 L.Settings.RemoveShort = "x"
 L.Settings.PlusShort = "+"
 
--- The presets block under the raid list. A preset is a slot layout and nothing else, which is what the
--- delete prompt says out loud: "delete" beside a list of slots could be read as deleting the slots.
+-- The presets block under the unrostered list. A preset is a slot layout and nothing else, which is
+-- what the delete prompt says out loud: "delete" beside a list of slots could be read as deleting the
+-- slots.
 L.Settings.PresetsHeading = "Presets"
 L.Settings.PresetsCount = "%d saved"
 L.Settings.PresetsNone = "No presets saved yet. Save the slots you have configured to start one."
+-- The dropdown with nothing picked, which is what a fresh session and a finished import both leave
+-- behind: an import fills the library without applying anything, so the block has to be able to say
+-- that the grid is nobody's preset.
+L.Settings.PresetNoneSelected = "None selected"
+
 L.Settings.PresetSave = "Save"
 L.Settings.PresetDelete = "Delete"
 L.Settings.PresetSavePrompt = "Name this preset:"
+
+-- The same dialog, asked of an imported string, which arrives with the name its author gave it: the
+-- question is whether to keep that name rather than what to call an unnamed thing.
+L.Settings.PresetImportNamePrompt = "Preset name is currently %s - do you wish to rename it?"
 L.Settings.PresetOverwritePrompt = "A preset called \"%s\" already exists. Replace it?"
 L.Settings.PresetOverwriteConfirm = "Replace"
 L.Settings.PresetDeletePrompt = "Delete the preset \"%s\"? Your configured slots are not touched."
@@ -224,6 +279,16 @@ L.Settings.AuraIconSide = "Icon Side"
 L.Settings.AuraGap = "Gap"
 L.Settings.AuraIconLeft = "Left Of The Bar"
 L.Settings.AuraIconRight = "Right Of The Bar"
+
+-- The same two stored values as above, named for a bar that fills along its height: `LEFT` is the end
+-- the labels above call left, which on a vertical bar is its top.
+L.Settings.AuraIconTop = "Above The Bar"
+L.Settings.AuraIconBottom = "Below The Bar"
+
+-- Which axis a bar's fill runs along, under the `L.Settings.Orientation` label the Grid tab also uses.
+-- Not that tab's own two choices: "Across, Then Down" is a wrapping rule and says nothing about a bar.
+L.Settings.AuraFillHorizontal = "Horizontal"
+L.Settings.AuraFillVertical = "Vertical"
 L.Settings.AuraIconWidth = "Width"
 L.Settings.AuraIconHeight = "Height"
 L.Settings.AuraShowSwipe = "Cooldown Swipe"
@@ -240,6 +305,10 @@ L.Settings.AuraBorderColor = "Border Color"
 -- header tracks the body -- and replaced outright by `AuraSummaryHidden` for a display that is off,
 -- since a size for something nothing will draw is worse than no summary at all.
 L.Settings.AuraSummary = "%d × %d · %s · %s · %s"
+
+-- The bar's own, one field longer: its fill direction goes between the size and the anchor, because a
+-- `100 × 25` that drains upward reads as a lie without it.
+L.Settings.AuraSummaryBar = "%d × %d · %s · %s · %s · %s"
 L.Settings.AuraSummaryHidden = "Hidden"
 L.Settings.AuraSummarySwipeOn = "swipe on"
 L.Settings.AuraSummarySwipeOff = "swipe off"
@@ -268,10 +337,6 @@ L.Settings.AuraGroupCount = "%d/%d"
 -- filtered list does exactly what the buttons above it say.
 L.Settings.AuraEnableAll = "Enable All"
 L.Settings.AuraDisableAll = "Disable All"
-
--- The second line of a spell row: its ID, and the client's own subtext for it where there is one -- a
--- specialisation, a rank. Most spells have none, and the row is then the ID alone.
-L.Settings.AuraSpellMeta = "%d · %s"
 
 -- What stands in for the spell pane when there is no group to show. Prescience and Shifting Sands watch
 -- one specific aura each, so there is nothing to choose; the other is a search that matched nothing.
@@ -333,7 +398,7 @@ L.DragAssign.HintDrag = "Drag %s onto a spotlight"
 L.DragAssign.HintAdd = "Add %s as slot %d"
 L.DragAssign.HintAppend = "Add %s to the end"
 L.DragAssign.HintAlready = "%s already holds slot %d"
-L.DragAssign.HintReorder = "Drag %s to a cell to reorder, or to Raid members to remove"
+L.DragAssign.HintReorder = "Drag %s to a cell to reorder, or to Unrostered to remove"
 L.DragAssign.HintMove = "Move %s to slot %d"
 L.DragAssign.HintRemove = "Remove %s"
 
@@ -352,4 +417,4 @@ L.Mover.LockedByCombat = "grid locked: entering combat"
 L.Mover.CombatRefused = "cannot move the grid in combat"
 L.Mover.Reset = "grid returned to the screen center"
 L.Registry.Unresolved = "no guid yet"
-L.Registry.ClearedOnLeave = "left the raid - roster cleared, as configured"
+L.Registry.ClearedOnLeave = "group changed - roster cleared, as configured"

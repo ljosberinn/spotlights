@@ -24,13 +24,25 @@ Private.Controls.RowHeight = ROW_HEIGHT
 --- recoverable where a 20px dropdown is not.
 local MIN_CONTROL_WIDTH = 80
 
---- Shorter than a row, so a sub-heading reads as a break between groups rather than as a control that
---- lost its widget.
-local HEADING_HEIGHT = 20
+--- A heading is its text plus a band of empty space *above* it.
+---
+--- The pad is what makes a heading read as a break: `GameFontNormalMed2` alone, at the row rhythm, is
+--- a slightly larger label in a list of labels. Sitting under twice the gap it sits over, it belongs to
+--- the group beneath rather than to the row above -- which is also the Import/Export tab's whole
+--- complaint, where the only thing above a heading is the button ending the previous block.
+---
+--- The first heading in a body pays it too, and reads as that body's top inset.
+local HEADING_TOP_PAD = 10
+local HEADING_TEXT_HEIGHT = 18
+local HEADING_HEIGHT = HEADING_TOP_PAD + HEADING_TEXT_HEIGHT
 
 --- Published alongside `RowHeight`, and for the same reason: the Roster tab fits a list into what a
 --- heading above it and the controls below it leave over.
 Private.Controls.HeadingHeight = HEADING_HEIGHT
+
+--- The white wash a hovered row or header wears. Published rather than restated in each list, because
+--- every list in the panel is meant to answer the cursor the same way and a per-file number drifts.
+Private.Controls.HighlightAlpha = 0.06
 
 --- Both templates draw their own border, and one at the full row height sits proud of the sliders beside
 --- it.
@@ -117,14 +129,21 @@ end
 ---
 --- `full` spans the row instead of taking one grid cell. The box still sits at the label column, so a
 --- full-width checkbox lines up with the half-width ones above it rather than drifting to the far edge.
+---
+--- `enabled` sits where `Slider` and `ColorSwatch` put theirs and is re-read on every `Refresh`, for the
+--- same reason: a toggle that does nothing in the current state -- Show Name On Hover Only while Show
+--- Name is off -- dims rather than hides, so the row stays put and no relayout is owed. The caption is
+--- dimmed alongside the box, since a greyed box beside a bright label reads as art rather than as a
+--- state. Whoever owns the state it gates has to refresh the tree when it changes.
 ---@param parent Frame
 ---@param label string
 ---@param get fun(): boolean
 ---@param set fun(value: boolean)
+---@param enabled (fun(): boolean)? absent means always enabled
 ---@param full boolean?
 ---@param labelWidth number?
 ---@return SpotlightsNode
-function Private.Controls.Checkbox(parent, label, get, set, full, labelWidth)
+function Private.Controls.Checkbox(parent, label, get, set, enabled, full, labelWidth)
 	local row = CreateRow(parent)
 
 	row.span = full or nil
@@ -140,6 +159,11 @@ function Private.Controls.Checkbox(parent, label, get, set, full, labelWidth)
 
 	function row:Refresh()
 		check:SetChecked(get())
+
+		local on = enabled == nil or enabled()
+
+		check:SetEnabled(on)
+		caption:SetFontObject(on and "GameFontNormal" or "GameFontDisable")
 	end
 
 	function row:Layout(width)
@@ -328,14 +352,20 @@ end
 --- are built once, on the first open of their tab, so a list passed as a table is captured then and never
 --- revisited -- silently dropping any media another addon registers afterwards. Resolved per menu-open
 --- instead, the list is as current as the media library is.
+---
+--- A `placeholder` is for the dropdowns whose `get` can legitimately return `nil`. Without one the button
+--- falls back to the template's default text, which is unset -- a blank button, which reads as a broken
+--- setting rather than as an empty selection. Said as an entry rather than through `SetDefaultText`
+--- because the *list* has the same gap: presets with none of them ticked and no line saying so.
 ---@param parent Frame
 ---@param label string? omitted for a dropdown that spans its column, where a heading above says what it picks
 ---@param choices { value: any, label: string }[] | fun(): { value: any, label: string }[]
 ---@param get fun(): any
 ---@param set fun(value: any)
 ---@param labelWidth number?
+---@param placeholder string? what the button reads while `get` returns nil
 ---@return SpotlightsNode
-function Private.Controls.Dropdown(parent, label, choices, get, set, labelWidth)
+function Private.Controls.Dropdown(parent, label, choices, get, set, labelWidth, placeholder)
 	local row = CreateRow(parent)
 
 	local caption = label and CreateLabel(row, label) or nil
@@ -345,6 +375,19 @@ function Private.Controls.Dropdown(parent, label, choices, get, set, labelWidth)
 	-- open time rather than tracked.
 	dropdown:SetupMenu(function(_, rootDescription)
 		local current = type(choices) == "function" and choices() or choices
+
+		-- Only while nothing is selected, so there is no entry to come back to once something is: it is a
+		-- name for the empty state rather than a choice, and there is no setting it answers.
+		--
+		-- Disabled and still selected: `MenuUtil.GetSelections` does not test `IsEnabled`, so the entry the
+		-- user cannot click is the one the closed button reads.
+		if placeholder and get() == nil then
+			local none = rootDescription:CreateRadio(placeholder, function()
+				return true
+			end)
+
+			none:SetEnabled(false)
+		end
 
 		for i = 1, #current do
 			local choice = current[i]
@@ -365,6 +408,81 @@ function Private.Controls.Dropdown(parent, label, choices, get, set, labelWidth)
 	--- would be overwritten the first time the menu opened, so a stale label would appear to fix itself on
 	--- click.
 	function row:Refresh()
+		dropdown:GenerateMenu()
+	end
+
+	function row:Layout(width)
+		self:SetWidth(width)
+
+		local column, control = Divide(self, width, labelWidth, caption)
+
+		dropdown:ClearAllPoints()
+		dropdown:SetPoint("LEFT", self, "LEFT", column, 0)
+		dropdown:SetWidth(control)
+
+		return ROW_HEIGHT
+	end
+
+	return row
+end
+
+--- A dropdown over a list of choices where any number may be picked at once.
+---
+--- `CreateCheckbox` rather than `CreateRadio` is the whole difference, and it is what keeps the menu open
+--- on a click: the description ships `MenuResponse.Refresh`
+--- (`Blizzard_Menu/Mainline/MenuTemplates.lua:341`), so a tick re-runs the generator in place instead of
+--- dismissing the list. Three separate opens to pick three roles is the alternative.
+---
+--- `SetSelected` is handed the new state rather than left to derive it, so a caller storing a set does
+--- not have to read its own database back to know which way the click went.
+---
+--- The button's text is derived the same way `Dropdown`'s is -- from whichever descriptions report
+--- themselves selected, joined -- so `SetDefaultText` is the only way to name the empty case. `NONE` is
+--- the game's own word for it, and every multiselect this panel grows wants the same one.
+---@param parent Frame
+---@param label string? omitted for a dropdown that spans its column, where a heading above says what it picks
+---@param choices { value: any, label: string }[] | fun(): { value: any, label: string }[]
+---@param IsSelected fun(value: any): boolean
+---@param SetSelected fun(value: any, selected: boolean)
+---@param labelWidth number?
+---@return SpotlightsNode
+function Private.Controls.MultiselectDropdown(parent, label, choices, IsSelected, SetSelected, labelWidth)
+	local row = CreateRow(parent)
+
+	local caption = label and CreateLabel(row, label) or nil
+	local dropdown = CreateFrame("DropdownButton", nil, row, "WowStyle1DropdownTemplate")
+
+	dropdown:SetDefaultText(NONE)
+
+	dropdown:SetupMenu(function(_, rootDescription)
+		local current = type(choices) == "function" and choices() or choices
+
+		for i = 1, #current do
+			local choice = current[i]
+
+			rootDescription:CreateCheckbox(choice.label, function()
+				return IsSelected(choice.value)
+			end, function()
+				SetSelected(choice.value, not IsSelected(choice.value))
+			end)
+		end
+	end)
+
+	--- Regenerating the menu, for the reason `Dropdown:Refresh` does it: the button's text is derived from
+	--- the generated descriptions, so there is nothing to `SetText`.
+	---
+	--- **Not while the menu is open**, which is the one thing separating this from `Dropdown:Refresh`: a
+	--- multiselect's setter refreshes the tab on every tick, and the tick leaves the list down. The click
+	--- already re-derives the text on its own -- a checkbox response signals an update, which walks the
+	--- descriptions the same way (`Blizzard_Menu/DropdownButton.lua:290-299`), and the responder runs before
+	--- the response is processed, so what it reads is the write that just happened. Regenerating on top of
+	--- that reinitialises the open list under the cursor for nothing. `CloseMenu` signals an update too, so
+	--- a database change from anywhere else lands on the button as the menu goes away.
+	function row:Refresh()
+		if dropdown:IsMenuOpen() then
+			return
+		end
+
 		dropdown:GenerateMenu()
 	end
 
@@ -740,10 +858,20 @@ function Private.Controls.NumberPair(parent, label, fields, labelWidth)
 	return row
 end
 
---- A sub-heading inside a section's body: the `Border` line above the four border controls.
+--- A group heading inside a body: the `Border` line above the four border controls, the `Opacity` line
+--- above the three alpha sliders.
 ---
 --- Always spans, because a heading over one of two columns names half a group and reads as a control that
---- lost its widget.
+--- lost its widget. A grid therefore gives it a row of its own and the group beneath it starts back in the
+--- left column -- so a group with an odd number of controls leaves a hole, and its members are ordered so
+--- that hole falls at the end rather than in the middle.
+---
+--- `GameFontNormalMed2` is the one step between a control's own label and a section title: 14 against
+--- `GameFontNormal`'s 12 and `GameFontNormalLarge`'s 16, all three shadowed. `GameFontNormalMed1` is 13
+--- but carries no shadow, so beside the other two it reads as a different family rather than as a level
+--- between them.
+---
+--- The text is anchored `BOTTOMLEFT` so `HEADING_TOP_PAD` falls above it.
 ---@param parent Frame
 ---@param text string | fun(): string
 ---@return SpotlightsNode
@@ -752,7 +880,7 @@ function Private.Controls.SubHeading(parent, text)
 
 	row.span = true
 
-	local heading = row:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+	local heading = row:CreateFontString(nil, "ARTWORK", "GameFontNormalMed2")
 
 	heading:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 0, 0)
 	heading:SetJustifyH("LEFT")

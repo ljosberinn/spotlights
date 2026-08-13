@@ -67,6 +67,7 @@
 ---@field SetTab fun(self: SpotlightsTabSystemFrame, tabID: integer, isUserAction: boolean?) runs the selection callback
 ---@field SetTabVisuallySelected fun(self: SpotlightsTabSystemFrame, tabID: integer) paints the selection without running the callback
 ---@field SetTabEnabled fun(self: SpotlightsTabSystemFrame, tabID: integer, enabled: boolean, errorReason: string?) greys the label and refuses the click, with the reason in the tooltip
+---@field SetTabShown fun(self: SpotlightsTabSystemFrame, tabID: integer, isShown: boolean) takes the tab out of the strip entirely, the rest closing up over it
 
 --- The reworked options window.
 ---
@@ -83,6 +84,9 @@
 
 ---@class SpotlightsNameStyle
 ---@field ApplyLayout fun(fontString: FontString, appearance: SpotlightsAppearanceConfig)
+---@field EnsureLayer fun(frame: SpotlightsUnitFrame): Frame
+---@field ApplyStrata fun(frame: SpotlightsUnitFrame, appearance: SpotlightsAppearanceConfig)
+---@field Request fun()
 
 --- One configured grid cell.
 ---
@@ -92,7 +96,7 @@
 ---@class SpotlightsSlot
 ---@field kind SlotKind
 ---@field guid string?
----@field name string? exactly as GetRaidRosterInfo spelled it — never synthesised
+---@field name string? exactly as the roster scan spelled it — never synthesised
 
 --- Saved slot layouts, by the name the user gave each one.
 ---
@@ -103,6 +107,13 @@
 --- A stored slot carries its `kind` and `name` and never a GUID: the GUID a preset saw belongs to the
 --- raid it was saved in, and applying one resolves names against the raid it is applied to.
 ---@alias SpotlightsPresets table<string, SpotlightsSlot[]>
+
+--- One preset as it travels between clients: the library's key and its value together, because a
+--- string leaving this account has no library to be keyed by. The name arrives as a suggestion the
+--- importer is shown and may overrule, not as the name it will be stored under.
+---@class SpotlightsPresetPayload
+---@field name string
+---@field slots SpotlightsSlot[]
 
 ---@class SpotlightsDB
 ---@field version integer
@@ -143,6 +154,9 @@
 ---@field healthBgColorG number
 ---@field healthBgColorB number
 ---@field healthBgColorA number
+---@field nameEnabled boolean
+---@field nameHoverOnly boolean
+---@field nameStrata FrameStrata | "INHERIT" the strata the name layer takes, or that it takes its parent's
 ---@field nameUseClassColor boolean
 ---@field nameColorR number
 ---@field nameColorG number
@@ -237,6 +251,11 @@
 ---
 --- `showIcon` puts the spell's icon inline at one end of the bar. Both it and `iconSide` are
 --- build-time: they shape regions below the aura button.
+---
+--- `orientation` is which axis the fill runs along, and `Private.Enum.Orientation` rather than a second
+--- enum of its own. Build-time as well: `SetOrientation` is a call on the status bar, which lives below
+--- the button, not on the anchor frame above it. `iconSide`'s two values name the two *ends* of the bar
+--- whichever axis that is -- `LEFT` is the top end of a vertical one.
 ---@class SpotlightsAuraBarConfig : SpotlightsAuraDisplayConfig
 ---@field texture string
 ---@field r number
@@ -244,6 +263,7 @@
 ---@field b number
 ---@field width number in pixels
 ---@field height number in pixels
+---@field orientation SpotlightsOrientation
 ---@field showIcon boolean
 ---@field iconSide "LEFT" | "RIGHT"
 
@@ -335,7 +355,9 @@
 ---@field frameWidth number
 ---@field frameHeight number
 ---@field allowGaps boolean
----@field clearOnLeave boolean wipe every configured slot on leaving a raid
+---@field clearOnLeave boolean wipe every configured slot when the kind of group changes
+---@field unrosteredRoles table<string, boolean> which roles the Unrostered list offers, keyed by the tokens `UnitGroupRolesAssigned` answers with. A display filter on that list only: nothing here decides who may be spotlighted
+---@field autoRemoveRoles table<string, boolean> which roles are kept out of the grid, keyed the same way. Destructive, unlike `unrosteredRoles`: a slot whose player plays one of these is taken out and stays out
 
 --- A header's child button. Every region is declared by our template and every method is the
 --- mixin's; nothing here comes from Blizzard but SecureUnitButtonTemplate's OnClick.
@@ -353,6 +375,8 @@
 ---@field healthBar StatusBar
 ---@field tempMaxHealthLoss StatusBar
 ---@field spotlightsAbsorbBar StatusBar?
+---@field spotlightsNameLayer Frame? the frame the name is drawn in, so `nameStrata` has something to raise
+---@field spotlightsHovered boolean? ours, from the hooked OnEnter/OnLeave — never a secret
 ---@field spotlightsAuras table<string, table<string, SpotlightsAuraDisplay>>? feature key -> display key -> display, built lazily
 ---@field OnEvent fun(self: SpotlightsUnitFrame, event: string)
 ---@field OnUnitAttributeChanged fun(self: SpotlightsUnitFrame, value: string?)
@@ -361,6 +385,7 @@
 ---@field UpdateHealthColor fun(self: SpotlightsUnitFrame)
 ---@field UpdateName fun(self: SpotlightsUnitFrame)
 ---@field UpdateNameStyle fun(self: SpotlightsUnitFrame)
+---@field UpdateNameVisibility fun(self: SpotlightsUnitFrame)
 ---@field UpdateHealthText fun(self: SpotlightsUnitFrame)
 ---@field UpdateTexture fun(self: SpotlightsUnitFrame)
 ---@field UpdateSelectionHighlight fun(self: SpotlightsUnitFrame)
@@ -453,9 +478,10 @@
 ---
 --- `button` is listed only so a diagnostic can name it. Every widget call on it from our tainted
 --- code is refused while auras are secret -- including `HasAnyAccessRestrictions`.
---- `builtHeight` is the anchor's height when the button was built. A bar's inline icon is square and
---- a region cannot be told to be as wide as it is tall, so its width was measured then; comparing
---- this against the live height tells a resize whether it invalidated that square.
+--- `builtWidth` and `builtHeight` are the anchor's rect when the button was built. A bar's inline icon
+--- is square and a region cannot be told to be as wide as it is tall, so one of the two was measured
+--- then -- the height for a horizontal bar, the width for a vertical one; comparing that axis against
+--- the live one tells a resize whether it invalidated that square.
 --- `unresolved` is the set of media keys (namespaced by type) LibSharedMedia could not resolve when
 --- the button was built, so the display wears a fallback for each. It lets a late registration
 --- rebuild only the displays it actually fixes: matching the *stored* key would instead rebuild
@@ -464,6 +490,7 @@
 ---@class SpotlightsAuraDisplay
 ---@field anchor Frame ours, unrestricted, and the only thing a settings change can reach
 ---@field container SpotlightsAuraContainer
+---@field builtWidth number
 ---@field builtHeight number
 ---@field unresolved table<string, true>
 
