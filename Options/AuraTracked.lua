@@ -442,6 +442,34 @@ local function SpellDisplay(spellID)
 		C_Spell.GetSpellTexture(spellID) or QUESTION_MARK_ICON
 end
 
+--- The client's own tooltip for a spell, anchored to whatever the cursor is actually on.
+---
+--- `ANCHOR_RIGHT` so the tooltip stands outside the list rather than over the rows under the cursor.
+---
+--- No `Show` and no guard against an ID the client has nothing for: `SetSpellByID` shows the tooltip
+--- when there is data and hides it when there is not, which is the empty-frame case already answered.
+---@param owner Frame
+---@param spellID integer?
+local function ShowSpellTooltip(owner, spellID)
+	if not spellID then
+		return
+	end
+
+	GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
+	GameTooltip:SetSpellByID(spellID)
+end
+
+--- Drops the tooltip when the frame it belongs to goes away under the cursor, which is the case
+--- `OnLeave` does not answer: the pane scrolling, the group changing, the panel closing.
+---
+--- Owner-checked rather than unconditional, since by then something else may have taken the tooltip.
+---@param self Frame
+local function HideSpellTooltip(self)
+	if GameTooltip:GetOwner() == self then
+		GameTooltip:Hide()
+	end
+end
+
 --- One spell row. Its parts are named here rather than left implicit for the reason the rail's are: a
 --- pooled frame stands for a different spell after every pass, and every one of them is re-pointed on
 --- each.
@@ -451,6 +479,7 @@ end
 ---@field meta FontString
 ---@field check CheckButton
 ---@field remove Button
+---@field spellID integer? which spell the row currently stands for
 
 --- One pooled spell row: the icon, the name over its ID, the toggle, and the remove button a custom entry
 --- gets.
@@ -523,6 +552,25 @@ local function AcquireSpellRow(list, rows, index)
 	row.meta:SetJustifyH("LEFT")
 	row.meta:SetWordWrap(false)
 
+	--- Read off the row rather than closed over, which is what lets these be set once here while the
+	--- click handlers are rebound every pass: a captured ID would be the previous spell's.
+	local function ShowRowTooltip()
+		ShowSpellTooltip(row, row.spellID)
+	end
+
+	row:SetScript("OnEnter", ShowRowTooltip)
+	row:SetScript("OnLeave", GameTooltip_Hide)
+
+	--- The toggle and the remove button sit on top of the row, so the cursor crossing onto either one
+	--- leaves the row. Both re-show the row's own tooltip, anchored to the row, so sliding across the
+	--- row keeps one tooltip in one place instead of dropping it at the checkbox's edge.
+	row.check:SetScript("OnEnter", ShowRowTooltip)
+	row.check:SetScript("OnLeave", GameTooltip_Hide)
+	row.remove:SetScript("OnEnter", ShowRowTooltip)
+	row.remove:SetScript("OnLeave", GameTooltip_Hide)
+
+	row:SetScript("OnHide", HideSpellTooltip)
+
 	rows[index] = row
 
 	return row
@@ -551,11 +599,19 @@ local function BuildSpellList(page)
 			local row = AcquireSpellRow(list, rows, i)
 			local label, meta, texture = SpellDisplay(spellID)
 
+			row.spellID = spellID
 			row.label:SetText(label)
 			row.meta:SetText(meta)
 			row.icon:SetTexture(texture)
 			row.check:SetChecked(Private.AuraSpells.IsEnabled(featureKey, spellID, custom))
 			row.remove:SetShown(custom)
+
+			-- The row can change spell under a cursor that never moved -- removing a custom entry pulls
+			-- the next one up into the row being hovered -- and no `OnEnter` fires for a frame the cursor
+			-- has not left. Re-shown here so the tooltip is never the previous spell's.
+			if GameTooltip:IsShown() and GameTooltip:GetOwner() == row then
+				ShowSpellTooltip(row, spellID)
+			end
 
 			-- Rebound on every pass rather than captured once, because the rows are pooled: a handler
 			-- closed over the spell this frame stood for last time would toggle the wrong one.
@@ -755,6 +811,34 @@ local function BuildAddSpell(page)
 	preview:SetJustifyH("LEFT")
 	preview:SetWordWrap(false)
 
+	--- What the preview currently shows, which is what its hover is a tooltip for. An upvalue rather
+	--- than a field on the frame: there is one preview, not a pool of them.
+	---@type integer?
+	local previewSpellID
+
+	--- What carries the preview's hover. The two regions above are a texture and a font string, neither
+	--- of which takes a script, so the scripts ride on a frame over them.
+	---
+	--- Sized in `ShowPreview` to what is actually drawn rather than anchored to the row's trailing edge:
+	--- the name runs to whatever length the client's translation made it, and the empty space past a short
+	--- one is not part of what the cursor is pointing at.
+	local hover = CreateFrame("Frame", nil, node)
+
+	hover:SetPoint("LEFT", icon, "LEFT", 0, 0)
+	hover:SetHeight(PREVIEW_ICON_SIZE)
+	hover:Hide()
+
+	-- Motion rather than mouse: the preview answers the cursor being over it and nothing else, so a
+	-- click still reaches whatever is behind it.
+	hover:SetMouseMotionEnabled(true)
+
+	hover:SetScript("OnEnter", function()
+		ShowSpellTooltip(hover, previewSpellID)
+	end)
+
+	hover:SetScript("OnLeave", GameTooltip_Hide)
+	hover:SetScript("OnHide", HideSpellTooltip)
+
 	---@type FunctionContainer?
 	local timer
 
@@ -767,12 +851,19 @@ local function BuildAddSpell(page)
 
 		icon:SetShown(found)
 		preview:SetShown(found)
+		hover:SetShown(found)
+
+		previewSpellID = found and spellID or nil
 
 		if found and spellID then
 			local label, _, texture = SpellDisplay(spellID)
 
 			preview:SetText(label)
 			icon:SetTexture(texture)
+
+			-- After the text, since the width is the text's: the icon, the gap the name sits past, and
+			-- the name itself.
+			hover:SetWidth(PREVIEW_ICON_SIZE + SPELL_TEXT_GAP + preview:GetStringWidth())
 		end
 	end
 

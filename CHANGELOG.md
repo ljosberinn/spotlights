@@ -35,3 +35,4 @@ v1.1.0
 - tracked spell rows show the spell ID alone, without the client's rank or specialisation subtext
 - the Roster tab's two panes are now headed Spotlighted and Unrostered
 - roster rows light up under the cursor, like the tracked spell rows do
+- hovering a tracked spell row, or the preview under the custom spell box, shows that spell's tooltip
