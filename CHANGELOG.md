@@ -28,4 +28,6 @@ v1.1.0
 - added Show Name, so a spotlight's name can be turned off
 - added Show Name On Hover Only, showing the name only while the cursor is over the frame
 - added Name Strata, so the name can be raised over an overlapping aura display
+- spotlights now render in a party, not only in a raid
+- Clear Roster When Leaving The Group now also clears when a party becomes a raid, or a raid a party
 - the options panel is taller, and the Import / Export boxes with it

@@ -7,8 +7,8 @@ Private.SlotHeader = {}
 local SENTINEL = Private.Enum.NameListSentinel
 
 --- Every attribute write on a *visible* header runs SecureGroupHeader_Update synchronously, which
---- scans the whole roster with a GetRaidRosterInfo C call per member. There is no throttle or dirty
---- flag anywhere in that file, so comparing before writing is a correctness-shaped performance rule.
+--- scans the whole roster with a C call per member. There is no throttle or dirty flag anywhere in
+--- that file, so comparing before writing is a correctness-shaped performance rule.
 ---@param header Frame
 ---@param name string
 ---@param value any
@@ -34,7 +34,8 @@ end
 ---
 --- groupFilter and roleFilter must stay nil, and nameList must never *become* nil: with all three
 --- unset, SecureGroupHeader_Update falls back to groupFilter "1,2,3,4,5,6,7,8" and renders the
---- entire raid into this one slot. Blank slots get the sentinel.
+--- entire group into this one slot -- a party included, since every party member reports subgroup 1.
+--- Blank slots get the sentinel.
 ---@param header Frame
 ---@param nameList string?
 ---@param width number
@@ -45,6 +46,15 @@ function Private.SlotHeader.ApplyAttributes(header, nameList, width, height)
 	SetAttributeIfChanged(header, "sortMethod", "NAMELIST")
 	SetAttributeIfChanged(header, "point", "TOPLEFT")
 	SetAttributeIfChanged(header, "initialConfigFunction", BuildInitialConfig(width, height))
+
+	-- The template brings `showRaid`; this is the other half of "any group we render for". The two do
+	-- not overlap -- GetGroupHeaderType tests the raid first (SecureGroupHeaders.lua:266-272), so a raid
+	-- is still a `RAID` header and only a party reaches the `PARTY` branch.
+	--
+	-- `showPlayer` and `showSolo` stay unset -- nil is falsy there -- which makes the party walk start
+	-- at index 1 rather than 0, so the player is never a spotlight, and leaves a solo player with no
+	-- kind at all.
+	SetAttributeIfChanged(header, "showParty", true)
 
 	-- No `auraContainerTemplate`, deliberately. The attribute makes SecureGroupHeaders.lua:111-112
 	-- build exactly **one** container per child, parented straight to the unit button -- wrong twice
@@ -171,9 +181,9 @@ end
 ---@param height number
 ---@return Frame
 local function CreateHeader(index, parent, nameList, width, height)
-	-- SecureRaidGroupHeaderTemplate is SecureGroupHeaderTemplate plus showRaid = true, so raid-only
-	-- gating is free: GetGroupHeaderType returns no kind outside a raid and the child hides itself.
-	-- showParty and showSolo stay unset -- nil is falsy there.
+	-- SecureRaidGroupHeaderTemplate is SecureGroupHeaderTemplate plus showRaid = true, which is one of
+	-- the two kinds we want; ApplyAttributes adds `showParty` for the other. Outside a group
+	-- GetGroupHeaderType returns no kind at all and the child hides itself, so solo needs no gating.
 	local header = CreateFrame(
 		"Frame",
 		"SpotlightsSlotHeader" .. index,
@@ -195,7 +205,7 @@ end
 ---
 --- Creating a header while the container is hidden does **not** create a child: OnShow runs
 --- SecureGroupHeader_Update, and a header inside a hidden container never fires it. So a spotlight
---- built while out of a raid has no child1 at Create time; the child appears later when the state
+--- built while out of a group has no child1 at Create time; the child appears later when the state
 --- driver shows the container -- by which point nothing would have applied the config, hidden the
 --- unused regions, or installed the attribute mirror. The frame renders unstyled and `unit` is never
 --- mirrored, which makes UnitFrame_UpdateTooltip pass nil to C_TooltipInfo.GetUnit.

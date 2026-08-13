@@ -11,7 +11,12 @@ local container
 
 --- The container's normal visibility condition. Named because `SetPreviewing` swaps it out and has
 --- to put back exactly this string; two copies of a macro condition that must agree is fragile.
-local VISIBILITY_CONDITION = "[group:raid] show; hide"
+---
+--- Bare `[group]` is `[group:party]`, which is true in a party *and* in a raid -- the same set the
+--- headers render for now that they carry `showParty` beside the template's `showRaid`. Solo is
+--- excluded, deliberately: no header resolves a kind outside a group, so a shown container would hold
+--- nothing but empty frames.
+local VISIBILITY_CONDITION = "[group] show; hide"
 
 --- The anchor frame every slot header hangs off. A plain Frame of ours, created unprotected -- but
 --- it does **not stay** that way, and code that mutates it must not assume otherwise.
@@ -47,10 +52,10 @@ function Private.Container.Get()
 
 	-- Visibility goes to the secure state driver rather than our own Show/Hide, for two reasons.
 	-- The cheap one: SecureGroupHeader_OnEvent early-outs entirely when the header is not visible,
-	-- so hiding this collapses every header's roster scan to nothing when we are not in a raid.
+	-- so hiding this collapses every header's roster scan to nothing when we are not in a group.
 	--
 	-- The load-bearing one: the driver performs the show from inside the restricted environment, so
-	-- each header's OnShow -- which *is* SecureGroupHeader_Update -- runs untainted. Joining a raid
+	-- each header's OnShow -- which *is* SecureGroupHeader_Update -- runs untainted. Joining a group
 	-- mid-combat therefore populates the frames immediately instead of waiting for the next roster
 	-- event.
 	--
@@ -64,15 +69,15 @@ end
 
 --- Takes the container's visibility over for the duration of a preview, and gives it back.
 ---
---- The state driver above is keyed on `[group:raid]`, so outside a raid the container is hidden and
---- no preview inside it can be seen. `Show()` is not the answer (see `Get`): the next driver
---- evaluation overrides it, and a driver evaluates on far more than group changes.
+--- The state driver above is keyed on `[group]`, so outside a group the container is hidden and no
+--- preview inside it can be seen. `Show()` is not the answer (see `Get`): the next driver evaluation
+--- overrides it, and a driver evaluates on far more than group changes.
 ---
 --- So the driver's *condition* is what changes -- the "take manual control" case `Get` anticipates.
 --- Re-registering replaces the previous registration rather than stacking, and restoring the
 --- original string is a plain re-register with no cleanup.
 ---
---- The unconditional `show` is deliberately not `[group:raid] show; show`: an unconditional driver
+--- The unconditional `show` is deliberately not `[group] show; show`: an unconditional driver
 --- is the honest expression of "visible regardless".
 ---
 --- Out of combat only. `RegisterStateDriver` errors under lockdown (`SecureHandlers.lua:435`). Both

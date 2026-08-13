@@ -746,7 +746,7 @@ function SpotlightsUnitFrameMixin:OnUnitAttributeChanged(value)
 	self.displayedUnit = value
 
 	-- Above the nil branch so it is told about a released unit too, and the aura container is not
-	-- left watching someone who has left the raid.
+	-- left watching someone who has left the group.
 	Private.Auras.OnUnitChanged(self, value)
 
 	if value == nil then

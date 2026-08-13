@@ -238,7 +238,7 @@ local function BuildSlotList(page, rows)
 	return list
 end
 
---- The raid members not already in the grid, one row each.
+--- The group members not already in the grid, one row each.
 ---
 --- `+` appends, which is the fast path when the cell does not matter; dragging a row is what puts
 --- someone in a *particular* cell.
@@ -443,7 +443,7 @@ local function BuildRoster(page)
 		local _, count = Private.RosterList.Available()
 
 		-- The two empty states say which one this is: nobody to list, or nobody left to list.
-		return count == 0 and L.NotInRaid or L.AllSpotlighted
+		return count == 0 and L.NotInGroup or L.AllSpotlighted
 	end, function()
 		local available = Private.RosterList.Available()
 

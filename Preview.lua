@@ -6,7 +6,7 @@ Private.Preview = {}
 
 --- Stand-in frames for the cells the secure headers cannot fill.
 ---
---- Why they must exist: outside a raid, `GetGroupHeaderType` returns no kind, so
+--- Why they must exist: outside a group, `GetGroupHeaderType` returns no kind, so
 --- `SecureGroupHeader_Update` calls `configureChildren` with an empty table and every child hides
 --- itself (`SecureGroupHeaders.lua:404-408`). No attribute overrides that -- the header's contract
 --- is to show real units -- so a preview cannot be a spotlight with fake data; it must be a
@@ -250,7 +250,7 @@ function Private.Preview.Place(index, point, x, y, config, slot)
 
 	-- Occupancy is decided by the header's *child*, and by `IsVisible` rather than `IsShown`. The
 	-- header is `Show()`n at creation and stays so forever, so `header:IsShown()` is true even out
-	-- of a raid with nothing rendered -- testing it would hide every preview in the case previews
+	-- of a group with nothing rendered -- testing it would hide every preview in the case previews
 	-- exist for. The child is what the secure update shows and hides, and `IsVisible` walks the
 	-- parent chain, so it answers whether there is a live spotlight in this cell right now.
 	local header = Private.SlotHeader.Get(index)
@@ -277,9 +277,9 @@ end
 
 --- The cell whose preview is under the cursor, or nil.
 ---
---- The drop target for a cell nobody is in yet, which out of a raid is every cell -- so while the
+--- The drop target for a cell nobody is in yet, which out of a group is every cell -- so while the
 --- mover is unlocked this is the only thing answering, and it makes the grid assignable before a
---- raid exists.
+--- group exists.
 ---
 --- This index needs no compaction lookup: `Place` fills preview *i* from `slots[i]`, so the index
 --- already is a slot number.
@@ -317,9 +317,9 @@ end
 function Private.Preview.SetShown(value)
 	shown = value
 
-	-- The container's visibility is a secure state driver keyed on `[group:raid]`, so showing
-	-- previews outside a raid means taking that condition over for the duration. Container owns the
-	-- detail; this just says when.
+	-- The container's visibility is a secure state driver keyed on `[group]`, so showing previews
+	-- outside a group means taking that condition over for the duration. Container owns the detail;
+	-- this just says when.
 	Private.Container.SetPreviewing(value)
 
 	if value then

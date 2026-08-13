@@ -153,5 +153,5 @@ end
 
 --- A name no player can hold, used as the `nameList` value for blank and retired slots. Never
 --- leave `nameList` nil: with `groupFilter` and `roleFilter` also nil, SecureGroupHeader_Update
---- falls back to groupFilter "1,2,3,4,5,6,7,8" and renders the entire raid into one slot.
+--- falls back to groupFilter "1,2,3,4,5,6,7,8" and renders the entire group into one slot.
 Private.Enum.NameListSentinel = "\1"

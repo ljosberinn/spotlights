@@ -2089,11 +2089,14 @@ end
 --- switched off"; comparing to the base survives a change to either icon, because the mechanism being
 --- tested is that they *differ*.
 local function CheckSensePower()
-	-- Raid-gated at the one point every path passes through. The loading-screen and roster triggers
+	-- Group-gated at the one point every path passes through. The loading-screen and roster triggers
 	-- guard themselves, but the specialisation-change event and the display toggle in `SetSetting`
-	-- reach here directly -- so a respec or switch-on outside a raid would prompt about displays that
-	-- only run on raid-group spotlights.
-	if not IsInRaid() then
+	-- reach here directly -- so a respec or switch-on outside a group would prompt about displays that
+	-- have no spotlight to draw on.
+	--
+	-- A group rather than a raid, because that is where the headers render: a party spotlight runs a
+	-- Sense Power display exactly as a raid one does, so a party is a place the prompt is worth making.
+	if not IsInGroup() then
 		return
 	end
 
@@ -2140,30 +2143,33 @@ local function ScheduleSensePowerCheck()
 	C_Timer.After(TOGGLE_CHECK_DELAY, CheckSensePower)
 end
 
---- Whether the player was in a raid the last time the roster changed.
+--- Whether the player was in a group the last time the roster changed.
 ---
 --- What makes `GROUP_ROSTER_UPDATE` usable here. That event fires on every roster change — a join, a
---- leave, a role swap, a zone-in — and only the *edge* into a raid is worth acting on. Without the
+--- leave, a role swap, a zone-in — and only the *edge* into a group is worth acting on. Without the
 --- previous value there is no edge, and the check would run on every roster event.
-local wasInRaid = false
+local wasInGroup = false
 
 -- Four moments where the answer can have changed without us asking.
 --
--- Arriving somewhere, but only into a raid. A loading screen is the most frequent event here by a
--- wide margin — every portal, every instance, every flight path — and Sense Power being off in the
--- open world is not a problem anyone has.
+-- Arriving somewhere, but only into a group. A loading screen is the most frequent event here by a
+-- wide margin — every portal, every instance, every flight path — and Sense Power being off while
+-- solo is not a problem anyone has.
 Private.Events.RegisterEvent("LOADING_SCREEN_DISABLED", ScheduleSensePowerCheck)
 
--- The party that becomes a raid, which the loading-screen trigger cannot see: no screen is involved,
--- and the group simply changes kind underneath the player.
+-- Joining a group, which the loading-screen trigger cannot see: no screen is involved, and the group
+-- simply forms around the player.
 --
--- This also covers logging straight into a raid, where `IsInRaid` is still false when the loading
+-- This also covers logging straight into one, where `IsInGroup` is still false when the loading
 -- screen lifts because group information has not arrived yet. The edge fires when it does.
+--
+-- A party becoming a raid is deliberately *not* an edge: the player was already in a group, so the
+-- prompt has already been made or already been suppressed by the same conditions.
 Private.Events.RegisterEvent("GROUP_ROSTER_UPDATE", function()
-	local inRaid = IsInRaid()
-	local entered = inRaid and not wasInRaid
+	local inGroup = IsInGroup()
+	local entered = inGroup and not wasInGroup
 
-	wasInRaid = inRaid
+	wasInGroup = inGroup
 
 	if entered then
 		ScheduleSensePowerCheck()
@@ -2171,7 +2177,7 @@ Private.Events.RegisterEvent("GROUP_ROSTER_UPDATE", function()
 end)
 
 -- Changing specialisation. Rare, deliberate, the moment a player *becomes* the specialisation this
--- matters to -- but the raid gate still applies, enforced inside `CheckSensePower`.
+-- matters to -- but the group gate still applies, enforced inside `CheckSensePower`.
 Private.Events.RegisterEvent("PLAYER_SPECIALIZATION_CHANGED", function(unit)
 	if unit ~= "player" then
 		return
@@ -2236,7 +2242,7 @@ function Private.Auras.SetSetting(featureKey, displayKey, field, value)
 
 	-- Switching a Sense Power display on is the moment to find out Sense Power itself is off. Either
 	-- display counts: the toggle gates the aura, not the shape it is drawn in. `CheckSensePower` still
-	-- applies the raid gate, so a switch-on outside a raid stays silent. Only ever a false-to-true
+	-- applies the group gate, so a switch-on outside a group stays silent. Only ever a false-to-true
 	-- transition, which falls out of the unchanged-value early-out above.
 	if featureKey == SENSE_POWER_KEY and field == "enabled" and value then
 		CheckSensePower()

@@ -4,9 +4,9 @@ local _, Private = ...
 ---@class SpotlightsRoster
 Private.Roster = {}
 
---- guid -> the exact name GetRaidRosterInfo returned; never a reconstruction. SecureGroupHeaders
---- indexes its tokenTable by that value (SecureGroupHeaders.lua:293, :479-486): bare name
---- same-realm, Name-Realm cross-realm.
+--- guid -> the exact name `GetGroupRosterInfo` would have produced for that member; never a
+--- reconstruction. SecureGroupHeaders indexes its tokenTable by that value
+--- (SecureGroupHeaders.lua:293, :298-304, :479-486): bare name same-realm, Name-Realm cross-realm.
 ---@type table<string, string>
 local nameByGuid = {}
 
@@ -22,8 +22,72 @@ local classByGuid = {}
 local scanned = 0
 local skipped = 0
 
---- Rescans the raid. Plain table work, so legal in combat and cheap enough to run on every roster
+--- Records one member, or counts them as skipped.
+---
+--- Shared by both scans because the guarding is the whole substance of either: issecretvalue before
+--- the nil checks, since comparing a secret is itself an error. Name and GUID are secret only when
+--- unit identity is restricted, which means rated PvP -- for party members exactly as for raid ones.
+--- Counting skips rather than erroring turns that into a reportable state -- see GetStats.
+---@param name string?
+---@param guid string?
+---@param class string?
+---@param secret boolean? identity restricted upstream, where the caller composed the name
+local function Record(name, guid, class, secret)
+	if secret or issecretvalue(name) or issecretvalue(guid) then
+		skipped = skipped + 1
+
+		return
+	end
+
+	if not name or not guid then
+		return
+	end
+
+	nameByGuid[guid] = name
+	guidByName[name] = guid
+
+	-- Guarded separately: a secret class costs a colour, not a slot.
+	if not issecretvalue(class) and class then
+		classByGuid[guid] = class
+	end
+
+	scanned = scanned + 1
+end
+
+--- The name and class of one party member, composed the way `GetGroupRosterInfo` composes them for a
+--- `PARTY` header (SecureGroupHeaders.lua:298-305) -- `UnitName`, suffixed with `-realm` only when
+--- the realm is non-empty. Anything else and the header's nameList match finds nothing.
+---
+--- `player` is deliberately unreachable from here: the header walks index 0 only with `showPlayer`
+--- set, and it is not, so offering the player as assignable would offer a name nothing can match.
+---@param unit string
+---@return string? name, string? class, boolean? secret
+local function PartyMember(unit)
+	local name, realm = UnitName(unit)
+
+	-- The realm is *part of* the name here, unlike the class, so a secret realm makes the name
+	-- unusable rather than merely uncoloured: storing the bare name would match a same-realm
+	-- stranger. Reported rather than composed, so Record counts it as the skip it is.
+	if issecretvalue(realm) then
+		return nil, nil, true
+	end
+
+	if name and not issecretvalue(name) and realm and realm ~= "" then
+		name = name .. "-" .. realm
+	end
+
+	-- Second return is the English class token; the first is localised and would key nothing.
+	local _, class = UnitClass(unit)
+
+	return name, class
+end
+
+--- Rescans the group. Plain table work, so legal in combat and cheap enough to run on every roster
 --- event -- which lets a build blocked by combat run as one pass once combat ends.
+---
+--- The two branches mirror `GetGroupHeaderType` (SecureGroupHeaders.lua:261-287): a raid wins over a
+--- party for the same group, and the party walk stops at `GetNumSubgroupMembers`, which excludes the
+--- player. Solo scans nothing, because no header renders solo.
 function Private.Roster.Rebuild()
 	table.wipe(nameByGuid)
 	table.wipe(guidByName)
@@ -32,36 +96,36 @@ function Private.Roster.Rebuild()
 	scanned = 0
 	skipped = 0
 
-	if not IsInRaid() then
+	if IsInRaid() then
+		for i = 1, GetNumGroupMembers() do
+			-- Sixth return is `fileName`, the English class token -- not the fifth, which is the
+			-- localised class name and would key nothing.
+			local name, _, _, _, _, class = GetRaidRosterInfo(i)
+
+			Record(name, UnitGUID("raid" .. i), class)
+		end
+
 		return
 	end
 
-	for i = 1, GetNumGroupMembers() do
-		-- Sixth return is `fileName`, the English class token -- not the fifth, which is the
-		-- localised class name and would key nothing.
-		local name, _, _, _, _, class = GetRaidRosterInfo(i)
-		local guid = UnitGUID("raid" .. i)
+	if not IsInGroup() then
+		return
+	end
 
-		-- issecretvalue before the nil checks: comparing a secret is itself an error. Both are
-		-- secret only when unit identity is restricted, which for raid members means rated PvP.
-		-- Counting skips rather than erroring turns that into a reportable state -- see GetStats.
-		if issecretvalue(name) or issecretvalue(guid) then
-			skipped = skipped + 1
-		elseif name and guid then
-			nameByGuid[guid] = name
-			guidByName[name] = guid
+	for i = 1, GetNumSubgroupMembers() do
+		local unit = "party" .. i
 
-			-- Guarded separately: a secret class costs a colour, not a slot.
-			if not issecretvalue(class) and class then
-				classByGuid[guid] = class
-			end
+		-- Mirrors the existence check the secure side makes before reading a party unit
+		-- (SecureGroupHeaders.lua:300). GetNumSubgroupMembers is not a promise every index resolves.
+		if UnitExists(unit) then
+			local name, class, secret = PartyMember(unit)
 
-			scanned = scanned + 1
+			Record(name, UnitGUID(unit), class, secret)
 		end
 	end
 end
 
---- The name for a GUID, and whether it came from the raid roster.
+--- The name for a GUID, and whether it came from the group roster.
 ---
 --- Only a roster-sourced name may be written back into a slot: GetPlayerInfoByGUID returns name and
 --- realm separately, so rebuilding `Name-Realm` from them is a synthesis the header will not match.
@@ -156,7 +220,7 @@ end
 --- Resolves free-typed input to the exact name the header will match against.
 ---
 --- Case-insensitive, and matches the bare name of a cross-realm member, so `/spotlights add bob`
---- finds `Bob-Silvermoon`. What gets stored is always the roster's own spelling.
+--- finds `Bob-Silvermoon`. What gets stored is always the scan's own spelling.
 ---@param input string
 ---@return string? name, string? guid
 function Private.Roster.Resolve(input)
@@ -174,7 +238,7 @@ function Private.Roster.Resolve(input)
 		end
 	end
 
-	-- Second pass so an exact match wins: with both `Bob` and `Bob-Silvermoon` in the raid,
+	-- Second pass so an exact match wins: with both `Bob` and `Bob-Silvermoon` in the group,
 	-- `/spotlights add bob` must mean the former.
 	for name, guid in pairs(guidByName) do
 		local bare = string.match(name, "^([^%-]+)")
@@ -187,7 +251,7 @@ function Private.Roster.Resolve(input)
 	return nil
 end
 
---- Every scanned raid member as `{ guid, name }`, sorted by name.
+--- Every scanned group member as `{ guid, name }`, sorted by name.
 ---
 --- A sorted copy rather than the live map: a hash-order list of thirty names reshuffles on every
 --- rebuild and becomes unusable to click in.

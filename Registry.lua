@@ -382,13 +382,13 @@ local function Assign(guid, name, index)
 	return true, nil, target
 end
 
---- Assigns by name, resolving the GUID if the player is in the raid.
+--- Assigns by name, resolving the GUID if the player is in the group.
 ---
 --- A name with no GUID behind it is a legitimate state, not a failure: GetPlayerInfoByGUID only
 --- goes GUID to name, so there is no way to obtain a GUID for someone not currently in the group.
 --- The slot works regardless -- the name is what the header matches on -- and SelfHeal fills the
 --- GUID in the first time they appear.
----@param name string exactly as GetRaidRosterInfo spells it
+---@param name string exactly as the roster scan spells it
 ---@param index integer?
 ---@return boolean ok, string? reason, integer? assignedTo
 function Private.Registry.AssignByName(name, index)
@@ -401,7 +401,7 @@ end
 ---
 --- Refuses when only the client name cache knows the name, rather than storing a reassembled
 --- `Name-Realm` the header would fail to match. Every front-end that produces a GUID sources it from
---- the current raid, so this rejection should be unreachable -- hence loud rather than silent.
+--- the current group, so this rejection should be unreachable -- hence loud rather than silent.
 ---@param guid string
 ---@param index integer?
 ---@return boolean ok, string? reason, integer? assignedTo
@@ -458,7 +458,7 @@ end
 
 --- Empties the grid: every player and every spacer.
 ---
---- Spacers go too, on the same grounds the leave-the-raid clear takes them: a grid with its players
+--- Spacers go too, on the same grounds the leave-the-group clear takes them: a grid with its players
 --- gone but its holes kept is not cleared, and the shape is a handful of clicks to lay out again.
 ---
 --- Answers false on an already-empty grid rather than applying, so a caller can tell "nothing to do"
@@ -545,7 +545,7 @@ end
 --- sentinel and back.
 ---
 --- Exposed as `/spotlights rescan` and deliberately wired to no event. It is the recovery path for
---- one unproven case: a spotlighted player who leaves and rejoins the raid while in combat, if the
+--- one unproven case: a spotlighted player who leaves and rejoins the group while in combat, if the
 --- header's own scan does not pick them up. Wire it to PLAYER_REGEN_ENABLED only once that is known
 --- to happen -- an unconditional bounce costs two full roster scans per slot and defeats the diff
 --- guard the whole cost model rests on.
@@ -593,17 +593,34 @@ end
 Private.Events.RegisterHandler(DeferralKey.Build, Build)
 Private.Events.RegisterHandler(DeferralKey.Registry, Refresh)
 
---- Whether the player was in a raid the last time the group changed.
+--- Which kind of group the player was in the last time the roster changed.
 ---
---- What makes this setting safe, and the reason it is a remembered edge rather than a test of
---- `IsInRaid`. A bare "not in a raid, so clear" would fire on the `PLAYER_ENTERING_WORLD` below and
+--- A kind rather than a boolean because one set of slots serves both party and raid, and the two are
+--- different lists in practice -- so converting between them is a leave as much as disbanding is.
+---@return "none"|"party"|"raid"
+local function GroupKind()
+	if IsInRaid() then
+		return "raid"
+	end
+
+	if IsInGroup() then
+		return "party"
+	end
+
+	return "none"
+end
+
+--- What makes this setting safe, and the reason it is a remembered edge rather than a live test of
+--- `GroupKind`. A bare "not in a group, so clear" would fire on the `PLAYER_ENTERING_WORLD` below and
 --- wipe the user's entire configuration on every login, reload and reconnect.
 ---
---- Starting false is correct: a session that begins outside a raid has not left one, and a session
---- that begins inside one sees its first roster event as an arrival.
-local wasInRaid = false
+--- Starting at `none` is correct: a session that begins outside a group has not left one, and a
+--- session that begins inside one sees its first roster event as an arrival.
+---@type "none"|"party"|"raid"
+local lastGroupKind = "none"
 
---- Wipes every configured slot when the player leaves a raid, if the setting says to.
+--- Wipes every configured slot when the kind of group the player is in changes, if the setting says
+--- to. Leaving, and converting in either direction, all count; arriving from nothing does not.
 ---
 --- Everything, including spacers. The setting says "clear the roster" and a grid with its players
 --- gone but its holes kept is not cleared; anyone who wants the shape back has the mover and an
@@ -616,10 +633,10 @@ local wasInRaid = false
 --- from data loss.
 ---@return boolean cleared
 local function ClearOnLeave()
-	local inRaid = IsInRaid()
-	local left = wasInRaid and not inRaid
+	local kind = GroupKind()
+	local left = lastGroupKind ~= "none" and kind ~= lastGroupKind
 
-	wasInRaid = inRaid
+	lastGroupKind = kind
 
 	if not left then
 		return false

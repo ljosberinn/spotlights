@@ -347,7 +347,7 @@ function Private.FillOrder.Build(page)
 end
 
 --- The pane reads the *configured* slot count, which can shrink on its own -- `ClearOnLeave` wipes
---- it when the raid disbands -- so this is the second tab (after the roster list) that goes stale
+--- it when the group changes kind -- so this is the second tab (after the roster list) that goes stale
 --- without the user touching anything.
 Private.Events.RegisterEvent("GROUP_ROSTER_UPDATE", function()
 	Private.Options.Refresh()

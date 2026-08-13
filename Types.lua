@@ -95,7 +95,7 @@
 ---@class SpotlightsSlot
 ---@field kind SlotKind
 ---@field guid string?
----@field name string? exactly as GetRaidRosterInfo spelled it — never synthesised
+---@field name string? exactly as the roster scan spelled it — never synthesised
 
 --- Saved slot layouts, by the name the user gave each one.
 ---
@@ -341,7 +341,7 @@
 ---@field frameWidth number
 ---@field frameHeight number
 ---@field allowGaps boolean
----@field clearOnLeave boolean wipe every configured slot on leaving a raid
+---@field clearOnLeave boolean wipe every configured slot when the kind of group changes
 
 --- A header's child button. Every region is declared by our template and every method is the
 --- mixin's; nothing here comes from Blizzard but SecureUnitButtonTemplate's OnClick.
