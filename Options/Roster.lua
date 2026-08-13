@@ -45,6 +45,12 @@ local ARROW_SCALE = 1.5
 --- time by whoever was clicked, and a second key would stack a second identical prompt.
 local CLEAR_POPUP = "SPOTLIGHTS_ROSTER_CLEAR"
 
+--- How often the tab may rebuild itself, in seconds.
+---
+--- A repaint is not what the user is waiting on -- they are reading a list that is still changing -- so
+--- the interval is set by how long a stale list is tolerable rather than by what the rebuild costs.
+local REFRESH_INTERVAL = 1
+
 --- The three roles, in the order the game lists them. Both dropdowns on this tab pick from them: the
 --- one narrowing the Unrostered list, and the one keeping roles out of the grid.
 ---
@@ -566,15 +572,27 @@ local function BuildRoster(page)
 
 	--- The one tab that goes stale on its own; everything else changes only when the user changes it.
 	---
-	--- Guarded on the page rather than on the panel, so a roster event while the user is on Appearance
-	--- costs nothing -- the tab is refreshed on selection anyway.
-	---
 	--- Two events, because a row states two things: who is in the group, and what they are. Only the
 	--- first is a membership change; a role check finishing or a member picking a role fires
 	--- PLAYER_ROLES_ASSIGNED and nothing else, so the role column stays blank without it.
+	---
+	--- Throttled rather than immediate because a raid forming fires one roster event per member, and each
+	--- one rebuilds both lists whole -- the panes are deliberately not diffed.
+	---
+	--- Both events share one window, so a role check -- which fires both -- costs one rebuild rather than
+	--- two. Two windows would allow two rebuilds a second, which is the thing being avoided.
+	---
+	--- Only this panel's repaint is throttled. The model scan, the grid's own enforcement and the aura
+	--- side all still take the event itself, so nothing reads a roster a second stale.
+	local Repaint = Private.Events.Throttled(REFRESH_INTERVAL, Private.Options.Refresh)
+
+	--- Guarded on the page rather than on the panel, so a roster event while the user is on Appearance
+	--- schedules nothing -- the tab is refreshed on selection anyway. The test wraps the throttle rather
+	--- than sitting inside it for that reason; a trailing call can still land just after the page is
+	--- hidden, which costs one refresh of a hidden panel.
 	local function RefreshIfVisible()
 		if page:IsVisible() then
-			Private.Options.Refresh()
+			Repaint()
 		end
 	end
 

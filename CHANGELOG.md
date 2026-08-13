@@ -40,3 +40,4 @@ v1.1.0
 - the Roster tab's role icons now appear as soon as roles are assigned, instead of waiting on a group change
 - the Unrostered list can now be narrowed to chosen roles, and ships showing damage dealers only
 - roles can now be set to be removed from the grid automatically, keeping tanks or healers out of every preset and every add
+- the Roster tab's lists no longer flicker while a raid fills, repainting at most once a second
