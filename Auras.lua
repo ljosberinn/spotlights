@@ -100,6 +100,7 @@ local COOLDOWNS = {
 		[42650] = true, -- Army of the Dead, MISSING in-game
 		[51271] = true, -- Pillar of Frost
 		[1235391] = true, -- Dark Transformation
+		[1249658] = true, -- Breath of Sindragosa, MISSING in-game
 	},
 	[Constants.UICharacterClasses.Shaman] = {
 		[114051] = true, -- Ascendance
