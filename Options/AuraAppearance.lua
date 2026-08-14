@@ -148,8 +148,12 @@ end
 --- are a formatting of the fields just written, and the preview pane inside each body.
 ---
 --- Deliberately not `Options.Refresh`. A colour picker fires on every frame of a drag, and a whole-tree
---- refresh would regenerate every dropdown's menu with it -- while nothing written from a control can
---- change what is shown or how tall anything is, so there is nothing to lay out either.
+--- refresh would regenerate every dropdown's menu with it, for a write that can change neither what is
+--- shown nor what any control reads.
+---
+--- It does re-evaluate the combined pane's `OnlyWhen`, so a write that crosses the one-versus-two
+--- boundary changes a section's height from in here -- which is why `EnabledSetter` follows this with a
+--- layout pass and the other setters do not.
 local function RefreshSections()
 	for i = 1, #sections do
 		sections[i]:RefreshHeader()
@@ -195,6 +199,25 @@ end
 local function Setter(displayKey, field)
 	return function(value)
 		SetAura(displayKey, field, value)
+	end
+end
+
+--- Writes a display's switch, then lays the tab out again.
+---
+--- The one field on this tab whose write can change how tall a section is: the combined pane below each
+--- section's own appears at two enabled displays and goes at one, and `SetAura`'s `RefreshSections` is
+--- what re-evaluates that predicate. Without a pass after it the section keeps the height it had, which
+--- is the hole the tree's `Refresh`-before-`Layout` order exists to prevent.
+---
+--- `Relayout` rather than the `Refresh` the two setters below use: nothing here shows a value that has
+--- changed, and a refresh from a write regenerates every dropdown's menu and re-reads an edit in
+--- progress out from under the user.
+---@param displayKey SpotlightsAuraDisplayKey
+---@return fun(value: any)
+local function EnabledSetter(displayKey)
+	return function(value)
+		SetAura(displayKey, "enabled", value)
+		Private.Node.Relayout()
 	end
 end
 
@@ -387,21 +410,65 @@ local function Full(node)
 	return node
 end
 
+--- How many of the selected category's displays are both drawn and switched on.
+---
+--- Counted through `HasDisplay` rather than over the four `enabled` flags: every feature stores a block
+--- for all four kinds whatever it renders, nothing stops those blocks being written, and a profile import
+--- arrives with whatever the exporter had. A flag on a kind the category never draws must not count.
+---@return integer
+local function EnabledDisplayCount()
+	local featureKey = ActiveFeature()
+	local count = 0
+
+	for i = 1, #SECTION_DISPLAY_KEYS do
+		local displayKey = SECTION_DISPLAY_KEYS[i]
+
+		if Private.Auras.HasDisplay(featureKey, displayKey) and Display(displayKey).enabled then
+			count = count + 1
+		end
+	end
+
+	return count
+end
+
+--- How tall the combined pane's stage is, against the shared 96.
+---
+--- 55px of room either side of a default 100 × 50 spotlight, where the shared height leaves 23 -- enough
+--- for a 25px status bar lifted clear above the frame with a gap and a countdown below it, which is the
+--- one thing this pane exists to show. Y is the axis that clips first at every frame size near the
+--- default, and it is the axis two displays are separated along.
+---
+--- X is not fixed and cannot be: `PreviewPane.Width` is what the `Split` pins against, so widening this
+--- pane alone re-flows every section's control grid. Past roughly ±37 an X offset leaves the pane.
+local COMBINED_STAGE_HEIGHT = 160
+
 --- The pane beside one section's controls: the Appearance tab's mini spotlight, with that section's
---- display -- and only that one -- hung off it.
+--- display -- and only that one -- hung off it. A nil `displayKey` is the combined pane below it, which
+--- takes every kind the category draws on one shared spotlight.
+---
+--- One builder for both, because the per-category cache, the stale-set hiding on a category change and
+--- the `panes` registration are the same for either and have to stay the same.
 ---
 --- Records are built per category and kept rather than rebuilt on every switch. A preview bakes the spell
 --- it is about into its icon when it is created, so a category change needs new ones; frames cannot be
 --- destroyed, so building a set per switch would strand one per click of the strip. Five categories is
 --- the whole of what can ever be kept.
 ---@param page Frame
----@param displayKey SpotlightsAuraDisplayKey
+---@param displayKey SpotlightsAuraDisplayKey? every kind the category draws, when omitted
+---@param options { heading: string?, CaptionText: (string | fun(): string)?, stageHeight: number? }?
 ---@return SpotlightsPreviewPaneNode
-local function BuildPreview(page, displayKey)
+local function BuildPreview(page, displayKey, options)
 	-- Read here rather than at file scope: this file is loaded before the player exists, and the panel
 	-- is not built until a tab is first selected.
 	local _, class = UnitClass("player")
-	local pane = Private.PreviewPane.Build(page, nil, class)
+
+	local pane = Private.PreviewPane.Build(page, {
+		class = class,
+		heading = options and options.heading,
+		CaptionText = options and options.CaptionText,
+		stageHeight = options and options.stageHeight,
+	})
+
 	local Refresh = pane.Refresh
 
 	---@type table<SpotlightsAuraFeatureKey, SpotlightsAuraPreview[]>
@@ -418,7 +485,10 @@ local function BuildPreview(page, displayKey)
 		local featureKey = ActiveFeature()
 		local set = built[featureKey]
 
-		if not set then
+		--- Tested for emptiness, not for nil: `CreatePreviews` answers `{}` while the database is not yet
+		--- readable, and an empty table is truthy -- so a first refresh before then would cache nothing
+		--- forever and the pane would never build.
+		if not set or #set == 0 then
 			set = Private.Auras.CreatePreviews(self.frame, featureKey, displayKey)
 			built[featureKey] = set
 		end
@@ -554,12 +624,35 @@ local function BuildBody(page, rows, displayKey, label)
 		end
 	end
 
-	rows[#rows + 1] = Private.Controls.ActionButton(page, Private.L.Settings.AuraReset, function()
+	local L = Private.L.Settings
+
+	rows[#rows + 1] = Private.Controls.ActionButton(page, L.AuraReset, function()
 		ConfirmReset(displayKey, label)
 	end, true)
 
+	--- Under the section's own pane rather than shared at the foot of the tab: the point of it is to be
+	--- beside the offset slider being dragged, and one at the bottom of a scrolling pane is off screen at
+	--- exactly the moment it is wanted.
+	---
+	--- Hidden at one enabled display, because it would then duplicate the pane above it. Hidden with the
+	--- category switched off too, since `ApplyAnchor` takes the feature's switch and the pane would be an
+	--- empty box beside an empty box -- which is only re-evaluated on a dot click because `CreateDot`
+	--- refreshes the tree.
+	---
+	--- `OnlyWhen` skips `Refresh` on a hidden node, and the lazy build lives inside `Refresh`, so a
+	--- category with one display enabled allocates nothing. A category with two allocates in all four
+	--- sections, open or collapsed: `Section:Refresh` refreshes its body either way.
+	local combined = OnlyWhen(BuildPreview(page, nil, {
+		heading = L.AuraCombinedPreviewHeading,
+		CaptionText = L.AuraCombinedPreviewCaption,
+		stageHeight = COMBINED_STAGE_HEIGHT,
+	}), function()
+		return Feature().enabled and EnabledDisplayCount() > 1
+	end)
+
 	return Private.Node.Split(page, Private.Node.Grid(page, rows, 2, COLUMN_LABEL_WIDTH),
-		BuildPreview(page, displayKey), { rightWidth = Private.PreviewPane.Width })
+		Private.Node.Column(page, { BuildPreview(page, displayKey), combined }),
+		{ rightWidth = Private.PreviewPane.Width })
 end
 
 ---@param page Frame
@@ -571,7 +664,7 @@ local function BuildIconBody(page)
 		Private.Controls.SubHeading(page, L.GroupDisplay),
 
 		Private.Controls.Checkbox(page, L.AuraEnabled, Getter("icon", "enabled"),
-			Setter("icon", "enabled")),
+			EnabledSetter("icon")),
 		Private.Controls.Slider(page, L.AuraAlpha, ALPHA_MIN, ALPHA_MAX, ALPHA_STEP,
 			Getter("icon", "alpha"), Setter("icon", "alpha")),
 
@@ -614,7 +707,7 @@ local function BuildBarBody(page)
 		Private.Controls.SubHeading(page, L.GroupDisplay),
 
 		Private.Controls.Checkbox(page, L.AuraEnabled, Getter("bar", "enabled"),
-			Setter("bar", "enabled")),
+			EnabledSetter("bar")),
 		Private.Controls.Slider(page, L.AuraAlpha, ALPHA_MIN, ALPHA_MAX, ALPHA_STEP,
 			Getter("bar", "alpha"), Setter("bar", "alpha")),
 
@@ -682,7 +775,7 @@ local function BuildSquareBody(page)
 		Private.Controls.SubHeading(page, L.GroupDisplay),
 
 		Private.Controls.Checkbox(page, L.AuraEnabled, Getter("square", "enabled"),
-			Setter("square", "enabled")),
+			EnabledSetter("square")),
 		Private.Controls.Slider(page, L.AuraAlpha, ALPHA_MIN, ALPHA_MAX, ALPHA_STEP,
 			Getter("square", "alpha"), Setter("square", "alpha")),
 
@@ -729,7 +822,7 @@ local function BuildTextBody(page)
 		Private.Controls.SubHeading(page, L.GroupDisplay),
 
 		Private.Controls.Checkbox(page, L.AuraEnabled, Getter("text", "enabled"),
-			Setter("text", "enabled")),
+			EnabledSetter("text")),
 		Private.Controls.Slider(page, L.AuraAlpha, ALPHA_MIN, ALPHA_MAX, ALPHA_STEP,
 			Getter("text", "alpha"), Setter("text", "alpha")),
 

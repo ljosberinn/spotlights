@@ -48,3 +48,8 @@ v1.1.0
 ### Augmentation-specific
 
 - added Shifting Sands as dedicatedly trackable and customizable aura
+
+# Unreviewed
+
+- aura appearance sections now carry a second preview showing every display the category has switched on at once, whenever more than one is on
+- fixed a bug where switching a category off left the aura appearance previews drawing the old picture

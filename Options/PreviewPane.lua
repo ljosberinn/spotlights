@@ -27,9 +27,14 @@ Private.PreviewPane = {}
 --- Callers pin the pane through `Split`'s `rightWidth`.
 Private.PreviewPane.Width = 174
 
---- The rectangle the mini frame is centred in. Fixed, so the pane is the same height whatever the
---- frame size is set to -- a pane that grew and shrank with the width slider would move the caption
---- under the user's cursor while they dragged it.
+--- The rectangle the mini frame is centred in, and the height every pane has unless it asks for
+--- another. Fixed per pane, so the pane is the same height whatever the frame size is set to -- a pane
+--- that grew and shrank with the width slider would move the caption under the user's cursor while
+--- they dragged it.
+---
+--- Also what `Fit` measures against, whatever height a caller passed: a taller pane is a taller window
+--- onto the same size frame, not a larger frame. Two stacked panes drawing the spotlight at two scales
+--- would be worse than the clipping the taller one exists to avoid.
 local STAGE_HEIGHT = 96
 
 --- Kept clear either side of the mini frame, so a frame at the pane's full width does not touch the
@@ -83,12 +88,18 @@ end
 ---@class SpotlightsPreviewPaneNode : SpotlightsNode
 ---@field frame SpotlightsUnitFrame
 
+--- A table rather than five positional parameters, three of them optional and two of them adjacent
+--- strings: `Build(page, nil, class, nil, 160)` says nothing about what it is asking for.
 ---@param page Frame
----@param CaptionText (fun(): string)? defaults to the frame's size and the scale it is shown at
----@param class string? class filename the dummy wears instead of the fabricated one
+---@param options { CaptionText: (string | fun(): string)?, class: string?, heading: string?, stageHeight: number? }?
 ---@return SpotlightsPreviewPaneNode
-function Private.PreviewPane.Build(page, CaptionText, class)
+function Private.PreviewPane.Build(page, options)
 	local L = Private.L.Settings
+
+	options = options or {}
+
+	local stageHeight = options.stageHeight or STAGE_HEIGHT
+	local class = options.class
 	local stage = CreateFrame("Frame", nil, page) --[[@as SpotlightsNode]]
 
 	--- The stage is a window onto a spotlight, not a canvas the spotlight may spill out of. Several
@@ -120,15 +131,15 @@ function Private.PreviewPane.Build(page, CaptionText, class)
 	end
 
 	function stage:Layout(width)
-		self:SetSize(width, STAGE_HEIGHT)
+		self:SetSize(width, stageHeight)
 
-		return STAGE_HEIGHT
+		return stageHeight
 	end
 
 	local pane = Private.Node.Column(page, {
-		Private.Controls.SubHeading(page, L.PreviewHeading),
+		Private.Controls.SubHeading(page, options.heading or L.PreviewHeading),
 		stage,
-		Private.Controls.Paragraph(page, CaptionText or Caption),
+		Private.Controls.Paragraph(page, options.CaptionText or Caption),
 	}) --[[@as SpotlightsPreviewPaneNode]]
 
 	pane.frame = frame

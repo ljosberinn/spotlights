@@ -331,6 +331,12 @@ L.Settings.AuraSummaryNoInlineIcon = "no inline icon"
 L.Settings.AuraSummaryBorder = "%dpx border"
 L.Settings.AuraSummaryNoBorder = "no border"
 
+-- The second pane in a display section, shown only once the category has two displays on: the same mini
+-- spotlight wearing all of them at once, which is where the offsets that separate them are judged. The
+-- caption names what is on the frame rather than restating its size, which the pane above already gives.
+L.Settings.AuraCombinedPreviewHeading = "All Active Displays"
+L.Settings.AuraCombinedPreviewCaption = "Every display this category has switched on, together."
+
 L.Settings.AuraReset = "Reset To Defaults"
 L.Settings.AuraResetConfirm = "Reset"
 -- Names the display and then the category it belongs to, because the Appearance sub-tab carries one
