@@ -205,10 +205,16 @@ local function CreateDot(button, key, name)
 	dot:SetScript("OnClick", function(self)
 		Private.Auras.SetFeatureEnabled(key, self:GetChecked() and true or false)
 
-		-- The live displays are the write's own business; these two are this panel's. The previews
+		-- The live displays are the write's own business; these three are this panel's. The previews
 		-- follow the switch immediately, and the strip repaints the label beside the dot just clicked.
 		Private.AuraPreview.Restyle()
 		RefreshCategories()
+
+		--- The Appearance sub-tab's panes take the feature's switch as an argument to `ApplyAnchor`, so
+		--- they draw the old picture until something re-reads the tree. A refresh rather than a relayout
+		--- for that reason, and done here rather than inside `SetFeatureEnabled` so the write path keeps
+		--- knowing nothing about the panel. A dot click is not a drag.
+		Private.Options.Refresh()
 	end)
 
 	-- Its own tooltip, naming the category: the dot carries no label, and the one on the tab behind it
