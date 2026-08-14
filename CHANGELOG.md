@@ -7,6 +7,8 @@ v1.1.0
 - fixed a bug where aura previews kept showing spells that were toggled off
 - fixed a bug where the gap between pooled aura icons only reached displays built afterwards
 - fixed a bug where player names were leaking out of the frame
+- fixed a bug where importing a profile exported by a newer version made this account skip that version's settings migration for good; such a profile is now refused with a prompt to update the addon
+- fixed a bug where importing a profile carried the exporter's minimap button state and left the button unable to be toggled until the next reload
 
 ## Features
 

@@ -26,6 +26,7 @@ local function ShowImportError(reason)
 	local L = Private.L.Settings
 	local details = reason == "prefix" and L.ImportErrorPrefix
 		or reason == "decode" and L.ImportErrorDecode
+		or reason == "version" and L.ImportErrorVersion
 		or L.ImportErrorPayload
 
 	StaticPopupDialogs[IMPORT_ERROR_POPUP] = {
