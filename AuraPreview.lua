@@ -4,7 +4,7 @@ local _, Private = ...
 ---@class SpotlightsAuraPreviews
 Private.AuraPreview = {}
 
---- Fake aura displays, one set per configured cell, shown while the Auras tab is open.
+--- Fake aura displays, one set per configured cell, shown while the Auras or the Roster tab is open.
 ---
 --- This file owns cells and lifetimes only. What a display looks like lives in `Private.Auras`,
 --- which hands back records built by the same `Create` the live path uses and restyles them with
@@ -22,6 +22,15 @@ Private.AuraPreview = {}
 --- style against.
 
 local shown = false
+
+--- Which options pages currently want the layer up, as a set of tab keys.
+---
+--- A set rather than a boolean because a tab switch fires the incoming page's `OnShow` and the
+--- outgoing page's `OnHide` in an order the shell does not promise. A boolean handed `true` and
+--- `false` in the wrong order ends up off; a set ends up holding exactly the pages on screen either
+--- way.
+---@type table<string, true>
+local wanted = {}
 
 --- One host frame per cell, each holding a full set of preview displays. Never destroyed, because
 --- frames cannot be.
@@ -129,21 +138,38 @@ function Private.AuraPreview.Rebuild()
 	end
 end
 
---- Turns aura previewing on or off. Called only by the options frame.
+--- Points the layer at one aura category, or at all of them when handed nil.
+---
+--- Lives here rather than beside the strip that usually drives it, because the pages that want the
+--- layer up also decide what it shows, and pairing the rebuild with the write is what keeps a page
+--- from repointing the layer without repainting it.
+---@param featureKey SpotlightsAuraFeatureKey?
+function Private.AuraPreview.SetFeature(featureKey)
+	if Private.Auras.SetPreviewFeature(featureKey) then
+		Private.AuraPreview.Rebuild()
+	end
+end
+
+--- Records whether one options page wants aura previewing, and turns the layer on or off to match.
 ---
 --- Delegates the rectangle to `Private.Mover`, which arbitrates between an unlocked mover and this.
 --- Hiding it hides every preview parented to it, so there is no hide loop on the way out.
+---@param page string
 ---@param value boolean
-function Private.AuraPreview.SetShown(value)
-	if shown == value then
+function Private.AuraPreview.SetPageShown(page, value)
+	wanted[page] = value or nil
+
+	local wants = next(wanted) ~= nil
+
+	if shown == wants then
 		return
 	end
 
-	shown = value
+	shown = wants
 
-	Private.Mover.SetPreviewingAuras(value)
+	Private.Mover.SetPreviewingAuras(wants)
 
-	if value then
+	if wants then
 		-- The full request rather than the Layout key alone (see `Private.Preview`): these are
 		-- anchored to the overlay, which `Mover.Sync` aligns to the container in the Position pass,
 		-- after Layout has sized the container.

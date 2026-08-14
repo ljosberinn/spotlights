@@ -107,15 +107,14 @@ end
 ---
 --- **Only while this tab is the one on screen.** The preview layer is global and the panel's other tabs
 --- do not want it repointed under them, so a category selected here means nothing until the user is
---- looking at it.
+--- looking at it. The Roster tab points the layer at everything on its way in, and this is what points
+--- it back on the way out of there.
 local function ApplyPreviewFeature()
 	if not auraPage or not auraPage:IsVisible() then
 		return
 	end
 
-	if Private.Auras.SetPreviewFeature(activeFeature) then
-		Private.AuraPreview.Rebuild()
-	end
+	Private.AuraPreview.SetFeature(activeFeature)
 end
 
 --- The first category this specialisation can actually configure, for when the selected one stops
@@ -280,11 +279,11 @@ end
 
 local function OnPageShown()
 	ApplyPreviewFeature()
-	Private.AuraPreview.SetShown(true)
+	Private.AuraPreview.SetPageShown("auras", true)
 end
 
 local function OnPageHidden()
-	Private.AuraPreview.SetShown(false)
+	Private.AuraPreview.SetPageShown("auras", false)
 
 	-- A section's open state and the Tracked rail's search belong to the visit rather than to the panel,
 	-- and this is the moment the visit ends -- on a tab switch as well as on a close, which is the same

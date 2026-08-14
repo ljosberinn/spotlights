@@ -500,6 +500,21 @@ local function BuildRightColumn(page, members, presets, SetReserved)
 	return column
 end
 
+--- The aura preview layer belongs to this tab as much as to the Auras tab: the grid is built here, and
+--- an aura display anchored to a corner of a cell is a decision about that grid. It cannot be judged
+--- from a tab with no grid on it.
+local function OnPageShown()
+	--- Every category rather than whatever the Auras tab last pointed at. This tab has no category
+	--- strip, so an inherited selection would be state the user cannot see -- and it would differ
+	--- between a session that visited Auras first and one that did not.
+	Private.AuraPreview.SetFeature(nil)
+	Private.AuraPreview.SetPageShown("roster", true)
+end
+
+local function OnPageHidden()
+	Private.AuraPreview.SetPageShown("roster", false)
+end
+
 ---@param page Frame
 ---@return SpotlightsNode
 local function BuildRoster(page)
@@ -602,6 +617,13 @@ local function BuildRoster(page)
 	local right = BuildRightColumn(page, members, Private.RosterPresets.Build(page), function(height)
 		reserved = height
 	end)
+
+	page:SetScript("OnShow", OnPageShown)
+	page:SetScript("OnHide", OnPageHidden)
+
+	--- The page was shown before this builder ran -- the shell shows it, then selects the tab that builds
+	--- it -- so the first `OnShow` has already been and gone.
+	OnPageShown()
 
 	return Private.Node.Split(page, slots, right, { rightWidth = UNROSTERED_WIDTH })
 end

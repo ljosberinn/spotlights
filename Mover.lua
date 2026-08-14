@@ -207,14 +207,14 @@ end
 
 --- Brings the rectangle, the handle and the player previews in line with who currently wants them.
 ---
---- One function rather than a branch in each setter, because the two reasons overlap: closing the
---- Auras tab while unlocked must leave the mover as it was, and locking the mover while the tab is
---- open must leave previews up.
+--- One function rather than a branch in each setter, because the two reasons overlap: dropping the
+--- aura preview layer while unlocked must leave the mover as it was, and locking the mover while the
+--- layer is up must leave previews up.
 ---
 --- Player previews follow either reason. Unlocked, the grid must be legible as a shape, and out of
 --- a group there is otherwise nothing on screen -- secure headers cannot show a nonexistent unit,
---- so an empty grid would mean dragging an invisible rectangle. The aura tab needs them because an
---- aura display is styled against a spotlight.
+--- so an empty grid would mean dragging an invisible rectangle. The aura preview layer needs them
+--- because an aura display is styled against a spotlight.
 local function Apply()
 	local wanted = unlocked or previewingAuras
 
