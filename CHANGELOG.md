@@ -10,6 +10,7 @@ v1.1.0
 - fixed a bug where importing a profile exported by a newer version made this account skip that version's settings migration for good; such a profile is now refused with a prompt to update the addon
 - fixed a bug where importing a profile carried the exporter's minimap button state and left the button unable to be toggled until the next reload
 - fixed a bug where a read-only export box re-encoded the whole profile on every keystroke
+- fixed a bug where picking a color inverted its opacity, leaving the color selection button black and the color invisible until the picker was opened again
 
 ## Features
 
@@ -36,6 +37,7 @@ v1.1.0
 - added Roster Presets which can also be imported and exported
 - added a third display option: Square
 - added a fourth display option: Text, a bare duration countdown with its own font, size, color and placement
+- added a fifth display option: Frame Color - colors the entire health bar for as long as the aura is up
 - right-clicking the minimap button now opens the Roster tab directly
 - spotlights now render in a party, not only in a raid
 - Clear Roster When Leaving The Group now also clears when a party becomes a raid, or a raid a party
@@ -44,17 +46,9 @@ v1.1.0
 - roles can now be set to be removed from the grid automatically, keeping tanks or healers out of every preset and every add
 - aura appearance sections whose display is switched off now start collapsed
 - the Auras tab preview frame now wears your own class color instead of a fabricated one
+- added Fill Direction to Status Bars
 
 ### Augmentation-specific
 
 - added Shifting Sands as dedicatedly trackable and customizable aura
-
-# Unreviewed
-
-- aura appearance sections now carry a second preview showing every display the category has switched on at once, whenever more than one is on
-- fixed a bug where switching a category off left the aura appearance previews drawing the old picture
-- added a fifth display option: Frame Color, which colors the spotlight's health bar for as long as the aura is up
-- fixed a bug where picking a color inverted its opacity, leaving the swatch black and the color invisible until the picker was opened again
-- fixed a bug where a spotlight's border was thinner on the right and bottom until the frame was resized, after any change to the grid scale, the UI scale or the resolution
-- aura duration bars can now be filled from either end of their axis, with a new Fill Direction setting
-- the dropdown choosing whether something runs horizontally or vertically is now called Fill Axis, since Fill Direction now names which end a bar fills from
+- aura preview now has a second preview the moment you enable more than one display kind for an aura (e.g. Status Bar and Text for Prescience), so you can see them at the same time
