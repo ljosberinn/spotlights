@@ -292,6 +292,48 @@ local function DefaultAuraSquare(point, r, g, b)
 	}
 end
 
+--- One aura display drawn as a bare countdown.
+---
+--- **Ships disabled for every feature, without exception**, which is why it needs no version step, exactly
+--- as the square does not: `Repair` fills the block into a database written before it existed, and a
+--- display that is off changes nothing about how that profile renders.
+---
+--- No size of its own -- the anchor's rect is derived from `fontSize`, see the `text` entry in `Auras.lua`'s
+--- `DISPLAYS`. Anchored bottom left, the corner the other three defaults leave free, so all four switched
+--- on at once do not land on each other.
+---
+--- The colour is the feature's own, matching its bar and its block, so two categories drawing bare numbers
+--- at once are still told apart. 16px because the display is *only* the number: the square's 10px is sized
+--- to fit inside a block, and this has no block to fit inside.
+---@param point AnchorPoint
+---@param r number
+---@param g number
+---@param b number
+---@return SpotlightsAuraTextConfig
+local function DefaultAuraText(point, r, g, b)
+	return {
+		enabled = false,
+		font = "Friz Quadrata TT",
+		fontSize = 16,
+		r = r,
+		g = g,
+		b = b,
+		alpha = 1,
+		point = point,
+		x = 0,
+		y = 0,
+
+		-- No border by default, and the fields present even so: they are build-time, and `SetSetting`
+		-- silently refuses a write to a field the stored block lacks.
+		borderTexture = BORDER_NONE,
+		borderSize = 4,
+		borderR = 0,
+		borderG = 0,
+		borderB = 0,
+		borderA = 1,
+	}
+end
+
 --- One feature's set of displays at their shipped values, all freshly built.
 ---
 --- Which one starts on is per-feature: a duration bar is what Prescience wants; an icon with a swipe
@@ -319,6 +361,7 @@ function Private.Migration.DefaultAuraFeature(featureKey)
 			bar = DefaultAuraBar(false, "TOPLEFT", 0.2, 0.8, 1, 0),
 			icon = icon,
 			square = DefaultAuraSquare("TOPRIGHT", 0.2, 0.8, 1),
+			text = DefaultAuraText("BOTTOMLEFT", 0.2, 0.8, 1),
 		}
 	end
 
@@ -328,10 +371,11 @@ function Private.Migration.DefaultAuraFeature(featureKey)
 			bar = DefaultAuraBar(false, "TOPLEFT", 1, 1, 1, 0),
 			icon = DefaultAuraIcon(true, 25, 25),
 
-			-- Stored like every other display's block even though a pooled feature draws icons only, for
-			-- the reason its bar block is: the shapes are identical on purpose, and a feature missing one
-			-- is a nil index in anything that walks the set.
+			-- Both stored like every other display's block even though a pooled feature draws icons only,
+			-- for the reason its bar block is: the shapes are identical on purpose, and a feature missing
+			-- one is a nil index in anything that walks the set.
 			square = DefaultAuraSquare("TOPRIGHT", 1, 1, 1),
+			text = DefaultAuraText("BOTTOMLEFT", 1, 1, 1),
 		}
 	end
 
@@ -340,6 +384,7 @@ function Private.Migration.DefaultAuraFeature(featureKey)
 		bar = DefaultAuraBar(true, "TOPLEFT", 1, 1, 0, -2),
 		icon = DefaultAuraIcon(false, 25, 25),
 		square = DefaultAuraSquare("TOPRIGHT", 1, 1, 0),
+		text = DefaultAuraText("BOTTOMLEFT", 1, 1, 0),
 	}
 end
 
