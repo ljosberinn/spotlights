@@ -7,8 +7,8 @@ Private.AuraAppearance = {}
 --- The Auras tab's Appearance sub-tab: one collapsible section per kind of display the selected
 --- category can draw, scrolling under a pinned reset button.
 ---
---- An aura feature has three independent display modes, each with its own size, placement, swipe, border
---- and colour. Flat, that is a wall of three dozen controls with nothing saying which mode is actually on
+--- An aura feature has four independent display modes, each with its own size, placement, swipe, border
+--- and colour. Flat, that is a wall of four dozen controls with nothing saying which mode is actually on
 --- or what it is set to. A section answers both in its header: the display's name, and a summary
 --- formatted from the very fields its body edits -- `25 × 25 · Bottom · swipe on · 4px border`.
 ---
@@ -113,6 +113,11 @@ local function Square()
 	return Feature().square
 end
 
+---@return SpotlightsAuraTextConfig
+local function Text()
+	return Feature().text
+end
+
 --- Any display's block by key, for the read/write factories below. The typed accessors above are what
 --- the summaries use, since those read named fields.
 ---@param displayKey SpotlightsAuraDisplayKey
@@ -124,6 +129,10 @@ local function Display(displayKey)
 
 	if displayKey == "square" then
 		return Square()
+	end
+
+	if displayKey == "text" then
+		return Text()
 	end
 
 	return Icon()
@@ -344,6 +353,18 @@ local function SquareSummary()
 		BorderPhrase(config))
 end
 
+--- The bare countdown's summary, in a format of its own and three fields shorter: it has no size setting
+--- to name -- its rect is derived from the font size, which is what stands in for one -- and no swipe,
+--- since a swipe with nothing under it is the square.
+---@return string
+local function TextSummary()
+	local L = Private.L.Settings
+	local config = Text()
+
+	return HiddenSummary(config) or string.format(L.AuraSummaryText, config.fontSize,
+		AnchorName(config), BorderPhrase(config))
+end
+
 local OnlyWhen = Private.Node.OnlyWhen
 
 --- Gives a control a row of its own, closing whatever row was being filled.
@@ -445,10 +466,10 @@ local function ConfirmReset(displayKey, label)
 	StaticPopup_Show(RESET_POPUP)
 end
 
---- The border sub-heading and its three controls, identical for both displays.
+--- The border sub-heading and its three controls, identical for every display.
 ---
---- A border is the one piece of styling that does not care whether it is around a bar or an icon, so
---- writing these twice would duplicate the same thing.
+--- A border is the one piece of styling that does not care what it is around, so writing these once per
+--- section would duplicate the same thing four times.
 ---@param page Frame
 ---@param displayKey SpotlightsAuraDisplayKey
 ---@return SpotlightsNode[]
@@ -476,7 +497,7 @@ local function BorderRows(page, displayKey)
 	}
 end
 
---- The anchor and the two offsets that refine it, identical for all three displays and always the last
+--- The anchor and the two offsets that refine it, identical for all four displays and always the last
 --- group in a body.
 ---@param page Frame
 ---@param displayKey SpotlightsAuraDisplayKey
@@ -686,6 +707,42 @@ local function BuildSquareBody(page)
 	}, "square", L.AuraSquare)
 end
 
+---@param page Frame
+---@return SpotlightsNode
+local function BuildTextBody(page)
+	local L = Private.L.Settings
+
+	--- The shortest body of the four: no size group, because the rect follows the font size, and no
+	--- cooldown group, because there is no swipe to switch and the countdown is the display rather than an
+	--- option on it. What is left is the text itself, so the labels drop the `Duration` the other two
+	--- sections need to say which of their parts is being styled.
+	return BuildBody(page, {
+		Private.Controls.SubHeading(page, L.GroupDisplay),
+
+		Private.Controls.Checkbox(page, L.AuraEnabled, Getter("text", "enabled"),
+			Setter("text", "enabled")),
+		Private.Controls.Slider(page, L.AuraAlpha, ALPHA_MIN, ALPHA_MAX, ALPHA_STEP,
+			Getter("text", "alpha"), Setter("text", "alpha")),
+
+		Private.Controls.SubHeading(page, L.GroupText),
+
+		Private.Controls.Dropdown(page, L.AuraTextFont, function()
+			return Private.Controls.MediaChoices(Private.Media.FontList(),
+				Private.Media.IsFontRegistered, Text().font)
+		end, Getter("text", "font"), Setter("text", "font")),
+
+		--- Sets the display's rect as well as its glyphs -- `Size` derives one from the other -- so this is
+		--- the slider that moves the anchor the positioning group below places.
+		Private.Controls.Slider(page, L.AuraTextFontSize, FONT_SIZE_MIN, FONT_SIZE_MAX, 1,
+			Getter("text", "fontSize"), Setter("text", "fontSize")),
+
+		--- The picker's own opacity writes `alpha`, which is the slider above it -- the same one field with
+		--- two controls over it the bar's and the square's colours have.
+		Private.Controls.ColorSwatch(page, L.AuraTextColor, ColorGetter("text", "r", "g", "b", "alpha"),
+			ColorSetter("text", "r", "g", "b", "alpha")),
+	}, "text", L.AuraText)
+end
+
 --- Collapses nothing and expands everything: the open state is transient, and this is what makes it so.
 ---
 --- Called when the tab goes off screen rather than tracked as a setting. Persisting it would mean a
@@ -721,9 +778,14 @@ function Private.AuraAppearance.Build(page, GetFeature, GetName)
 		return L.AuraSquare
 	end, SquareSummary, BuildSquareBody(page))
 
-	--- A pooled category draws icons only, so there is neither a status bar nor a square to configure and
-	--- no section for either. Asked of `Private.Auras` rather than decided here: which display kinds a
-	--- category renders is the build path's rule, and a second copy of it could only be wrong.
+	local text = Private.Node.Section(page, function()
+		return L.AuraText
+	end, TextSummary, BuildTextBody(page))
+
+	--- A pooled category draws icons only, so there is no status bar, no square and no bare countdown to
+	--- configure and no section for any of them. Asked of `Private.Auras` rather than decided here: which
+	--- display kinds a category renders is the build path's rule, and a second copy of it could only be
+	--- wrong.
 	OnlyWhen(bar, function()
 		return Private.Auras.HasDisplay(ActiveFeature(), "bar")
 	end)
@@ -732,7 +794,11 @@ function Private.AuraAppearance.Build(page, GetFeature, GetName)
 		return Private.Auras.HasDisplay(ActiveFeature(), "square")
 	end)
 
-	sections = { icon, bar, square }
+	OnlyWhen(text, function()
+		return Private.Auras.HasDisplay(ActiveFeature(), "text")
+	end)
+
+	sections = { icon, bar, square, text }
 
 	local scrollHeight = math.max(page:GetHeight() - Private.Node.SubTabHeight - CHROME_RESERVE,
 		MIN_SCROLL_HEIGHT)
@@ -741,6 +807,7 @@ function Private.AuraAppearance.Build(page, GetFeature, GetName)
 		icon,
 		bar,
 		square,
+		text,
 
 		-- Last, and the explanation of everything above it: the one place the cost of a frozen setting
 		-- is visible to the user.

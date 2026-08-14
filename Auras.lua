@@ -43,10 +43,11 @@ local ANY_FILTER = AuraUtil.CreateFilterString(AuraUtil.AuraFilters.Helpful)
 --- the value stops moving.
 ---@alias SpotlightsAuraInvalidation "live" | "rebuild"
 
---- One kind of display, and the only place the difference between a bar, an icon and a square lives.
+--- One kind of display, and the only place the difference between a bar, an icon, a square and a bare
+--- countdown lives.
 ---
---- `config` is loose: the three kinds are configured by different shapes, and a narrower annotation
---- would be a lie in two directions. The four verbs are split because a live display and a preview
+--- `config` is loose: the four kinds are configured by different shapes, and a narrower annotation
+--- would be a lie in three directions. The four verbs are split because a live display and a preview
 --- need different subsets — a live display runs `Create`, `Style`, `Register` once and is then
 --- untouchable, while a preview runs `Create`/`Preview` once and `Style` on every settings change.
 --- Sharing `Style` is what makes a preview show what will ship.
@@ -1241,7 +1242,62 @@ local function StyleSquare(regions, _, config)
 	StyleBorder(regions, config)
 end
 
---- What every kind's anchor carries, and therefore what stays live on all three.
+--- The one region a bare countdown is made of, plus the border every kind may draw.
+---
+--- **Not `CreateDuration`.** That builds a swipe and a font string from `showSwipe`/`showText`, and this
+--- display has neither field: the text is not an option on it, it *is* it. A preview would also come back
+--- with a swipe it can never be told to hide.
+---
+--- The font string sits on a layer of its own above the border for the reason the icon's does above the
+--- swipe -- a border is a child frame, so it draws over any region of the host whatever layer that region
+--- claims, and a thick edge would otherwise cut into the number it surrounds.
+---
+--- Takes the host alone where every other kind takes four: the settings shape nothing built here, there
+--- is no spell art to be about, and `everything` has no optional region to decide.
+---@param host Frame|table
+---@return SpotlightsAuraRegions
+local function CreateText(host)
+	local layer = CreateFrame("Frame", nil, host)
+
+	layer:SetAllPoints()
+	layer:SetFrameLevel(host:GetFrameLevel() + 6)
+
+	---@type SpotlightsAuraRegions
+	local regions = { text = layer:CreateFontString(nil, "OVERLAY") }
+
+	-- Centred in the rect `Size` derives from the font size, which is the whole of what that rect is for.
+	regions.text:SetPoint("CENTER")
+
+	regions.border = CreateBorder(host)
+
+	return regions
+end
+
+--- Applies every setting of a bare countdown.
+---
+--- **`SetTextColor` has to happen here and can never happen again.** `SetDurationText` adds `Text`, `Alpha`
+--- and `VertexColor` to the font string's secret aspects the moment it returns, and `InitializeFrame` runs
+--- this immediately before it -- so the colour picker on this display is a rebuild, like the bar's fill
+--- colour and the square's block.
+---
+--- `OUTLINE` unconditionally for `StyleDuration`'s reason: this text sits over a health bar and nothing
+--- else, and unoutlined it is illegible at every font and size.
+---
+--- No `SetShown`. On the other two kinds the countdown is an option; here it is the display, and being
+--- switched off is the anchor's answer.
+---@param regions SpotlightsAuraRegions
+---@param _ Frame the anchor, whose rect this display is centred in rather than measured against
+---@param config SpotlightsAuraTextConfig
+local function StyleText(regions, _, config)
+	local text = regions.text --[[@as FontString]]
+
+	text:SetFont(Private.Media.Font(config.font), config.fontSize, "OUTLINE")
+	text:SetTextColor(config.r, config.g, config.b)
+
+	StyleBorder(regions, config)
+end
+
+--- What every kind's anchor carries, and therefore what stays live on all four.
 ---
 --- The anchor is a plain frame of ours above the aura button's access restriction, so everything
 --- `ApplyAnchor` writes reaches a built display for free. `enabled` looks the most drastic of the five
@@ -1256,7 +1312,7 @@ local ANCHOR_INVALIDATION = {
 	y = "live",
 }
 
---- The border, which all three kinds draw the same way and none can change after the fact: a backdrop
+--- The border, which all four kinds draw the same way and none can change after the fact: a backdrop
 --- belongs to a frame under the aura button.
 ---
 --- `borderA` is classified with the other three channels because all four reach that backdrop through
@@ -1337,7 +1393,35 @@ local SQUARE_INVALIDATION = Classification(ANCHOR_INVALIDATION, BORDER_INVALIDAT
 	b = "rebuild",
 })
 
---- The three displays a feature can draw.
+--- A bare countdown's own half, and **all of it is frozen**. The colour looks like it belongs beside the
+--- anchor's alpha, and does not: `SetDurationText` adds `VertexColor` to the font string's secret aspects,
+--- so a colour written after the display was built would be dropped below the access restriction rather
+--- than applied.
+---
+--- `fontSize` owes the rebuild the font string needs *and* a re-anchor, since `Size` derives the rect from
+--- it -- but the re-anchor comes for free: draining the rebuild runs `ApplyChild` over every spotlight
+--- first, which is where `ApplyAnchor` reads the new size.
+local TEXT_INVALIDATION = Classification(ANCHOR_INVALIDATION, BORDER_INVALIDATION, {
+	font = "rebuild",
+	fontSize = "rebuild",
+	r = "rebuild",
+	g = "rebuild",
+	b = "rebuild",
+})
+
+--- How wide and how tall a bare countdown's anchor is, per point of font size.
+---
+--- A rect derived from a number we already have, because the alternative is measuring the font string --
+--- and its `Text` is secret from the moment the display is registered, so its width is not ours to read.
+--- Four ems across fits the widest thing the formatter produces (`2.9`, or a three-digit `120`) with room
+--- to spare; the height is a line plus its outline.
+---
+--- Nothing is clipped to this rect: the string is centred in it and draws past it if it has to. It is a
+--- rectangle to hang the number in the middle of, which keeps the anchor's nine points meaning what they
+--- mean on every other display.
+local TEXT_WIDTH_PER_POINT, TEXT_HEIGHT_PER_POINT = 4, 1.4
+
+--- The four displays a feature can draw.
 ---
 --- `Size` is a function rather than a flag because the display kinds have different config shapes.
 ---@type SpotlightsAuraKind[]
@@ -1421,15 +1505,42 @@ local DISPLAYS = {
 
 		-- No `Invalidated`, for the icon's reason: block, swipe and text all fill the button.
 	},
+	{
+		key = "text",
+		Create = CreateText,
+		Style = StyleText,
+
+		-- `RegisterDuration` unchanged, as the square does: it hands over whichever of the swipe and the
+		-- countdown exist, and this display has only the second. A `RegisterText` would be that function
+		-- with one branch it never takes.
+		Register = RegisterDuration,
+
+		-- Likewise `PreviewDuration`: it fills the swipe only when `showSwipe` says so, and there is no
+		-- such field here, so what is left is the sample number this display is entirely made of.
+		Preview = PreviewDuration,
+
+		-- No `PreviewArt`. A number draws no spell art, so there is nothing for a candidate set to repaint.
+
+		Size = function(config)
+			return config.fontSize * TEXT_WIDTH_PER_POINT, config.fontSize * TEXT_HEIGHT_PER_POINT
+		end,
+
+		Invalidation = function(_, field)
+			return TEXT_INVALIDATION[field] or "rebuild"
+		end,
+
+		-- No `Invalidated`. The rect is the font size's answer rather than the spotlight's, so a resize
+		-- cannot break anything the button was built against.
+	},
 }
 
 --- Whether a feature draws a given kind of display at all.
 ---
 --- A pooled feature shows several of the spotlighted player's auras at once, and a column of duration
---- bars over one spotlight is unreadable -- so it draws icons only. A square is left out of a pooled
---- feature for the opposite reason to the bar's: it fits, but it carries no spell art, so several of
---- them side by side are identical blocks saying only that *something* is up. A pooled feature is about
---- which cooldown landed, which is the one thing this display does not say.
+--- bars over one spotlight is unreadable -- so it draws icons only. The square and the bare countdown are
+--- left out of a pooled feature for the opposite reason to the bar's: they fit, but neither carries spell
+--- art, so several of them side by side say only that *some* number of things are up. A pooled feature is
+--- about which cooldown landed, which is the one thing those two do not say.
 ---
 --- The build path, the preview layer and the options panel all ask here rather than each restating the
 --- rule.
@@ -2160,7 +2271,10 @@ local function CheckSensePower()
 		return
 	end
 
-	if not (sensePower.bar.enabled or sensePower.icon.enabled or sensePower.square.enabled) then
+	if
+		not (sensePower.bar.enabled or sensePower.icon.enabled or sensePower.square.enabled
+			or sensePower.text.enabled)
+	then
 		return
 	end
 

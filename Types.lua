@@ -202,19 +202,20 @@
 ---@field defensives table<integer, boolean> defensive overrides; absent means the shipped default
 ---@field defensiveCustom table<integer, boolean> user-added defensive spell IDs
 
---- One aura's three displays, independent of each other and all optional, under one switch for the
+--- One aura's four displays, independent of each other and all optional, under one switch for the
 --- feature as a whole.
 ---
 --- `enabled` is the feature-level switch behind the category strip's dot, and it **overrides** every
---- display: a feature switched off renders nothing whatever its bar, icon and square say, and its
+--- display: a feature switched off renders nothing whatever its bar, icon, square and text say, and its
 --- containers stop listening for auras. Off is not the same as switching every display off -- that is
---- three decisions the user has to remember to undo, where this is one, and it leaves the display
+--- four decisions the user has to remember to undo, where this is one, and it leaves the display
 --- settings exactly as they were for when the feature comes back.
 ---@class SpotlightsAuraFeatureConfig
 ---@field enabled boolean
 ---@field bar SpotlightsAuraBarConfig
 ---@field icon SpotlightsAuraIconConfig
 ---@field square SpotlightsAuraSquareConfig
+---@field text SpotlightsAuraTextConfig
 
 --- What every aura display shares, and the half of it that costs nothing to change.
 ---
@@ -305,6 +306,28 @@
 ---@field showText boolean
 ---@field font string
 ---@field fontSize number
+
+--- A bare countdown, with nothing under it.
+---
+--- No `showText`, because the text *is* the display, and no `showSwipe`, because a swipe with nothing
+--- under it is a square. The icon and the square draw a countdown too, but both draw it centred on
+--- themselves -- so wanting only the number meant switching on an icon and hiding its art, which the
+--- panel does not offer.
+---
+--- No width and no height either: the anchor's rect is derived from `fontSize` (see the `text` entry in
+--- `Auras.lua`'s `DISPLAYS`), because measuring the font string is not an option -- its `Text` is a
+--- secret aspect from the moment the display is registered.
+---
+--- `r`/`g`/`b` are the countdown's colour, and build-time despite being the one thing this display draws:
+--- `SetDurationText` adds `VertexColor` to the secret aspects, so the colour has to be written before the
+--- font string is handed over and can never be written again. `font` and `fontSize` are build-time for
+--- the reason they are on the other two -- the font string lives under the aura button.
+---@class SpotlightsAuraTextConfig : SpotlightsAuraDisplayConfig
+---@field font string
+---@field fontSize number
+---@field r number
+---@field g number
+---@field b number
 
 --- Where the grid sits, how big it is drawn and what it stacks against. A corner-relative anchor,
 --- never raw coordinates.
@@ -423,7 +446,8 @@
 --- them -- except on a preview, which builds all of its own so a toggle can flick without a rebuild.
 ---
 --- One flat shape rather than one per kind, because the three functions that touch it (`Style`,
---- `Register`, `Preview`) are dispatched per kind anyway.
+--- `Register`, `Preview`) are dispatched per kind anyway. `text` is the exception to "optional": it is
+--- the whole of what the text display draws, so there it is never absent.
 ---@class SpotlightsAuraRegions
 ---@field bar StatusBar?
 ---@field barTrack Texture? the unfilled remainder behind a **preview** bar, so its rect is visible
@@ -458,7 +482,7 @@
 ---@field slotIndex integer
 ---@field spellID integer? the spell its art was last painted for, `nil` until first styled
 
---- One built display: a bar, an icon or a square, for one aura, on one spotlight.
+--- One built display: a bar, an icon, a square or a bare countdown, for one aura, on one spotlight.
 ---
 --- Three frames stacked in a line, drawn by where the **access boundary** falls.
 --- `AuraContainerUtil.ApplyAccessRestrictions` stamps `DenyTaintedAccessWhenAurasAreSecret` onto the

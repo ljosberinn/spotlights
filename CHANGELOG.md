@@ -32,6 +32,7 @@ v1.1.0
 - added Import / Export support
 - added Roster Presets which can also be imported and exported
 - added a third display option: Square
+- added a fourth display option: Text, a bare duration countdown with its own font, size, color and placement
 - right-clicking the minimap button now opens the Roster tab directly
 - spotlights now render in a party, not only in a raid
 - Clear Roster When Leaving The Group now also clears when a party becomes a raid, or a raid a party

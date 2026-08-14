@@ -266,6 +266,13 @@ L.Settings.AuraIcon = "Icon"
 L.Settings.AuraSquare = "Square"
 L.Settings.AuraSquareSize = "Size"
 L.Settings.AuraSquareColor = "Block Color"
+
+-- The fourth display: the remaining duration and nothing else. Its three style labels drop the `Duration`
+-- the icon's and the square's carry, because there is nothing else on this display for them to be about.
+L.Settings.AuraText = "Text"
+L.Settings.AuraTextFont = "Font"
+L.Settings.AuraTextFontSize = "Size"
+L.Settings.AuraTextColor = "Text Color"
 L.Settings.AuraEnabled = "Show"
 L.Settings.AuraColor = "Bar Color"
 L.Settings.AuraAlpha = "Opacity"
@@ -309,6 +316,10 @@ L.Settings.AuraSummary = "%d × %d · %s · %s · %s"
 -- The bar's own, one field longer: its fill direction goes between the size and the anchor, because a
 -- `100 × 25` that drains upward reads as a lie without it.
 L.Settings.AuraSummaryBar = "%d × %d · %s · %s · %s · %s"
+
+-- The bare countdown's own, three fields shorter: it has no size of its own -- the font size is what
+-- stands in for one -- and no swipe, so what is left is how big, where, and its border.
+L.Settings.AuraSummaryText = "%dpx · %s · %s"
 L.Settings.AuraSummaryHidden = "Hidden"
 L.Settings.AuraSummarySwipeOn = "swipe on"
 L.Settings.AuraSummarySwipeOff = "swipe off"
