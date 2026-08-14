@@ -154,10 +154,9 @@ L.Settings.UnrosteredRoleFilter = "Mostrar estas funções..."
 L.Settings.AddSpacer = "Adicionar um espaçador"
 L.Settings.NoSlots =
 "Ninguém em destaque ainda. Adicione um membro do grupo pela lista ao lado, ou arraste um até aqui."
-L.Settings.ClearSlots = "Limpar todos os espaços"
-L.Settings.ClearSlotsPrompt =
-"Remover todos os espaços configurados? Jogadores e espaçadores vão juntos, e a grade começa do zero."
-L.Settings.ClearSlotsConfirm = "Limpar"
+L.Settings.ClearSlots = "Podar"
+L.Settings.ClearSlotsPrompt = "Confirme a poda da lista"
+L.Settings.ClearSlotsConfirm = "Podar"
 L.Settings.BlankSlot = "(espaçador)"
 L.Settings.UnknownSlot = "(vazio)"
 L.Settings.NotInGroup = "não está em um grupo"

@@ -153,10 +153,9 @@ L.Settings.UnrosteredRoleFilter = "Mostrar estos roles..."
 L.Settings.AddSpacer = "Añadir un separador"
 L.Settings.NoSlots =
 "Todavía no hay nadie destacado. Añade un miembro del grupo desde la lista de al lado, o arrastra uno hasta aquí."
-L.Settings.ClearSlots = "Vaciar todas las ranuras"
-L.Settings.ClearSlotsPrompt =
-"¿Quitar todas las ranuras configuradas? Se van tanto los jugadores como los separadores, y la rejilla empieza de cero."
-L.Settings.ClearSlotsConfirm = "Vaciar"
+L.Settings.ClearSlots = "Depurar"
+L.Settings.ClearSlotsPrompt = "Confirma la depuración de la lista"
+L.Settings.ClearSlotsConfirm = "Depurar"
 L.Settings.BlankSlot = "(separador)"
 L.Settings.UnknownSlot = "(vacío)"
 L.Settings.NotInGroup = "no estás en un grupo"

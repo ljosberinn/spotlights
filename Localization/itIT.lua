@@ -154,10 +154,9 @@ L.Settings.UnrosteredRoleFilter = "Mostra questi ruoli..."
 L.Settings.AddSpacer = "Aggiungi uno spaziatore"
 L.Settings.NoSlots =
 "Nessun giocatore in evidenza per ora. Aggiungi un membro del gruppo dalla lista accanto, oppure trascinane uno qui."
-L.Settings.ClearSlots = "Svuota tutti gli slot"
-L.Settings.ClearSlotsPrompt =
-"Rimuovere tutti gli slot configurati? Vanno via sia i giocatori sia gli spaziatori, e la griglia riparte da zero."
-L.Settings.ClearSlotsConfirm = "Svuota"
+L.Settings.ClearSlots = "Sfoltisci"
+L.Settings.ClearSlotsPrompt = "Conferma lo sfoltimento del roster"
+L.Settings.ClearSlotsConfirm = "Sfoltisci"
 L.Settings.BlankSlot = "(spaziatore)"
 L.Settings.UnknownSlot = "(vuoto)"
 L.Settings.NotInGroup = "non in un gruppo"
