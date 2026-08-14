@@ -39,6 +39,7 @@ v1.1.0
 - Roster tab shows role icons and class color
 - the Unrostered list can now be narrowed to chosen roles
 - roles can now be set to be removed from the grid automatically, keeping tanks or healers out of every preset and every add
+- aura appearance sections whose display is switched off now start collapsed
 
 ### Augmentation-specific
 
