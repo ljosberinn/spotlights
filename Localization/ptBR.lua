@@ -151,7 +151,7 @@ L.Settings.AutoRemoveRoles = "Remover automaticamente estas funções"
 L.Settings.SpotlightedHeader = "Em destaque"
 L.Settings.UnrosteredHeader = "Sem destaque"
 L.Settings.UnrosteredRoleFilter = "Mostrar estas funções..."
-L.Settings.AddSpacer = "Adicionar um espaçador"
+L.Settings.AddSpacer = "Adicionar espaçador"
 L.Settings.NoSlots =
 "Ninguém em destaque ainda. Adicione um membro do grupo pela lista ao lado, ou arraste um até aqui."
 L.Settings.ClearSlots = "Limpar todos os espaços"
