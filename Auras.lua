@@ -43,17 +43,22 @@ local ANY_FILTER = AuraUtil.CreateFilterString(AuraUtil.AuraFilters.Helpful)
 --- the value stops moving.
 ---@alias SpotlightsAuraInvalidation "live" | "rebuild"
 
---- One kind of display, and the only place the difference between a bar, an icon, a square and a bare
---- countdown lives.
+--- One kind of display, and the only place the difference between a bar, an icon, a square, a bare
+--- countdown and a health-bar tint lives.
 ---
---- `config` is loose: the four kinds are configured by different shapes, and a narrower annotation
---- would be a lie in three directions. The four verbs are split because a live display and a preview
+--- `config` is loose: the five kinds are configured by different shapes, and a narrower annotation
+--- would be a lie in four directions. The four verbs are split because a live display and a preview
 --- need different subsets — a live display runs `Create`, `Style`, `Register` once and is then
 --- untouchable, while a preview runs `Create`/`Preview` once and `Style` on every settings change.
 --- Sharing `Style` is what makes a preview show what will ship.
+---
+--- `Create`'s `frame` is the spotlight the display is being built on, and only `frameColor` reads it:
+--- every other kind draws inside the anchor's rect and has no business knowing what the anchor hangs
+--- off. It is nilable because the grid preview hosts its displays on a plain frame standing in for a
+--- spotlight, which has no health bar to tint.
 ---@class SpotlightsAuraKind
 ---@field key SpotlightsAuraDisplayKey
----@field Create fun(host: Frame|table, config: table, spellID: integer, everything: boolean): SpotlightsAuraRegions
+---@field Create fun(host: Frame|table, config: table, spellID: integer, everything: boolean, frame: SpotlightsUnitFrame?): SpotlightsAuraRegions
 ---@field Style fun(regions: SpotlightsAuraRegions, anchor: Frame, config: table)
 ---@field Register fun(button: table, regions: SpotlightsAuraRegions)
 ---@field Preview fun(regions: SpotlightsAuraRegions, config: table)
@@ -1297,12 +1302,84 @@ local function StyleText(regions, _, config)
 	StyleBorder(regions, config)
 end
 
---- What every kind's anchor carries, and therefore what stays live on all four.
+--- The one region a health-bar tint is made of: a colour over the bar, parented under the button and
+--- anchored outside it.
+---
+--- **This is the only kind whose drawn region is not inside the anchor's rect**, and the reason is that
+--- nothing of ours may know an aura is up. `CustomAuraButtonPrivateMixin:ApplyVisibility` is
+--- `self:SetShown(secretwrap(auraData ~= nil))`, so a plain child region of the button appears and
+--- disappears with the aura on its own -- no callback, no readable state, nothing secret in our code.
+--- Parenting under the button buys that; anchoring elsewhere is what puts it over the bar. Inbound
+--- regions must be descendants of the button, but anchors may point anywhere
+--- (`Blizzard_AuraContainerUtil.lua:265`).
+---
+--- **Not `SetVertexColorFromBoolean` on the bar's own texture.** That setter would stamp `VertexColor`
+--- and `Alpha` onto whatever it was called on permanently (`SimpleRegionAPIDocumentation.lua:134-145`),
+--- and the health bar's texture is written by ordinary code on every class-colour update and every fade
+--- -- so the first plain write after the stamp would be a tainted write to a secret aspect. See
+--- `docs/issues/AuraContainerNotes.md`.
+---
+--- **Anchored to the bar rather than to its fill, which is a correctness requirement rather than a
+--- preference.** The fill's rect is the health value, so it is legitimately zero-wide -- a spotlight with
+--- no unit yet, a bar built before health arrives, a dead player -- and `SetAllPoints` against a region
+--- with no rect silently falls back to the parent instead of erroring. That is unrecoverable here: the
+--- button's access restriction lands the moment `initializeFrame` returns, so a wrong anchor can never be
+--- corrected and the tint spends the frame's life somewhere it does not belong. The bar is pinned to the
+--- spotlight on all four corners by the template, so it has no such state. The cost is that the colour no
+--- longer shrinks with health, which is the lesser of the two.
+---
+--- No region at all without a spotlight. The grid preview's host stands in for one geometrically but has
+--- no health bar, and the honest answer there is to draw nothing rather than to tint the host.
+---@param host Frame|table
+---@param _ SpotlightsAuraFrameColorConfig styling is `StyleFrameColor`'s, as on every other kind
+---@param __ integer the spell, which a display drawing no art has nothing to do with
+---@param ___ boolean `everything`, which has no optional region to decide
+---@param frame SpotlightsUnitFrame? the spotlight whose health bar is tinted, absent in the grid preview
+---@return SpotlightsAuraRegions
+local function CreateFrameColor(host, _, __, ___, frame)
+	if not frame then
+		return {}
+	end
+
+	---@type SpotlightsAuraRegions
+	local regions = { tint = host:CreateTexture(nil, "ARTWORK") }
+
+	regions.tint:SetAllPoints(frame.healthBar)
+
+	return regions
+end
+
+--- Applies the tint's colour.
+---
+--- `SetColorTexture` for the square's reason: one call that means "be this colour" is the honest spelling
+--- of a display whose colour is all it has. Three channels, not four -- opacity is the anchor's, which is
+--- what keeps it live and makes the tint's strength draggable against a real raid.
+---
+--- No `StyleBorder`: there is no rect of this display's own for an edge to go around.
+---@param regions SpotlightsAuraRegions
+---@param _ Frame the anchor, whose rect this display deliberately ignores
+---@param config SpotlightsAuraFrameColorConfig
+local function StyleFrameColor(regions, _, config)
+	local tint = regions.tint
+
+	-- Absent in the grid preview, which has no health bar for `Create` to have anchored one to.
+	if not tint then
+		return
+	end
+
+	tint:SetColorTexture(config.r, config.g, config.b)
+end
+
+--- What every kind's anchor carries, and therefore what stays live on all five.
 ---
 --- The anchor is a plain frame of ours above the aura button's access restriction, so everything
 --- `ApplyAnchor` writes reaches a built display for free. `enabled` looks the most drastic of the five
 --- and is the cheapest: one `SetShown` on that frame, or a first build `EnsureDisplays` was going to do
 --- anyway.
+---
+--- `point`, `x` and `y` mean nothing to the health-bar tint, whose drawn region is anchored to the health
+--- bar rather than to the anchor. They are classified here regardless: `Invalidation` has to answer for
+--- every field of every block, and the panel offers no control for them on that kind.
 ---@type table<string, SpotlightsAuraInvalidation>
 local ANCHOR_INVALIDATION = {
 	enabled = "live",
@@ -1409,6 +1486,15 @@ local TEXT_INVALIDATION = Classification(ANCHOR_INVALIDATION, BORDER_INVALIDATIO
 	b = "rebuild",
 })
 
+--- A health-bar tint's own half is the tint's colour, which is a texture under the aura button. It has no
+--- size fields at all: the drawn region is anchored to the health bar and the anchor's rect is a
+--- placeholder, so there is nothing sizeable for a setting to reach.
+local FRAME_COLOR_INVALIDATION = Classification(ANCHOR_INVALIDATION, BORDER_INVALIDATION, {
+	r = "rebuild",
+	g = "rebuild",
+	b = "rebuild",
+})
+
 --- How wide and how tall a bare countdown's anchor is, per point of font size.
 ---
 --- A rect derived from a number we already have, because the alternative is measuring the font string --
@@ -1421,7 +1507,16 @@ local TEXT_INVALIDATION = Classification(ANCHOR_INVALIDATION, BORDER_INVALIDATIO
 --- mean on every other display.
 local TEXT_WIDTH_PER_POINT, TEXT_HEIGHT_PER_POINT = 4, 1.4
 
---- The four displays a feature can draw.
+--- The anchor's rect for a health-bar tint, which is a placeholder rather than a size.
+---
+--- **The one kind where the anchor's rect is not the display's rect.** Everything under an aura button
+--- normally fills it, so `Invalidated` and `builtWidth`/`builtHeight` exist to catch a resize that broke
+--- something measured at build time -- and both assume the opposite of what is true here. The drawn
+--- region is anchored to the health bar, so it follows a resize on its own and this rect is never
+--- looked at. It is not zero because `SetSize(0, 0)` means "take your size from your anchors".
+local FRAME_COLOR_ANCHOR_SIZE = 1
+
+--- The five displays a feature can draw.
 ---
 --- `Size` is a function rather than a flag because the display kinds have different config shapes.
 ---@type SpotlightsAuraKind[]
@@ -1532,15 +1627,42 @@ local DISPLAYS = {
 		-- No `Invalidated`. The rect is the font size's answer rather than the spotlight's, so a resize
 		-- cannot break anything the button was built against.
 	},
+	{
+		key = "frameColor",
+		Create = CreateFrameColor,
+		Style = StyleFrameColor,
+
+		-- `RegisterDuration` and `PreviewDuration` unchanged, as the square and the bare countdown use
+		-- them: both branch on a region this kind has none of, so both are no-ops here. A pair of empty
+		-- functions would say the same thing twice.
+		Register = RegisterDuration,
+		Preview = PreviewDuration,
+
+		-- No `PreviewArt`. A colour draws no spell art, so there is nothing for a candidate set to repaint.
+
+		Size = function()
+			return FRAME_COLOR_ANCHOR_SIZE, FRAME_COLOR_ANCHOR_SIZE
+		end,
+
+		Invalidation = function(_, field)
+			return FRAME_COLOR_INVALIDATION[field] or "rebuild"
+		end,
+
+		-- No `Invalidated`. The drawn region is anchored to the health bar rather than sized against the
+		-- anchor, so a spotlight resize moves it rather than breaking it.
+	},
 }
 
 --- Whether a feature draws a given kind of display at all.
 ---
 --- A pooled feature shows several of the spotlighted player's auras at once, and a column of duration
---- bars over one spotlight is unreadable -- so it draws icons only. The square and the bare countdown are
---- left out of a pooled feature for the opposite reason to the bar's: they fit, but neither carries spell
---- art, so several of them side by side say only that *some* number of things are up. A pooled feature is
---- about which cooldown landed, which is the one thing those two do not say.
+--- bars over one spotlight is unreadable -- so it draws icons only. The square, the bare countdown and the
+--- health-bar tint are left out of a pooled feature for the opposite reason to the bar's: they fit, but
+--- none carries spell art, so several of them side by side say only that *some* number of things are up. A
+--- pooled feature is about which cooldown landed, which is the one thing those three do not say.
+---
+--- The tint is the strongest case of the three: two pooled cooldowns tinting the same bar would stack two
+--- colours over each other, and nothing can arbitrate -- neither display knows the other is showing.
 ---
 --- The build path, the preview layer and the options panel all ask here rather than each restating the
 --- rule.
@@ -1658,7 +1780,7 @@ local function AttachContainer(child, feature, display, config, anchor)
 		--
 		-- `everything` is false, so only the regions this config asks for exist -- anything the
 		-- settings can no longer reach could never be reclaimed.
-		local regions = display.Create(button, config, spellID or feature.spellID, false)
+		local regions = display.Create(button, config, spellID or feature.spellID, false, child)
 
 		display.Style(regions, anchor, config)
 		display.Register(button, regions)
@@ -1992,7 +2114,7 @@ end
 --- every restyle. Sizing the set to the pool instead is what made a preview go stale -- a spell
 --- switched on afterwards had no item to appear in, and frames cannot be created here to give it one
 --- without stranding the old set.
----@param parent Frame
+---@param parent Frame|SpotlightsUnitFrame a real spotlight in the panel's panes, a stand-in in the grid
 ---@param featureKey SpotlightsAuraFeatureKey? defaults to the previewed category
 ---@param displayKey SpotlightsAuraDisplayKey? every kind the category draws, when omitted
 ---@return SpotlightsAuraPreview[]
@@ -2004,6 +2126,12 @@ function Private.Auras.CreatePreviews(parent, featureKey, displayKey)
 	end
 
 	featureKey = featureKey or previewFeatureKey
+
+	--- Whether the host is a real spotlight, which only the health-bar tint cares about. The panel's
+	--- section panes host their previews on `Private.Preview`'s mini spotlight; the grid's cells host
+	--- theirs on a plain frame standing in for one, sized to the configured frame and nothing else.
+	--- `healthBar` is the whole of what that display needs, so its presence is the honest test.
+	local frame = parent.healthBar and parent --[[@as SpotlightsUnitFrame]] or nil
 
 	---@type SpotlightsAuraPreview[]
 	local previews = {}
@@ -2023,7 +2151,8 @@ function Private.Auras.CreatePreviews(parent, featureKey, displayKey)
 
 						previews[#previews + 1] = {
 							anchor = anchor,
-							regions = display.Create(anchor, auras[feature.key][display.key], feature.spellID, true),
+							regions = display.Create(anchor, auras[feature.key][display.key], feature.spellID, true,
+								frame),
 							feature = feature,
 							display = display,
 							slotIndex = slotIndex,

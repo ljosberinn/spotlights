@@ -216,6 +216,7 @@
 ---@field icon SpotlightsAuraIconConfig
 ---@field square SpotlightsAuraSquareConfig
 ---@field text SpotlightsAuraTextConfig
+---@field frameColor SpotlightsAuraFrameColorConfig
 
 --- What every aura display shares, and the half of it that costs nothing to change.
 ---
@@ -325,6 +326,26 @@
 ---@class SpotlightsAuraTextConfig : SpotlightsAuraDisplayConfig
 ---@field font string
 ---@field fontSize number
+---@field r number
+---@field g number
+---@field b number
+
+--- A colour worn by the spotlight's health bar for as long as the aura is up.
+---
+--- Not a recolour of the bar and cannot be: nothing of ours may be told the aura landed, so the only
+--- shape available is a texture parented under the aura button -- which the container shows and hides
+--- with the aura -- anchored to the health bar instead of to the button's own rect. See
+--- `CreateFrameColor`.
+---
+--- `r`/`g`/`b` are build-time for the bar's and the square's reason: `SetColorTexture` is a call on a
+--- texture below the aura button. `alpha` is the anchor's and stays live, which makes the tint's strength
+--- the one setting on this display that can be dragged against a live raid.
+---
+--- **`point`, `x`, `y` and the six border fields are inherited and mean nothing here.** This display's
+--- rect is the health bar's, not an offset from the frame, and there is no edge to draw. They are stored
+--- and defaulted because `SetSetting` refuses a write to a field the block lacks, and the panel offers
+--- no control for any of them.
+---@class SpotlightsAuraFrameColorConfig : SpotlightsAuraDisplayConfig
 ---@field r number
 ---@field g number
 ---@field b number
@@ -454,6 +475,7 @@
 ---@field barIcon Texture? the spell icon inline at one end of a bar
 ---@field icon Texture?
 ---@field block Texture? the coloured square, which is the whole of what that display draws
+---@field tint Texture? the health bar's colour while the aura is up; anchored outside its own display's rect
 ---@field swipe Cooldown?
 ---@field text FontString?
 ---@field border SpotlightsAuraBorder?

@@ -9,6 +9,11 @@ local DeferralKey = Private.Enum.DeferralKey
 ---@type Frame?
 local container
 
+--- The effective scale the spotlights' pixel-snapped anchors were last resolved against. See
+--- `ApplyDisplay`.
+---@type number?
+local anchoredScale
+
 --- The container's normal visibility condition. Named because `SetPreviewing` swaps it out and has
 --- to put back exactly this string; two copies of a macro condition that must agree is fragile.
 ---
@@ -128,12 +133,35 @@ end
 --- first slot header onwards, so `SetScale` and `SetFrameStrata` are protected calls exactly as
 --- `SetSize` is. Both reach the spotlights by inheritance -- no header and no unit frame sets a
 --- scale or a strata of its own, which is why the unit frame template no longer declares `LOW`.
+---
+--- **A scale change invalidates every pixel-snapped anchor under this frame.** `PixelUtil` resolves an
+--- offset against the region's effective scale at the moment of the call and stores a plain number, so a
+--- spotlight's health bar keeps whichever scale it was last anchored under -- a 1px inset snapped at 0.64
+--- is stored as 0.83 and stays 0.83 once the container reaches 0.53, leaving the bar's border thinner on
+--- that side than on the one the template anchors raw. Nothing else re-runs it: `ApplyChildConfig` reaches
+--- it on a size change, and this path is the only one a scale change takes.
+---
+--- The *effective* scale against the last one anchored under, rather than `position.scale` against
+--- `GetScale`: `UI_SCALE_CHANGED` and `DISPLAY_SIZE_CHANGED` move UIParent instead of this frame, and by
+--- the time the deferred pass runs both sides of that comparison already read the new value. Remembering
+--- what the children were actually anchored under is the only test that catches it -- and it keeps a drag,
+--- which comes through here on every step, from re-anchoring every spotlight per frame.
 ---@param position SpotlightsPositionConfig
 local function ApplyDisplay(position)
 	local frame = Private.Container.Get()
 
 	frame:SetScale(position.scale)
 	frame:SetFrameStrata(position.strata)
+
+	local scale = frame:GetEffectiveScale()
+
+	if scale ~= anchoredScale then
+		anchoredScale = scale
+
+		Private.SlotHeader.ForEachChild(function(child)
+			child:UpdateTempMaxHealthLoss()
+		end)
+	end
 end
 
 --- The screen's dimensions in the container's own units.

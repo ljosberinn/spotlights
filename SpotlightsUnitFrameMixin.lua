@@ -28,8 +28,8 @@ local GLOBAL_EVENTS = {
 local DISCONNECTED_COLOR = { r = 0.5, g = 0.5, b = 0.5 }
 local BACKGROUND_MULTIPLIER = 0.2
 
---- The health bar's inset on every side. Must match the template's healthBar anchors:
---- UpdateTempMaxHealthLoss re-anchors that bar and has to put it back exactly where the XML had it.
+--- The health bar's inset on every side. Must match the template's healthBar anchors, which hold until
+--- UpdateTempMaxHealthLoss first runs and re-anchors the bar in pixels rather than in units.
 local HEALTH_BAR_INSET = 1
 
 --- The absorb overlay's opacity.
@@ -507,6 +507,12 @@ function SpotlightsUnitFrameMixin:UpdateTempMaxHealthLoss()
 	-- to change -- reading it back would compound the inset on every update.
 	local fullWidth = self:GetWidth() - (HEALTH_BAR_INSET * 2)
 
+	--- Both corners, though only the second carries the loss: `PixelUtil` snaps against the effective
+	--- scale *at the call*, and the template's raw offsets are not snapped at all, so a bar with one
+	--- corner from each wears a border a whole pixel thicker on one side than the other at any scale
+	--- where a UI unit is not a pixel. Re-run whenever that scale changes -- see `Container.ApplyDisplay`.
+	PixelUtil.SetPoint(self.healthBar, "TOPLEFT", self, "TOPLEFT", HEALTH_BAR_INSET, -HEALTH_BAR_INSET)
+
 	PixelUtil.SetPoint(
 		self.healthBar,
 		"BOTTOMRIGHT",
@@ -515,6 +521,14 @@ function SpotlightsUnitFrameMixin:UpdateTempMaxHealthLoss()
 		-HEALTH_BAR_INSET - (fullWidth * lost),
 		HEALTH_BAR_INSET
 	)
+
+	--- The same rectangle, snapped the same way. Only this bar's right edge is ever visible -- the health
+	--- bar covers the other three -- but it is the edge the loss reveals, and an unsnapped one there means
+	--- the frame's border changes thickness the moment a loss lands.
+	PixelUtil.SetPoint(self.tempMaxHealthLoss, "TOPLEFT", self, "TOPLEFT", HEALTH_BAR_INSET,
+		-HEALTH_BAR_INSET)
+	PixelUtil.SetPoint(self.tempMaxHealthLoss, "BOTTOMRIGHT", self, "BOTTOMRIGHT", -HEALTH_BAR_INSET,
+		HEALTH_BAR_INSET)
 
 	self.tempMaxHealthLoss:SetValue(lost)
 	self.tempMaxHealthLoss:SetShown(lost > 0)
