@@ -1145,8 +1145,9 @@ end
 --- pane.
 ---
 --- `set` absent is what makes a box read-only -- `EditBox` has no such flag, so a keystroke is undone
---- in `OnTextChanged` by resetting the text to `get()` whenever the two disagree, the same trick a
---- read-only `StaticPopup` edit box uses. Selecting and copying still work; typing does not stick.
+--- in `OnTextChanged` by resetting the text to what the box is meant to say whenever the two disagree,
+--- the same trick a read-only `StaticPopup` edit box uses. Selecting and copying still work; typing
+--- does not stick.
 ---
 --- `InputScrollFrameTemplate` sizes its `EditBox` once, in its own `OnLoad`, against whatever width the
 --- frame happened to have at creation -- one pixel, since nothing has laid it out yet. `Layout` restates
@@ -1176,16 +1177,22 @@ function Private.Controls.TextArea(parent, height, get, set)
 
 	editBox:SetAutoFocus(false)
 
+	--- What the box is meant to say. Held here so the read-only guard below never calls `get` -- for the
+	--- export boxes that getter serialises, compresses and base64s the whole database, and calling it
+	--- from `OnTextChanged` meant one full encode per keystroke and two per refresh, since `SetText`
+	--- re-enters the handler.
+	---
+	--- Only `Refresh` and `SetText` write this, and they are the only two things allowed to change what
+	--- the box says, so it cannot go stale against the getter. It starts empty because the edit box does.
+	local expected = ""
+
 	if set then
 		editBox:SetScript("OnTextChanged", function(self)
 			set(self:GetText())
 		end)
 	else
 		editBox:SetScript("OnTextChanged", function(self)
-			local text = self:GetText()
-			local expected = get()
-
-			if text ~= expected then
+			if self:GetText() ~= expected then
 				self:SetText(expected)
 			end
 		end)
@@ -1198,6 +1205,7 @@ function Private.Controls.TextArea(parent, height, get, set)
 	end
 
 	function row:SetText(text)
+		expected = text
 		editBox:SetText(text)
 	end
 
@@ -1207,10 +1215,10 @@ function Private.Controls.TextArea(parent, height, get, set)
 	end
 
 	function row:Refresh()
-		local text = get()
+		expected = get()
 
-		if editBox:GetText() ~= text then
-			editBox:SetText(text)
+		if editBox:GetText() ~= expected then
+			editBox:SetText(expected)
 		end
 	end
 

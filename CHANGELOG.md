@@ -9,6 +9,7 @@ v1.1.0
 - fixed a bug where player names were leaking out of the frame
 - fixed a bug where importing a profile exported by a newer version made this account skip that version's settings migration for good; such a profile is now refused with a prompt to update the addon
 - fixed a bug where importing a profile carried the exporter's minimap button state and left the button unable to be toggled until the next reload
+- fixed a bug where a read-only export box re-encoded the whole profile on every keystroke
 
 ## Features
 
