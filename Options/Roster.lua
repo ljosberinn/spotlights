@@ -415,8 +415,9 @@ end
 --- clips them belongs to the scroll pane and the block a drop lands in belongs to the pane as a whole.
 ---
 --- A `filter` sits between the heading and the list, on the list it filters: a pane that looks short is
---- explained by the control directly above it, and the heading is the caption a labelless control would
---- otherwise need. The caller pays for its height, since only the caller knows what the column has left.
+--- explained by the control directly above it. It names itself -- the heading over it says what the list
+--- holds, not what the control does with it -- so a caller passing a labelless control passes its caption
+--- with it. The caller pays for the height of both, since only the caller knows what the column has left.
 ---@param page Frame
 ---@param heading string
 ---@param height number | fun(): number what the column has to spend on the list
@@ -521,9 +522,16 @@ local function BuildRoster(page)
 	--- out. Zero until then, which is only ever the case before the first pass.
 	local reserved = 0
 
-	--- One row and one gap of this is the role filter's, which sits between the heading and the list.
+	--- A caption, a row and two gaps of this are the role filter block's, which sits between the heading
+	--- and the list.
+	---
+	--- WARNING: get this subtraction wrong and nothing errors -- the list simply runs past the bottom of
+	--- the tab.
+	local caption = Private.Controls.CaptionHeight
+
 	local function MembersHeight()
-		return math.max(page:GetHeight() - heading - row - PANE_GAP * 3 - reserved, MIN_LIST_HEIGHT)
+		return math.max(page:GetHeight() - heading - caption - row - PANE_GAP * 4 - reserved,
+			MIN_LIST_HEIGHT)
 	end
 
 	local slots = Private.Node.Column(page, {
@@ -548,10 +556,15 @@ local function BuildRoster(page)
 			SetRoleRemoved, CHECKBOX_LABEL_WIDTH),
 	}, PANE_GAP)
 
-	--- No label: the heading above says what the list holds, and a label column here would leave the
-	--- dropdown a hundred pixels of the 250 -- the same reasoning the presets dropdown spans its column on.
-	local roleFilter = Private.Controls.MultiselectDropdown(page, nil, ROLE_CHOICES, GetRoleOffered,
-		SetRoleOffered)
+	--- Captioned above rather than labelled beside: an untouched dropdown reads as `Damage` with nothing
+	--- saying what the word is doing there, and the heading over the pane names the list rather than the
+	--- filter. The label column was considered and rejected -- `Divide` takes 130 of label and 6 of gap
+	--- off the 250 this column has, leaving 114, and `Tank, Healer, Damage` does not fit in 114.
+	local roleFilter = Private.Node.Column(page, {
+		Private.Controls.Caption(page, L.UnrosteredRoleFilter),
+
+		Private.Controls.MultiselectDropdown(page, nil, ROLE_CHOICES, GetRoleOffered, SetRoleOffered),
+	}, PANE_GAP)
 
 	local members = BuildPane(page, L.UnrosteredHeader, MembersHeight, "members", function()
 		local _, count, offered = Private.RosterList.Available()

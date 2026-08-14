@@ -149,6 +149,7 @@ L.Settings.ClearOnLeave = "Azzera il roster uscendo dal gruppo"
 L.Settings.AutoRemoveRoles = "Rimuovi automaticamente questi ruoli"
 L.Settings.SpotlightedHeader = "In evidenza"
 L.Settings.UnrosteredHeader = "Non in evidenza"
+L.Settings.UnrosteredRoleFilter = "Mostra questi ruoli..."
 L.Settings.AddSpacer = "Aggiungi uno spaziatore"
 L.Settings.NoSlots =
 "Nessun giocatore in evidenza per ora. Aggiungi un membro del gruppo dalla lista accanto, oppure trascinane uno qui."

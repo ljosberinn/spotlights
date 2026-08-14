@@ -40,6 +40,17 @@ local HEADING_HEIGHT = HEADING_TOP_PAD + HEADING_TEXT_HEIGHT
 --- heading above it and the controls below it leave over.
 Private.Controls.HeadingHeight = HEADING_HEIGHT
 
+--- One line of `GameFontHighlightSmall`, and no pad: a caption belongs to the control under it, where a
+--- heading is a break between groups.
+---
+--- 17 is the tallest member of `SystemFont_Small` -- Korean, at 13 (`Fonts.xml`) -- plus the four pixels
+--- of slack `HEADING_TEXT_HEIGHT` gives `Med2`'s tallest. Fixed rather than measured, because the pane
+--- that reserves this space asks for it before layout has run.
+local CAPTION_HEIGHT = 17
+
+--- Published for the reason the two above it are.
+Private.Controls.CaptionHeight = CAPTION_HEIGHT
+
 --- The white wash a hovered row or header wears. Published rather than restated in each list, because
 --- every list in the panel is meant to answer the cursor the same way and a per-file number drifts.
 Private.Controls.HighlightAlpha = 0.06
@@ -395,7 +406,7 @@ end
 --- setting rather than as an empty selection. Said as an entry rather than through `SetDefaultText`
 --- because the *list* has the same gap: presets with none of them ticked and no line saying so.
 ---@param parent Frame
----@param label string? omitted for a dropdown that spans its column, where a heading above says what it picks
+---@param label string? omitted for a dropdown that spans its column, where a `Caption` or a heading above says what it picks
 ---@param choices { value: any, label: string }[] | fun(): { value: any, label: string }[]
 ---@param get fun(): any
 ---@param set fun(value: any)
@@ -478,7 +489,7 @@ end
 --- themselves selected, joined -- so `SetDefaultText` is the only way to name the empty case. `NONE` is
 --- the game's own word for it, and every multiselect this panel grows wants the same one.
 ---@param parent Frame
----@param label string? omitted for a dropdown that spans its column, where a heading above says what it picks
+---@param label string? omitted for a dropdown that spans its column, where a `Caption` or a heading above says what it picks
 ---@param choices { value: any, label: string }[] | fun(): { value: any, label: string }[]
 ---@param IsSelected fun(value: any): boolean
 ---@param SetSelected fun(value: any, selected: boolean)
@@ -931,6 +942,54 @@ function Private.Controls.SubHeading(parent, text)
 		self:SetSize(width, HEADING_HEIGHT)
 
 		return HEADING_HEIGHT
+	end
+
+	return row
+end
+
+--- A single line naming the control beneath it, for a control that spans its column and so has no label
+--- of its own to be named by.
+---
+--- Neither of the two leaves already here would do. `SubHeading` is fixed height but reads as a second
+--- heading under the first, and pads itself away from what it is meant to sit on. `Paragraph` is the
+--- right weight but only learns its height in `Layout`, and a pane that reserves room for this has to
+--- know the number before that -- a caption that wrapped to two lines in one locale would silently push
+--- the list past the bottom of the tab.
+---
+--- So: one line, no wrap, and clipped when the column is too narrow -- with the truncation tooltip every
+--- other clipped string in the panel carries.
+---
+--- Anchored `BOTTOMLEFT` like `SubHeading`'s text, so a taller alphabet grows upwards into the gap
+--- rather than downwards into the control it captions.
+---@param parent Frame
+---@param text string | fun(): string
+---@return SpotlightsNode
+function Private.Controls.Caption(parent, text)
+	local row = CreateFrame("Frame", nil, parent) --[[@as SpotlightsNode]]
+
+	row.span = true
+
+	local caption = row:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+
+	caption:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 0, 0)
+	caption:SetJustifyH("LEFT")
+	caption:SetWordWrap(false)
+
+	caption:EnableMouseMotion(true)
+	caption:SetPropagateMouseMotion(true)
+
+	caption:SetScript("OnEnter", ShowLabelTooltip)
+	caption:SetScript("OnLeave", HideLabelTooltip)
+
+	function row:Refresh()
+		caption:SetText(type(text) == "function" and text() or text)
+	end
+
+	function row:Layout(width)
+		self:SetSize(width, CAPTION_HEIGHT)
+		caption:SetWidth(width)
+
+		return CAPTION_HEIGHT
 	end
 
 	return row

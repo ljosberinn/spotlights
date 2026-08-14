@@ -37,7 +37,7 @@ v1.1.0
 - spotlights now render in a party, not only in a raid
 - Clear Roster When Leaving The Group now also clears when a party becomes a raid, or a raid a party
 - Roster tab shows role icons and class color
-- the Unrostered list can now be narrowed to chosen roles
+- the Unrostered list can now be narrowed to chosen roles, and the dropdown that narrows it is now captioned
 - roles can now be set to be removed from the grid automatically, keeping tanks or healers out of every preset and every add
 
 ### Augmentation-specific

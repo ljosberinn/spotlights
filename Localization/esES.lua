@@ -148,6 +148,7 @@ L.Settings.ClearOnLeave = "Vaciar la lista al abandonar el grupo"
 L.Settings.AutoRemoveRoles = "Eliminar automáticamente estos roles"
 L.Settings.SpotlightedHeader = "Destacados"
 L.Settings.UnrosteredHeader = "Sin destacar"
+L.Settings.UnrosteredRoleFilter = "Mostrar estos roles..."
 L.Settings.AddSpacer = "Añadir un separador"
 L.Settings.NoSlots =
 "Todavía no hay nadie destacado. Añade un miembro del grupo desde la lista de al lado, o arrastra uno hasta aquí."
