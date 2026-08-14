@@ -421,10 +421,10 @@ end
 
 --- Whether the list offers a role, against the set the user picked.
 ---
---- **A member with no role is always offered.** `GetRole` answers nil both for someone who has not picked
---- one and for a group that has had no role check, and hiding on an absence of information would empty
---- the pane for a whole raid -- the opposite of what a filter narrowing it to the damage dealers is for.
---- Which is also why the dropdown has no "no role" entry to switch off.
+--- A member with no role is offered under `NONE`, which is its own entry in the dropdown and ticked by
+--- default. `GetRole` answers nil both for someone who has not picked one and for a group that has had no
+--- role check, and the second is a standing state rather than a transient one -- so it is a filter the
+--- user can switch off rather than an absence the list papers over by listing everyone.
 ---
 --- A missing set offers everything, so a database this ran against before the field existed lists the
 --- group rather than nobody.
@@ -432,11 +432,11 @@ end
 ---@param role string?
 ---@return boolean
 local function Offers(roles, role)
-	if not role or not roles then
+	if not roles then
 		return true
 	end
 
-	return roles[role] == true
+	return roles[role or "NONE"] == true
 end
 
 --- Everyone in the group whose role the list offers and who is not already in the grid, keeping the

@@ -48,3 +48,7 @@ v1.1.0
 ### Augmentation-specific
 
 - added Shifting Sands as dedicatedly trackable and customizable aura
+
+# Unreviewed
+
+- the Unrostered role filter now has an Unassigned entry, ticked by default, for group members no role was ever assigned to

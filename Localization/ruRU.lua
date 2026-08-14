@@ -150,6 +150,7 @@ L.Settings.AutoRemoveRoles = "Автоматически удалять эти �
 L.Settings.SpotlightedHeader = "Выделенные"
 L.Settings.UnrosteredHeader = "Невыделенные"
 L.Settings.UnrosteredRoleFilter = "Показывать эти роли..."
+L.Settings.UnassignedRole = "Не назначена"
 L.Settings.AddSpacer = "Добавить разделитель"
 L.Settings.NoSlots =
 "Пока никто не выделен. Добавьте участника группы из списка рядом или перетащите его сюда."

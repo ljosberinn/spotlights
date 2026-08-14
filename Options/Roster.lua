@@ -51,8 +51,7 @@ local CLEAR_POPUP = "SPOTLIGHTS_ROSTER_CLEAR"
 --- the interval is set by how long a stale list is tolerable rather than by what the rebuild costs.
 local REFRESH_INTERVAL = 1
 
---- The three roles, in the order the game lists them. Both dropdowns on this tab pick from them: the
---- one narrowing the Unrostered list, and the one keeping roles out of the grid.
+--- The three roles, in the order the game lists them, for the dropdown keeping roles out of the grid.
 ---
 --- Labelled from the globals rather than from our own keys, which is how the default UI labels the same
 --- three tokens (`LFGList.lua:3757` resolves `_G[role]`) -- eleven locales of "Tank" for free, and the
@@ -62,6 +61,18 @@ local ROLE_CHOICES = {
 	{ value = "TANK", label = TANK },
 	{ value = "HEALER", label = HEALER },
 	{ value = "DAMAGER", label = DAMAGER },
+}
+
+--- The same three plus the token `UnitGroupRolesAssigned` answers for a member no role was ever assigned
+--- to, which in a group that never ran a role check is everyone.
+---
+--- The fourth label is ours because there is no global for it: the stock `NONE` is already this
+--- dropdown's empty-state text, so reusing it would put the same word in the list and on the button.
+local FILTER_ROLE_CHOICES = {
+	ROLE_CHOICES[1],
+	ROLE_CHOICES[2],
+	ROLE_CHOICES[3],
+	{ value = "NONE", label = Private.L.Settings.UnassignedRole },
 }
 
 ---@return SpotlightsLayoutConfig?
@@ -562,7 +573,8 @@ local function BuildRoster(page)
 	local roleFilter = Private.Node.Column(page, {
 		Private.Controls.Caption(page, L.UnrosteredRoleFilter),
 
-		Private.Controls.MultiselectDropdown(page, nil, ROLE_CHOICES, GetRoleOffered, SetRoleOffered),
+		Private.Controls.MultiselectDropdown(page, nil, FILTER_ROLE_CHOICES, GetRoleOffered,
+			SetRoleOffered),
 	}, PANE_GAP)
 
 	local members = BuildPane(page, L.UnrosteredHeader, MembersHeight, "members", function()
@@ -585,8 +597,10 @@ local function BuildRoster(page)
 	--- The one tab that goes stale on its own; everything else changes only when the user changes it.
 	---
 	--- Two events, because a row states two things: who is in the group, and what they are. Only the
-	--- first is a membership change; a role check finishing or a member picking a role fires
-	--- PLAYER_ROLES_ASSIGNED and nothing else, so the role column stays blank without it.
+	--- first is a membership change. PLAYER_ROLES_ASSIGNED has never been observed without a
+	--- GROUP_ROSTER_UPDATE a millisecond ahead of it carrying the new role already, so it is cover for
+	--- paths not measured rather than the only signal a role moved -- and the shared window below makes
+	--- it free.
 	---
 	--- Throttled rather than immediate because a raid forming fires one roster event per member, and each
 	--- one rebuilds both lists whole -- the panes are deliberately not diffed.

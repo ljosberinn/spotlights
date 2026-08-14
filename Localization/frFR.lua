@@ -150,6 +150,7 @@ L.Settings.AutoRemoveRoles = "Retirer automatiquement ces rôles"
 L.Settings.SpotlightedHeader = "Mis en avant"
 L.Settings.UnrosteredHeader = "Non mis en avant"
 L.Settings.UnrosteredRoleFilter = "Afficher ces rôles..."
+L.Settings.UnassignedRole = "Non assigné"
 L.Settings.AddSpacer = "Ajouter un espace"
 L.Settings.NoSlots =
 "Aucun joueur mis en avant pour l'instant. Ajoutez un membre du groupe depuis la liste voisine, ou faites-en glisser un jusqu'ici."

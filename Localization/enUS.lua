@@ -199,6 +199,9 @@ L.Settings.SpotlightedHeader = "Spotlighted"
 L.Settings.UnrosteredHeader = "Unrostered"
 -- Ends in an ellipsis on purpose: the dropdown under it finishes the sentence with the roles picked.
 L.Settings.UnrosteredRoleFilter = "Show roles matching..."
+-- The fourth entry in the filter above, for a member the group never assigned a role to. Ours rather
+-- than a global: the stock `NONE` is the same dropdown's empty-state text.
+L.Settings.UnassignedRole = "Unassigned"
 L.Settings.AddSpacer = "Add Spacer"
 L.Settings.NoSlots =
 "No spotlights configured yet. Add a group member from the list beside this one, or drag one onto it."

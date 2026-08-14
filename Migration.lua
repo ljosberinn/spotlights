@@ -33,20 +33,25 @@ local function DefaultLayout()
 		-- Damage alone, because those are the players anyone spotlights: a full raid's tanks and healers
 		-- are twenty rows scrolled past on the way to them.
 		--
-		-- All three keys are written, and a deselected role is stored `false` rather than removed. `Filled`
+		-- `NONE` on by default, so a group that never ran a role check lists as it always did -- the
+		-- difference is that the reason is now on screen and switchable.
+		--
+		-- All four keys are written, and a deselected role is stored `false` rather than removed. `Filled`
 		-- recurses into a table default and fills whatever the stored one lacks, so a hole here would be
 		-- read as "missing" and come back at the default -- turning Damage back on every load for the user
-		-- who switched it off.
+		-- who switched it off. It is also what carries `NONE` into a database written before it existed.
 		unrosteredRoles = {
 			TANK = false,
 			HEALER = false,
 			DAMAGER = true,
+			NONE = true,
 		},
 
 		-- Every role off, on the grounds `clearOnLeave` ships off: this one discards slots the user
 		-- arranged, and a default that threw any of them away would be a setting nobody asked for.
 		--
-		-- All three keys written, as above, so the shape matches what the panel writes back.
+		-- Every key written, as above, so the shape matches what the panel writes back. No `NONE` here:
+		-- declining to list someone is not a reason to take the slot they hold out of the grid.
 		autoRemoveRoles = {
 			TANK = false,
 			HEALER = false,
