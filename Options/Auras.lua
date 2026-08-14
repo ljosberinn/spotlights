@@ -262,6 +262,11 @@ local function CreateCategoryStrip(page)
 
 		ApplyPreviewFeature()
 
+		-- Before the refresh, not after: `SyncSections` relayouts what it changes, and the categories
+		-- do not agree on which displays are on, so the incoming one decides the open states the pass
+		-- below lays out.
+		Private.AuraAppearance.SyncSections()
+
 		-- Both sub-tabs are about the selected category, so the switch is a re-read of the tab rather
 		-- than anything of its own. The strip's own repaint rides along with it.
 		Private.Options.Refresh()
@@ -281,15 +286,18 @@ end
 local function OnPageShown()
 	ApplyPreviewFeature()
 	Private.AuraPreview.SetShown(true)
+
+	-- The first visit of a session has no category switch in front of it, so the show path decides the
+	-- open states too. It is also the only writer of them: the hide path expanding everything would
+	-- undo this a moment before the next show redoes it, which is a flicker at best.
+	Private.AuraAppearance.SyncSections()
 end
 
 local function OnPageHidden()
 	Private.AuraPreview.SetShown(false)
 
-	-- A section's open state and the Tracked rail's search belong to the visit rather than to the panel,
-	-- and this is the moment the visit ends -- on a tab switch as well as on a close, which is the same
-	-- answer either way.
-	Private.AuraAppearance.ResetSections()
+	-- The Tracked rail's search belongs to the visit rather than to the panel, and this is the moment
+	-- the visit ends -- on a tab switch as well as on a close, which is the same answer either way.
 	Private.AuraTracked.ResetSearch()
 end
 

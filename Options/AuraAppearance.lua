@@ -83,6 +83,12 @@ local ActiveName
 ---@type SpotlightsSectionNode[]
 local sections = {}
 
+--- Which display each entry of `sections` is about, by position. **The two are built apart and have to
+--- stay in step** -- `Build` assembles `sections` from four locals, and `SyncSections` pairs them off
+--- against this.
+---@type SpotlightsAuraDisplayKey[]
+local SECTION_DISPLAY_KEYS = { "icon", "bar", "square", "text" }
+
 ---@type SpotlightsPreviewPaneNode[]
 local panes = {}
 
@@ -743,14 +749,30 @@ local function BuildTextBody(page)
 	}, "text", L.AuraText)
 end
 
---- Collapses nothing and expands everything: the open state is transient, and this is what makes it so.
+--- Opens the sections whose display is switched on and collapses the rest, so a category the user has
+--- one display enabled on does not open with three bodies of controls that change nothing on screen
+--- above the one that does.
 ---
---- Called when the tab goes off screen rather than tracked as a setting. Persisting it would mean a
---- saved-variable field per section and a migration, to remember something the user changes by looking at
---- the panel.
-function Private.AuraAppearance.ResetSections()
+--- The open state is transient and stays that way: this decides it rather than remembering it, and the
+--- alternative -- a saved-variable field per section and a migration -- would persist something the user
+--- changes by looking at the panel.
+---
+--- **Initial, not forced.** The enable checkbox is the first row *inside* each body, so a section held
+--- collapsed while its display is off would be a display that can never be switched back on from the
+--- panel. Called from the two moments a visit to a category begins -- the page being shown and the
+--- category strip changing -- and never from a write, so a section the user opens stays open, and
+--- switching a display off does not collapse the section under their cursor.
+---
+--- Not `startOpen`: `Build` runs once per session, thirty lines before `RefreshCategories` picks the
+--- selected category, so a constructor argument would answer once for whichever category the file was
+--- loaded pointing at.
+---
+--- Must run *before* the `Refresh` that follows it. `SetOpen` relayouts when the state changes, and a
+--- relayout from underneath a pass in progress is what the tree's `Refresh`-before-`Layout` order exists
+--- to prevent.
+function Private.AuraAppearance.SyncSections()
 	for i = 1, #sections do
-		sections[i]:SetOpen(true)
+		sections[i]:SetOpen(Display(SECTION_DISPLAY_KEYS[i]).enabled)
 	end
 end
 
