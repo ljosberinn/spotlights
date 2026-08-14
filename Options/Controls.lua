@@ -676,8 +676,18 @@ function Private.Controls.ColorSwatch(parent, label, get, set, enabled, full, la
 			g = g,
 			b = b,
 			hasOpacity = true,
-			opacity = 1 - a,
+
+			-- The alpha itself: `info.opacity` is "1.0 is fully shown, 0 is transparent"
+			-- (`UIDropDownMenu.lua:301`), which is what the stored channel already means.
+			opacity = a,
 			swatchFunc = function()
+				--- `SetupColorPickerAndShow` calls `SetColorRGB` before `Show`, so this fires once with the
+				--- alpha of whatever the picker was last opened for -- `OnShow` is where `opacity` reaches
+				--- the widget (`ColorPickerFrame.lua:43,103`). That write would land on this colour.
+				if not ColorPickerFrame:IsShown() then
+					return
+				end
+
 				local newR, newG, newB = ColorPickerFrame:GetColorRGB()
 				local newA = ColorPickerFrame:GetColorAlpha()
 

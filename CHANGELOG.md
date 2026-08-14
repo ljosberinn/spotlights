@@ -54,3 +54,4 @@ v1.1.0
 - aura appearance sections now carry a second preview showing every display the category has switched on at once, whenever more than one is on
 - fixed a bug where switching a category off left the aura appearance previews drawing the old picture
 - added a fifth display option: Frame Color, which colors the spotlight's health bar for as long as the aura is up
+- fixed a bug where picking a color inverted its opacity, leaving the swatch black and the color invisible until the picker was opened again
