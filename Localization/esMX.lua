@@ -152,7 +152,7 @@ L.Settings.AutoRemoveRoles = "Eliminar automáticamente estos roles"
 L.Settings.SpotlightedHeader = "Resaltados"
 L.Settings.UnrosteredHeader = "Sin resaltar"
 L.Settings.UnrosteredRoleFilter = "Mostrar estos roles..."
-L.Settings.AddSpacer = "Agregar un separador"
+L.Settings.AddSpacer = "Agregar separador"
 L.Settings.NoSlots =
 "Aún no hay nadie resaltado. Agrega un miembro del grupo desde la lista de al lado, o arrastra uno hasta aquí."
 L.Settings.ClearSlots = "Depurar"

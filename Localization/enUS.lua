@@ -199,7 +199,7 @@ L.Settings.SpotlightedHeader = "Spotlighted"
 L.Settings.UnrosteredHeader = "Unrostered"
 -- Ends in an ellipsis on purpose: the dropdown under it finishes the sentence with the roles picked.
 L.Settings.UnrosteredRoleFilter = "Show roles matching..."
-L.Settings.AddSpacer = "Add a spacer"
+L.Settings.AddSpacer = "Add Spacer"
 L.Settings.NoSlots =
 "No spotlights configured yet. Add a group member from the list beside this one, or drag one onto it."
 L.Settings.ClearSlots = "Prune"
