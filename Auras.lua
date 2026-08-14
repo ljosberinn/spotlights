@@ -139,7 +139,6 @@ local COOLDOWNS = {
 	},
 }
 
---- ids off by default are NOT considered Big Defenives by the game and added manually
 ---@type table<integer, table<integer, boolean>>
 local DEFENSIVES = {
 	[Constants.UICharacterClasses.Warrior] = {
@@ -154,7 +153,7 @@ local DEFENSIVES = {
 		[6940] = true, -- Blessing of Sacrifice
 		[31850] = true, -- Ardent Defender
 		[86659] = true, -- Guardian of Ancient Kings
-		[184662] = false, -- Shield of Vengeance
+		[184662] = true, -- Shield of Vengeance
 		[199448] = true, -- Blessing of Sacrifice
 		[204018] = true, -- Blessing of Spellwarding
 		[212641] = true, -- Guardian of Ancient Kings
@@ -165,9 +164,9 @@ local DEFENSIVES = {
 		[264735] = true, -- Survival of the Fittest
 	},
 	[Constants.UICharacterClasses.Rogue] = {
-		[1966] = false, -- Feint
+		[1966] = true, -- Feint
 		[31224] = true, -- Cloak of Shadows
-		[81549] = true, -- Cloak of Shadows
+		-- [81549] = false, -- Cloak of Shadows - is in the data, but wrong
 	},
 	[Constants.UICharacterClasses.Priest] = {
 		[19236] = true, -- Desperate Prayer
@@ -179,7 +178,7 @@ local DEFENSIVES = {
 		[48707] = true, -- Anti-Magic Shell
 		[48792] = true, -- Icebound Fortitude
 		[55233] = true, -- Vampiric Blood
-		[444741] = false, -- Anti-Magic Shell proc
+		[444741] = true, -- Anti-Magic Shell proc
 	},
 	[Constants.UICharacterClasses.Shaman] = {
 		[108271] = true, -- Astral Shift

@@ -1,43 +1,42 @@
 v1.1.0
 
-- the options panel was rebuilt from scratch
-- added Health Text customization to Frame settings
-- color pickers now allow opacity
+## Bugfixes
+
 - fixed a bug where unit range was not reliably asserted
-- exposed inputs for all sliders
-- default icon size was reduced
-- moved Prescience/Sense Power tabs to the bottom of the frame
-- enabled Auras system on 12.1 for non-Evokers
-- non-Augmentation Evokers now can customize "Cooldowns & Custom Auras" and "Defensives"
-  - "Cooldowns & Custom Auras" uses the same list the Sense Power feature uses
-    - these are all _trackable_ major cooldowns except for summons such as Demonic Tyrant as those are not trackable via aura
-  - "Defensives" uses the games own list for defensive auras, amended with a couple spells the default ui currently does not consider as such
-  - these additional auras are off by default
 - fixed a bug where the available raid members to spotlight would not update instantly upon roster changes when the frame was open
-- fixed a bug where player names were leaking out of the frame
-- added a checkbox per-class in order to toggle inclusion of all of that specs abilities
-- added Shifting Sands as dedicatedly trackable and customizable aura
-- added Import / Export support
-- Status Bars can now be vertically aligned
-- added a third display option: Square
-- added Roster Presets which can also be imported and exported
 - fixed a bug where aura previews kept showing spells that were toggled off
 - fixed a bug where the gap between pooled aura icons only reached displays built afterwards
+- fixed a bug where player names were leaking out of the frame
+
+## Features
+
+- the options panel was rebuilt from scratch and a lot of settings were added:
+  - added Health Text customization to Frame settings
+  - color pickers now allow opacity
+  - exposed inputs for all sliders
+  - default icon size was reduced
+  - moved Prescience/Sense Power tabs to the bottom of the frame
+  - added a checkbox per-class in order to toggle inclusion of all of that specs abilities
+  - Status Bars can now be vertically aligned
+  - added Show Name
+  - added Show Name On Hover Only
+  - added Name Strata
+- enabled Auras system for non-Evokers
+  - non-Augmentation Evokers now can customize "Cooldowns & Custom Auras" and "Defensives"
+    - "Cooldowns & Custom Auras" uses the same list the Sense Power feature uses
+      - these are all _trackable_ major cooldowns except for summons such as Demonic Tyrant as those are not trackable via aura
+    - "Defensives" uses the games own list for defensive auras, amended with a couple spells the default ui currently does not consider as such
+    - these additional auras are off by default
+- added Import / Export support
+- added Roster Presets which can also be imported and exported
+- added a third display option: Square
 - right-clicking the minimap button now opens the Roster tab directly
-- settings are now grouped under headings on the Appearance and Auras tabs
-- added Show Name, so a spotlight's name can be turned off
-- added Show Name On Hover Only, showing the name only while the cursor is over the frame
-- added Name Strata, so the name can be raised over an overlapping aura display
 - spotlights now render in a party, not only in a raid
 - Clear Roster When Leaving The Group now also clears when a party becomes a raid, or a raid a party
-- the options panel is taller, and the Import / Export boxes with it
-- the Tracked sub-tab is no longer offered for Prescience and Shifting Sands, which track one spell each
-- tracked spell rows show the spell ID alone, without the client's rank or specialisation subtext
-- the Roster tab's two panes are now headed Spotlighted and Unrostered
-- roster rows light up under the cursor, like the tracked spell rows do
-- hovering a tracked spell row, or the preview under the custom spell box, shows that spell's tooltip
-- importing a preset no longer selects it, and the preset dropdown now reads "None selected" while none is in play
-- the Roster tab's role icons now appear as soon as roles are assigned, instead of waiting on a group change
-- the Unrostered list can now be narrowed to chosen roles, and ships showing damage dealers only
+- Roster tab shows role icons and class color
+- the Unrostered list can now be narrowed to chosen roles
 - roles can now be set to be removed from the grid automatically, keeping tanks or healers out of every preset and every add
-- the Roster tab's lists no longer flicker while a raid fills, repainting at most once a second
+
+### Augmentation-specific
+
+- added Shifting Sands as dedicatedly trackable and customizable aura

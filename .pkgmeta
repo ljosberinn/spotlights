@@ -4,6 +4,7 @@ ignore:
   - .github
   - CHANGELOG.md
   - README.md
+  - .gitignore
 manual-changelog:
   filename: CHANGELOG.md
   markuptype: markdown
