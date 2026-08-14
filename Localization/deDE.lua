@@ -151,6 +151,7 @@ L.Settings.ClearOnLeave = "Gruppe beim Verlassen der Gruppe leeren"
 L.Settings.AutoRemoveRoles = "Diese Rollen automatisch entfernen"
 L.Settings.SpotlightedHeader = "Hervorgehoben"
 L.Settings.UnrosteredHeader = "Nicht hervorgehoben"
+L.Settings.UnrosteredRoleFilter = "Diese Rollen anzeigen..."
 L.Settings.AddSpacer = "Platzhalter hinzufügen"
 L.Settings.NoSlots =
 "Noch keine Hervorhebungen konfiguriert. Füge ein Gruppenmitglied aus der Liste daneben hinzu oder zieh eines hierher."
