@@ -7,7 +7,7 @@ Private.AuraAppearance = {}
 --- The Auras tab's Appearance sub-tab: one collapsible section per kind of display the selected
 --- category can draw, scrolling under a pinned reset button.
 ---
---- An aura feature has four independent display modes, each with its own size, placement, swipe, border
+--- An aura feature has five independent display modes, each with its own size, placement, swipe, border
 --- and colour. Flat, that is a wall of four dozen controls with nothing saying which mode is actually on
 --- or what it is set to. A section answers both in its header: the display's name, and a summary
 --- formatted from the very fields its body edits -- `25 × 25 · Bottom · swipe on · 4px border`.
@@ -84,10 +84,10 @@ local ActiveName
 local sections = {}
 
 --- Which display each entry of `sections` is about, by position. **The two are built apart and have to
---- stay in step** -- `Build` assembles `sections` from four locals, and `SyncSections` pairs them off
+--- stay in step** -- `Build` assembles `sections` from five locals, and `SyncSections` pairs them off
 --- against this.
 ---@type SpotlightsAuraDisplayKey[]
-local SECTION_DISPLAY_KEYS = { "icon", "bar", "square", "text" }
+local SECTION_DISPLAY_KEYS = { "icon", "bar", "square", "text", "frameColor" }
 
 ---@type SpotlightsPreviewPaneNode[]
 local panes = {}
@@ -124,6 +124,11 @@ local function Text()
 	return Feature().text
 end
 
+---@return SpotlightsAuraFrameColorConfig
+local function FrameColor()
+	return Feature().frameColor
+end
+
 --- Any display's block by key, for the read/write factories below. The typed accessors above are what
 --- the summaries use, since those read named fields.
 ---@param displayKey SpotlightsAuraDisplayKey
@@ -139,6 +144,10 @@ local function Display(displayKey)
 
 	if displayKey == "text" then
 		return Text()
+	end
+
+	if displayKey == "frameColor" then
+		return FrameColor()
 	end
 
 	return Icon()
@@ -394,6 +403,18 @@ local function TextSummary()
 		AnchorName(config), BorderPhrase(config))
 end
 
+--- The tint's summary, and the shortest of the five: it has no size, no anchor and no border, because its
+--- rect is the health bar's rather than anything it decides. What is left to say is its opacity, which is
+--- the setting that decides whether the class colour shows through.
+---@return string
+local function FrameColorSummary()
+	local L = Private.L.Settings
+	local config = FrameColor()
+
+	return HiddenSummary(config)
+		or string.format(L.AuraSummaryFrameColor, math.floor(config.alpha * 100 + 0.5))
+end
+
 local OnlyWhen = Private.Node.OnlyWhen
 
 --- Gives a control a row of its own, closing whatever row was being filled.
@@ -412,8 +433,8 @@ end
 
 --- How many of the selected category's displays are both drawn and switched on.
 ---
---- Counted through `HasDisplay` rather than over the four `enabled` flags: every feature stores a block
---- for all four kinds whatever it renders, nothing stops those blocks being written, and a profile import
+--- Counted through `HasDisplay` rather than over the five `enabled` flags: every feature stores a block
+--- for all five kinds whatever it renders, nothing stops those blocks being written, and a profile import
 --- arrives with whatever the exporter had. A flag on a kind the category never draws must not count.
 ---@return integer
 local function EnabledDisplayCount()
@@ -548,7 +569,8 @@ end
 --- The border sub-heading and its three controls, identical for every display.
 ---
 --- A border is the one piece of styling that does not care what it is around, so writing these once per
---- section would duplicate the same thing four times.
+--- section would duplicate the same thing four times. Not offered on the health-bar tint, which has no
+--- rect of its own for an edge to go around.
 ---@param page Frame
 ---@param displayKey SpotlightsAuraDisplayKey
 ---@return SpotlightsNode[]
@@ -576,8 +598,8 @@ local function BorderRows(page, displayKey)
 	}
 end
 
---- The anchor and the two offsets that refine it, identical for all four displays and always the last
---- group in a body.
+--- The anchor and the two offsets that refine it, identical for the four displays that have a rect of their
+--- own to place, and always the last group in a body.
 ---@param page Frame
 ---@param displayKey SpotlightsAuraDisplayKey
 ---@return SpotlightsNode[]
@@ -612,9 +634,12 @@ end
 ---@param rows SpotlightsNode[] everything above the border group
 ---@param displayKey SpotlightsAuraDisplayKey
 ---@param label string
+---@param trailing SpotlightsNode[][]? the shared groups, `{}` for a display that has neither
 ---@return SpotlightsNode
-local function BuildBody(page, rows, displayKey, label)
-	local trailing = { BorderRows(page, displayKey), PositioningRows(page, displayKey) }
+local function BuildBody(page, rows, displayKey, label, trailing)
+	--- Built here rather than defaulted at the call sites so a body that wants neither group -- the
+	--- health-bar tint, whose rect is not its own -- costs no frames for the controls it will not show.
+	trailing = trailing or { BorderRows(page, displayKey), PositioningRows(page, displayKey) }
 
 	for group = 1, #trailing do
 		local list = trailing[group]
@@ -640,7 +665,7 @@ local function BuildBody(page, rows, displayKey, label)
 	--- refreshes the tree.
 	---
 	--- `OnlyWhen` skips `Refresh` on a hidden node, and the lazy build lives inside `Refresh`, so a
-	--- category with one display enabled allocates nothing. A category with two allocates in all four
+	--- category with one display enabled allocates nothing. A category with two allocates in all five
 	--- sections, open or collapsed: `Section:Refresh` refreshes its body either way.
 	local combined = OnlyWhen(BuildPreview(page, nil, {
 		heading = L.AuraCombinedPreviewHeading,
@@ -814,7 +839,7 @@ end
 local function BuildTextBody(page)
 	local L = Private.L.Settings
 
-	--- The shortest body of the four: no size group, because the rect follows the font size, and no
+	--- The shortest body with a rect of its own: no size group, because the rect follows the font size, and no
 	--- cooldown group, because there is no swipe to switch and the countdown is the display rather than an
 	--- option on it. What is left is the text itself, so the labels drop the `Duration` the other two
 	--- sections need to say which of their parts is being styled.
@@ -843,6 +868,35 @@ local function BuildTextBody(page)
 		Private.Controls.ColorSwatch(page, L.AuraTextColor, ColorGetter("text", "r", "g", "b", "alpha"),
 			ColorSetter("text", "r", "g", "b", "alpha")),
 	}, "text", L.AuraText)
+end
+
+---@param page Frame
+---@return SpotlightsNode
+local function BuildFrameColorBody(page)
+	local L = Private.L.Settings
+
+	--- The only body with neither the border group nor the positioning group: this display's rect is the
+	--- spotlight's health bar, so there is no edge to draw and no offset to place. Two controls, and the
+	--- opacity is the one that matters -- at 1 the chosen colour replaces the class colour outright while
+	--- the aura is up, which is what "pick a colour for the health bar" asks for and not always what the
+	--- user wants once they see it.
+	return BuildBody(page, {
+		Private.Controls.SubHeading(page, L.GroupDisplay),
+
+		Private.Controls.Checkbox(page, L.AuraEnabled, Getter("frameColor", "enabled"),
+			EnabledSetter("frameColor")),
+
+		--- The picker's own opacity writes `alpha`, which is the slider beside it -- one field with two
+		--- controls over it, as on the bar, the square and the countdown.
+		Private.Controls.ColorSwatch(page, L.AuraFrameColorColor,
+			ColorGetter("frameColor", "r", "g", "b", "alpha"),
+			ColorSetter("frameColor", "r", "g", "b", "alpha")),
+
+		Full(Private.Controls.Slider(page, L.AuraFrameColorAlpha, ALPHA_MIN, ALPHA_MAX, ALPHA_STEP,
+			Getter("frameColor", "alpha"), Setter("frameColor", "alpha"))),
+
+		Private.Controls.Paragraph(page, L.AuraFrameColorNote),
+	}, "frameColor", L.AuraFrameColor, {})
 end
 
 --- Opens the sections whose display is switched on and collapses the rest, so a category the user has
@@ -900,10 +954,14 @@ function Private.AuraAppearance.Build(page, GetFeature, GetName)
 		return L.AuraText
 	end, TextSummary, BuildTextBody(page))
 
-	--- A pooled category draws icons only, so there is no status bar, no square and no bare countdown to
-	--- configure and no section for any of them. Asked of `Private.Auras` rather than decided here: which
-	--- display kinds a category renders is the build path's rule, and a second copy of it could only be
-	--- wrong.
+	local frameColor = Private.Node.Section(page, function()
+		return L.AuraFrameColor
+	end, FrameColorSummary, BuildFrameColorBody(page))
+
+	--- A pooled category draws icons only, so there is no status bar, no square, no bare countdown and no
+	--- health-bar tint to configure and no section for any of them. Asked of `Private.Auras` rather than
+	--- decided here: which display kinds a category renders is the build path's rule, and a second copy of
+	--- it could only be wrong.
 	OnlyWhen(bar, function()
 		return Private.Auras.HasDisplay(ActiveFeature(), "bar")
 	end)
@@ -916,7 +974,11 @@ function Private.AuraAppearance.Build(page, GetFeature, GetName)
 		return Private.Auras.HasDisplay(ActiveFeature(), "text")
 	end)
 
-	sections = { icon, bar, square, text }
+	OnlyWhen(frameColor, function()
+		return Private.Auras.HasDisplay(ActiveFeature(), "frameColor")
+	end)
+
+	sections = { icon, bar, square, text, frameColor }
 
 	local scrollHeight = math.max(page:GetHeight() - Private.Node.SubTabHeight - CHROME_RESERVE,
 		MIN_SCROLL_HEIGHT)
@@ -926,6 +988,7 @@ function Private.AuraAppearance.Build(page, GetFeature, GetName)
 		bar,
 		square,
 		text,
+		frameColor,
 
 		-- Last, and the explanation of everything above it: the one place the cost of a frozen setting
 		-- is visible to the user.

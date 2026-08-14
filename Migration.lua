@@ -334,6 +334,47 @@ local function DefaultAuraText(point, r, g, b)
 	}
 end
 
+--- One aura display drawn as a colour over the spotlight's health bar.
+---
+--- **Ships disabled for every feature, without exception**, which is why it needs no version step, as
+--- the square and the bare countdown do not: `Repair` fills the block into a database written before it
+--- existed, and a display that is off changes nothing about how that profile renders.
+---
+--- The colour is the feature's own, matching its bar, its block and its countdown, so two categories
+--- tinting the same bar are still told apart.
+---
+--- `point`, `x`, `y` and the border fields are inherited and have nothing to place or edge: this
+--- display's rect is the health bar's rather than an offset from the frame. Present and defaulted even
+--- so, because a field the stored block lacks is a write `SetSetting` silently refuses, and the panel
+--- offers no control for any of them.
+---@param r number
+---@param g number
+---@param b number
+---@return SpotlightsAuraFrameColorConfig
+local function DefaultAuraFrameColor(r, g, b)
+	return {
+		enabled = false,
+		r = r,
+		g = g,
+		b = b,
+
+		--- Opaque, because "pick a colour for the health bar" means the bar wearing that colour rather
+		--- than being washed toward it. It is the one setting on this display that drags live, so a user
+		--- who wants the class colour showing through has it to hand.
+		alpha = 1,
+
+		point = "CENTER",
+		x = 0,
+		y = 0,
+		borderTexture = BORDER_NONE,
+		borderSize = 4,
+		borderR = 0,
+		borderG = 0,
+		borderB = 0,
+		borderA = 1,
+	}
+end
+
 --- One feature's set of displays at their shipped values, all freshly built.
 ---
 --- Which one starts on is per-feature: a duration bar is what Prescience wants; an icon with a swipe
@@ -362,6 +403,7 @@ function Private.Migration.DefaultAuraFeature(featureKey)
 			icon = icon,
 			square = DefaultAuraSquare("TOPRIGHT", 0.2, 0.8, 1),
 			text = DefaultAuraText("BOTTOMLEFT", 0.2, 0.8, 1),
+			frameColor = DefaultAuraFrameColor(0.2, 0.8, 1),
 		}
 	end
 
@@ -376,6 +418,7 @@ function Private.Migration.DefaultAuraFeature(featureKey)
 			-- one is a nil index in anything that walks the set.
 			square = DefaultAuraSquare("TOPRIGHT", 1, 1, 1),
 			text = DefaultAuraText("BOTTOMLEFT", 1, 1, 1),
+			frameColor = DefaultAuraFrameColor(1, 1, 1),
 		}
 	end
 
@@ -385,6 +428,7 @@ function Private.Migration.DefaultAuraFeature(featureKey)
 		icon = DefaultAuraIcon(false, 25, 25),
 		square = DefaultAuraSquare("TOPRIGHT", 1, 1, 0),
 		text = DefaultAuraText("BOTTOMLEFT", 1, 1, 0),
+		frameColor = DefaultAuraFrameColor(1, 1, 0),
 	}
 end
 

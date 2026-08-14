@@ -276,6 +276,20 @@ L.Settings.AuraText = "Text"
 L.Settings.AuraTextFont = "Font"
 L.Settings.AuraTextFontSize = "Size"
 L.Settings.AuraTextColor = "Text Color"
+-- The fifth display: the spotlight's health bar wearing a colour for as long as the aura is up. Two
+-- controls and no others -- its rect is the health bar's, so there is no size, no anchor and no border to
+-- offer. The note says what the opacity costs, because at 1 the class colour is gone while the aura is up
+-- and that reads as a bug rather than as the setting doing what it says.
+L.Settings.AuraFrameColor = "Frame Color"
+L.Settings.AuraFrameColorColor = "Health Bar Color"
+L.Settings.AuraFrameColorAlpha = "Strength"
+L.Settings.AuraFrameColorNote =
+"Colors the health bar while the aura is up. At full strength the class color is hidden until the aura falls off; lower it to let the class color show through. Drawn over the name unless you raise Name Strata."
+
+-- The tint's summary. The shortest of the five, because opacity is the only thing it has to say: it has no
+-- size, no anchor and no border.
+L.Settings.AuraSummaryFrameColor = "%d%% strength"
+
 L.Settings.AuraEnabled = "Show"
 L.Settings.AuraColor = "Bar Color"
 L.Settings.AuraAlpha = "Opacity"
