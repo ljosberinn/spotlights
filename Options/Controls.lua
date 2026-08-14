@@ -89,6 +89,33 @@ local function CreateRow(parent)
 	return row
 end
 
+--- The full text of a label the column was too narrow to print.
+---
+--- `IsTruncated` is asked here rather than wherever the width is set, because a label only learns its
+--- width in `Layout` and the answer changes again every time the panel is resized. Under the cursor,
+--- layout has certainly run and the answer is current.
+---@param self FontString
+local function ShowLabelTooltip(self)
+	if not self:IsTruncated() then
+		return
+	end
+
+	-- A font string is a legal tooltip owner -- `TruncatedTooltipFontStringMixin` does the same -- but the
+	-- annotation only admits a frame.
+	GameTooltip:SetOwner(self --[[@as Frame]], "ANCHOR_RIGHT")
+	GameTooltip:SetText(self:GetText(), HIGHLIGHT_FONT_COLOR.r, HIGHLIGHT_FONT_COLOR.g,
+		HIGHLIGHT_FONT_COLOR.b, 1, true)
+	GameTooltip:Show()
+end
+
+--- Owner-checked, because by the time the cursor leaves, something else may have taken the tooltip.
+---@param self FontString
+local function HideLabelTooltip(self)
+	if GameTooltip:GetOwner() == self then
+		GameTooltip:Hide()
+	end
+end
+
 ---@param parent Frame
 ---@param text string
 ---@return FontString
@@ -99,6 +126,15 @@ local function CreateLabel(parent, text)
 	label:SetJustifyH("LEFT")
 	label:SetWordWrap(false)
 	label:SetText(text)
+
+	-- Motion only, and propagated: the label is the whole hit region, so a row that grows a hover of its
+	-- own later still hears the cursor. This is Blizzard's own `TruncatedTooltipFontStringTemplate`
+	-- (`SharedUIPanelTemplates.xml`) -- a bare font string carrying the two scripts, no frame over it.
+	label:EnableMouseMotion(true)
+	label:SetPropagateMouseMotion(true)
+
+	label:SetScript("OnEnter", ShowLabelTooltip)
+	label:SetScript("OnLeave", HideLabelTooltip)
 
 	return label
 end

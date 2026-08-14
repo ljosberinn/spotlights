@@ -28,6 +28,7 @@ v1.1.0
     - "Defensives" uses the games own list for defensive auras, amended with a couple spells the default ui currently does not consider as such
     - these additional auras are off by default
 - Defensives now cover Power Word: Barrier, Anti-Magic Zone and Darkness, tracked on the players standing in them
+- options panel labels too long for their column now show their full text in a tooltip on hover
 - added Import / Export support
 - added Roster Presets which can also be imported and exported
 - added a third display option: Square
