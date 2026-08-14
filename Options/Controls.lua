@@ -89,6 +89,37 @@ local function CreateRow(parent)
 	return row
 end
 
+--- The frame carrying a label's tooltip. A `FontString` takes no mouse input of its own, so the scripts
+--- have to sit on something laid over it.
+---@class SpotlightsLabelHover : Frame
+---@field label FontString
+
+--- The full text of a label the column was too narrow to print.
+---
+--- `IsTruncated` is asked here rather than wherever the width is set, because a label only learns its
+--- width in `Layout` and the answer changes again every time the panel is resized. Under the cursor,
+--- layout has certainly run and the answer is current.
+---@param self SpotlightsLabelHover
+local function ShowLabelTooltip(self)
+	if not self.label:IsTruncated() then
+		return
+	end
+
+	GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+	GameTooltip:SetText(self.label:GetText(), HIGHLIGHT_FONT_COLOR.r, HIGHLIGHT_FONT_COLOR.g,
+		HIGHLIGHT_FONT_COLOR.b, 1, true)
+	GameTooltip:Show()
+end
+
+--- Owner-checked, since this also answers `OnHide` -- the panel closing under a raised tooltip, which
+--- `OnLeave` never hears -- and by then something else may have taken the tooltip.
+---@param self SpotlightsLabelHover
+local function HideLabelTooltip(self)
+	if GameTooltip:GetOwner() == self then
+		GameTooltip:Hide()
+	end
+end
+
 ---@param parent Frame
 ---@param text string
 ---@return FontString
@@ -99,6 +130,25 @@ local function CreateLabel(parent, text)
 	label:SetJustifyH("LEFT")
 	label:SetWordWrap(false)
 	label:SetText(text)
+
+	local hover = CreateFrame("Frame", nil, parent) --[[@as SpotlightsLabelHover]]
+
+	hover.label = label
+
+	-- Anchored to the label rather than to the row, so it tracks whatever width `Divide` hands the label
+	-- on each pass instead of reaching into the control column.
+	hover:SetAllPoints(label)
+
+	--- Motion only, and one level under everything else on the row: a colour swatch is drawn eight units
+	--- left of the control column while the label ends six short of it, so the two overlap by two pixels.
+	--- Clicks pass through a motion-only frame, and the lower level keeps the swatch's own hover off that
+	--- sliver.
+	hover:EnableMouseMotion(true)
+	hover:SetFrameLevel(parent:GetFrameLevel())
+
+	hover:SetScript("OnEnter", ShowLabelTooltip)
+	hover:SetScript("OnLeave", HideLabelTooltip)
+	hover:SetScript("OnHide", HideLabelTooltip)
 
 	return label
 end
