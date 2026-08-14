@@ -202,10 +202,9 @@ L.Settings.UnrosteredRoleFilter = "Show roles matching..."
 L.Settings.AddSpacer = "Add a spacer"
 L.Settings.NoSlots =
 "No spotlights configured yet. Add a group member from the list beside this one, or drag one onto it."
-L.Settings.ClearSlots = "Clear all slots"
-L.Settings.ClearSlotsPrompt =
-"Remove every configured slot? Players and spacers alike go, and the grid starts from nothing."
-L.Settings.ClearSlotsConfirm = "Clear"
+L.Settings.ClearSlots = "Prune"
+L.Settings.ClearSlotsPrompt = "Confirm pruning the roster"
+L.Settings.ClearSlotsConfirm = "Prune"
 L.Settings.BlankSlot = "(spacer)"
 L.Settings.UnknownSlot = "(empty)"
 L.Settings.NotInGroup = "not in a group"

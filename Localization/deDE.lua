@@ -155,10 +155,9 @@ L.Settings.UnrosteredRoleFilter = "Diese Rollen anzeigen..."
 L.Settings.AddSpacer = "Platzhalter hinzufügen"
 L.Settings.NoSlots =
 "Noch keine Hervorhebungen konfiguriert. Füge ein Gruppenmitglied aus der Liste daneben hinzu oder zieh eines hierher."
-L.Settings.ClearSlots = "Alle Plätze leeren"
-L.Settings.ClearSlotsPrompt =
-"Jeden konfigurierten Platz entfernen? Spieler und Platzhalter verschwinden gleichermaßen, und das Raster beginnt bei null."
-L.Settings.ClearSlotsConfirm = "Leeren"
+L.Settings.ClearSlots = "Bereinigen"
+L.Settings.ClearSlotsPrompt = "Bereinigen der Gruppe bestätigen"
+L.Settings.ClearSlotsConfirm = "Bereinigen"
 L.Settings.BlankSlot = "(Platzhalter)"
 L.Settings.UnknownSlot = "(leer)"
 L.Settings.NotInGroup = "nicht in einer Gruppe"

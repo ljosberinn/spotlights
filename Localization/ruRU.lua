@@ -153,10 +153,9 @@ L.Settings.UnrosteredRoleFilter = "Показывать эти роли..."
 L.Settings.AddSpacer = "Добавить разделитель"
 L.Settings.NoSlots =
 "Пока никто не выделен. Добавьте участника группы из списка рядом или перетащите его сюда."
-L.Settings.ClearSlots = "Очистить все слоты"
-L.Settings.ClearSlotsPrompt =
-"Удалить все настроенные слоты? Игроки и разделители удаляются вместе, и сетка начнётся с нуля."
-L.Settings.ClearSlotsConfirm = "Очистить"
+L.Settings.ClearSlots = "Проредить"
+L.Settings.ClearSlotsPrompt = "Подтвердите прореживание состава"
+L.Settings.ClearSlotsConfirm = "Проредить"
 L.Settings.BlankSlot = "(разделитель)"
 L.Settings.UnknownSlot = "(пусто)"
 L.Settings.NotInGroup = "не в группе"

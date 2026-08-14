@@ -192,8 +192,7 @@ end
 ---
 --- Confirmed rather than immediate, for the reason the aura resets are: it discards a list the user may
 --- have spent a raid night arranging, and a stray click on a button under the list is exactly the
---- accident a confirmation exists to catch. The prompt names what goes, because "clear" alone does not
---- say that the spacers go with the players.
+--- accident a confirmation exists to catch.
 local function ConfirmClear()
 	local L = Private.L.Settings
 

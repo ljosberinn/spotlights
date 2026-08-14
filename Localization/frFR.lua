@@ -153,10 +153,9 @@ L.Settings.UnrosteredRoleFilter = "Afficher ces rôles..."
 L.Settings.AddSpacer = "Ajouter un espace"
 L.Settings.NoSlots =
 "Aucun joueur mis en avant pour l'instant. Ajoutez un membre du groupe depuis la liste voisine, ou faites-en glisser un jusqu'ici."
-L.Settings.ClearSlots = "Effacer tous les emplacements"
-L.Settings.ClearSlotsPrompt =
-"Retirer tous les emplacements configurés ? Les joueurs comme les espaces disparaissent, et la grille repart de zéro."
-L.Settings.ClearSlotsConfirm = "Effacer"
+L.Settings.ClearSlots = "Élaguer"
+L.Settings.ClearSlotsPrompt = "Confirmer l'élagage du groupe"
+L.Settings.ClearSlotsConfirm = "Élaguer"
 L.Settings.BlankSlot = "(espace)"
 L.Settings.UnknownSlot = "(vide)"
 L.Settings.NotInGroup = "pas dans un groupe"
