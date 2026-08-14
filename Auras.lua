@@ -1018,6 +1018,11 @@ local function StyleBar(regions, anchor, config)
 	-- axis, so it needs nothing said about it here.
 	bar:SetOrientation(vertical and "VERTICAL" or "HORIZONTAL")
 
+	-- Which end of that axis the fill is anchored to, and under the same ordering rule. `SetReverseFill`
+	-- rather than `SetFillStyle`, which is the same setting spelled twice -- the spelling that reads next
+	-- to the orientation above.
+	bar:SetReverseFill(config.reverseFill)
+
 	bar:ClearAllPoints()
 
 	-- The same material and colour as the fill, faint: the remainder has to read as the rest of *this*
@@ -1448,6 +1453,7 @@ local BAR_INVALIDATION = Classification(ANCHOR_INVALIDATION, BORDER_INVALIDATION
 	g = "rebuild",
 	b = "rebuild",
 	orientation = "rebuild",
+	reverseFill = "rebuild",
 	showIcon = "rebuild",
 	iconSide = "rebuild",
 })

@@ -168,7 +168,9 @@ L.Settings.PreviewHeading = "Preview"
 -- preview that reads smaller than its own numbers is explained rather than misleading.
 L.Settings.PreviewCaption = "%d × %d · shown at %d%%"
 
-L.Settings.Orientation = "Fill Direction"
+-- An axis, on both dropdowns it labels: which way the grid wraps, and which way a bar's fill runs. The
+-- end that fill starts at is `AuraFillDirection`, which is a separate control on the same panel.
+L.Settings.Orientation = "Fill Axis"
 L.Settings.Horizontal = "Across, Then Down"
 L.Settings.Vertical = "Down, Then Across"
 L.Settings.Stride = "Wrap Every"
@@ -312,6 +314,14 @@ L.Settings.AuraIconBottom = "Below The Bar"
 -- Not that tab's own two choices: "Across, Then Down" is a wrapping rule and says nothing about a bar.
 L.Settings.AuraFillHorizontal = "Horizontal"
 L.Settings.AuraFillVertical = "Vertical"
+
+-- Which end of that axis the fill is anchored to. Four choices for two stored values: the pair offered
+-- names the ends of whichever axis is set, and the summary reuses the same words.
+L.Settings.AuraFillDirection = "Fill Direction"
+L.Settings.AuraFillLeftToRight = "Left To Right"
+L.Settings.AuraFillRightToLeft = "Right To Left"
+L.Settings.AuraFillBottomToTop = "Bottom To Top"
+L.Settings.AuraFillTopToBottom = "Top To Bottom"
 L.Settings.AuraIconWidth = "Width"
 L.Settings.AuraIconHeight = "Height"
 L.Settings.AuraShowSwipe = "Cooldown Swipe"
