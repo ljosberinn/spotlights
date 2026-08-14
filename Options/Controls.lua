@@ -89,31 +89,27 @@ local function CreateRow(parent)
 	return row
 end
 
---- The frame carrying a label's tooltip. A `FontString` takes no mouse input of its own, so the scripts
---- have to sit on something laid over it.
----@class SpotlightsLabelHover : Frame
----@field label FontString
-
 --- The full text of a label the column was too narrow to print.
 ---
 --- `IsTruncated` is asked here rather than wherever the width is set, because a label only learns its
 --- width in `Layout` and the answer changes again every time the panel is resized. Under the cursor,
 --- layout has certainly run and the answer is current.
----@param self SpotlightsLabelHover
+---@param self FontString
 local function ShowLabelTooltip(self)
-	if not self.label:IsTruncated() then
+	if not self:IsTruncated() then
 		return
 	end
 
-	GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-	GameTooltip:SetText(self.label:GetText(), HIGHLIGHT_FONT_COLOR.r, HIGHLIGHT_FONT_COLOR.g,
+	-- A font string is a legal tooltip owner -- `TruncatedTooltipFontStringMixin` does the same -- but the
+	-- annotation only admits a frame.
+	GameTooltip:SetOwner(self --[[@as Frame]], "ANCHOR_RIGHT")
+	GameTooltip:SetText(self:GetText(), HIGHLIGHT_FONT_COLOR.r, HIGHLIGHT_FONT_COLOR.g,
 		HIGHLIGHT_FONT_COLOR.b, 1, true)
 	GameTooltip:Show()
 end
 
---- Owner-checked, since this also answers `OnHide` -- the panel closing under a raised tooltip, which
---- `OnLeave` never hears -- and by then something else may have taken the tooltip.
----@param self SpotlightsLabelHover
+--- Owner-checked, because by the time the cursor leaves, something else may have taken the tooltip.
+---@param self FontString
 local function HideLabelTooltip(self)
 	if GameTooltip:GetOwner() == self then
 		GameTooltip:Hide()
@@ -131,24 +127,14 @@ local function CreateLabel(parent, text)
 	label:SetWordWrap(false)
 	label:SetText(text)
 
-	local hover = CreateFrame("Frame", nil, parent) --[[@as SpotlightsLabelHover]]
+	-- Motion only, and propagated: the label is the whole hit region, so a row that grows a hover of its
+	-- own later still hears the cursor. This is Blizzard's own `TruncatedTooltipFontStringTemplate`
+	-- (`SharedUIPanelTemplates.xml`) -- a bare font string carrying the two scripts, no frame over it.
+	label:EnableMouseMotion(true)
+	label:SetPropagateMouseMotion(true)
 
-	hover.label = label
-
-	-- Anchored to the label rather than to the row, so it tracks whatever width `Divide` hands the label
-	-- on each pass instead of reaching into the control column.
-	hover:SetAllPoints(label)
-
-	--- Motion only, and one level under everything else on the row: a colour swatch is drawn eight units
-	--- left of the control column while the label ends six short of it, so the two overlap by two pixels.
-	--- Clicks pass through a motion-only frame, and the lower level keeps the swatch's own hover off that
-	--- sliver.
-	hover:EnableMouseMotion(true)
-	hover:SetFrameLevel(parent:GetFrameLevel())
-
-	hover:SetScript("OnEnter", ShowLabelTooltip)
-	hover:SetScript("OnLeave", HideLabelTooltip)
-	hover:SetScript("OnHide", HideLabelTooltip)
+	label:SetScript("OnEnter", ShowLabelTooltip)
+	label:SetScript("OnLeave", HideLabelTooltip)
 
 	return label
 end
