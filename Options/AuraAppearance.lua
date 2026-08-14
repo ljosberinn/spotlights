@@ -244,11 +244,12 @@ local function BorderStyleSetter(displayKey)
 	end
 end
 
---- Writes the bar's fill direction and re-reads the whole tab.
+--- Writes the bar's fill axis and re-reads the whole tab.
 ---
 --- The plain setter would leave the icon-side dropdown offering "Left Of The Bar" for what is now the top
---- end of the bar: its labels are generated per menu-open, and only a refresh regenerates the *closed*
---- button's text. No relayout is owed -- no control appears or disappears with the direction.
+--- end of the bar, and the fill-direction one offering "Left To Right" for a bar that runs down: both
+--- lists are generated per menu-open, and only a refresh regenerates the *closed* button's text. No
+--- relayout is owed -- no control appears or disappears with the axis.
 ---@param value SpotlightsOrientation
 local function OrientationSetter(value)
 	SetAura("bar", "orientation", value)
@@ -355,15 +356,19 @@ local function IconSummary()
 		BorderPhrase(config))
 end
 
---- Which axis a bar's fill runs along, in prose. Shared by the summary and the dropdown that sets it, so
---- the header names the direction with the same words the control does.
+--- Which way a bar's fill runs, in prose: the axis and the end it is anchored to as one phrase, because
+--- naming only the axis summarises a reversed bar as the bar it is not. Shared by the summary and the
+--- dropdown that sets the direction, so the header uses the control's own words.
 ---@param config SpotlightsAuraBarConfig
 ---@return string
 local function FillName(config)
 	local L = Private.L.Settings
 
-	return config.orientation == Orientation.Vertical and L.AuraFillVertical
-		or L.AuraFillHorizontal
+	if config.orientation == Orientation.Vertical then
+		return config.reverseFill and L.AuraFillTopToBottom or L.AuraFillBottomToTop
+	end
+
+	return config.reverseFill and L.AuraFillRightToLeft or L.AuraFillLeftToRight
 end
 
 --- The bar's summary, in its own format string: a `100 × 25` that drains upward reads as a lie without
@@ -750,6 +755,23 @@ local function BuildBarBody(page)
 			{ value = Orientation.Horizontal, label = L.AuraFillHorizontal },
 			{ value = Orientation.Vertical,   label = L.AuraFillVertical },
 		}, Getter("bar", "orientation"), OrientationSetter),
+
+		--- Passed as a function for the reason the icon-side list is: the two labels are the ends of
+		--- whichever axis is set, and a list built once would keep offering "Left To Right" for a bar that
+		--- now runs down. The stored boolean is what reaches the database either way.
+		Private.Controls.Dropdown(page, L.AuraFillDirection, function()
+			if Bar().orientation == Orientation.Vertical then
+				return {
+					{ value = false, label = L.AuraFillBottomToTop },
+					{ value = true,  label = L.AuraFillTopToBottom },
+				}
+			end
+
+			return {
+				{ value = false, label = L.AuraFillLeftToRight },
+				{ value = true,  label = L.AuraFillRightToLeft },
+			}
+		end, Getter("bar", "reverseFill"), Setter("bar", "reverseFill")),
 
 		--- The picker's own opacity writes `alpha`, which is the slider above it -- one field with two
 		--- controls over it. The slider re-reads on the next full refresh.

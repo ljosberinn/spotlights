@@ -192,6 +192,10 @@ local function DefaultAuraBar(enabled, point, r, g, b, y)
 		-- nothing about how an existing profile renders.
 		orientation = Private.Enum.Orientation.Horizontal,
 
+		-- The widget default, and the same no-version-step argument the orientation above makes: a bar
+		-- written before this field drained toward the axis' start, which is what `false` draws.
+		reverseFill = false,
+
 		showIcon = false,
 		iconSide = "LEFT",
 		borderTexture = BORDER_NONE,

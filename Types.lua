@@ -258,6 +258,11 @@
 --- enum of its own. Build-time as well: `SetOrientation` is a call on the status bar, which lives below
 --- the button, not on the anchor frame above it. `iconSide`'s two values name the two *ends* of the bar
 --- whichever axis that is -- `LEFT` is the top end of a vertical one.
+---
+--- `reverseFill` is which end of that axis the fill is anchored to, and a boolean rather than a second
+--- enum for the same reason `iconSide` is not one: it composes with the orientation instead of replacing
+--- it, so a reversed horizontal bar hangs off its right end and a reversed vertical one off its top.
+--- Build-time, like the axis it qualifies.
 ---@class SpotlightsAuraBarConfig : SpotlightsAuraDisplayConfig
 ---@field texture string
 ---@field r number
@@ -266,6 +271,7 @@
 ---@field width number in pixels
 ---@field height number in pixels
 ---@field orientation SpotlightsOrientation
+---@field reverseFill boolean
 ---@field showIcon boolean
 ---@field iconSide "LEFT" | "RIGHT"
 

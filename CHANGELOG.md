@@ -56,3 +56,5 @@ v1.1.0
 - added a fifth display option: Frame Color, which colors the spotlight's health bar for as long as the aura is up
 - fixed a bug where picking a color inverted its opacity, leaving the swatch black and the color invisible until the picker was opened again
 - fixed a bug where a spotlight's border was thinner on the right and bottom until the frame was resized, after any change to the grid scale, the UI scale or the resolution
+- aura duration bars can now be filled from either end of their axis, with a new Fill Direction setting
+- the dropdown choosing whether something runs horizontally or vertically is now called Fill Axis, since Fill Direction now names which end a bar fills from
