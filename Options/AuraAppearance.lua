@@ -892,7 +892,7 @@ local function BuildFrameColorBody(page)
 			ColorGetter("frameColor", "r", "g", "b", "alpha"),
 			ColorSetter("frameColor", "r", "g", "b", "alpha")),
 
-		Full(Private.Controls.Slider(page, L.AuraFrameColorAlpha, ALPHA_MIN, ALPHA_MAX, ALPHA_STEP,
+		Full(Private.Controls.Slider(page, L.AuraAlpha, ALPHA_MIN, ALPHA_MAX, ALPHA_STEP,
 			Getter("frameColor", "alpha"), Setter("frameColor", "alpha"))),
 
 		Private.Controls.Paragraph(page, L.AuraFrameColorNote),

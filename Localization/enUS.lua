@@ -282,13 +282,12 @@ L.Settings.AuraTextColor = "Text Color"
 -- and that reads as a bug rather than as the setting doing what it says.
 L.Settings.AuraFrameColor = "Frame Color"
 L.Settings.AuraFrameColorColor = "Health Bar Color"
-L.Settings.AuraFrameColorAlpha = "Strength"
 L.Settings.AuraFrameColorNote =
-"Colors the health bar while the aura is up. At full strength the class color is hidden until the aura falls off; lower it to let the class color show through. Drawn over the name unless you raise Name Strata."
+"Colors the health bar while the aura is up. At full opacity the class color is hidden until the aura falls off; lower it to let the class color show through. Drawn over the name unless you raise Name Strata."
 
 -- The tint's summary. The shortest of the five, because opacity is the only thing it has to say: it has no
 -- size, no anchor and no border.
-L.Settings.AuraSummaryFrameColor = "%d%% strength"
+L.Settings.AuraSummaryFrameColor = "%d%% opacity"
 
 L.Settings.AuraEnabled = "Show"
 L.Settings.AuraColor = "Bar Color"
