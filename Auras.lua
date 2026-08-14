@@ -139,6 +139,9 @@ local COOLDOWNS = {
 	},
 }
 
+--- The game's own Big Defensive list, amended by hand. Its flag covers personal and single-target
+--- external mitigation only, so the group-wide effects it misses are added here and ship on like
+--- everything else -- being inside one is exactly what a healer reads off a spotlight.
 ---@type table<integer, table<integer, boolean>>
 local DEFENSIVES = {
 	[Constants.UICharacterClasses.Warrior] = {
@@ -173,11 +176,13 @@ local DEFENSIVES = {
 		[33206] = true, -- Pain Suppression
 		[47585] = true, -- Dispersion
 		[47788] = true, -- Guardian Spirit
+		[81782] = true, -- Power Word: Barrier, the buff on players inside it; unflagged, group-wide
 	},
 	[Constants.UICharacterClasses.DeathKnight] = {
 		[48707] = true, -- Anti-Magic Shell
 		[48792] = true, -- Icebound Fortitude
 		[55233] = true, -- Vampiric Blood
+		[145629] = true, -- Anti-Magic Zone, the buff on allies inside it; unflagged, group-wide
 		[444741] = true, -- Anti-Magic Shell proc
 	},
 	[Constants.UICharacterClasses.Shaman] = {
@@ -206,6 +211,7 @@ local DEFENSIVES = {
 	},
 	[Constants.UICharacterClasses.DemonHunter] = {
 		[207771] = true, -- Fiery Brand
+		[209426] = true, -- Darkness, the buff on players inside it; unflagged, group-wide
 		[212800] = true, -- Blur
 	},
 	[Constants.UICharacterClasses.Evoker] = {
