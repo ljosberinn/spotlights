@@ -398,7 +398,10 @@ end
 ---@param displayKey SpotlightsAuraDisplayKey
 ---@return SpotlightsPreviewPaneNode
 local function BuildPreview(page, displayKey)
-	local pane = Private.PreviewPane.Build(page)
+	-- Read here rather than at file scope: this file is loaded before the player exists, and the panel
+	-- is not built until a tab is first selected.
+	local _, class = UnitClass("player")
+	local pane = Private.PreviewPane.Build(page, nil, class)
 	local Refresh = pane.Refresh
 
 	---@type table<SpotlightsAuraFeatureKey, SpotlightsAuraPreview[]>

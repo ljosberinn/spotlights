@@ -42,6 +42,7 @@ v1.1.0
 - the Unrostered list can now be narrowed to chosen roles
 - roles can now be set to be removed from the grid automatically, keeping tanks or healers out of every preset and every add
 - aura appearance sections whose display is switched off now start collapsed
+- the Auras tab preview frame now wears your own class color instead of a fabricated one
 
 ### Augmentation-specific
 

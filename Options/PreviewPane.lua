@@ -68,13 +68,26 @@ end
 
 --- A pane that hands its mini frame back, so a caller can hang more off it than the frame itself --
 --- the aura sections preview a display anchored to a spotlight, and that spotlight is this one.
+---
+--- Only the aura sections pass `class`, and the difference is deliberate rather than an oversight of
+--- the tab that does not. The Appearance tab's pane answers "what does this setting do", and a colour
+--- that is the same on every character is what makes the two sides of a class-colour toggle visibly
+--- different from each other. The Auras tab's pane is not the subject -- it is the backdrop a display
+--- is styled against -- so the question it answers is "what will this look like on my frames", which
+--- a fabricated class answers wrongly for everyone but that class.
+---
+--- No gate on the `*UseClassColor` switches, though `Fill` reads the class colour only where one is
+--- on: with all three off the override reaches nothing and the frame renders as it does today, so a
+--- branch making that true could only ever agree with the code under it. Gating on the bar's switch
+--- alone would also leave a fabricated *name* colour on a frame whose bar is static.
 ---@class SpotlightsPreviewPaneNode : SpotlightsNode
 ---@field frame SpotlightsUnitFrame
 
 ---@param page Frame
 ---@param CaptionText (fun(): string)? defaults to the frame's size and the scale it is shown at
+---@param class string? class filename the dummy wears instead of the fabricated one
 ---@return SpotlightsPreviewPaneNode
-function Private.PreviewPane.Build(page, CaptionText)
+function Private.PreviewPane.Build(page, CaptionText, class)
 	local L = Private.L.Settings
 	local stage = CreateFrame("Frame", nil, page) --[[@as SpotlightsNode]]
 
@@ -103,7 +116,7 @@ function Private.PreviewPane.Build(page, CaptionText)
 			PixelUtil.SetSize(frame, config.frameWidth, config.frameHeight)
 		end
 
-		Private.Preview.Fill(frame, DUMMY_INDEX)
+		Private.Preview.Fill(frame, DUMMY_INDEX, nil, nil, class)
 	end
 
 	function stage:Layout(width)
