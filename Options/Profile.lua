@@ -65,6 +65,41 @@ local function Decode(prefix, text)
 	return payload
 end
 
+--- The keys an export never carries, and what an import installs in their place.
+---
+--- One list read by both sides on purpose: `CopyExportData` skips these keys and `ImportString`
+--- overwrites them, so a hand-made string that carries one cannot land it either. Kept as functions of
+--- the current database rather than a set of names, because what they fall back to differs when there
+--- is no current database to read.
+---@type table<string, fun(current: SpotlightsDB?): any>
+local NOT_EXPORTED = {
+	--- This account's own arrangements rather than settings: a profile shared with a guild would carry
+	--- someone else's raid compositions into every install that imported it.
+	---
+	--- WARNING: `slots` falls back to a table and not to nil. `Migration.Run` reads a missing slot list
+	--- as data it cannot use and answers with a fresh database, which would turn an import into a wipe.
+	slots = function(current)
+		return current and current.slots or {}
+	end,
+
+	presets = function(current)
+		return current and current.presets or {}
+	end,
+
+	position = function(current)
+		return current and current.position
+	end,
+
+	--- This install's chrome rather than a setting worth sharing, which is the argument `presets` is
+	--- left out on. Aliasing makes it worse than merely pointless: LibDBIcon keeps the *table* it was
+	--- registered with (`Init.lua`), so installing the payload's would leave the library writing to a
+	--- table the database no longer holds, and the imported `hide` unread because nothing re-registers.
+	--- Until the reload -- and Reload Later is a button we offer.
+	minimap = function(current)
+		return current and current.minimap
+	end,
+}
+
 ---@return table
 local function CopyExportData()
 	local db = Private.DB
@@ -74,11 +109,8 @@ local function CopyExportData()
 		return payload
 	end
 
-	--- Presets are left out for the same reason the slots and the position are: they are this
-	--- account's own arrangements rather than settings, and a profile shared with a guild would carry
-	--- someone else's raid compositions into every install that imported it.
 	for key, value in pairs(db) do
-		if key ~= "position" and key ~= "slots" and key ~= "presets" then
+		if not NOT_EXPORTED[key] then
 			payload[key] = value
 		end
 	end
@@ -91,9 +123,9 @@ function Private.Profile.ExportString()
 	return Encode(EXPORT_PREFIX, CopyExportData())
 end
 
---- Applies an export string. Roster and position are read from the *current* database rather than the
---- imported one -- deliberately: this codec's job is appearance and aura settings, and a slot list or a
---- frame position dragged into place is not something an import should be able to overwrite.
+--- Applies an export string. Everything in `NOT_EXPORTED` is taken from the *current* database rather
+--- than the imported one -- deliberately: this codec's job is appearance and aura settings, and a slot
+--- list or a frame position dragged into place is not something an import should be able to overwrite.
 ---@param text string
 ---@return boolean, string?
 function Private.Profile.ImportString(text)
@@ -110,13 +142,29 @@ function Private.Profile.ImportString(text)
 		return false, reason
 	end
 
-	local current = Private.DB
-	payload.slots = current and current.slots or {}
-	payload.position = current and current.position or nil
+	--- Refused rather than migrated, and this is the one refusal the user can do something about --
+	--- hence its own reason, and a message telling them to update.
+	---
+	--- `Migration.Run` would take its from-the-future branch and hand the payload back *still* stamped
+	--- with a version this build has no step for. Installing that makes `for target = version + 1,
+	--- CurrentVersion` skip the missing step for the life of the account, once a build that has it
+	--- arrives. The payload may also carry fields this build's `Repair` will not touch and its code will
+	--- not understand, so there is nothing worth salvaging by importing it anyway.
+	---
+	--- The branch in `Run` stays as it is: it is right about a *saved* database, which is this user's own
+	--- data and must not be downgraded. It is only wrong about a stranger's payload.
+	if type(payload.version) == "number" and payload.version > Private.Migration.CurrentVersion then
+		return false, "version"
+	end
 
-	-- Kept for the same reason the slots are: the preset library is this account's, and an import is
-	-- about settings. Dropping it would delete a shelf of saved layouts the user never offered up.
-	payload.presets = current and current.presets or {}
+	-- Nil-guarded defensively only. `Private.DB` is assigned inside `EventUtil.ContinueOnAddOnLoaded`
+	-- (`Init.lua`), before any panel exists and before a slash command can run, so there is no moment
+	-- at which the Import button is clickable and this is nil.
+	local current = Private.DB
+
+	for key, Local in pairs(NOT_EXPORTED) do
+		payload[key] = Local(current)
+	end
 
 	local migrated = Private.Migration.Run(payload)
 	Private.DB = migrated
