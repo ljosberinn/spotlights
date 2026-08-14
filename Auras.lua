@@ -1302,8 +1302,8 @@ local function StyleText(regions, _, config)
 	StyleBorder(regions, config)
 end
 
---- The one region a health-bar tint is made of: a colour over the bar's fill, parented under the button
---- and anchored outside it.
+--- The one region a health-bar tint is made of: a colour over the bar, parented under the button and
+--- anchored outside it.
 ---
 --- **This is the only kind whose drawn region is not inside the anchor's rect**, and the reason is that
 --- nothing of ours may know an aura is up. `CustomAuraButtonPrivateMixin:ApplyVisibility` is
@@ -1319,10 +1319,14 @@ end
 --- -- so the first plain write after the stamp would be a tainted write to a secret aspect. See
 --- `docs/issues/AuraContainerNotes.md`.
 ---
---- Anchored to the fill rather than to the bar, so the tint tracks health as it moves. The bar's value
---- comes from `UnitHealth` and may be secret, which does not matter here: an anchor is a relationship
---- rather than a read, and Blizzard anchors its own heal-prediction textures to this same region
---- (`CompactUnitFrame.lua:1275,1354`).
+--- **Anchored to the bar rather than to its fill, which is a correctness requirement rather than a
+--- preference.** The fill's rect is the health value, so it is legitimately zero-wide -- a spotlight with
+--- no unit yet, a bar built before health arrives, a dead player -- and `SetAllPoints` against a region
+--- with no rect silently falls back to the parent instead of erroring. That is unrecoverable here: the
+--- button's access restriction lands the moment `initializeFrame` returns, so a wrong anchor can never be
+--- corrected and the tint spends the frame's life somewhere it does not belong. The bar is pinned to the
+--- spotlight on all four corners by the template, so it has no such state. The cost is that the colour no
+--- longer shrinks with health, which is the lesser of the two.
 ---
 --- No region at all without a spotlight. The grid preview's host stands in for one geometrically but has
 --- no health bar, and the honest answer there is to draw nothing rather than to tint the host.
@@ -1340,7 +1344,7 @@ local function CreateFrameColor(host, _, __, ___, frame)
 	---@type SpotlightsAuraRegions
 	local regions = { tint = host:CreateTexture(nil, "ARTWORK") }
 
-	regions.tint:SetAllPoints(frame.healthBar:GetStatusBarTexture())
+	regions.tint:SetAllPoints(frame.healthBar)
 
 	return regions
 end
@@ -1508,7 +1512,7 @@ local TEXT_WIDTH_PER_POINT, TEXT_HEIGHT_PER_POINT = 4, 1.4
 --- **The one kind where the anchor's rect is not the display's rect.** Everything under an aura button
 --- normally fills it, so `Invalidated` and `builtWidth`/`builtHeight` exist to catch a resize that broke
 --- something measured at build time -- and both assume the opposite of what is true here. The drawn
---- region is anchored to the health bar's fill, so it follows a resize on its own and this rect is never
+--- region is anchored to the health bar, so it follows a resize on its own and this rect is never
 --- looked at. It is not zero because `SetSize(0, 0)` means "take your size from your anchors".
 local FRAME_COLOR_ANCHOR_SIZE = 1
 

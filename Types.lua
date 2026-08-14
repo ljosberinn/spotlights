@@ -334,7 +334,7 @@
 ---
 --- Not a recolour of the bar and cannot be: nothing of ours may be told the aura landed, so the only
 --- shape available is a texture parented under the aura button -- which the container shows and hides
---- with the aura -- anchored to the health bar's fill instead of to the button's own rect. See
+--- with the aura -- anchored to the health bar instead of to the button's own rect. See
 --- `CreateFrameColor`.
 ---
 --- `r`/`g`/`b` are build-time for the bar's and the square's reason: `SetColorTexture` is a call on a
