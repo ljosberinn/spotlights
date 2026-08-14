@@ -113,12 +113,18 @@ end
 --- Exported rather than kept local: the options frame's preview pane renders the very same
 --- appearance block onto the very same template (`Options/PreviewPane.lua`), and a second copy of
 --- this would be exactly the kind of thing that drifts from the original the first time either one
---- changes. `dim` is the only thing the two disagree about -- see `GRID_DIM`.
+--- changes. `dim` and `class` are the only things the two disagree about -- see `GRID_DIM`.
+---
+--- `class` is last rather than beside `index`, which is the argument it overrides: the grid passes
+--- `slot` and `dim` and never a class, the panes the reverse, so no order lets both call sites skip a
+--- hole. Last keeps the grid's call the shape it already is and puts every optional argument after
+--- the two that are not.
 ---@param frame SpotlightsUnitFrame
 ---@param index integer decides the fabricated class and health, so a given cell reads the same twice
 ---@param slot SpotlightsSlot?
 ---@param dim number? multiplied into the configured frame opacity; 1 when omitted
-function Private.Preview.Fill(frame, index, slot, dim)
+---@param class string? class filename worn instead of the one `index` picks
+function Private.Preview.Fill(frame, index, slot, dim, class)
 	local blank = slot and slot.kind == "blank"
 	local name = slot and slot.name
 
@@ -127,8 +133,7 @@ function Private.Preview.Fill(frame, index, slot, dim)
 	)
 	frame.healthText:SetText("")
 
-	local class = PREVIEW_CLASSES[(index - 1) % #PREVIEW_CLASSES + 1]
-	local classColor = RAID_CLASS_COLORS[class]
+	local classColor = RAID_CLASS_COLORS[class or PREVIEW_CLASSES[(index - 1) % #PREVIEW_CLASSES + 1]]
 	local fraction = blank and 0 or PREVIEW_HEALTH[(index - 1) % #PREVIEW_HEALTH + 1]
 
 	-- Plain numbers on a 0..1 scale; nothing secret reaches a preview.
