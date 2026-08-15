@@ -4,21 +4,13 @@ local _, Private = ...
 ---@class SpotlightsNodeKit
 Private.Node = {}
 
---- The layout kit the reworked options panel is built out of.
+--- The layout kit the options panel is built out of. A node is handed its width in `Layout` and answers
+--- with the height it took.
 ---
---- A node is handed its width in `Layout` and answers with the height it took, so a container divides
---- and recurses while a leaf places itself inside what it was given. That is what lets a tab be a box
---- layout: a kit whose widgets only know they are as wide as each other can express one shape, a single
---- full-width column.
----
---- **`Refresh` runs over the whole tree, then `Layout` does.** Always, and over the whole tree rather than
---- the part that changed: `Refresh` is what decides whether a node is shown, and a `Layout` pass against
---- stale visibility either leaves a hole the height of a section or anchors a node that is not there.
---- Every container skips hidden children, so the hole closes on its own once the order is right.
+--- **`Refresh` runs over the whole tree, then `Layout` does.** `Refresh` decides whether a node is shown,
+--- and a `Layout` pass against stale visibility leaves a hole or anchors a node that is not there.
 
---- Rows in a column read as one list and want tight spacing; two columns of controls read as one list
---- each only if the gutter between them is wider than the gaps inside them. 26 is what the 780px panel's
---- two ~350 columns leave over.
+--- The grid gutter has to beat the row gap for two columns to read as two lists rather than one.
 local COLUMN_GAP = 6
 local GRID_GAP = 26
 
@@ -27,40 +19,30 @@ local DIVIDER_WIDTH = 1
 local SECTION_HEADER_HEIGHT = 28
 local SECTION_BODY_GAP = 6
 
---- The title anchors to the arrow *texture* rather than to an inset from the header's left edge: the arrow
---- draws at its own atlas size, so any constant standing in for its width leaves the title either touching
---- the glyph or floating away from it.
+--- The title is anchored to the arrow texture, not to an inset, because the arrow draws at its own atlas
+--- size.
 local SECTION_ARROW_X = 2
 local SECTION_TITLE_GAP = 10
 
---- `TabSystemTopButtonTemplate`'s own height, and what the selected tab's art reaches above its
---- rectangle -- the same emphasis the panel's own strip is nudged down for. Reserved above the strip
---- rather than let overlap whatever the sub-tabs sit under.
+--- `TabSystemTopButtonTemplate`'s height, plus room for the art the selected tab reaches above its
+--- rectangle.
 local SUBTAB_HEIGHT = 32
 local SUBTAB_TOP_PAD = 3
 
---- What a sub-tab strip costs the column it heads, published because a tab that fits a `ScrollPane` into
---- what is left has to subtract it -- and a restated constant would drift the moment the tab art does.
+--- Published so a tab fitting a `ScrollPane` into what a strip leaves does not restate the constant.
 Private.Node.SubTabHeight = SUBTAB_TOP_PAD + SUBTAB_HEIGHT
 
---- Where a sub-tab strip starts, and the narrowest a tab may be. Blizzard's own inner strips are
---- inset from the pane they head rather than flush with it, and a one-word tab sized to its text
---- alone reads as a fragment of a strip rather than as a tab.
 local SUBTAB_INSET = 4
 local SUBTAB_MIN_WIDTH = 90
 
---- What a `ScrollPane` reserves at its right edge for the scrollbar.
----
---- `MinimalScrollBar` is eight pixels wide; the rest is the gap either side of it, so a control laid out
---- against the child width never runs under the bar.
+--- `MinimalScrollBar` plus the gap either side, so a control laid out against the child width never runs
+--- under the bar.
 local SCROLL_GUTTER = 22
 
---- Anything the panel can lay out. Containers and leaves are the same type, which is what lets a `Grid`
---- hold a `Section` holding another `Grid`.
+--- Anything the panel can lay out; containers and leaves share the type so they nest freely.
 ---
 --- `span` is read by `Grid` only: a node that sets it takes a whole row instead of one cell. `labelWidth`
---- is written by containers on every pass and read by leaves -- how a grid tells the controls inside it
---- where their label column ends without the caller restating it on every one.
+--- is written by containers on every pass and read by leaves.
 ---@class SpotlightsNode : Frame
 ---@field Refresh fun(self: SpotlightsNode)
 ---@field Layout fun(self: SpotlightsNode, width: number): number
@@ -69,9 +51,8 @@ local SCROLL_GUTTER = 22
 
 --- A section, which is a node that also remembers whether it is open.
 ---
---- `RefreshHeader` is the summary's own refresh: a header formatted from the settings its body edits has
---- to follow a control the same frame it moves, and re-reading the body to do that would regenerate every
---- dropdown menu inside it on every frame of a colour drag.
+--- `RefreshHeader` exists so a summary can follow a control the same frame it moves without refreshing the
+--- body, which would regenerate every dropdown menu inside it on every frame of a colour drag.
 ---@class SpotlightsSectionNode : SpotlightsNode
 ---@field open boolean
 ---@field SetOpen fun(self: SpotlightsSectionNode, open: boolean)
@@ -80,17 +61,14 @@ local SCROLL_GUTTER = 22
 ---@type fun()?
 local RelayoutHook
 
---- Registers what to do when a node changes height on its own.
----
---- A collapsed section knows its new height and knows nothing about the window it is in or which of several
---- panes owns it. One hook the panel installs beats threading a callback through every container between.
+--- Registers what to do when a node changes height on its own. A collapsed section knows nothing about
+--- which pane owns it, so one hook beats threading a callback through every container between.
 ---@param callback fun()?
 function Private.Node.SetRelayoutHook(callback)
 	RelayoutHook = callback
 end
 
---- Asks whoever owns the tree to run a `Refresh`/`Layout` pass. A no-op until a panel claims it, which is
---- what makes the kit runnable on its own.
+--- Asks whoever owns the tree to run a `Refresh`/`Layout` pass. A no-op until a panel claims it.
 function Private.Node.Relayout()
 	if RelayoutHook then
 		RelayoutHook()
@@ -100,7 +78,7 @@ end
 --- Lays a child out, having first told it what label column it is working against.
 ---
 --- Stamped on every pass rather than at construction because it is inherited: a leaf moved from a grid into
---- a rail has to forget the grid's answer. A leaf given an explicit width of its own ignores this.
+--- a rail has to forget the grid's answer.
 ---@param container SpotlightsNode
 ---@param child SpotlightsNode
 ---@param width number
@@ -111,11 +89,9 @@ local function LayoutChild(container, child, width)
 	return child:Layout(width)
 end
 
---- Adopts children built against some other frame.
----
---- A container cannot exist before its children -- `CreateFrame` needs a parent -- so callers build leaves
---- against the eventual page and nest them afterwards. Re-parenting drops the old anchors, which is why
---- nothing here relies on a child's points surviving; every `Layout` clears and re-sets them.
+--- Adopts children built against some other frame, since `CreateFrame` needs a parent and so callers build
+--- leaves before the container that nests them. Re-parenting drops the old anchors; every `Layout` clears
+--- and re-sets points anyway.
 ---@param container Frame
 ---@param children SpotlightsNode[]
 local function Adopt(container, children)
@@ -131,12 +107,10 @@ local function RefreshAll(children)
 	end
 end
 
---- Stacks children down a column, each laid out against the width handed in rather than one the column
---- assumes.
+--- Stacks children down a column.
 ---
---- A hidden child is skipped entirely: no anchor, no height, no gap. A child that is shown but lays out
---- to nothing -- an empty column, a grid whose every row hid itself -- gets its anchor but still costs no
---- gap, so a wrapper around nothing is invisible rather than a 6px band.
+--- A hidden child is skipped entirely, and a shown child that lays out to nothing still costs no gap, so a
+--- wrapper around nothing is invisible rather than a 6px band.
 ---@param parent Frame
 ---@param children SpotlightsNode[]
 ---@param gap number? defaults to the kit's row rhythm
@@ -175,8 +149,8 @@ function Private.Node.Column(parent, children, gap)
 			end
 		end
 
-		-- Floored at 1 because a frame may not be zero tall, while the number handed back is the real one --
-		-- so a container of nothing takes no space in its parent even though its rectangle is a pixel tall.
+		-- A frame may not be zero tall, but the number handed back is the real one, so a container of nothing
+		-- takes no space in its parent.
 		self:SetHeight(math.max(offset, 1))
 
 		return offset
@@ -188,10 +162,8 @@ end
 --- Lays children out in a fixed number of equal columns, wrapping left to right. A row is as tall as the
 --- tallest thing in it, so a wrapped label beside a plain checkbox cannot overlap the row beneath.
 ---
---- A child that sets `node.span = true` takes a whole row on its own, and closes whatever row was being
---- filled -- the controls after it start a fresh one rather than pairing with something above.
----
---- `labelWidth` is inherited by everything below, including through nested containers.
+--- A child that sets `node.span = true` takes a whole row on its own and closes whatever row was being
+--- filled. `labelWidth` is inherited by everything below, including through nested containers.
 ---@param parent Frame
 ---@param children SpotlightsNode[]
 ---@param columns integer? defaults to the design's two
@@ -206,8 +178,8 @@ function Private.Node.Grid(parent, children, columns, labelWidth, gap, rowGap)
 	gap = gap or GRID_GAP
 	rowGap = rowGap or COLUMN_GAP
 
-	-- Kept beside `grid.labelWidth` rather than in it: the field is overwritten by whichever container
-	-- holds this grid on every pass, and an explicit argument has to outlive that.
+	-- Kept beside `grid.labelWidth` rather than in it: the field is overwritten by whichever container holds
+	-- this grid on every pass.
 	local ownLabelWidth = labelWidth
 
 	Adopt(grid, children)
@@ -226,7 +198,7 @@ function Private.Node.Grid(parent, children, columns, labelWidth, gap, rowGap)
 		local filled = 0
 
 		--- The trailing `rowGap` is added here and taken back off at the end, which is cheaper than asking at
-		--- every child whether it is the last one that will be visible.
+		--- every child whether it is the last visible one.
 		local function EndRow()
 			if rowHeight > 0 then
 				rowTop = rowTop + rowHeight + rowGap
@@ -275,14 +247,8 @@ function Private.Node.Grid(parent, children, columns, labelWidth, gap, rowGap)
 	return grid
 end
 
---- Two nodes side by side, one of them a fixed width.
----
---- Which one is fixed is the difference between a preview pane and a navigation rail: `rightWidth` pins the
---- trailing pane (the 174px preview, the 250px Unrostered list), `leftWidth` a leading one (the 196px class
---- rail). Neither given, the width is halved.
----
---- The divider is drawn only while both sides are visible -- either may hide itself, and a divider with
---- nothing beside it reads as a scratch on the panel.
+--- Two nodes side by side, `rightWidth` pinning a trailing pane and `leftWidth` a leading rail. Neither
+--- given, the width is halved. The divider is drawn only while both sides are visible.
 ---@param parent Frame
 ---@param left SpotlightsNode
 ---@param right SpotlightsNode
@@ -314,8 +280,7 @@ function Private.Node.Split(parent, left, right, options)
 		local leftShown = left:IsShown()
 		local rightShown = right:IsShown()
 
-		-- One side alone is not a split: it gets the whole width, so a pane that hides itself gives its
-		-- room back instead of leaving the other side in a column half the panel wide.
+		-- One side alone gets the whole width, so a pane that hides itself gives its room back.
 		if not leftShown or not rightShown then
 			divider:Hide()
 
@@ -378,12 +343,9 @@ end
 
 --- A body under a header that can be clicked to collapse it.
 ---
---- The live summary beside the title -- `25 × 25 · bottom · swipe on · 4px border` -- is what makes a
---- collapsed section worth collapsing. Both title and summary are functions, re-read on every `Refresh`,
---- because the summary is a formatting of the very settings the body edits.
----
---- Open state is transient: persisting it would mean a saved-variable field per section and a migration,
---- to remember something the user changes by looking at the panel.
+--- Title and summary are functions because the summary formats the very settings the body edits, so both
+--- are re-read on every `Refresh`. Open state is deliberately transient -- persisting it would cost a
+--- saved-variable field per section and a migration.
 ---@param parent Frame
 ---@param Title fun(): string
 ---@param Summary (fun(): string?)? omitted for a section whose name says everything
@@ -415,10 +377,8 @@ function Private.Node.Section(parent, Title, Summary, body, startOpen)
 	title:SetPoint("LEFT", arrow, "RIGHT", SECTION_TITLE_GAP, 0)
 	title:SetJustifyH("LEFT")
 
-	--- Right-aligned rather than trailing the title, whose width is whatever the translation made it: a
-	--- summary starting at a different x in every section reads as misaligned lines rather than a column of
-	--- detail. Never wrapped -- the header is one line tall, and a long summary is better clipped than
-	--- allowed to change the height of every section it appears in.
+	--- Right-aligned rather than trailing the title, whose width is whatever the translation made it. Never
+	--- wrapped: the header is one line tall, and clipping beats changing every section's height.
 	local summary = header:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
 
 	summary:SetPoint("RIGHT", header, "RIGHT", 0, 0)
@@ -455,8 +415,7 @@ function Private.Node.Section(parent, Title, Summary, body, startOpen)
 	function section:Refresh()
 		self:RefreshHeader()
 
-		-- Refreshed whether or not it is open, so a section expanded between passes shows current values
-		-- immediately rather than one frame late.
+		-- Refreshed whether or not it is open, so a section expanded between passes is current immediately.
 		body:Refresh()
 	end
 
@@ -486,18 +445,12 @@ function Private.Node.Section(parent, Title, Summary, body, startOpen)
 	return section
 end
 
---- A tab strip assembled in Lua rather than created from `TabSystemTemplate`.
+--- A tab strip assembled in Lua rather than created from `TabSystemTemplate`, because
+--- `TabSystemMixin.OnLoad` builds the button pool from `tabTemplate` and a frame created from the XML
+--- template has already run its `OnLoad` by the time we could set one.
 ---
---- Assembled by hand everywhere the panel needs a strip -- the window's own, a sub-tab strip inside a
---- tab, the Auras tab's category strip -- because `TabSystemMixin.OnLoad` builds the button pool from
---- `tabTemplate`, so the template has to be on the frame before that runs. A frame created from the
---- XML template has already run its `OnLoad` by the time we could set one.
----
---- `constraints` carries what the template's KeyValues would have: the width bounds a tab is sized
---- against, and `spacing`, which is `TabSystemTemplate`'s own default rather than the layout frame's --
---- a frame created without those KeyValues inherits neither.
----
---- The frame sizes itself from its children, so a caller may anchor it but must not size it.
+--- `constraints` carries what the template's KeyValues would have, which a hand-built frame inherits
+--- neither of. The frame sizes itself from its children, so a caller may anchor it but must not size it.
 ---@param parent Frame
 ---@param template string the button template, which is also what decides whether the art hangs above or below the strip
 ---@param constraints { minTabWidth: number?, maxTabWidth: number?, spacing: number? }
@@ -522,31 +475,19 @@ end
 ---@field node SpotlightsNode
 ---@field Applies (fun(): boolean)? absent means always, which is what every unconditional tab passes
 
---- A strip of tabs and the pages behind it, handed back as **two nodes** rather than one.
+--- A strip of tabs and the pages behind it, handed back as **two nodes** because the two do not always sit
+--- one above the other -- the Appearance tab composes them as `Column { strip, Split(pages, pane) }` -- and
+--- only the selection is shared.
 ---
---- Two, because the strip and the page it selects do not always sit one directly above the other: the
---- Appearance tab runs its strip across the full content width and pairs the page with a preview pane
---- beside it, so the caller composes them -- `Column { strip, Split(pages, pane) }` -- and only the
---- selection is shared.
+--- `TabSystemTopButtonTemplate` carries its art on its lower edge, which is what makes a strip read as
+--- sitting on the page under it; see `Blizzard_HousingDashboardHouseInfoContent.xml`. The bottom variant is
+--- for tabs hanging off the bottom edge of a frame.
 ---
---- `TabSystemTopButtonTemplate` rather than the bottom-oriented `TabSystemButtonTemplate`: a top tab
---- carries its art on its *lower* edge, which is what makes a strip read as sitting on the page under
---- it. Blizzard's own inner strips (`Blizzard_HousingDashboardHouseInfoContent.xml`) are that one for
---- the same reason; the bottom variant is for tabs hanging off the bottom edge of a frame, which is
---- what the Auras tab's category strip is and the only place this panel uses it.
+--- `OnSelected` runs after a click has changed the selection and has to re-read *and* re-lay-out the tree:
+--- the page that just became visible has never been refreshed, and `Relayout` alone would not do because
+--- visibility is decided in `Refresh`.
 ---
---- The page nodes are built by the caller before this is called, and all of them up front rather than
---- on first selection: a page here is a handful of controls whose dropdowns already resolve their
---- lists per menu-open, so there is nothing left for deferring to save. Only the selected page is
---- shown and refreshed, so the others cost nothing per pass.
----
---- `OnSelected` runs after a click has changed the selection, and has to be whatever re-reads and
---- re-lays-out the tree -- the page that just became visible has never been refreshed, or was
---- refreshed against a state that has since moved on. `Relayout` alone would not do: visibility is
---- decided in `Refresh`.
----
---- A tab carrying an `Applies` predicate comes and goes with it, and the strip goes with the last one:
---- a strip over a single tab is chrome around a choice of one.
+--- A tab carrying an `Applies` predicate comes and goes with it, and the strip goes with the last one.
 ---@param parent Frame
 ---@param tabs SpotlightsSubTab[]
 ---@param OnSelected fun()
@@ -577,8 +518,7 @@ function Private.Node.SubTabs(parent, tabs, OnSelected)
 		tabSystem:AddTab(tabs[i].name)
 	end
 
-	--- Painted directly rather than through `SetTab`, which would run the callback -- and the callback
-	--- refreshes a tree that is still being built.
+	--- Painted directly rather than through `SetTab`, whose callback would refresh a tree still being built.
 	tabSystem:SetTabVisuallySelected(selected)
 
 	tabSystem:SetTabSelectedCallback(function(tabID)
@@ -592,9 +532,8 @@ function Private.Node.SubTabs(parent, tabs, OnSelected)
 
 	--- Brings the strip in line with the predicates, and the selection in line with the strip.
 	---
-	--- Run from both nodes rather than from the strip alone: the two are handed back separately and a
-	--- caller is free to place them where the strip is not the one refreshed first, while the selection
-	--- has to be corrected before a page draws. Idempotent, so the second run is a re-read.
+	--- Run from both nodes because a caller may place them so the strip is not refreshed first, while the
+	--- selection has to be corrected before a page draws. Idempotent, so the second run is a re-read.
 	---@return integer visible
 	local function ResolveTabs()
 		local visible = 0
@@ -613,13 +552,11 @@ function Private.Node.SubTabs(parent, tabs, OnSelected)
 			end
 		end
 
-		-- A tab that has just gone leaves its own page selected, which would be drawn with no tab left
-		-- to navigate back out of it.
+		-- A tab that has just gone leaves its own page selected, with no tab left to navigate out of it.
 		if not applies[selected] and first then
 			selected = first
 
-			-- Painted rather than selected, for the same reason as above: `SetTab` runs the callback,
-			-- and the callback refreshes the tree this is a pass over.
+			-- Painted rather than selected: `SetTab`'s callback refreshes the tree this is a pass over.
 			tabSystem:SetTabVisuallySelected(selected)
 		end
 
@@ -668,22 +605,18 @@ end
 
 --- A scroll pane, which is a node that also hands out the frame doing the clipping.
 ---
---- For the drag path. A `ScrollFrame` clips its children when it *draws* them and leaves their
---- rectangles alone, so a row scrolled out of view still reports a position that can land under the tab
---- strip -- and the only way to exclude it is to test the cursor against the viewport as well. Nothing
---- else may reach through this: the pane owns its scroll frame's anchors and its extent.
+--- Exposed for the drag path only: a `ScrollFrame` clips its children when it *draws* them and leaves their
+--- rectangles alone, so a row scrolled out of view still reports a hit position and the cursor has to be
+--- tested against the viewport too. Nothing else may reach through -- the pane owns the anchors and extent.
 ---@class SpotlightsScrollPaneNode : SpotlightsNode
 ---@field viewport Frame
 
---- A fixed-height window onto a node that may be taller than it.
+--- A fixed-height window onto a node that may be taller than it. Panes scroll independently rather than
+--- the tab as a whole, which is the only way a rail stays put while the list beside it moves, so the
+--- viewport's height is given rather than derived from its content.
 ---
---- The tab as a whole does not scroll in the reworked panel -- panes do, independently, which is the only
---- way a rail stays put while the list beside it moves. So the viewport's height is given rather than
---- derived from its content.
----
---- A **function** for a pane that shares its column with something whose height is not fixed: the raid
---- list gives up whatever the presets block under it took, and that is a section's open state rather
---- than a constant. Re-read on every pass, so the pane follows the block rather than a stale answer.
+--- Pass a **function** where the pane shares its column with something whose height is not fixed -- a
+--- section's open state, say. It is re-read on every pass.
 ---@param parent Frame
 ---@param node SpotlightsNode
 ---@param height number | fun(): number
@@ -693,8 +626,8 @@ function Private.Node.ScrollPane(parent, node, height)
 
 	local scroll = CreateFrame("ScrollFrame", nil, pane)
 
-	-- `InitScrollFrameWithScrollBar` installs an `OnMouseWheel` script, and a script alone does nothing on
-	-- a frame that is not listening for the wheel.
+	-- `InitScrollFrameWithScrollBar` installs an `OnMouseWheel` script, which does nothing on a frame that is
+	-- not listening for the wheel.
 	scroll:EnableMouseWheel(true)
 	scroll:SetPoint("TOPLEFT", pane, "TOPLEFT", 0, 0)
 	scroll:SetPoint("BOTTOMRIGHT", pane, "BOTTOMRIGHT", -SCROLL_GUTTER, 0)
@@ -733,8 +666,7 @@ function Private.Node.ScrollPane(parent, node, height)
 
 		content:SetWidth(childWidth)
 
-		-- The scroll child's height is the scroll extent, so a node that hid half its rows shrinks the bar
-		-- rather than leaving empty space under the last one.
+		-- The scroll child's height is the scroll extent, so a node that hid half its rows shrinks the bar.
 		content:SetHeight(math.max(LayoutChild(self, node, childWidth), 1))
 
 		return extent
@@ -743,14 +675,9 @@ function Private.Node.ScrollPane(parent, node, height)
 	return pane
 end
 
---- Makes a node belong to the states a predicate admits.
----
---- Wrapping `Refresh` rather than asking the node to check for itself, because the node is a section or a
---- control that must not learn what a category is. A container skips a hidden child outright -- no
---- anchor, no height, no gap -- so hiding is all this has to do, and a node that is not on screen is not
---- worth the dropdown menu its refresh would regenerate.
----
---- Wraps in place, so a caller holding a more specific node keeps its own reference and its type.
+--- Makes a node belong to the states a predicate admits, by wrapping `Refresh` rather than asking a
+--- section or control to learn what a category is. Containers skip hidden children outright, so hiding is
+--- all this has to do. Wraps in place, so a caller holding a more specific node keeps its type.
 ---@param node SpotlightsNode
 ---@param Applies fun(): boolean
 ---@return SpotlightsNode

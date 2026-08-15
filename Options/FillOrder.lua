@@ -4,17 +4,12 @@ local _, Private = ...
 ---@class SpotlightsFillOrder
 Private.FillOrder = {}
 
---- The Grid tab's fill-order preview: a schematic of where the next spotlight lands, drawn from the
---- same arithmetic the container itself places headers with (`Private.Layout.CellOf` /
---- `Private.Layout.Extent`), so the two can never disagree about what a given orientation, stride,
---- growX and growY combination produces.
+--- The Grid tab's fill-order preview: a schematic of where the next spotlight lands, drawn from the same
+--- `Private.Layout.CellOf` / `Extent` arithmetic the container places headers with.
 ---
---- A cell is one of three things: **filled** (a configured slot), **next** (where slot
---- `#slots + 1` would land, greyed), or **unused** (dashed). Every cell carries its own ordinal --
---- the pane's whole point is showing the *order* -- with kind read off opacity rather than off
---- whether a number is there at all. The rectangle shown is exactly big enough to hold the next
---- slot -- no padding row added purely to have something to dash, so a config that fills a rectangle
---- exactly shows no unused cells at all.
+--- A cell is **filled**, **next** (where slot `#slots + 1` would land) or **unused**. Every cell carries its
+--- ordinal, with kind read off opacity rather than off whether a number is there. The rectangle is exactly
+--- big enough to hold the next slot, so a config that fills one exactly shows no unused cells.
 
 local Orientation = Private.Enum.Orientation
 local GrowX = Private.Enum.GrowX
@@ -40,8 +35,8 @@ end
 ---@field row integer 1-based, top-left origin of the drawn rectangle
 ---@field column integer
 
---- A cell acquired from the pool below. The extra regions are stashed directly on the frame --
---- `postCreate` builds them once, the pool only ever hides and repositions the frame itself.
+--- A cell acquired from the pool below. `postCreate` builds the regions once; the pool only hides and
+--- repositions the frame itself.
 ---@class FillOrderCellFrame : Frame
 ---@field fill Texture
 ---@field solid Texture[] four continuous edges, shown for filled/next cells
@@ -83,9 +78,8 @@ local function PostCreateCell(cell)
 	cell.fill, cell.solid, cell.dashes, cell.number = fill, solid, dashes, number
 end
 
---- Positions the four continuous edges and the dashed segments for the current cell size. Both sets
---- exist on every cell regardless of state -- only their `Show`/`Hide` differs -- so a cell that
---- changes kind between passes never has to build geometry it lacked.
+--- Positions the four continuous edges and the dashed segments for the current cell size. Both sets exist
+--- on every cell whatever its state, so a cell that changes kind between passes builds nothing.
 ---@param cell FillOrderCellFrame
 ---@param size number
 local function LayoutEdges(cell, size)
@@ -190,10 +184,8 @@ local function ApplyCellState(cell, state, index)
 	end
 end
 
---- What the pane is showing right now: every cell's kind and grid position, plus the bounding
---- rectangle they were laid out against. Computed once per `Refresh` and read back by both
---- `Refresh` (to paint state) and `Layout` (to place it), so the two never compute a different
---- answer for the same pass.
+--- What the pane is showing right now. Computed once per `Refresh` and read back by both `Refresh` (to
+--- paint state) and `Layout` (to place it), so the two never compute a different answer for one pass.
 ---@type { total: integer, rows: integer, columns: integer, cells: FillOrderCellState[] }
 local computed = { total = 0, rows = 0, columns = 0, cells = {} }
 
@@ -211,9 +203,8 @@ local function Recompute()
 	local nextIndex = count + 1
 	local stride = math.max(config.stride, 1)
 
-	-- The rectangle is exactly what `Extent` says `nextIndex` cells need -- rounded up to a full
-	-- rectangle by construction, since `Extent` always returns a whole number of major lines. Any
-	-- leftover cells in the final line are the unused ones; no line is added purely to have some.
+	-- Exactly what `Extent` says `nextIndex` cells need, rounded up to a whole number of major lines. The
+	-- leftovers in the final line are the unused cells; no line is added purely to have some.
 	local total = math.ceil(nextIndex / stride) * stride
 	local rows, columns = Private.Layout.Extent(total, config)
 

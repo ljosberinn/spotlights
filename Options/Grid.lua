@@ -3,12 +3,6 @@ local _, Private = ...
 
 --- The Grid tab: the *Fill* column of layout controls beside the fill-order preview
 --- (`Options/FillOrder.lua`), which reads the same fields these write.
----
---- Grow direction is a pair of segmented Left/Right and Up/Down strips rather than the old panel's
---- dropdowns -- the design's call, since each is a binary, directional choice rather than an open
---- list. Spacing is one row of two, an `X`/`Y` pair, for the same reason General's scale and this
---- tab's stride are sliders and this is not: a horizontal and a vertical spacing are compared as
---- much as they are set.
 
 local COLUMN_LABEL_WIDTH = 100
 local FILL_ORDER_WIDTH = 280
@@ -55,13 +49,9 @@ local function GrowYChoices()
 	}
 end
 
---- Writes a layout field and requests both the passes it invalidates and a panel refresh.
----
---- The extra refresh is what the fill-order pane needs: it reads these same fields but is a sibling
---- node, not one this control's own `Refresh` reaches, so nothing repaints it unless the whole tab
---- is told to look again. Safe to call from inside a control's own callback -- every leaf guards its
---- write against its own `Refresh`, the same way `Options.Refresh` is guarded elsewhere against
---- firing while the panel is closed.
+--- Writes a layout field and requests both the passes it invalidates and a panel refresh. The refresh is
+--- what the fill-order pane needs: it reads these fields but is a sibling node no control's own `Refresh`
+--- reaches.
 ---@param field string
 ---@param value any
 local function SetLayoutField(field, value)

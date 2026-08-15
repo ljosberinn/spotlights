@@ -6,32 +6,24 @@ Private.Auras = {}
 
 --- Tracked aura displays: which spells a spotlight watches for, and what it draws when one lands.
 ---
---- A specialisation change swaps the active feature set. Existing containers cannot be removed
---- (`CustomAuraContainerInboundMixin` exposes `AddAuraSlot` and no inverse), so old records are hidden
---- and discarded from the active record map before the new set is built.
+--- Containers cannot be removed (`CustomAuraContainerInboundMixin` exposes `AddAuraSlot` and no
+--- inverse), so a specialisation change hides old records and discards them from the active map
+--- rather than tearing them down.
 
 local DeferralKey = Private.Enum.DeferralKey
 
--- Note the absence of `local Enum = Private.Enum`, which the rest of the addon does freely. This
--- file needs the *game's* `Enum` for the status bar options below; shadowing it here would turn
--- `Enum.StatusBarInterpolation` into a nil index at the one call site that matters.
+-- No `local Enum = Private.Enum` here, unlike the rest of the addon: this file needs the *game's*
+-- `Enum` for `Enum.StatusBarInterpolation` below, and shadowing it would nil-index that call site.
 
---- Prescience's slot shows only the copy *we* applied, and `PLAYER` says so. It also keeps the class
---- gate a pure cost decision rather than a behaviour change.
+--- Prescience's slot shows only the copy *we* applied, which `PLAYER` says.
 local OWN_FILTER =
 	AuraUtil.CreateFilterString(AuraUtil.AuraFilters.Helpful, AuraUtil.AuraFilters.Player)
 
---- Sense Power's slot pools the spotlighted player's own major cooldowns beside Sense Power, none of
---- them cast by us. `PLAYER` admits only auras cast by the player, pet or vehicle, so it would
---- discard every cooldown before `includeSpellIDs` was consulted -- the slot would show Sense Power
---- alone and read as a sorting bug.
----
---- The spell-ID set does the narrowing instead, more tightly: it names the exact auras rather than
---- trusting the caster. What it no longer excludes is another Evoker's Sense Power on the same unit.
+--- Sense Power's slot pools the spotlighted player's own cooldowns, none of them cast by us, so
+--- `PLAYER` would discard every one before `includeSpellIDs` was consulted. The spell-ID set narrows
+--- instead, which no longer excludes another Evoker's Sense Power on the same unit.
 local ANY_FILTER = AuraUtil.CreateFilterString(AuraUtil.AuraFilters.Helpful)
 
---- One tracked aura: which config block is its own, which spell it watches for, and what its slot is
---- allowed to show.
 ---@class SpotlightsAuraFeature
 ---@field key SpotlightsAuraFeatureKey indexes `SpotlightsAurasConfig`, and names the slot inside its container
 ---@field spellID integer the spell the display is *about*: its icon, and its preview
@@ -46,16 +38,11 @@ local ANY_FILTER = AuraUtil.CreateFilterString(AuraUtil.AuraFilters.Helpful)
 --- One kind of display, and the only place the difference between a bar, an icon, a square, a bare
 --- countdown and a health-bar tint lives.
 ---
---- `config` is loose: the five kinds are configured by different shapes, and a narrower annotation
---- would be a lie in four directions. The four verbs are split because a live display and a preview
---- need different subsets — a live display runs `Create`, `Style`, `Register` once and is then
---- untouchable, while a preview runs `Create`/`Preview` once and `Style` on every settings change.
---- Sharing `Style` is what makes a preview show what will ship.
----
---- `Create`'s `frame` is the spotlight the display is being built on, and only `frameColor` reads it:
---- every other kind draws inside the anchor's rect and has no business knowing what the anchor hangs
---- off. It is nilable because the grid preview hosts its displays on a plain frame standing in for a
---- spotlight, which has no health bar to tint.
+--- `config` is loose because the five kinds are configured by different shapes. The verbs are split
+--- because a live display runs `Create`/`Style`/`Register` once and is then untouchable, while a
+--- preview runs `Style` on every settings change -- sharing it is what makes a preview show what will
+--- ship. `Create`'s `frame` is read only by `frameColor`, and is nilable because the grid preview's
+--- stand-in spotlight has no health bar to tint.
 ---@class SpotlightsAuraKind
 ---@field key SpotlightsAuraDisplayKey
 ---@field Create fun(host: Frame|table, config: table, spellID: integer, everything: boolean, frame: SpotlightsUnitFrame?): SpotlightsAuraRegions
@@ -146,9 +133,8 @@ local COOLDOWNS = {
 	},
 }
 
---- The game's own Big Defensive list, amended by hand. Its flag covers personal and single-target
---- external mitigation only, so the group-wide effects it misses are added here and ship on like
---- everything else -- being inside one is exactly what a healer reads off a spotlight.
+--- The game's Big Defensive flag covers personal and single-target external mitigation only, so the
+--- group-wide effects it misses are added by hand and ship on.
 ---@type table<integer, table<integer, boolean>>
 local DEFENSIVES = {
 	[Constants.UICharacterClasses.Warrior] = {
@@ -229,9 +215,6 @@ local DEFENSIVES = {
 }
 
 --- The current aura settings, or nil before the migration has run.
----
---- Ahead of the feature list below because a function referencing it has to be declared after it --
---- a local is not in scope above its declaration.
 ---@return SpotlightsAurasConfig?
 local function Config()
 	return Private.DB and Private.DB.auras
@@ -240,13 +223,9 @@ end
 --- One spell pool: a shipped catalogue grouped by class, sparse overrides over it, and the user's own
 --- IDs beside it.
 ---
---- Cooldowns and defensives are the same concern at runtime and differ only in what a catalogue entry
---- *means*, so that difference lives in `DefaultEnabled` and every operation below is written once. A
---- cooldown ships on -- `COOLDOWNS` is a membership list -- while a defensive ships on or off per
---- spell, because the ones the game does not count as defensives were added by hand.
----
---- The two pools keep separate saved-variable tables and separate features. This is shared behaviour,
---- not a merged pool.
+--- Cooldowns and defensives differ only in what a catalogue entry *means*, so that lives in
+--- `DefaultEnabled` and every operation below is written once. They keep separate saved tables and
+--- separate features; this is shared behaviour, not a merged pool.
 ---@class SpotlightsAuraPool
 ---@field catalog table<integer, table<integer, boolean>> the shipped spells, grouped by class
 ---@field overridesKey string the `SpotlightsAurasConfig` field holding deviations from the catalogue
@@ -274,11 +253,8 @@ local POOLS = {
 	},
 }
 
---- A pool's two saved tables, or nils before the migration has run.
----
---- The one place either table is reached by key. Both are guaranteed by the migration and refilled by
---- `Repair` on every load, so the nil case is the window before either has run -- a refresh driven by a
---- slash command during login, which is a real order.
+--- The one place either table is reached by key. The nil case is the window before the migration and
+--- `Repair` have run, which a slash command during login reaches.
 ---@param pool SpotlightsAuraPool
 ---@return table<integer, boolean>? overrides, table<integer, boolean>? custom
 local function PoolTables(pool)
@@ -309,17 +285,13 @@ end
 
 --- Every spell in the pool a slot may currently show.
 ---
---- Read from the database on every call: the set is what a slot's `includeSpellIDs` is built from, so
---- recomputing here is what makes a toggle reach a live display. Cached, it could disagree.
+--- Recomputed on every call rather than cached: this is what a slot's `includeSpellIDs` is built from,
+--- so recomputing is what makes a toggle reach a live display.
 ---
---- Not narrowed to the watched unit's class. A container can be repointed at another player
---- (`OnUnitChanged` does so on every roster change), so a per-class set would have to be recomputed in
---- the right order relative to `SetUnit`. The union costs nothing to be right instead: no spell belongs
---- to two classes and nobody changes class. The class grouping in the catalogues is for readers and the
---- options panel, not for this lookup.
----
---- An absent override means the shipped default, which is why a catalogue needs no migration when it
---- grows: the override table holds only the user's own decisions.
+--- Deliberately not narrowed to the watched unit's class -- a container is repointed at another player
+--- on every roster change, so a per-class set would have to be recomputed in the right order relative
+--- to `SetUnit`. An absent override means the shipped default, which is why a catalogue needs no
+--- migration when it grows.
 ---@param pool SpotlightsAuraPool
 ---@param candidates table<integer, true>? a set to add to, for a slot pooling more than this pool
 ---@return table<integer, true>
@@ -341,8 +313,8 @@ local function PoolCandidates(pool, candidates)
 		end
 	end
 
-	-- The opposite default to the built-ins: nothing the user added counts until they say so, because
-	-- an ID typed into a box is a guess until it has been seen to work.
+	-- Opposite default to the built-ins: an ID typed into a box is a guess, so it counts only once
+	-- switched on.
 	if custom then
 		for spellID, enabled in pairs(custom) do
 			if enabled then
@@ -354,12 +326,8 @@ local function PoolCandidates(pool, candidates)
 	return candidates
 end
 
---- Whether one spell in the pool is switched on.
----
---- The asymmetry between the two lists lives here and nowhere else: a built-in is on unless it deviates
---- from its catalogue entry, and a custom entry is off unless switched on. Both callers -- the panel
---- drawing a checkbox and `PoolCandidates` building the set -- have to agree, so they ask the same
---- function.
+--- The asymmetry between the two lists lives here and nowhere else: a built-in is on unless it
+--- deviates from its catalogue entry, and a custom entry is off unless switched on.
 ---@param pool SpotlightsAuraPool
 ---@param spellID integer
 ---@param custom boolean? whether `spellID` is a user-added entry rather than a shipped one
@@ -388,12 +356,10 @@ end
 
 --- Switches one pooled spell on or off, and lands it on every live display.
 ---
---- A built-in returning to its default is **cleared rather than stored**, which keeps the override
---- table holding only the user's actual decisions -- and therefore keeps a spell added to a catalogue
---- in a later version at its shipped default for someone who once toggled a different one.
----
---- A built-in the catalogue does not list is refused. An override on one could never reach a candidate
---- set, so writing it would leave a saved variable saying something the addon does not act on.
+--- A built-in returning to its default is cleared rather than stored, so the override table holds only
+--- the user's actual decisions and a spell added to a catalogue later stays at its shipped default. A
+--- built-in the catalogue does not list is refused: an override on one could never reach a candidate
+--- set.
 ---@param pool SpotlightsAuraPool
 ---@param spellID integer
 ---@param enabled boolean
@@ -419,10 +385,8 @@ local function SetPoolEnabled(pool, spellID, enabled, custom)
 			return false
 		end
 
-		-- Spelled out rather than folded into an `and`/`or`: neither operator can yield nil from a
-		-- truthy branch, so `enabled ~= default and enabled or nil` stores *nil* when switching a
-		-- default-on spell off -- which reads as "default" to everything downstream and would leave the
-		-- spell enabled.
+		-- Not folded into `enabled ~= default and enabled or nil`: that stores nil when switching a
+		-- default-on spell off, which reads as "default" downstream and leaves it enabled.
 		if enabled == default then
 			overrides[spellID] = nil
 		else
@@ -435,10 +399,8 @@ local function SetPoolEnabled(pool, spellID, enabled, custom)
 	return true
 end
 
---- The user's own spell IDs, in ascending order.
----
---- Sorted rather than iterated, because `pairs` over an integer-keyed map has no order the user would
---- recognise and a list that reshuffled itself whenever the panel reopened would look broken.
+--- The user's own spell IDs, sorted: `pairs` order would reshuffle the list whenever the panel
+--- reopened.
 ---@param pool SpotlightsAuraPool
 ---@return integer[]
 local function CustomPoolSpells(pool)
@@ -456,10 +418,8 @@ local function CustomPoolSpells(pool)
 	return spellIDs
 end
 
---- Adds a spell the user typed in, switched on.
----
---- Enabled immediately, unlike the custom default of off, because adding one *is* the act of asking for
---- it -- the default only governs an entry that arrived some other way, such as a hand-edited database.
+--- Adds a spell the user typed in, switched on despite the custom default of off: adding one *is* the
+--- act of asking for it. The default governs entries that arrived some other way.
 ---@param pool SpotlightsAuraPool
 ---@param spellID integer
 ---@return boolean added false when it is already in the list
@@ -477,12 +437,9 @@ local function AddCustomPoolSpell(pool, spellID)
 	return true
 end
 
---- Removes one of the user's own entries.
----
---- No reload is owed, though this is the case that looks most like it should: a spell *shown* this
---- session leaves a slot currently displaying it. Clearing it from the filters is what
---- `SetCandidateFilters` already does -- it drops every candidate and re-acquires from the next aura
---- scan -- so the display empties on its own.
+--- Removes one of the user's own entries. No reload is owed, though this looks most like the case that
+--- needs one: `SetCandidateFilters` drops every candidate and re-acquires from the next scan, so a slot
+--- showing the removed spell empties on its own.
 ---@param pool SpotlightsAuraPool
 ---@param spellID integer
 ---@return boolean removed
@@ -500,23 +457,18 @@ local function RemoveCustomPoolSpell(pool, spellID)
 	return true
 end
 
---- Puts every shipped spell in the pool back to its default, which is not the same as on: three
---- defensives ship switched off, so this restores a *mix* rather than enabling everything.
+--- Puts every shipped spell back to its default, which is not the same as on -- some defensives ship
+--- switched off. Clearing the override table *is* the reset, since it holds only the user's deviations.
 ---
---- Clearing the override table *is* the reset: it holds only the user's deviations, so an empty one
---- means the catalogue as shipped -- and a spell added in a later version is unaffected either way,
---- since it was never in there.
----
---- The user's own entries are left alone, and the panel offering this says so. They have no shipped
---- default to return to: an entry exists only because it was typed in, so the only thing "default"
---- could mean for one is deleting it, which is not what a reset button is for.
+--- The user's own entries are left alone: they have no shipped default to return to, so "default" for
+--- one could only mean deleting it.
 ---@param pool SpotlightsAuraPool
 ---@return boolean applied
 local function ResetPool(pool)
 	local overrides = PoolTables(pool)
 
-	-- Nothing overridden is already the default state, and refreshing every live display to say so
-	-- would be a sweep over the whole raid for no change.
+	-- Already the default state; refreshing every live display to say so would sweep the whole raid
+	-- for no change.
 	if not overrides or next(overrides) == nil then
 		return false
 	end
@@ -540,10 +492,8 @@ local function ShiftingSandsCandidates()
 	return { [413984] = true }
 end
 
---- Sense Power's candidates: the spell, plus every major cooldown still switched on.
----
---- Its own composition rule rather than a pool of its own -- the cooldown pool, seeded with Sense
---- Power. The defensive pool is deliberately not in it.
+--- The cooldown pool seeded with Sense Power, rather than a pool of its own. The defensive pool is
+--- deliberately not in it.
 ---@return table<integer, true>
 local function SensePowerCandidates()
 	return PoolCandidates(POOLS.cooldown, { [361022] = true })
@@ -573,12 +523,9 @@ local function CandidateIDs(candidates)
 	return spellIDs
 end
 
---- The tracked auras. `key` indexes the config block and names the slot; the rest is what its
---- slot may show and whose auras count.
----
 --- Prescience is one spell from one caster, while Sense Power shares its slot with every major
---- cooldown the spotlighted player might have, cast by them rather than by us -- so they are no
---- longer distinguished by spell ID alone.
+--- cooldown the spotlighted player might have, cast by them rather than by us -- so a feature is no
+--- longer a spell ID alone.
 ---@type SpotlightsAuraFeature[]
 local EVOKER_FEATURES = {
 	{
@@ -635,11 +582,8 @@ function Private.Auras.SetPreviewFeature(featureKey)
 	return true
 end
 
---- One feature's record by key, from whichever specialisation's set holds it.
----
---- Both sets rather than the active `FEATURES`, because the options panel asks about the category its
---- strip has selected and the two can disagree for a moment: a specialisation change swaps the set
---- before the strip has corrected the selection against it.
+--- Both sets rather than the active `FEATURES`: a specialisation change swaps the set before the
+--- options strip has corrected its selection against it, and the two disagree until it does.
 ---@param featureKey SpotlightsAuraFeatureKey
 ---@return SpotlightsAuraFeature?
 local function FeatureByKey(featureKey)
@@ -691,46 +635,33 @@ end
 
 Private.Events.RegisterEvent("PLAYER_LOGIN", SetFeatureMode)
 
---- How faint a preview bar's unfilled remainder is against its own fill. Enough to read the bar's
---- extent against a spotlight, little enough that the fill still reads as the fill -- and multiplied by
---- the display's own opacity on top, since it sits under the same anchor.
+--- How faint a preview bar's unfilled remainder is. Multiplied by the display's own opacity on top,
+--- since it sits under the same anchor.
 local TRACK_ALPHA = 0.35
 
---- How long a frozen setting has to stop changing before anything is rebuilt.
----
---- A drag writes the database every frame it moves; a restart-on-change timer turns the gesture into
---- one rebuild when the user's hand stops, instead of sixty leaked containers per spotlight. Long
---- enough to cover a slow drag, short enough that a deliberate click still feels immediate. The
---- aura preview layer fills the gap with live feedback while dragging, at no cost.
+--- How long a frozen setting has to stop changing before anything is rebuilt. A drag writes the
+--- database every frame it moves, which without the debounce is sixty leaked containers per spotlight.
 local REBUILD_DELAY = 0.4
 
---- Displays waiting on a rebuild, keyed `feature.display`. A set, so a burst of writes to the same
---- display costs one entry.
+--- Displays waiting on a rebuild, keyed `feature.display`.
 ---@type table<string, boolean>
 local pending = {}
 
---- Whether a rebuild has actually abandoned something since the user was last asked about it.
----
---- Set where the leak happens rather than where it is requested: a frozen setting changed on a
---- display that is switched *off* queues a rebuild that finds nothing to rebuild — no leak — and
---- offering a reload for it would ask the user to fix a problem they do not have.
+--- Whether a rebuild has actually abandoned a container since the user was last asked about it. Set
+--- where the leak happens rather than where it is requested: a rebuild that finds nothing owes no
+--- reload, and offering one would ask the user to fix a problem they do not have.
 local reloadPending = false
 
 ---@type FunctionContainer?
 local rebuildTimer
 
 --- Whether the debounce has expired, so `pending` is a settled batch rather than a gesture still in
---- progress.
----
---- Separate from "is `pending` non-empty". `DeferralKey.Auras` is requested by the free path too, and
---- without this flag a free setting changed mid-drag would drain the drag's half-finished batch on
---- the next frame — no debounce at all, at one leaked container per spotlight per frame.
+--- progress. Separate from "is `pending` non-empty": `DeferralKey.Auras` is requested by the free path
+--- too, and without this a free setting changed mid-drag would drain the drag's half-finished batch.
 local settled = false
 
---- Queues a display for rebuilding once its settings stop moving.
----
---- Restart-on-change: the timer is cancelled and replaced on every write, so a drag of any length
---- costs one rebuild, at the end. The drain runs through `Apply`, which handles combat.
+--- Queues a display for rebuilding once its settings stop moving. Restart-on-change, so a drag of any
+--- length costs one rebuild at the end; the drain runs through `Apply`, which handles combat.
 ---@param featureKey SpotlightsAuraFeatureKey
 ---@param displayKey SpotlightsAuraDisplayKey
 local function RequestRebuild(featureKey, displayKey)
@@ -751,26 +682,15 @@ end
 --- LibSharedMedia's name for the empty border, and how "no border" is spelled in the settings.
 local BORDER_NONE = "None"
 
---- The formatter for the icon's countdown text, replacing the container's default.
+--- The formatter for the icon's countdown text, replacing the container's default, which always
+--- renders a unit and so cannot produce the bare number this display wants
+--- (`Blizzard_AuraContainer/Blizzard_AuraContainerShared.lua:75-98`).
 ---
---- `SetDurationText` with no options selects `DefaultAuraDurationFormatter`, a `SecondsFormatter`
---- that always renders a unit. None of its abbreviations omit the unit, so it cannot produce the bare
---- number this display wants.
----
---- A `NumericRuleFormatter` can, because each breakpoint carries its own format string. Two
---- breakpoints, keyed on remaining seconds:
----   * below three seconds -- one decimal, truncated so it counts down `2.9, 2.8` rather than
----     rounding up.
----   * three seconds and up -- whole seconds, rounded up so `6` still shows while ~5.5s remain,
----     matching the old `6s` text minus its unit.
---- `%.0f`/`%.1f` rather than `%d`, so the already-rounded value never trips an integer specifier.
----
---- Seconds throughout, no minute promotion: a duration over a minute reads `90` rather than a bare
---- `1` ambiguous against one second. These auras are almost always under a minute.
----
---- Built once and shared: never mutated, and `SetDurationText` copies what it is given. Ours, not
---- Blizzard's -- `AuraContainerInbound.GetDefaultAuraDurationFormatter` hands back the global
+--- Ours, not Blizzard's: `AuraContainerInbound.GetDefaultAuraDurationFormatter` hands back the global
 --- instance, and mutating that would change every aura display in the game.
+---
+--- `%.0f`/`%.1f` rather than `%d`, so the already-rounded value never trips an integer specifier. See
+--- docs/notes/AuraDurationText.md for the breakpoint choice.
 local DURATION_FORMATTER = C_StringUtil.CreateNumericRuleFormatter()
 
 DURATION_FORMATTER:SetBreakpoints({
@@ -778,22 +698,12 @@ DURATION_FORMATTER:SetBreakpoints({
 	{ threshold = 3, step = 1,   rounding = Enum.NumericRuleFormatRounding.Up,   format = "%.0f" },
 })
 
---- Creation and styling are separate throughout this section, and the preview is why.
----
---- On a real display the two happen once, back to back: the aura button is access-restricted the
---- moment `initializeFrame` returns. The preview layer is the opposite — nothing restricted, and a
---- settings drag restyles it sixty times a second. Split, the same `Style` runs on both, which makes
---- a preview show *what will ship*.
----
---- The asymmetry that remains is in `Create`: a real display builds only the optional regions its
---- config asks for, because an unwanted `Cooldown` under an aura button can never be reclaimed, while
---- a preview builds all of them and lets `Style` decide what is shown. Hence `everything`.
+--- `Create`'s asymmetry: a real display builds only the optional regions its config asks for, because
+--- an unwanted region under an aura button can never be reclaimed, while a preview builds all of them
+--- and lets `Style` decide what is shown. Hence `everything`.
 
---- The frame a border is drawn on. Created for both kinds, because a border does not care whether it
---- is around a bar or an icon.
----
---- Lifted clear of its host's own frame level so it draws over the bar fill, the icon art and the
---- cooldown swipe rather than under whichever was created after it.
+--- Lifted clear of its host's frame level so it draws over the bar fill, the icon art and the cooldown
+--- swipe rather than under whichever was created last.
 ---@param host Frame|table
 ---@return SpotlightsAuraBorder
 local function CreateBorder(host)
@@ -806,14 +716,11 @@ local function CreateBorder(host)
 	return border
 end
 
---- Applies the border settings, including the one that means "no border".
+--- `SetAllPoints` rather than an outset: a backdrop edge straddles the frame's boundary, so a border on
+--- the display's own rect stays the size the settings report.
 ---
---- `SetAllPoints` rather than an outset: a backdrop edge straddles the frame's boundary, so a border
---- on the display's own rect lines up with the rect the user positioned. An outset would make the
---- visible display quietly larger than the size the settings report.
----
---- `None` hides rather than clears, and it is a requirement: `SetBackdrop` errors on a backdrop with
---- neither a background nor an edge, and LSM resolves `None` to an empty path.
+--- `None` hides rather than clears: `SetBackdrop` errors on a backdrop with neither a background nor an
+--- edge, and LSM resolves `None` to an empty path.
 ---@param regions SpotlightsAuraRegions
 ---@param config SpotlightsAuraDisplayConfig
 local function StyleBorder(regions, config)
@@ -837,43 +744,33 @@ local function StyleBorder(regions, config)
 	border:Show()
 end
 
---- The swipe and the countdown text, which an icon and a square draw identically: neither is about the
---- thing underneath it, and both are wanted over spell art and over a plain block alike.
----
---- Shared rather than written twice because every line of it is a decision with a reason, and two copies
---- of those reasons is two places for one of them to be corrected.
----
---- Either region is created only when the config wants it, unless `everything` says otherwise -- see the
---- note on `Create` above.
+--- The swipe and the countdown text, which an icon and a square draw identically.
 ---@param host Frame|table
 ---@param config SpotlightsAuraIconConfig|SpotlightsAuraSquareConfig
 ---@param regions SpotlightsAuraRegions
 ---@param everything boolean
 local function CreateDuration(host, config, regions, everything)
 	if config.showSwipe or everything then
-		-- CooldownFrameTemplate carries `setAllPoints` and starts hidden. Both are wanted: the
-		-- container shows it through `SetCooldownFromDurationObject`, and `Shown` is a secret aspect
-		-- from the moment `SetDurationCooldown` returns, so it could not be shown from here anyway.
+		-- `CooldownFrameTemplate` carries `setAllPoints` and starts hidden, both wanted: `Shown` is a
+		-- secret aspect from the moment `SetDurationCooldown` returns, so it could not be shown from
+		-- here anyway.
 		regions.swipe = CreateFrame("Cooldown", nil, host, "CooldownFrameTemplate")
 
 		regions.swipe:SetDrawEdge(false)
 
-		-- The swipe is driven by an aura timer, not a spell cooldown, and the two display slightly
-		-- differently: this keeps the sweep in sync with the aura's own duration. Blizzard sets the
-		-- same flag on every aura-fed Cooldown it owns.
+		-- Driven by an aura timer rather than a spell cooldown; Blizzard sets this on every aura-fed
+		-- Cooldown it owns.
 		regions.swipe:SetUseAuraDisplayTime(true)
 
-		-- Ours is the only countdown on this display. The cooldown's own numbers would otherwise sit
-		-- under the duration text saying the same thing a pixel out of alignment.
+		-- The cooldown's own numbers would sit under our duration text saying the same thing, a pixel
+		-- out of alignment.
 		regions.swipe:SetHideCountdownNumbers(true)
 	end
 
 	if config.showText or everything then
-		-- On a layer of its own, above the swipe rather than *on* it.
-		--
-		-- A Cooldown is a frame, so its shading draws above anything on the host whatever draw layer
-		-- we ask for. Hanging the text off the swipe made switching the swipe off take the duration
-		-- with it, so the two settings could not be set independently. One frame above both fixes it.
+		-- Own layer above the swipe rather than *on* it: a Cooldown is a frame, so its shading draws
+		-- above anything on the host whatever layer we ask for, and hanging the text off the swipe
+		-- made switching the swipe off take the duration with it.
 		local layer = CreateFrame("Frame", nil, host)
 
 		layer:SetAllPoints()
@@ -884,8 +781,8 @@ local function CreateDuration(host, config, regions, everything)
 	end
 end
 
---- Applies both duration settings. The `SetShown` calls are no-ops on a live display, where a region
---- exists only when wanted, and are the point on a preview.
+--- The `SetShown` calls are no-ops on a live display, where a region exists only when wanted, and are
+--- the point on a preview.
 ---@param regions SpotlightsAuraRegions
 ---@param config SpotlightsAuraIconConfig|SpotlightsAuraSquareConfig
 local function StyleDuration(regions, config)
@@ -894,20 +791,18 @@ local function StyleDuration(regions, config)
 	end
 
 	if regions.text then
-		-- `OUTLINE` unconditionally: a duration sits over spell art, a coloured block and a cooldown
-		-- swipe, and unoutlined text on any of those is illegible at every font and size.
+		-- `OUTLINE` unconditionally: a duration sits over spell art, a coloured block or a swipe, and is
+		-- illegible on any of them without it at every font and size.
 		regions.text:SetFont(Private.Media.Font(config.font), config.fontSize, "OUTLINE")
 		regions.text:SetShown(config.showText)
 	end
 end
 
---- Hands the swipe and the countdown to the aura button, after which neither is ours.
+--- Hands the swipe and the countdown to the aura button, after which neither is ours: the text gains
+--- `Text`, `Alpha` and `VertexColor` as secret aspects the moment this returns.
 ---
---- `SetDurationText` is given a `textFormatter` rather than left to pick
---- `DefaultAuraDurationFormatter` -- see `DURATION_FORMATTER`. The formatter is the only thing we are
---- still allowed to decide: the moment this returns the text gains `Text`, `Alpha` and `VertexColor`
---- as secret aspects. The options table is copied in, so passing the one shared formatter to every
---- display is safe.
+--- The formatter is the only thing still ours to decide -- see `DURATION_FORMATTER`. Its options table
+--- is copied in, so passing one shared formatter to every display is safe.
 ---@param button table
 ---@param regions SpotlightsAuraRegions
 local function RegisterDuration(button, regions)
@@ -920,14 +815,11 @@ local function RegisterDuration(button, regions)
 	end
 end
 
---- Fills a preview's swipe and countdown with a made-up moment.
----
---- Re-armed on every restyle rather than looped, so a preview is a snapshot: it runs down and stops if
---- left alone, and starts again the moment any control moves.
+--- Fills a preview's swipe and countdown with a made-up moment. Re-armed on every restyle rather than
+--- looped, so a preview runs down and stops if left alone.
 ---
 --- **The swipe is guarded on the setting here rather than left to `Style`, because `SetCooldown` shows
---- the frame it arms.** So a swipe the user had just switched off was hidden by the styling pass and
---- un-hidden one line later by this — the setting appeared to do nothing.
+--- the frame it arms** -- a swipe just switched off was hidden by `Style` and un-hidden one line later.
 ---@param regions SpotlightsAuraRegions
 ---@param config SpotlightsAuraIconConfig|SpotlightsAuraSquareConfig
 local function PreviewDuration(regions, config)
@@ -935,20 +827,15 @@ local function PreviewDuration(regions, config)
 		regions.swipe:SetCooldown(GetTime() - 8, 20)
 	end
 
-	-- No such guard needed: `SetText` on a hidden font string leaves it hidden. A fractional sample,
-	-- because the sub-three-second decimal is the visible part of the format and the preview is the
-	-- one place to show it.
+	-- No such guard needed: `SetText` on a hidden font string leaves it hidden. Fractional, because the
+	-- sub-three-second decimal is the one part of the format a preview can show.
 	if regions.text then
 		regions.text:SetText("2.5")
 	end
 end
 
---- The regions a duration bar is made of.
----
---- The inline icon is created only when the config wants one, unless `everything` says otherwise. On
---- a real display a texture under an aura button can never be reclaimed, and the toggle that would
---- show it is frozen; on a preview the toggle is live and a region that does not exist cannot be
---- shown.
+--- The inline icon is created only when the config wants one, unless `everything` says otherwise: a
+--- texture under an aura button can never be reclaimed, and its toggle is frozen.
 ---@param host Frame|table
 ---@param config SpotlightsAuraBarConfig
 ---@param spellID integer
@@ -958,15 +845,9 @@ local function CreateBar(host, config, spellID, everything)
 	---@type SpotlightsAuraRegions
 	local regions = { bar = CreateFrame("StatusBar", nil, host) }
 
-	--- The unfilled remainder of the bar, and **preview-only**.
-	---
-	--- A `StatusBar` draws nothing where it is not filled, and a preview's fill is a fixed two thirds --
-	--- so without this the pane reports a bar a third narrower than the one being configured, and a
-	--- width dragged to cover a spotlight looks like it does not. A live display needs none: its fill
-	--- moves, which is what says where the bar ends.
-	---
-	--- On `host` rather than on the status bar, so it draws under the fill: a child frame is above every
-	--- region of its parent whatever layer they claim.
+	-- The unfilled remainder, preview-only: a `StatusBar` draws nothing where it is not filled and a
+	-- preview's fill is a fixed two thirds, so without this the pane reports a bar a third narrower
+	-- than the one being configured. On `host` rather than on the bar, so it draws under the fill.
 	if everything then
 		regions.barTrack = host:CreateTexture(nil, "BACKGROUND")
 		regions.barTrack:SetAllPoints(regions.bar)
@@ -975,9 +856,9 @@ local function CreateBar(host, config, spellID, everything)
 	if config.showIcon or everything then
 		regions.barIcon = host:CreateTexture(nil, "ARTWORK")
 
-		-- The feature's own spell, which is what a **preview** wants: it has no aura and no button. On
-		-- a live display `RegisterBar` hands the texture to the button and the container repaints it
-		-- per aura, making this the value shown for the fraction of a frame between the two.
+		-- The feature's own spell, which is what a preview wants -- it has no aura and no button. On a
+		-- live display `RegisterBar` hands the texture over and the container repaints it per aura, so
+		-- this shows for a fraction of a frame.
 		regions.barIcon:SetTexture(C_Spell.GetSpellTexture(spellID))
 		regions.barIcon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
 	end
@@ -988,17 +869,12 @@ local function CreateBar(host, config, spellID, everything)
 	return regions
 end
 
---- Applies every bar setting, and is the whole of what a preview and a live display have in common.
+--- The bar is anchored rather than sized: it fills its host, which fills the container, which fills the
+--- anchor, so the one rect anyone sets is the anchor's. A bar sized here would never resize again.
 ---
---- The bar is anchored rather than sized: it fills its host, which fills the container, which fills
---- the anchor — so the one rect anyone sets is the anchor's, which stays writable. A bar sized here
---- would never change size again.
----
---- `SetStatusBarTexture` resolves the stored LibSharedMedia key at the moment it is called, and on a
---- real display it is never called again. So an addon supplying the user's chosen texture that loads
---- after us needs a rebuild here, where a health bar could just be re-textured -- the same problem
---- `Private.Media`'s registration callback solves. LSM registers `Solid` at load, so the default is
---- never affected.
+--- `SetStatusBarTexture` resolves the LibSharedMedia key when called, and on a live display it is never
+--- called again -- so an addon supplying the user's chosen texture that loads after us needs a rebuild,
+--- which is what `Private.Media`'s registration callback is for.
 ---@param regions SpotlightsAuraRegions
 ---@param anchor Frame
 ---@param config SpotlightsAuraBarConfig
@@ -1011,49 +887,41 @@ local function StyleBar(regions, anchor, config)
 	bar:SetStatusBarTexture(path)
 	bar:SetStatusBarColor(config.r, config.g, config.b)
 
-	-- **Before `RegisterBar`**, which is the order `InitializeFrame` runs the two in. From the moment
-	-- `SetDurationBar` returns the bar carries `SecretAspect.BarValue` and the container owns its fill;
-	-- nothing here is written for a bar already being driven. The direction the fill *drains* is
-	-- `Enum.StatusBarTimerDirection.RemainingTime`, which is a property of the timer rather than of the
-	-- axis, so it needs nothing said about it here.
+	-- **Before `RegisterBar`**: from the moment `SetDurationBar` returns the bar carries
+	-- `SecretAspect.BarValue` and the container owns its fill.
 	bar:SetOrientation(vertical and "VERTICAL" or "HORIZONTAL")
 
-	-- Which end of that axis the fill is anchored to, and under the same ordering rule. `SetReverseFill`
-	-- rather than `SetFillStyle`, which is the same setting spelled twice -- the spelling that reads next
-	-- to the orientation above.
+	-- Same ordering rule. `SetReverseFill` rather than the equivalent `SetFillStyle`, to read next to
+	-- the orientation above.
 	bar:SetReverseFill(config.reverseFill)
 
 	bar:ClearAllPoints()
 
-	-- The same material and colour as the fill, faint: the remainder has to read as the rest of *this*
-	-- bar rather than as a second one behind it.
+	-- Same material and colour as the fill, faint, so it reads as this bar's remainder rather than as a
+	-- second bar behind it.
 	if regions.barTrack then
 		regions.barTrack:SetTexture(path)
 		regions.barTrack:SetVertexColor(config.r, config.g, config.b, TRACK_ALPHA)
 	end
 
 	if icon then
-		-- A no-op on a live display, where the region exists only when wanted. The preview is the
-		-- caller this is written for.
+		-- No-op on a live display, where the region exists only when wanted; the preview is the caller
+		-- this is for.
 		icon:SetShown(config.showIcon)
 	end
 
-	--- The inline icon takes one end of the bar and spans the other axis, and the bar gets what is left.
-	---
-	--- **The one measurement here that a resize invalidates.** A square needs one dimension told to it,
-	--- and there is no anchor for "as wide as I am tall" — so the icon is square against the axis the
-	--- fill does *not* run along, at the size the display has now. On a live display that is frozen until
-	--- a rebuild; on a preview it is re-measured on every restyle.
-	---
-	--- Two branches rather than one with the points computed, because the vertical case is the horizontal
-	--- one transposed in three separate ways -- which pair of points each region pins, which way round
-	--- `iconSide` reads, and which dimension makes the square.
+	-- **The one measurement here that a resize invalidates.** A square needs one dimension told to it
+	-- and there is no anchor for "as wide as I am tall", so the icon is squared against the size the
+	-- display has now -- frozen on a live display until a rebuild, re-measured on a preview.
+	--
+	-- Two branches rather than computed points, because the vertical case transposes three separate
+	-- things: which points each region pins, which way `iconSide` reads, and which dimension squares.
 	if config.showIcon and icon then
 		icon:ClearAllPoints()
 
 		if vertical then
-			-- `iconSide` keeps its `LEFT`/`RIGHT` storage in both orientations: the pair means one end of
-			-- the bar and the other, and a vertical bar's ends are its top and its bottom.
+			-- `iconSide` keeps its `LEFT`/`RIGHT` storage in both orientations: the pair means one end
+			-- of the bar and the other, and a vertical bar's ends are its top and bottom.
 			local side = config.iconSide == "RIGHT" and "BOTTOM" or "TOP"
 			local opposite = side == "TOP" and "BOTTOM" or "TOP"
 
@@ -1085,30 +953,25 @@ end
 
 --- Hands an icon texture to the aura button, so it shows whichever aura the slot is tracking.
 ---
---- **The only way a display can name what it is showing.** Sense Power's slot pools the whole
---- cooldown list beside its own spell, so a static icon would mean a bar tracking `Recklessness`
---- sitting under the Sense Power icon. Prescience's slot admits one spell, making this the same
---- picture; uniform is worth more than a branch to skip it.
+--- **The only way a display can name what it is showing.** Sense Power's slot pools the whole cooldown
+--- list beside its own spell, so a static icon would put a bar tracking `Recklessness` under the Sense
+--- Power icon.
 ---
 --- The cost is that `AuraContainerUtil.SetIconTextureForAura` finishes with
 --- `SetTexture(secretwrap(icon))`, so the texture's contents are no longer ours to read or repaint.
---- Neither is something we do: every call that shapes this texture has run by the time `Create` and
---- `Style` hand over.
+--- Neither is something we do.
 ---
---- No empty state to handle. `SetIconTextureForAura` falls back to `QUESTION_MARK_ICON` when there is
---- no aura, but `ApplyAuraInstance` runs `ApplyIcon` immediately before `ApplyVisibility`, which
---- hides the button -- so the placeholder is set and concealed in the same pass.
+--- No empty state to handle: `ApplyAuraInstance` runs `ApplyIcon` immediately before `ApplyVisibility`,
+--- so the `QUESTION_MARK_ICON` fallback is set and concealed in the same pass.
 ---@param button table
 ---@param icon Texture
 local function SetAuraIcon(button, icon)
 	button:SetIcon(icon)
 end
 
---- Hands the bar and the inline icon to the aura button, the last thing that happens to either.
----
---- No `SetMinMaxValues` and no `SetValue`, here or ever. `SetDurationBar` adds
---- `SecretAspect.BarValue`, and from this point the container drives the fill through
---- `SetTimerDuration` with a duration object we never see the contents of.
+--- Hands the bar and the inline icon to the aura button. No `SetMinMaxValues` and no `SetValue`, here
+--- or ever: `SetDurationBar` adds `SecretAspect.BarValue`, and from this point the container drives the
+--- fill with a duration object we never see the contents of.
 ---@param button table
 ---@param regions SpotlightsAuraRegions
 local function RegisterBar(button, regions)
@@ -1122,10 +985,8 @@ local function RegisterBar(button, regions)
 	end
 end
 
---- Fills a preview bar with a made-up remaining fraction.
----
---- Plain numbers, because nothing about a preview is secret. Two thirds rather than full, so the bar
---- reads as a countdown in progress and its direction is visible.
+--- Fills a preview bar with a made-up fraction -- plain numbers, because nothing about a preview is
+--- secret. Two thirds rather than full, so the bar reads as a countdown in progress.
 ---@param regions SpotlightsAuraRegions
 ---@param _ SpotlightsAuraBarConfig the settings, which a bar's fake fill has no reason to consult
 local function PreviewBar(regions, _)
@@ -1133,12 +994,9 @@ local function PreviewBar(regions, _)
 	regions.bar:SetValue(0.65)
 end
 
---- Repaints a preview's inline icon for a different spell.
----
---- **Not `SetAuraIcon`.** That hands the texture to a live aura button, which makes its contents secret
---- and its identity the container's to decide. A preview has no button, so the art is the only thing
---- saying which spell it is about -- and it has to follow a pooled feature's candidate set, which the
---- user edits while looking at it.
+--- **Not `SetAuraIcon`**, which would make the texture's contents secret and its identity the
+--- container's to decide. A preview has no button, so its art is the only thing saying which spell it
+--- is about, and has to follow the candidate set the user edits while looking at it.
 ---@param regions SpotlightsAuraRegions
 ---@param spellID integer
 local function PreviewBarArt(regions, spellID)
@@ -1147,12 +1005,8 @@ local function PreviewBarArt(regions, spellID)
 	end
 end
 
---- The regions a spell icon is made of: the art, an optional swipe, an optional countdown.
----
---- Everything here fills its host, so the display's size is the anchor's size and stays live.
----
---- The texture set here is the *preview's* icon and only incidentally the live display's first frame:
---- `RegisterIcon` hands it to the button, which repaints it per aura. A preview never reaches
+--- Everything here fills its host, so the display's size is the anchor's and stays live. The texture is
+--- the *preview's* icon and only incidentally a live display's first frame: a preview never reaches
 --- `Register`, so this is the whole of what it will ever show.
 ---@param host Frame|table
 ---@param config SpotlightsAuraIconConfig
@@ -1166,8 +1020,7 @@ local function CreateIcon(host, config, spellID, everything)
 	regions.icon:SetAllPoints()
 	regions.icon:SetTexture(C_Spell.GetSpellTexture(spellID))
 
-	-- The border every icon file ships with, cropped off. Every icon display in the game does this,
-	-- which is why an uncropped one reads as subtly wrong beside them.
+	-- The border every icon file ships with, cropped off as every icon display in the game does.
 	regions.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
 
 	CreateDuration(host, config, regions, everything)
@@ -1187,10 +1040,6 @@ local function PreviewIconArt(regions, spellID)
 	icon:SetTexture(C_Spell.GetSpellTexture(spellID))
 end
 
---- Applies every icon setting.
----
---- Shorter than its bar counterpart because an icon has less to decide, and both halves of what it does
---- decide are shared with the square.
 ---@param regions SpotlightsAuraRegions
 ---@param _ Frame the anchor, which an icon has no use for because it is sized directly by config
 ---@param config SpotlightsAuraIconConfig
@@ -1207,15 +1056,13 @@ local function RegisterIcon(button, regions)
 	RegisterDuration(button, regions)
 end
 
---- The regions a coloured square is made of: the block, an optional swipe, an optional countdown.
+--- No spell art and therefore **no `SetIcon`**, which is the whole difference from an icon: this says an
+--- aura is up and how long is left, nothing about which one. That is what makes it readable at a size
+--- where an icon is not.
 ---
---- No spell art and therefore **no `SetIcon`**, which is the whole difference between this and an icon:
---- the display says an aura is up and how long is left, and nothing about which aura it is. That is what
---- makes it readable at a size where an icon is not.
----
---- The block is a plain colour texture rather than a LibSharedMedia one. A material would be a second
---- way to say what the border already says, and it would put this display on the media-registration
---- rebuild path for no visible gain -- see `UnresolvedMedia`, which finds nothing here but the border.
+--- The block is a plain colour texture rather than a LibSharedMedia one, which keeps this display off
+--- the media-registration rebuild path -- see `UnresolvedMedia`, which finds nothing here but the
+--- border.
 ---@param host Frame|table
 ---@param config SpotlightsAuraSquareConfig
 ---@param _ integer the spell, which a display drawing no art has nothing to do with
@@ -1235,11 +1082,8 @@ local function CreateSquare(host, config, _, everything)
 	return regions
 end
 
---- Applies every square setting.
----
---- `SetColorTexture` rather than a white texture tinted by `SetVertexColor`: the two look the same, and
---- one call that means "be this colour" is the honest spelling of a display whose colour is all it has.
---- Three channels, not four -- opacity is the anchor's, which is what keeps it live.
+--- `SetColorTexture` rather than a white texture tinted by `SetVertexColor`, and three channels not
+--- four -- opacity is the anchor's, which is what keeps it live.
 ---@param regions SpotlightsAuraRegions
 ---@param _ Frame the anchor, which a square has no use for because it is sized directly by config
 ---@param config SpotlightsAuraSquareConfig
@@ -1252,18 +1096,11 @@ local function StyleSquare(regions, _, config)
 	StyleBorder(regions, config)
 end
 
---- The one region a bare countdown is made of, plus the border every kind may draw.
----
 --- **Not `CreateDuration`.** That builds a swipe and a font string from `showSwipe`/`showText`, and this
---- display has neither field: the text is not an option on it, it *is* it. A preview would also come back
---- with a swipe it can never be told to hide.
+--- display has neither field: the text is not an option on it, it *is* it.
 ---
---- The font string sits on a layer of its own above the border for the reason the icon's does above the
---- swipe -- a border is a child frame, so it draws over any region of the host whatever layer that region
---- claims, and a thick edge would otherwise cut into the number it surrounds.
----
---- Takes the host alone where every other kind takes four: the settings shape nothing built here, there
---- is no spell art to be about, and `everything` has no optional region to decide.
+--- The font string sits on a layer above the border for the reason the icon's sits above the swipe -- a
+--- border is a child frame, so a thick edge would otherwise cut into the number it surrounds.
 ---@param host Frame|table
 ---@return SpotlightsAuraRegions
 local function CreateText(host)
@@ -1275,7 +1112,7 @@ local function CreateText(host)
 	---@type SpotlightsAuraRegions
 	local regions = { text = layer:CreateFontString(nil, "OVERLAY") }
 
-	-- Centred in the rect `Size` derives from the font size, which is the whole of what that rect is for.
+	-- Centred in the rect `Size` derives from the font size, which is all that rect is for.
 	regions.text:SetPoint("CENTER")
 
 	regions.border = CreateBorder(host)
@@ -1283,17 +1120,11 @@ local function CreateText(host)
 	return regions
 end
 
---- Applies every setting of a bare countdown.
+--- **`SetTextColor` has to happen here and can never happen again.** `SetDurationText` adds `Text`,
+--- `Alpha` and `VertexColor` to the font string's secret aspects the moment it returns, and
+--- `InitializeFrame` runs this immediately before it -- so this display's colour picker is a rebuild.
 ---
---- **`SetTextColor` has to happen here and can never happen again.** `SetDurationText` adds `Text`, `Alpha`
---- and `VertexColor` to the font string's secret aspects the moment it returns, and `InitializeFrame` runs
---- this immediately before it -- so the colour picker on this display is a rebuild, like the bar's fill
---- colour and the square's block.
----
---- `OUTLINE` unconditionally for `StyleDuration`'s reason: this text sits over a health bar and nothing
---- else, and unoutlined it is illegible at every font and size.
----
---- No `SetShown`. On the other two kinds the countdown is an option; here it is the display, and being
+--- No `SetShown`: on the other two kinds the countdown is an option, here it is the display, and being
 --- switched off is the anchor's answer.
 ---@param regions SpotlightsAuraRegions
 ---@param _ Frame the anchor, whose rect this display is centred in rather than measured against
@@ -1310,31 +1141,26 @@ end
 --- The one region a health-bar tint is made of: a colour over the bar, parented under the button and
 --- anchored outside it.
 ---
---- **This is the only kind whose drawn region is not inside the anchor's rect**, and the reason is that
---- nothing of ours may know an aura is up. `CustomAuraButtonPrivateMixin:ApplyVisibility` is
+--- **The only kind whose drawn region is not inside the anchor's rect**, because nothing of ours may
+--- know an aura is up. `CustomAuraButtonPrivateMixin:ApplyVisibility` is
 --- `self:SetShown(secretwrap(auraData ~= nil))`, so a plain child region of the button appears and
---- disappears with the aura on its own -- no callback, no readable state, nothing secret in our code.
---- Parenting under the button buys that; anchoring elsewhere is what puts it over the bar. Inbound
---- regions must be descendants of the button, but anchors may point anywhere
---- (`Blizzard_AuraContainerUtil.lua:265`).
+--- disappears with the aura on its own. Inbound regions must be descendants of the button, but anchors
+--- may point anywhere (`Blizzard_AuraContainerUtil.lua:265`).
 ---
---- **Not `SetVertexColorFromBoolean` on the bar's own texture.** That setter would stamp `VertexColor`
---- and `Alpha` onto whatever it was called on permanently (`SimpleRegionAPIDocumentation.lua:134-145`),
---- and the health bar's texture is written by ordinary code on every class-colour update and every fade
---- -- so the first plain write after the stamp would be a tainted write to a secret aspect. See
+--- **Not `SetVertexColorFromBoolean` on the bar's own texture.** That stamps `VertexColor` and `Alpha`
+--- onto whatever it is called on permanently (`SimpleRegionAPIDocumentation.lua:134-145`), and the
+--- health bar's texture is written by ordinary code on every class-colour update and every fade -- so
+--- the first plain write after the stamp would be a tainted write to a secret aspect. See
 --- `docs/issues/AuraContainerNotes.md`.
 ---
---- **Anchored to the bar rather than to its fill, which is a correctness requirement rather than a
---- preference.** The fill's rect is the health value, so it is legitimately zero-wide -- a spotlight with
---- no unit yet, a bar built before health arrives, a dead player -- and `SetAllPoints` against a region
---- with no rect silently falls back to the parent instead of erroring. That is unrecoverable here: the
---- button's access restriction lands the moment `initializeFrame` returns, so a wrong anchor can never be
---- corrected and the tint spends the frame's life somewhere it does not belong. The bar is pinned to the
---- spotlight on all four corners by the template, so it has no such state. The cost is that the colour no
---- longer shrinks with health, which is the lesser of the two.
+--- **Anchored to the bar rather than to its fill, which is correctness rather than preference.** The
+--- fill's rect is the health value, so it is legitimately zero-wide, and `SetAllPoints` against a region
+--- with no rect silently falls back to the parent instead of erroring. Unrecoverable here: the button's
+--- access restriction lands the moment `initializeFrame` returns, so a wrong anchor can never be
+--- corrected. See docs/notes/AuraFrameColorTint.md.
 ---
---- No region at all without a spotlight. The grid preview's host stands in for one geometrically but has
---- no health bar, and the honest answer there is to draw nothing rather than to tint the host.
+--- No region at all without a spotlight: the grid preview's host has no health bar, and the honest
+--- answer is to draw nothing rather than tint the host.
 ---@param host Frame|table
 ---@param _ SpotlightsAuraFrameColorConfig styling is `StyleFrameColor`'s, as on every other kind
 ---@param __ integer the spell, which a display drawing no art has nothing to do with
@@ -1354,11 +1180,8 @@ local function CreateFrameColor(host, _, __, ___, frame)
 	return regions
 end
 
---- Applies the tint's colour.
----
---- `SetColorTexture` for the square's reason: one call that means "be this colour" is the honest spelling
---- of a display whose colour is all it has. Three channels, not four -- opacity is the anchor's, which is
---- what keeps it live and makes the tint's strength draggable against a real raid.
+--- `SetColorTexture` for the square's reason, and three channels not four -- opacity is the anchor's,
+--- which is what makes the tint's strength draggable against a real raid.
 ---
 --- No `StyleBorder`: there is no rect of this display's own for an edge to go around.
 ---@param regions SpotlightsAuraRegions
@@ -1375,16 +1198,12 @@ local function StyleFrameColor(regions, _, config)
 	tint:SetColorTexture(config.r, config.g, config.b)
 end
 
---- What every kind's anchor carries, and therefore what stays live on all five.
+--- What every kind's anchor carries, and therefore what stays live on all five: the anchor is a plain
+--- frame of ours above the aura button's access restriction, so everything `ApplyAnchor` writes reaches
+--- a built display for free.
 ---
---- The anchor is a plain frame of ours above the aura button's access restriction, so everything
---- `ApplyAnchor` writes reaches a built display for free. `enabled` looks the most drastic of the five
---- and is the cheapest: one `SetShown` on that frame, or a first build `EnsureDisplays` was going to do
---- anyway.
----
---- `point`, `x` and `y` mean nothing to the health-bar tint, whose drawn region is anchored to the health
---- bar rather than to the anchor. They are classified here regardless: `Invalidation` has to answer for
---- every field of every block, and the panel offers no control for them on that kind.
+--- `point`, `x` and `y` mean nothing to the health-bar tint, whose region is anchored to the health bar
+--- instead. Classified regardless, because `Invalidation` has to answer for every field of every block.
 ---@type table<string, SpotlightsAuraInvalidation>
 local ANCHOR_INVALIDATION = {
 	enabled = "live",
@@ -1394,12 +1213,12 @@ local ANCHOR_INVALIDATION = {
 	y = "live",
 }
 
---- The border, which all four kinds draw the same way and none can change after the fact: a backdrop
---- belongs to a frame under the aura button.
+--- The border, which no kind can change after the fact: a backdrop belongs to a frame under the aura
+--- button.
 ---
 --- `borderA` is classified with the other three channels because all four reach that backdrop through
---- one `SetBackdropBorderColor`. Left out, an alpha write took the live path, which re-anchors a display
---- without restyling it -- so it changed nothing anywhere but the preview.
+--- one `SetBackdropBorderColor`. Left out, an alpha write took the live path and changed nothing but the
+--- preview.
 ---@type table<string, SpotlightsAuraInvalidation>
 local BORDER_INVALIDATION = {
 	borderTexture = "rebuild",
@@ -1410,9 +1229,8 @@ local BORDER_INVALIDATION = {
 	borderA = "rebuild",
 }
 
---- The swipe and the countdown, shared by the icon and the square because their duration halves are
---- the same code. All four decide which regions exist under the button, or what the font string sitting
---- there is made of.
+--- The swipe and the countdown, shared by the icon and the square. All four decide which regions exist
+--- under the button, or what the font string sitting there is made of.
 ---@type table<string, SpotlightsAuraInvalidation>
 local DURATION_INVALIDATION = {
 	showSwipe = "rebuild",
@@ -1422,13 +1240,12 @@ local DURATION_INVALIDATION = {
 }
 
 --- One kind's classification, merged from the groups it shares with the others and the fields that are
---- its own.
+--- its own. Every field of that kind's config block has to appear in exactly one table handed in.
 ---
---- Every field of that kind's config block has to appear in exactly one of the tables handed in.
 --- `Invalidation` answers `rebuild` for a field it does not find, which is the safe direction -- a
---- setting wrongly rebuilt still lands, where one wrongly called live is silently dropped below the
---- access restriction -- but it costs a container per assigned spotlight, so an omission is a bug
---- rather than a default worth relying on.
+--- setting wrongly rebuilt still lands, one wrongly called live is silently dropped below the access
+--- restriction -- but it costs a container per assigned spotlight, so an omission is a bug rather than
+--- a default worth relying on.
 ---@param ... table<string, SpotlightsAuraInvalidation>
 ---@return table<string, SpotlightsAuraInvalidation>
 local function Classification(...)
@@ -1443,8 +1260,8 @@ local function Classification(...)
 	return merged
 end
 
---- A bar's own half: the fill, its colour, and the inline icon. All of it is built into regions under
---- the button. Width and height are the anchor's, so a bar is resized live.
+--- A bar's own half, all built into regions under the button. Width and height are the anchor's, so a
+--- bar resizes live.
 local BAR_INVALIDATION = Classification(ANCHOR_INVALIDATION, BORDER_INVALIDATION, {
 	width = "live",
 	height = "live",
@@ -1458,9 +1275,8 @@ local BAR_INVALIDATION = Classification(ANCHOR_INVALIDATION, BORDER_INVALIDATION
 	iconSide = "rebuild",
 })
 
---- An icon's own half is nothing but its dimensions and the spacing between pooled copies of it: the
---- art is the button's, and everything else it draws is shared. `gap` is the group's flow-layout
---- spacing rather than a property of the button, which `ApplyGroupLayout` writes to a live container.
+--- An icon's own half is its dimensions and the spacing between pooled copies: the art is the button's.
+--- `gap` is the group's flow-layout spacing, which `ApplyGroupLayout` writes to a live container.
 local ICON_INVALIDATION = Classification(ANCHOR_INVALIDATION, BORDER_INVALIDATION, DURATION_INVALIDATION, {
 	width = "live",
 	height = "live",
@@ -1477,13 +1293,11 @@ local SQUARE_INVALIDATION = Classification(ANCHOR_INVALIDATION, BORDER_INVALIDAT
 })
 
 --- A bare countdown's own half, and **all of it is frozen**. The colour looks like it belongs beside the
---- anchor's alpha, and does not: `SetDurationText` adds `VertexColor` to the font string's secret aspects,
---- so a colour written after the display was built would be dropped below the access restriction rather
---- than applied.
+--- anchor's alpha and does not: `SetDurationText` adds `VertexColor` to the font string's secret
+--- aspects, so a colour written after the build is dropped below the access restriction.
 ---
---- `fontSize` owes the rebuild the font string needs *and* a re-anchor, since `Size` derives the rect from
---- it -- but the re-anchor comes for free: draining the rebuild runs `ApplyChild` over every spotlight
---- first, which is where `ApplyAnchor` reads the new size.
+--- `fontSize` owes a re-anchor as well as a rebuild, since `Size` derives the rect from it -- but that
+--- comes free: draining a rebuild runs `ApplyChild` first, which is where `ApplyAnchor` reads the size.
 local TEXT_INVALIDATION = Classification(ANCHOR_INVALIDATION, BORDER_INVALIDATION, {
 	font = "rebuild",
 	fontSize = "rebuild",
@@ -1492,39 +1306,30 @@ local TEXT_INVALIDATION = Classification(ANCHOR_INVALIDATION, BORDER_INVALIDATIO
 	b = "rebuild",
 })
 
---- A health-bar tint's own half is the tint's colour, which is a texture under the aura button. It has no
---- size fields at all: the drawn region is anchored to the health bar and the anchor's rect is a
---- placeholder, so there is nothing sizeable for a setting to reach.
+--- A health-bar tint's own half is the tint's colour. It has no size fields at all: the drawn region is
+--- anchored to the health bar and the anchor's rect is a placeholder.
 local FRAME_COLOR_INVALIDATION = Classification(ANCHOR_INVALIDATION, BORDER_INVALIDATION, {
 	r = "rebuild",
 	g = "rebuild",
 	b = "rebuild",
 })
 
---- How wide and how tall a bare countdown's anchor is, per point of font size.
+--- How wide and how tall a bare countdown's anchor is, per point of font size. Derived rather than
+--- measured, because the font string's `Text` is secret from the moment the display is registered; four
+--- ems fits the widest thing the formatter produces.
 ---
---- A rect derived from a number we already have, because the alternative is measuring the font string --
---- and its `Text` is secret from the moment the display is registered, so its width is not ours to read.
---- Four ems across fits the widest thing the formatter produces (`2.9`, or a three-digit `120`) with room
---- to spare; the height is a line plus its outline.
----
---- Nothing is clipped to this rect: the string is centred in it and draws past it if it has to. It is a
---- rectangle to hang the number in the middle of, which keeps the anchor's nine points meaning what they
---- mean on every other display.
+--- Nothing is clipped to this rect -- the string is centred in it and draws past it if it has to --
+--- which keeps the anchor's nine points meaning what they mean on every other display.
 local TEXT_WIDTH_PER_POINT, TEXT_HEIGHT_PER_POINT = 4, 1.4
 
---- The anchor's rect for a health-bar tint, which is a placeholder rather than a size.
----
---- **The one kind where the anchor's rect is not the display's rect.** Everything under an aura button
---- normally fills it, so `Invalidated` and `builtWidth`/`builtHeight` exist to catch a resize that broke
---- something measured at build time -- and both assume the opposite of what is true here. The drawn
---- region is anchored to the health bar, so it follows a resize on its own and this rect is never
---- looked at. It is not zero because `SetSize(0, 0)` means "take your size from your anchors".
+--- The anchor's rect for a health-bar tint, a placeholder rather than a size. **The one kind where the
+--- anchor's rect is not the display's rect**, which `Invalidated` and `builtWidth`/`builtHeight` assume
+--- the opposite of. The drawn region follows the health bar, so this rect is never looked at. Not zero,
+--- because `SetSize(0, 0)` means "take your size from your anchors".
 local FRAME_COLOR_ANCHOR_SIZE = 1
 
---- The five displays a feature can draw.
----
---- `Size` is a function rather than a flag because the display kinds have different config shapes.
+--- The five displays a feature can draw. `Size` is a function rather than a flag because the kinds have
+--- different config shapes.
 ---@type SpotlightsAuraKind[]
 local DISPLAYS = {
 	{
@@ -1542,11 +1347,9 @@ local DISPLAYS = {
 			return BAR_INVALIDATION[field] or "rebuild"
 		end,
 
-		-- The inline icon and nothing else. It was made square against one axis measured at build time,
-		-- and it sits below the access restriction, so a spotlight resize leaves it a rectangle that only
-		-- a new button can fix. Which axis is the orientation's answer: a vertical bar's icon spans the
-		-- width, so a height change leaves it square and a width change does not. A bar without an icon
-		-- survives any resize.
+		-- The inline icon and nothing else: it was squared against one axis at build time and sits below
+		-- the access restriction, so a resize leaves it a rectangle only a new button can fix. Which
+		-- axis is the orientation's answer.
 		Invalidated = function(config, record)
 			if not config.showIcon then
 				return false
@@ -1571,9 +1374,8 @@ local DISPLAYS = {
 		end,
 
 		-- The one classification a kind cannot state as a table: a pooled feature sizes each button
-		-- inside `initializeFrame`, below the access restriction, so there the dimensions are build-time
-		-- like everything else down there. A single-aura icon's button fills the anchor instead, which
-		-- `ApplyAnchor` resizes live.
+		-- inside `initializeFrame`, below the access restriction, while a single-aura icon's button
+		-- fills the anchor and `ApplyAnchor` resizes it live.
 		Invalidation = function(feature, field)
 			if feature.multiple and (field == "width" or field == "height") then
 				return "rebuild"
@@ -1582,8 +1384,7 @@ local DISPLAYS = {
 			return ICON_INVALIDATION[field] or "rebuild"
 		end,
 
-		-- No `Invalidated`. Everything under an icon's button fills it, so the anchor's rect is the
-		-- display's rect at every size, forever.
+		-- No `Invalidated`: everything under an icon's button fills it, at every size.
 	},
 	{
 		key = "square",
@@ -1592,7 +1393,7 @@ local DISPLAYS = {
 		Register = RegisterDuration,
 		Preview = PreviewDuration,
 
-		-- No `PreviewArt`. A block draws no spell art, so there is nothing for a candidate set to repaint.
+		-- No `PreviewArt`: a block draws no spell art.
 
 		-- One field for both axes: a square that could be told to be a rectangle would be an icon
 		-- without the art.
@@ -1611,16 +1412,15 @@ local DISPLAYS = {
 		Create = CreateText,
 		Style = StyleText,
 
-		-- `RegisterDuration` unchanged, as the square does: it hands over whichever of the swipe and the
-		-- countdown exist, and this display has only the second. A `RegisterText` would be that function
-		-- with one branch it never takes.
+		-- `RegisterDuration` unchanged: it hands over whichever of the swipe and the countdown exist, and
+		-- this display has only the second.
 		Register = RegisterDuration,
 
-		-- Likewise `PreviewDuration`: it fills the swipe only when `showSwipe` says so, and there is no
-		-- such field here, so what is left is the sample number this display is entirely made of.
+		-- Likewise `PreviewDuration`: with no `showSwipe` field here, what is left is the sample number
+		-- this display is entirely made of.
 		Preview = PreviewDuration,
 
-		-- No `PreviewArt`. A number draws no spell art, so there is nothing for a candidate set to repaint.
+		-- No `PreviewArt`: a number draws no spell art.
 
 		Size = function(config)
 			return config.fontSize * TEXT_WIDTH_PER_POINT, config.fontSize * TEXT_HEIGHT_PER_POINT
@@ -1638,13 +1438,12 @@ local DISPLAYS = {
 		Create = CreateFrameColor,
 		Style = StyleFrameColor,
 
-		-- `RegisterDuration` and `PreviewDuration` unchanged, as the square and the bare countdown use
-		-- them: both branch on a region this kind has none of, so both are no-ops here. A pair of empty
-		-- functions would say the same thing twice.
+		-- `RegisterDuration` and `PreviewDuration` unchanged: both branch on regions this kind has none
+		-- of, so both are no-ops here.
 		Register = RegisterDuration,
 		Preview = PreviewDuration,
 
-		-- No `PreviewArt`. A colour draws no spell art, so there is nothing for a candidate set to repaint.
+		-- No `PreviewArt`: a colour draws no spell art.
 
 		Size = function()
 			return FRAME_COLOR_ANCHOR_SIZE, FRAME_COLOR_ANCHOR_SIZE
@@ -1659,19 +1458,12 @@ local DISPLAYS = {
 	},
 }
 
---- Whether a feature draws a given kind of display at all.
+--- A pooled feature draws icons only. A column of duration bars over one spotlight is unreadable, and
+--- the square, the bare countdown and the tint carry no spell art -- several side by side would say only
+--- that *some* number of things are up, where a pooled feature is about which cooldown landed.
 ---
---- A pooled feature shows several of the spotlighted player's auras at once, and a column of duration
---- bars over one spotlight is unreadable -- so it draws icons only. The square, the bare countdown and the
---- health-bar tint are left out of a pooled feature for the opposite reason to the bar's: they fit, but
---- none carries spell art, so several of them side by side say only that *some* number of things are up. A
---- pooled feature is about which cooldown landed, which is the one thing those three do not say.
----
---- The tint is the strongest case of the three: two pooled cooldowns tinting the same bar would stack two
---- colours over each other, and nothing can arbitrate -- neither display knows the other is showing.
----
---- The build path, the preview layer and the options panel all ask here rather than each restating the
---- rule.
+--- The tint is the strongest case: two pooled cooldowns tinting the same bar would stack two colours
+--- with nothing able to arbitrate, since neither display knows the other is showing.
 ---@param feature SpotlightsAuraFeature
 ---@param display SpotlightsAuraKind
 ---@return boolean
@@ -1679,8 +1471,6 @@ local function DrawsDisplay(feature, display)
 	return not feature.multiple or display.key == "icon"
 end
 
---- One display kind by key, the counterpart to `FeatureByKey`.
----
 --- Answers for a kind a feature does not draw: this is the lookup, not the rule. `DrawsDisplay` is the
 --- rule, and a settings write to a display nothing renders is still a write.
 ---@param displayKey SpotlightsAuraDisplayKey
@@ -1695,23 +1485,18 @@ local function DisplayByKey(displayKey)
 	return nil
 end
 
---- Everything a settings change gets for free, in one call.
+--- Everything a settings change gets for free: position, size, fade and on/off, all written to the
+--- **anchor** -- a plain frame of ours above the aura button's access restriction, and therefore the
+--- only part of a display that can still be told anything after it is built.
 ---
---- Position, size, fade and on/off, all written to the **anchor** — a plain frame of ours above the
---- aura button's access restriction, and therefore the only part of a display that can still be told
---- anything after it is built. Runs on a live spotlight, in or out of combat.
+--- `point` is validated like a saved grid position: `SetPoint` errors on one it does not recognise, and
+--- this runs inside a roster pass where that would take every later spotlight with it. The size floor
+--- guards a damaged database, not user input -- `SetSize(0, 0)` means "take your size from your
+--- anchors", which with a single anchor point is undefined rather than empty.
 ---
---- `point` is validated like a saved grid position: `SetPoint` errors on a point it does not
---- recognise, and this runs inside a roster pass where that would take every later spotlight with it.
----
---- The size floor guards against a damaged database, not user input. `SetSize(0, 0)` means "take your
---- size from your anchors", which with a single anchor point is undefined rather than empty.
----
---- `featureEnabled` is the feature's own switch, which the display's cannot override: the anchor is
---- what carries "off" to a built display, so both answers have to meet here rather than at either
---- caller. Hiding it takes the container under it down with it, and a hidden container drops its
---- `UNIT_AURA` registration in `OnHide` -- so a switched-off feature stops being told about auras
---- rather than merely stopping drawing them.
+--- `featureEnabled` is the feature's own switch, which the display's cannot override. Hiding the anchor
+--- takes the container under it down too, and a hidden container drops its `UNIT_AURA` registration in
+--- `OnHide` -- so a switched-off feature stops being *told* about auras, not just drawing them.
 ---@param anchor Frame
 ---@param parent Frame
 ---@param display SpotlightsAuraKind
@@ -1731,19 +1516,18 @@ end
 
 --- Builds one display on one spotlight: an anchor of ours, a container inside it, and the slot.
 ---
---- **Every irreversible decision in this addon is made in this function.** The button the container
---- hands back is access-restricted the instant `initializeFrame` returns, and that restriction
---- reaches every descendant — so texture, colour, the inline icon and the swipe are settled here for
---- the lifetime of the frame. A slot cannot be removed and its key cannot be reused, so a changed
---- setting means another container beside this one.
+--- **Every irreversible decision in this addon is made here.** The button the container hands back is
+--- access-restricted the instant `initializeFrame` returns and the restriction reaches every
+--- descendant, so texture, colour, inline icon and swipe are settled for the frame's lifetime. A slot
+--- cannot be removed and its key cannot be reused, so a changed setting means another container.
 ---
---- The container is pinned by **opposing corners**, which is load-bearing. A container holding only
+--- The container is pinned by **opposing corners**, which is load-bearing: a container holding only
 --- slots contributes nothing to its own flow layout, whose pass ends in
 --- `CustomAuraContainerFlowLayoutMixin` calling `container:SetSize(1, 1)`. Two opposed anchors leave
---- neither axis for `SetSize` to decide, which makes the anchor's rect the display's.
+--- neither axis for that to decide, which makes the anchor's rect the display's.
 ---
 --- Called with an anchor already at its final size, so `initializeFrame` can read a height that means
---- something — the bar's inline icon needs one to be square.
+--- something -- the bar's inline icon needs one to be square.
 ---@param child SpotlightsUnitFrame
 ---@param feature SpotlightsAuraFeature
 ---@param display SpotlightsAuraKind
@@ -1757,9 +1541,8 @@ local function AttachContainer(child, feature, display, config, anchor)
 	container:SetPoint("TOPLEFT")
 	container:SetPoint("BOTTOMRIGHT")
 
-	-- `SetUnit` asserts on a non-string, and a rebuild has no guarantee of a unit the way a first
-	-- build does: a spotlight keeps its displays after the header releases it, so a container can be
-	-- built for a frame that currently holds nobody. `OnUnitChanged` points it at the next one.
+	-- `SetUnit` asserts on a non-string, and a spotlight keeps its displays after the header releases
+	-- it, so a rebuild can hit a frame holding nobody. `OnUnitChanged` points it at the next one.
 	if child.unit then
 		container:SetUnit(child.unit)
 	end
@@ -1775,17 +1558,14 @@ local function AttachContainer(child, feature, display, config, anchor)
 			button:SetPoint("BOTTOMRIGHT", container, "BOTTOMRIGHT")
 		end
 
-		-- Clicks already pass through: the AuraButton intrinsic carries
-		-- `ForbiddenAspect.AlwaysPropagateInput`. Motion is ours to turn off, and must be --
-		-- otherwise the aura tooltip replaces the unit tooltip on every hover.
+		-- Clicks already pass through (`ForbiddenAspect.AlwaysPropagateInput` on the AuraButton
+		-- intrinsic). Motion is ours, and must be off or the aura tooltip replaces the unit tooltip on
+		-- every hover.
 		button:SetMouseMotionEnabled(false)
 
-		-- Create, style, register, in that order and once. Styling has to precede registration: it
-		-- sets `Shown` on the optional regions, and `SetDurationCooldown` makes that aspect secret
-		-- the moment it returns.
-		--
-		-- `everything` is false, so only the regions this config asks for exist -- anything the
-		-- settings can no longer reach could never be reclaimed.
+		-- Styling has to precede registration: it sets `Shown` on the optional regions, and
+		-- `SetDurationCooldown` makes that aspect secret the moment it returns. `everything` is false,
+		-- so only the regions this config asks for exist -- an unwanted one could never be reclaimed.
 		local regions = display.Create(button, config, spellID or feature.spellID, false, child)
 
 		display.Style(regions, anchor, config)
@@ -1828,16 +1608,14 @@ end
 
 --- Which of a display's media keys LibSharedMedia could not resolve at the moment it was built.
 ---
---- Recorded because it is a fact about a moment that cannot be recovered afterwards. `Fetch` falls
---- back to a default for an unregistered key and to the user's real choice for a registered one, and
---- once the button exists the texture reads back secret -- there is no way to ask which happened.
----
---- This makes a late registration cheap: only the displays that actually fell back on the key being
---- registered need a new button. Matching the *stored* key instead would rebuild displays that
+--- Recorded because it is a fact about a moment that cannot be recovered: `Fetch` falls back to a
+--- default for an unregistered key and to the user's real choice for a registered one, and once the
+--- button exists the texture reads back secret. This makes a late registration cheap -- only displays
+--- that actually fell back need a new button, where matching the *stored* key would rebuild ones that
 --- already had it right.
---- `config` is loose for the same reason `SpotlightsAuraKind.config` is: `texture` belongs to a bar,
---- `font` to an icon, only `borderTexture` is shared. The nil checks below are the honest test, since
---- "this display has no font" and "this display's font is unregistered" are the same answer here.
+---
+--- The nil checks below are the honest test: "this display has no font" and "this display's font is
+--- unregistered" are the same answer here.
 ---@param config table
 ---@return table<string, true>
 local function UnresolvedMedia(config)
@@ -1886,14 +1664,12 @@ end
 
 --- Shows one live aura container only while its unit is assistable by the player.
 ---
---- Blizzard deliberately skips identity candidate filters for non-assistable units, so a container
---- left visible on one would parse and display helpful auras these displays exist to hide. That makes
---- this a privacy gate rather than a cosmetic one, and the reason it is a function of its own: every
---- path that puts a container on screen has to pass through it, the relationship sweep and the
---- replacement a frozen setting forces alike.
+--- **A privacy gate, not a cosmetic one.** Blizzard deliberately skips identity candidate filters for
+--- non-assistable units, so a container left visible on one would parse and display helpful auras these
+--- displays exist to hide. Every path that puts a container on screen passes through here.
 ---
---- Deliberately not folded into `ApplyAnchor`. User enablement belongs to the anchor; assistability
---- belongs to the container's lifetime, and a rebuild replaces the container while keeping the anchor.
+--- Not folded into `ApplyAnchor`: user enablement belongs to the anchor, assistability to the
+--- container's lifetime, and a rebuild replaces the container while keeping the anchor.
 ---@param container SpotlightsAuraContainer
 ---@param child SpotlightsUnitFrame
 local function ApplyAssistability(container, child)
@@ -1904,17 +1680,15 @@ end
 
 --- Replaces a display's container and button with a fresh pair styled from the current settings.
 ---
---- **The only way a frozen setting reaches a live spotlight.** A slot key is scoped to its container,
---- so a second container inside the same anchor may register the same key again with different
---- styling; `CustomAuraContainerTemplate` is declared `allowUntaintedCreation="true"`, so building
---- one from our code is sanctioned. The old container is hidden, which drops its `UNIT_AURA`
---- registration through its own `OnHide`.
+--- **The only way a frozen setting reaches a live spotlight.** A slot key is scoped to its container, so
+--- a second container inside the same anchor may register the same key with different styling;
+--- `CustomAuraContainerTemplate` is declared `allowUntaintedCreation="true"`, so building one from our
+--- code is sanctioned. The old container is hidden, which drops its `UNIT_AURA` registration in its own
+--- `OnHide`.
 ---
---- Inside the existing **anchor**, not beside it. The anchor is the display's identity as far as
---- every other part of this file is concerned. Only the two frozen frames underneath are swapped.
----
---- It leaks by construction: WoW cannot destroy a frame, so the old container and its button stay for
---- the session. That is the debt the reload prompt exists to reclaim.
+--- Inside the existing **anchor**, not beside it: the anchor is the display's identity everywhere else
+--- in this file. It leaks by construction -- WoW cannot destroy a frame, so the old container and its
+--- button stay for the session, which is the debt the reload prompt exists to reclaim.
 ---@param child SpotlightsUnitFrame
 ---@param feature SpotlightsAuraFeature
 ---@param display SpotlightsAuraKind
@@ -1929,24 +1703,19 @@ local function RebuildDisplay(child, feature, display, config, record)
 	record.builtWidth = record.anchor:GetWidth()
 	record.builtHeight = record.anchor:GetHeight()
 
-	-- A fresh container is shown. `Apply` settles assistability before this loop runs, so it settled it
-	-- on the container being replaced -- without this the replacement stays visible on a non-assistable
-	-- unit until some later faction, flag or roster event happens to sweep again.
+	-- `Apply` settled assistability on the container being *replaced*, so without this the fresh one
+	-- stays visible on a non-assistable unit until some later sweep.
 	ApplyAssistability(container, child)
 
-	-- Recomputed, not carried over. The usual reason to be here is that the key this display fell back
-	-- on has just been registered, so the new button resolved it properly. Keeping the stale set would
-	-- make the next registration of the same key rebuild again.
+	-- Recomputed, not carried over: the usual reason to be here is that the fallen-back key has just
+	-- been registered, and a stale set would rebuild again on that key's next registration.
 	record.unresolved = UnresolvedMedia(config)
 
 	reloadPending = true
 end
 
---- Runs `callback` over the displays a spotlight has actually built.
----
---- Built, not configured: a display that is switched off has no frames, and half this file's callers
---- want the frames rather than the settings. Both keys are handed back because a caller with only the
---- record cannot say which display it is looking at.
+--- Runs `callback` over the displays a spotlight has actually **built** -- a display that is switched
+--- off has no frames. Both keys are handed back because a record alone does not say which display it is.
 ---@param child SpotlightsUnitFrame
 ---@param callback fun(record: SpotlightsAuraDisplay, feature: SpotlightsAuraFeature, display: SpotlightsAuraKind)
 local function ForEachDisplay(child, callback)
@@ -1973,10 +1742,8 @@ local function ForEachDisplay(child, callback)
 	end
 end
 
---- Applies the spacing of a live multi-aura group without rebuilding its frames.
----
---- `gap` is the group's flow-layout spacing, not a property of the protected aura button. The
---- container setter marks layout dirty and the next aura pass applies the new spacing.
+--- `gap` is the group's flow-layout spacing rather than a property of the protected aura button, so the
+--- container setter marks layout dirty and the next aura pass applies it -- no rebuild.
 ---@param featureKey SpotlightsAuraFeatureKey
 ---@param displayKey SpotlightsAuraDisplayKey
 ---@param gap number
@@ -1990,10 +1757,8 @@ local function ApplyGroupLayout(featureKey, displayKey, gap)
 	end)
 end
 
---- Brings every one of a spotlight's built containers in line with the current relationship.
----
---- The iterator only. What "in line" means lives in `ApplyAssistability`, which a rebuild calls for a
---- single replacement container without a record to iterate over yet.
+--- The iterator only; what "in line" means lives in `ApplyAssistability`, which a rebuild calls for a
+--- single replacement container with no record to iterate over yet.
 ---@param child SpotlightsUnitFrame
 function Private.Auras.UpdateAssistability(child)
 	ForEachDisplay(child, function(record)
@@ -2010,18 +1775,13 @@ end
 
 --- Builds whatever a spotlight does not yet have. Out of combat only, idempotent.
 ---
---- **Called on first unit assignment, never at build time, and never for a display that is off.**
---- That is the whole of "as cheaply as possible": a forty-slot grid with five players carries five
---- spotlights' worth of aura frames rather than forty, each carrying one container per display the
---- user turned on rather than four. A spotlight with no unit builds nothing.
----
---- A feature switched off is skipped whole, so it costs nothing until it is switched back on -- at
---- which point this runs again and builds what it skipped. That is why the switch is cheap in both
---- directions: off hides what exists, on builds what does not.
+--- **Called on first unit assignment, never at build time, and never for a display that is off**, so a
+--- forty-slot grid with five players carries five spotlights' worth of aura frames rather than forty. A
+--- feature switched off is skipped whole and costs nothing until it is switched back on, at which point
+--- this runs again and builds what it skipped.
 ---
 --- Deferred rather than guarded, because `initializeFrame` anchors and sizes frames descended from a
---- protected unit button -- protected calls that combat-block. The sweep registered below picks the
---- work up when combat ends.
+--- protected unit button -- protected calls that combat-block.
 ---@param child SpotlightsUnitFrame
 local function EnsureDisplays(child)
 	local auras = Config()
@@ -2065,17 +1825,13 @@ local function EnsureDisplays(child)
 	end
 end
 
---- Re-applies the free half of every setting to one spotlight's existing displays.
----
---- Called from `SlotHeader.ApplyChildConfig` on a resize as well as from the sweep below, because a
---- bar is stored as a fraction of a spotlight it does not otherwise hear about.
+--- Re-applies the free half of every setting to one spotlight's existing displays. Called from
+--- `SlotHeader.ApplyChildConfig` on a resize as well as from the sweep below, because a bar is stored
+--- as a fraction of a spotlight it does not otherwise hear about.
 ---
 --- Not combat-guarded, and that is the point of the anchor arrangement: every write here lands on a
---- frame of ours rather than on the protected unit button it hangs from. `UpdateTempMaxHealthLoss`
---- has been calling `SetPoint` and `SetShown` on regions of that same protected button since the
---- rewrite, on an event that fires throughout a fight. A display can therefore be moved, resized,
---- faded or hidden mid-combat. Building a *new* one still cannot be, which is what `EnsureDisplays`
---- defers and this does not.
+--- frame of ours rather than on the protected unit button it hangs from, so a display can be moved,
+--- resized, faded or hidden mid-combat. Building a *new* one cannot be, which `EnsureDisplays` defers.
 ---@param child SpotlightsUnitFrame
 function Private.Auras.ApplyChild(child)
 	local auras = Config()
@@ -2091,10 +1847,9 @@ function Private.Auras.ApplyChild(child)
 
 		ApplyAnchor(record.anchor, child, display, config, size, auras[feature.key].enabled)
 
-		-- After the anchor has moved, because the question is whether the *new* rect has broken
-		-- something the button was built against. Queued rather than done here: this runs per
-		-- spotlight inside a geometry pass, and a resize drag would otherwise rebuild every assigned
-		-- display on every frame.
+		-- After the anchor has moved, since the question is whether the *new* rect broke something the
+		-- button was built against. Queued rather than done here: a resize drag would otherwise rebuild
+		-- every assigned display on every frame.
 		if display.Invalidated and display.Invalidated(config, record) then
 			RequestRebuild(feature.key, display.key)
 		end
@@ -2104,22 +1859,15 @@ end
 --- Builds one fake display of every kind, for one preview cell.
 ---
 --- **The two things the preview layer is not allowed to reinvent**: the same `Create` the live path
---- uses, and an anchor that `StylePreviews` positions with the same `ApplyAnchor` -- so there is one
---- answer rather than two that can drift.
+--- uses, and an anchor `StylePreviews` positions with the same `ApplyAnchor`.
 ---
---- Every kind is built for every feature regardless of `enabled`, and `everything` is true, so a
---- toggle is a `SetShown` on something that already exists. Live displays cannot afford that, but a
---- preview is bounded by the visible grid and thrown away by a reload.
+--- Every kind is built regardless of `enabled`, and `everything` is true, so a toggle is a `SetShown` on
+--- something that already exists. Live displays cannot afford that; a preview is bounded by the visible
+--- grid and thrown away by a reload.
 ---
---- Both filters exist for the options panel's per-section preview, which shows one display of one
---- category beside the controls that edit it. The grid cells pass neither and get what the panel last
---- pointed the preview layer at.
----
---- A pooled feature gets `MAX_PREVIEW_AURAS` items **whatever its pool currently holds**, and none of
---- them is about a particular spell yet: which spell each shows is `StylePreviews`' answer, re-asked on
---- every restyle. Sizing the set to the pool instead is what made a preview go stale -- a spell
---- switched on afterwards had no item to appear in, and frames cannot be created here to give it one
---- without stranding the old set.
+--- A pooled feature gets `MAX_PREVIEW_AURAS` items **whatever its pool currently holds**, with which
+--- spell each shows left to `StylePreviews`. Sizing the set to the pool is what made a preview go stale
+--- -- a spell switched on afterwards had no item to appear in.
 ---@param parent Frame|SpotlightsUnitFrame a real spotlight in the panel's panes, a stand-in in the grid
 ---@param featureKey SpotlightsAuraFeatureKey? defaults to the previewed category
 ---@param displayKey SpotlightsAuraDisplayKey? every kind the category draws, when omitted
@@ -2133,10 +1881,8 @@ function Private.Auras.CreatePreviews(parent, featureKey, displayKey)
 
 	featureKey = featureKey or previewFeatureKey
 
-	--- Whether the host is a real spotlight, which only the health-bar tint cares about. The panel's
-	--- section panes host their previews on `Private.Preview`'s mini spotlight; the grid's cells host
-	--- theirs on a plain frame standing in for one, sized to the configured frame and nothing else.
-	--- `healthBar` is the whole of what that display needs, so its presence is the honest test.
+	-- `healthBar` is the whole of what the tint needs, so its presence is the honest test for whether
+	-- the host is a real spotlight: the panel's panes use a mini one, the grid's cells a stand-in.
 	local frame = parent.healthBar and parent --[[@as SpotlightsUnitFrame]] or nil
 
 	---@type SpotlightsAuraPreview[]
@@ -2172,23 +1918,17 @@ function Private.Auras.CreatePreviews(parent, featureKey, displayKey)
 	return previews
 end
 
---- Re-applies every setting to a cell's previews, including the ones a live display cannot hear.
----
---- `ApplyAnchor` and `Style` are the live path's own functions, so what appears here is what will
---- ship — but nothing is registered or access-restricted, so the *frozen* half applies as freely as
---- the free half. A colour picker drags smoothly here while the real displays wait out their
---- debounce.
+--- Re-applies every setting to a cell's previews, including the ones a live display cannot hear:
+--- nothing here is registered or access-restricted, so the *frozen* half applies as freely as the free
+--- half and a colour picker drags smoothly while the real displays wait out their debounce.
 ---
 --- **A pooled feature's spell identities are decided here rather than at creation**, from the candidate
 --- set as it stands at this call: item `n` is about the `n`th enabled spell, and an item the pool no
---- longer reaches is hidden. That is what carries a spell toggled in the Tracked pane into the preview
---- immediately, with no frame created and no live container replaced.
+--- longer reaches is hidden. That is what carries a Tracked-pane toggle into the preview immediately.
 ---
---- The items after the first are chained rather than centred around the configured point, because that
---- is what the live container does: `CustomAuraContainerLayoutDefaults` starts a group at the
---- container's top-left and grows right with `elementSpacing` between elements, and the container fills
---- the anchor `ApplyAnchor` has just placed. Centring put a two-icon preview half a display left of
---- where the two real ones land.
+--- Items after the first are chained rather than centred around the configured point, because that is
+--- what the live container does -- `CustomAuraContainerLayoutDefaults` starts a group at the container's
+--- top-left and grows right. Centring put a two-icon preview half a display left of the real ones.
 ---@param previews SpotlightsAuraPreview[]
 function Private.Auras.StylePreviews(previews)
 	local auras = Config()
@@ -2199,9 +1939,9 @@ function Private.Auras.StylePreviews(previews)
 
 	local size = Private.FrameConfig.Get()
 
-	-- Both keyed by feature and both per call: the candidate set is walked once however many items read
-	-- from it, and `previous` carries the item the next one hangs off. A pooled feature draws one kind
-	-- of display, so the feature key alone identifies a chain.
+	-- Both per call: the candidate set is walked once however many items read from it, and `previous`
+	-- carries the item the next one hangs off. A pooled feature draws one kind of display, so the
+	-- feature key alone identifies a chain.
 	---@type table<string, integer[]>
 	local candidates = {}
 
@@ -2243,8 +1983,8 @@ function Private.Auras.StylePreviews(previews)
 				previous[feature.key] = preview.anchor
 			else
 				-- A pool shorter than `MAX_PREVIEW_AURAS` leaves the tail items with no spell to be
-				-- about, and an empty one leaves every item hidden -- which is the honest preview of a
-				-- category tracking nothing.
+				-- about; an empty one hides them all, which is the honest preview of a category
+				-- tracking nothing.
 				preview.anchor:Hide()
 			end
 		end
@@ -2262,14 +2002,12 @@ function Private.Auras.StylePreviews(previews)
 	end
 end
 
---- Every spotlight brought in line with the current settings: built where it should be, restyled
---- where it already was.
+--- Every spotlight brought in line with the current settings, and the drain target for
+--- `DeferralKey.Auras`.
 ---
---- A sweep rather than a queue of pending frames. `EnsureDisplays` early-outs on a table lookup, and
---- a list of frames waiting for combat to end is one more thing that can disagree with reality after
---- a roster change.
----
---- The drain target for `DeferralKey.Auras`.
+--- A sweep rather than a queue of pending frames: `EnsureDisplays` early-outs on a table lookup, and a
+--- list of frames waiting for combat to end is one more thing that can disagree with reality after a
+--- roster change.
 function Private.Auras.Apply()
 	if Private.Events.DeferIfInCombat(DeferralKey.Auras) then
 		return
@@ -2320,18 +2058,16 @@ local SENSE_POWER_CAST = 361021
 local SENSE_POWER_KEY = "sensePower"
 local SENSE_POWER_POPUP = "SPOTLIGHTS_SENSE_POWER"
 
---- How long after a loading screen to look.
----
---- Action bar contents and specialisation both arrive some frames after the screen lifts, and neither
---- has an event meaning "and now they are correct". Guessing short prompts against a bar the client
---- has not filled in yet, which is a wrong answer rather than a late one.
+--- How long after a loading screen to look. Action bar contents and specialisation both arrive some
+--- frames after the screen lifts and neither has an event meaning "and now they are correct", so a
+--- shorter guess prompts against a bar the client has not filled in yet.
 local TOGGLE_CHECK_DELAY = 3
 
 --- The icon currently drawn for Sense Power on an action bar, or nil if it is not on one.
 ---
 --- `FindSpellActionButtons` wants the **base** spell, which 361021 is, and answers with every slot
---- holding it — so the first slot with a texture is as good as any. It may return nothing, which the
---- caller has to distinguish from "on a bar and switched off".
+--- holding it. Returning nothing is a case the caller has to distinguish from "on a bar and switched
+--- off".
 ---@return number? texture
 local function SensePowerActionTexture()
 	local slots = C_ActionBar.FindSpellActionButtons(SENSE_POWER_CAST)
@@ -2353,8 +2089,7 @@ end
 
 ---@param text string
 local function PromptSensePower(text)
-	-- Built at show time rather than at load, so the localisation table is filled by now. `OKAY` is
-	-- the game's own string, one fewer thing to translate.
+	-- Built at show time rather than at load, so the localisation table is filled by now.
 	StaticPopupDialogs[SENSE_POWER_POPUP] = {
 		text = text,
 		button1 = OKAY,
@@ -2369,30 +2104,25 @@ end
 
 --- Tells an Augmentation Evoker when their cooldown displays cannot possibly work.
 ---
---- **The toggle has no state API.** It is not a shapeshift form, `GetPlayerAuraBySpellID` finds
---- nothing under the cast's own ID, and `IsCurrentAction` reads false either way — all three
---- measured. What *does* change is the icon the action bar draws: an action slot showing something
---- other than the spell's own texture is a toggle that is on.
+--- **The toggle has no state API.** It is not a shapeshift form, `GetPlayerAuraBySpellID` finds nothing
+--- under the cast's own ID, and `IsCurrentAction` reads false either way -- all three measured. What
+--- *does* change is the icon the action bar draws.
 ---
---- Compared against `C_Spell.GetSpellTexture` rather than the active icon's file ID (132160 inactive,
---- 136116 active, observed). Hardcoding the active one would make an art change read as "permanently
---- switched off"; comparing to the base survives a change to either icon, because the mechanism being
---- tested is that they *differ*.
+--- Compared against `C_Spell.GetSpellTexture` rather than the active icon's file ID, because the
+--- mechanism being tested is that the two *differ*: hardcoding the active one would make an art change
+--- read as "permanently switched off".
 local function CheckSensePower()
-	-- Group-gated at the one point every path passes through. The loading-screen and roster triggers
-	-- guard themselves, but the specialisation-change event and the display toggle in `SetSetting`
-	-- reach here directly -- so a respec or switch-on outside a group would prompt about displays that
-	-- have no spotlight to draw on.
+	-- Group-gated at the one point every path passes through: the specialisation-change event and the
+	-- display toggle in `SetSetting` reach here directly, so a respec or switch-on outside a group would
+	-- prompt about displays that have no spotlight to draw on.
 	--
-	-- A group rather than a raid, because that is where the headers render: a party spotlight runs a
-	-- Sense Power display exactly as a raid one does, so a party is a place the prompt is worth making.
+	-- A group rather than a raid, because that is where the headers render.
 	if not IsInGroup() then
 		return
 	end
 
-	-- Narrower than the class gate the displays use: this reminder is about an ability only
-	-- Augmentation has, and telling a Devastation Evoker to switch on a spell they do not own would be
-	-- worse than saying nothing.
+	-- Narrower than the class gate the displays use: telling a Devastation Evoker to switch on a spell
+	-- they do not own would be worse than saying nothing.
 	if not Private.Utils.IsAugmentation() then
 		return
 	end
@@ -2400,8 +2130,8 @@ local function CheckSensePower()
 	local auras = Config()
 	local sensePower = auras and auras[SENSE_POWER_KEY]
 
-	-- Nothing to warn about if nothing is being tracked. A user who switched the feature off, or every
-	-- one of its displays, has already answered the question this prompt asks.
+	-- A user who switched the feature off, or every one of its displays, has already answered the
+	-- question this prompt asks.
 	if not sensePower or not sensePower.enabled then
 		return
 	end
@@ -2427,40 +2157,28 @@ local function CheckSensePower()
 	end
 end
 
---- The check, after a delay, which is what every *automatic* trigger uses.
+--- The check, after a delay, which is what every *automatic* trigger uses: the things that trigger this
+--- rewrite an action bar and none has a follow-up event meaning "and now the bars are correct".
 ---
---- Delayed because the things that trigger this rewrite an action bar — a loading screen, a
---- specialisation change — and none has a follow-up event meaning "and now the bars are correct".
---- Reading too early reports "not on a bar" about a bar the client has not filled in yet.
----
---- Switching a display on is the exception and stays immediate: the user has just acted, nothing
---- about their bars is in flux, and a prompt three seconds after a click reads as unrelated to it.
+--- Switching a display on is the exception and stays immediate -- the user has just acted, and a prompt
+--- three seconds after a click reads as unrelated to it.
 local function ScheduleSensePowerCheck()
 	C_Timer.After(TOGGLE_CHECK_DELAY, CheckSensePower)
 end
 
---- Whether the player was in a group the last time the roster changed.
----
---- What makes `GROUP_ROSTER_UPDATE` usable here. That event fires on every roster change — a join, a
---- leave, a role swap, a zone-in — and only the *edge* into a group is worth acting on. Without the
---- previous value there is no edge, and the check would run on every roster event.
+--- Whether the player was in a group the last time the roster changed, which is what makes
+--- `GROUP_ROSTER_UPDATE` usable here: only the *edge* into a group is worth acting on, and without the
+--- previous value there is no edge.
 local wasInGroup = false
 
--- Four moments where the answer can have changed without us asking.
---
--- Arriving somewhere, but only into a group. A loading screen is the most frequent event here by a
--- wide margin — every portal, every instance, every flight path — and Sense Power being off while
--- solo is not a problem anyone has.
+-- Arriving somewhere, but only into a group.
 Private.Events.RegisterEvent("LOADING_SCREEN_DISABLED", ScheduleSensePowerCheck)
 
--- Joining a group, which the loading-screen trigger cannot see: no screen is involved, and the group
--- simply forms around the player.
+-- Joining a group, which the loading-screen trigger cannot see: no screen is involved. This also covers
+-- logging straight into one, where `IsInGroup` is still false when the screen lifts because group
+-- information has not arrived yet.
 --
--- This also covers logging straight into one, where `IsInGroup` is still false when the loading
--- screen lifts because group information has not arrived yet. The edge fires when it does.
---
--- A party becoming a raid is deliberately *not* an edge: the player was already in a group, so the
--- prompt has already been made or already been suppressed by the same conditions.
+-- A party becoming a raid is deliberately *not* an edge: the player was already in a group.
 Private.Events.RegisterEvent("GROUP_ROSTER_UPDATE", function()
 	local inGroup = IsInGroup()
 	local entered = inGroup and not wasInGroup
@@ -2472,8 +2190,8 @@ Private.Events.RegisterEvent("GROUP_ROSTER_UPDATE", function()
 	end
 end)
 
--- Changing specialisation. Rare, deliberate, the moment a player *becomes* the specialisation this
--- matters to -- but the group gate still applies, enforced inside `CheckSensePower`.
+-- Changing specialisation, the moment a player *becomes* the one this matters to. The group gate still
+-- applies, enforced inside `CheckSensePower`.
 Private.Events.RegisterEvent("PLAYER_SPECIALIZATION_CHANGED", function(unit)
 	if unit ~= "player" then
 		return
@@ -2487,17 +2205,15 @@ end)
 --- Writes one aura setting and asks for whichever pass it invalidated.
 ---
 --- **The one entry point for changing anything**, and where the live/frozen split is enforced rather
---- than documented -- though not decided: the display kind classifies its own fields, and this asks.
---- So no caller has to know which kind of setting it is holding, and nothing here has to be revisited
---- when a display grows a field.
+--- than decided: the display kind classifies its own fields and this asks, so nothing here needs
+--- revisiting when a display grows a field.
 ---
---- The nil test is a validity check. Every field has a non-nil default and `Private.Migration`'s
---- repair guarantees it, so a `nil` reading back means the caller named a field that does not exist.
+--- The nil test is a validity check -- every field has a non-nil default the migration's repair
+--- guarantees, so a nil reading back means the caller named a field that does not exist.
 ---
 --- A write of the value already stored does nothing, and for a frozen field that is the difference
---- between a leak and none: re-picking the current texture from a dropdown, or a panel refresh echoing
---- a widget's own value back, would otherwise cost a container and a button on every assigned spotlight
---- for no visible change. A caller that means "rebuild regardless" wants `RequestRebuild`.
+--- between a leak and none: re-picking the current texture from a dropdown would otherwise cost a
+--- container per assigned spotlight. A caller meaning "rebuild regardless" wants `RequestRebuild`.
 ---@param featureKey SpotlightsAuraFeatureKey
 ---@param displayKey SpotlightsAuraDisplayKey
 ---@param field string
@@ -2525,9 +2241,8 @@ function Private.Auras.SetSetting(featureKey, displayKey, field, value)
 		ApplyGroupLayout(featureKey, displayKey, value or 0)
 	end
 
-	-- Neither lookup can fail for a key the database holds a block for, so the fallback is about a
-	-- caller inventing one: rebuilding a display that does not exist finds nothing and leaks nothing,
-	-- where treating it as live would quietly promise an update the frame never gets.
+	-- The fallback is about a caller inventing a key: rebuilding a display that does not exist finds and
+	-- leaks nothing, where treating it as live would promise an update no frame ever gets.
 	local invalidation = feature and display and display.Invalidation(feature, field) or "rebuild"
 
 	if invalidation == "rebuild" then
@@ -2536,10 +2251,9 @@ function Private.Auras.SetSetting(featureKey, displayKey, field, value)
 		Private.Events.Request(DeferralKey.Auras)
 	end
 
-	-- Switching a Sense Power display on is the moment to find out Sense Power itself is off. Either
-	-- display counts: the toggle gates the aura, not the shape it is drawn in. `CheckSensePower` still
-	-- applies the group gate, so a switch-on outside a group stays silent. Only ever a false-to-true
-	-- transition, which falls out of the unchanged-value early-out above.
+	-- Switching a Sense Power display on is the moment to find out Sense Power itself is off; the toggle
+	-- gates the aura, not the shape it is drawn in. Only ever a false-to-true transition, which falls
+	-- out of the unchanged-value early-out above.
 	if featureKey == SENSE_POWER_KEY and field == "enabled" and value then
 		CheckSensePower()
 	end
@@ -2547,12 +2261,9 @@ function Private.Auras.SetSetting(featureKey, displayKey, field, value)
 	return true
 end
 
---- Whether a whole feature is switched on.
----
---- Answers `false` before the database has loaded rather than assuming the default, because the honest
---- reading of "nothing is loaded" is that nothing is being tracked -- and every caller either draws a
---- switch, which the migration corrects a moment later, or decides whether to build frames, which
---- must not happen against a database that is not there yet.
+--- Answers `false` before the database has loaded rather than assuming the default: every caller either
+--- draws a switch, which the migration corrects a moment later, or decides whether to build frames,
+--- which must not happen against a database that is not there yet.
 ---@param featureKey SpotlightsAuraFeatureKey
 ---@return boolean
 function Private.Auras.IsFeatureEnabled(featureKey)
@@ -2564,11 +2275,10 @@ end
 
 --- Switches a whole feature on or off, and lands it on every live display and preview.
 ---
---- Not routed through `SetSetting`: this is not a display setting. It sits a level above the bar and
---- the icon and overrides both, and it has no frozen half -- switching off is a `SetShown` on anchors
---- that already exist, and switching on is a build `EnsureDisplays` was already going to do. So
---- nothing here abandons a frame, and **nothing here arms the reload prompt**, which is what makes the
---- dot on the category strip free to click.
+--- Not routed through `SetSetting`: this sits a level above the bar and the icon and has no frozen half
+--- -- off is a `SetShown` on anchors that already exist, on is a build `EnsureDisplays` was going to do
+--- anyway. So nothing here abandons a frame, and **nothing here arms the reload prompt**, which is what
+--- makes the dot on the category strip free to click.
 ---@param featureKey SpotlightsAuraFeatureKey
 ---@param enabled boolean
 ---@return boolean applied
@@ -2582,12 +2292,11 @@ function Private.Auras.SetFeatureEnabled(featureKey, enabled)
 
 	feature.enabled = enabled
 
-	-- The free path: `Apply` builds whatever the switch just made buildable and re-anchors the rest,
-	-- next frame, or once combat ends.
+	-- The free path: `Apply` builds what the switch made buildable and re-anchors the rest.
 	Private.Events.Request(DeferralKey.Auras)
 
-	-- Switching Sense Power on is the moment to find out the ability itself is off, for the same
-	-- reason a display's own switch is (see `SetSetting`).
+	-- Switching Sense Power on is the moment to find out the ability itself is off, for a display's own
+	-- switch's reason (see `SetSetting`).
 	if featureKey == SENSE_POWER_KEY and enabled then
 		CheckSensePower()
 	end
@@ -2596,23 +2305,15 @@ function Private.Auras.SetFeatureEnabled(featureKey, enabled)
 end
 
 --- Restores one display to fresh-install values, leaving the shared spell pool alone and the feature's
---- own switch where the user put it: a reset is about how a display looks, and silently switching a
---- category back on would undo a decision the button does not mention.
+--- own switch where the user put it -- silently switching a category back on would undo a decision the
+--- button does not mention.
 ---
---- Per display rather than per feature because that is the unit the user edits -- the displays are
---- independent, configured one at a time, and a button that reset all of them would discard the ones
---- they were happy with.
+--- Written through `SetSetting` field by field rather than swapping the block, so a reset takes the same
+--- free/frozen routing every other write does and the reload prompt arms as a manual edit would.
+--- Assigning the table directly would strand the live display pointing at the old config.
 ---
---- Written through `SetSetting` field by field rather than swapping the block, so a reset takes the
---- same free/frozen routing every other write does: frozen fields coalesce into one rebuild, free ones
---- into one reapply, and the reload prompt arms as a manual edit would. Assigning the table directly
---- would strand the live display pointing at the old config, and skip the leak accounting a rebuild
---- owes.
----
---- Unchanged fields cost nothing: `SetSetting` early-outs when the stored value already matches.
----
---- `Private.Migration.DefaultAuraFeature` hands back a freshly built set every call, so the values
---- read here are never aliased to the database being written.
+--- `Private.Migration.DefaultAuraFeature` hands back a freshly built set every call, so nothing read
+--- here is aliased to the database being written.
 ---@param featureKey SpotlightsAuraFeatureKey
 ---@param displayKey SpotlightsAuraDisplayKey
 function Private.Auras.ResetDisplay(featureKey, displayKey)
@@ -2626,23 +2327,19 @@ end
 --- Pushes the current candidate sets onto every display already built.
 ---
 --- **The one thing in this file that changes a frozen-looking property without abandoning a frame.**
---- `includeSpellIDs` is handed to `AddAuraGroup`/`AddAuraSlot` at build time, so a changed spell list
---- looks like it belongs on the rebuild path -- but the container exposes candidate-filter setters,
---- which replace a live display's filters and re-run `UpdateAllAuras` themselves. `CustomAuraContainerInboundMixin`
---- is assembled from `CustomAuraContainerSharedMixin`, so it is ours to call, and it `securecopy`s and
---- validates what it is given.
----
---- The alternative, `RequestRebuild`, would apply just as immediately by building a second container
---- inside the same anchor and abandoning the first. One leaked container per display per toggle is
---- the debt `reloadPending` collects, and a list the user sits and ticks through would turn a
---- settings session into a reload prompt. Nothing here arms that prompt.
+--- `includeSpellIDs` is handed over at build time, but the container also exposes candidate-filter
+--- setters, which replace a live display's filters and re-run `UpdateAllAuras` themselves.
+--- `CustomAuraContainerInboundMixin` is assembled from `CustomAuraContainerSharedMixin`, so it is ours
+--- to call, and it `securecopy`s and validates what it is given. Nothing here arms the reload prompt.
 ---
 --- Not combat-guarded, on the same grounds as `SetUnit` in `OnUnitChanged`: this marks a container
 --- dirty and refreshes it, and creates nothing. Only *creation* is a protected call.
 ---
---- Prescience is skipped rather than harmlessly refreshed. Its set is one spell and cannot change,
---- and `SetCandidateFilters` clears a slot's candidates on the way through -- so refreshing it would
---- drop an assigned aura and re-acquire it on the next `UNIT_AURA` for nothing.
+--- Prescience is skipped rather than harmlessly refreshed: `SetCandidateFilters` clears a slot's
+--- candidates on the way through, so refreshing a one-spell set would drop an assigned aura and
+--- re-acquire it on the next `UNIT_AURA` for nothing.
+---
+--- See docs/notes/AuraRebuildVsFilters.md for the rejected `RequestRebuild` path.
 function Private.Auras.RefreshCandidates()
 	Private.SlotHeader.ForEachChild(function(child)
 		ForEachDisplay(child, function(record, feature)
@@ -2665,22 +2362,18 @@ function Private.Auras.RefreshCandidates()
 		end)
 	end)
 
-	-- The previews take the same edit, since a pooled one is about whichever spells the filters just
-	-- became. A restyle rather than a rebuild: the items already exist and only their spell identities
-	-- have moved, and a rebuild per toggle would strand a set of frames per click of the list.
+	-- A restyle rather than a rebuild: the preview items already exist and only their spell identities
+	-- moved.
 	Private.AuraPreview.Restyle()
 end
 
---- Rebuilds the displays that a newly registered medium actually fixes, and no others.
+--- Rebuilds the displays a newly registered medium actually fixes, and no others. Called by
+--- `Private.Media`'s LibSharedMedia callback, which fires once per key in bulk during login.
 ---
---- Called by `Private.Media`'s LibSharedMedia callback, which fires once per key every time any addon
---- registers media -- in bulk during login, for keys we mostly do not care about.
----
---- **The filter is `record.unresolved`, not the stored setting.** Every display naming this key looks
---- like a candidate, but only the ones built *before* the registration are wearing a fallback because
---- of it; one built afterwards resolved it correctly, and rebuilding it abandons a container and arms
---- a reload prompt for nothing the user can see. That was the bug: a spotlight assigned early enough
---- to build its displays before another addon's login-time registration offered a reload every login.
+--- **The filter is `record.unresolved`, not the stored setting.** Only displays built *before* the
+--- registration are wearing a fallback because of it; one built afterwards resolved it correctly, and
+--- rebuilding it abandons a container and arms a reload prompt for nothing the user can see. That was
+--- the bug -- a spotlight assigned early enough offered a reload every login.
 ---@param mediatype string
 ---@param key string
 function Private.Auras.OnMediaRegistered(mediatype, key)
@@ -2695,13 +2388,9 @@ function Private.Auras.OnMediaRegistered(mediatype, key)
 	end)
 end
 
---- The tracked feature keys, for callers that need to walk the aura config block.
----
---- **Exists because `pairs` over `Private.DB.auras` is no longer a list of features.** That block
---- gained the pools' own tables -- `cooldowns`, `custom`, `defensives`, `defensiveCustom` -- beside the
---- features, and anything walking it whole finds a table with no `bar` and no `icon` and indexes nil,
---- which is how `Media.lua` broke. Answering with the keys is safer than every caller knowing them: a
---- feature added to `FEATURES` reaches those callers on its own.
+--- The tracked feature keys. **Exists because `pairs` over `Private.DB.auras` is no longer a list of
+--- features**: that block gained the pools' own tables beside them, so anything walking it whole finds
+--- a table with no `bar` and no `icon` and indexes nil, which is how `Media.lua` broke.
 ---@return string[]
 function Private.Auras.FeatureKeys()
 	local keys = {}
@@ -2713,11 +2402,8 @@ function Private.Auras.FeatureKeys()
 	return keys
 end
 
---- Whether a feature pools several of the spotlighted player's auras into one display rather than
---- watching a single spell.
----
---- The options panel's question, and the only thing that makes the gap between icons mean anything:
---- a feature with one aura to draw has nothing to space it against.
+--- Whether a feature pools several of the spotlighted player's auras into one display. The only thing
+--- that makes the gap between icons mean anything: one aura has nothing to space it against.
 ---@param featureKey SpotlightsAuraFeatureKey
 ---@return boolean
 function Private.Auras.IsPooled(featureKey)
@@ -2743,13 +2429,11 @@ function Private.Auras.HasDisplay(featureKey, displayKey)
 	return display ~= nil and DrawsDisplay(feature, display)
 end
 
---- The shipped spell lists, for the options panel to draw rows from.
+--- The shipped spell lists, handed out rather than copied because the panel only reads them, and
+--- grouped by class -- the one thing the flat candidate set throws away and the panel needs back.
 ---
---- Handed out rather than copied, because the panel only reads them -- and grouped by class, which is
---- the one thing the flat candidate set throws away and the panel needs back.
----
---- Everything below is a wrapper over one pool operation. The pair exists so the options panel names a
---- pool by asking for it, rather than by knowing which saved table and which default rule it wants.
+--- Everything below is a wrapper over one pool operation, so the options panel names a pool rather than
+--- knowing which saved table and default rule it wants.
 ---@return table<integer, table<integer, boolean>>
 function Private.Auras.Cooldowns()
 	return COOLDOWNS
@@ -2834,32 +2518,23 @@ function Private.Auras.ResetDefensives()
 	return ResetPool(POOLS.defensive)
 end
 
---- Whether the user should be offered a reload, because frames have been abandoned or are about to
---- be.
+--- Whether the user should be offered a reload, because frames have been abandoned or are about to be.
+--- Everything on the free path leaves this false.
 ---
---- What keeps the prompt from appearing after a session of moving sliders: everything on the free
---- path leaves this false, and a user who never touched a texture or a colour has nothing to reclaim.
+--- Two questions, because one does not cover it: `reloadPending` answers for rebuilds that have
+--- happened, `pending` for the one still inside the debounce window -- without which changing a colour
+--- and closing within `REBUILD_DELAY` would never prompt.
 ---
---- Two questions, because one does not cover it. `reloadPending` answers for rebuilds that have
---- happened; `pending` answers for the one still inside the debounce window, which is the change most
---- likely to have been the last one made. Without the second, changing a colour and closing within
---- `REBUILD_DELAY` would never prompt.
----
---- The cost of including `pending` is one false positive: a frozen setting changed on a *disabled*
---- display, closed within the same window, prompts for a rebuild that will find nothing. Waiting out
---- the timer makes it correct, and modelling which pending rebuilds will actually land is more
---- machinery than a spurious offer is worth.
+--- The cost is one false positive: a frozen setting changed on a *disabled* display and closed within
+--- the same window prompts for a rebuild that will find nothing.
 ---@return boolean
 function Private.Auras.NeedsReload()
 	return reloadPending or next(pending) ~= nil
 end
 
---- Records that the user has been asked and answered, so they are not asked again until something
---- else is abandoned.
----
---- Called for **both** answers. "Reload now" makes it moot, and saying so anyway means the one code
---- path does not depend on the reload happening — a reload refused by a loading screen or a blocking
---- addon would otherwise leave the prompt armed forever.
+--- Records that the user has been asked and answered. Called for **both** answers, so the code path
+--- does not depend on the reload happening -- one refused by a loading screen or a blocking addon would
+--- otherwise leave the prompt armed forever.
 function Private.Auras.AcknowledgeReload()
 	reloadPending = false
 end
@@ -2868,16 +2543,15 @@ end
 ---@param frame SpotlightsUnitFrame
 ---@param unit string?
 function Private.Auras.OnUnitChanged(frame, unit)
-	-- A released unit needs nothing done. The header hides the frame, and each container's own
-	-- `OnHide` drops its `UNIT_AURA` registration and clears its auras -- so the displays stop without
-	-- a call from us. `SetUnit` asserts on a non-string, so there is nothing to pass here anyway.
+	-- A released unit needs nothing done: each container's own `OnHide` drops its `UNIT_AURA`
+	-- registration and clears its auras. `SetUnit` asserts on a non-string anyway.
 	if unit == nil then
 		return
 	end
 
-	-- Before the creation attempt and outside its combat guard. `SetUnit` registers events and marks
-	-- the container dirty; none of that is a protected call, so a roster change landing mid-combat
-	-- still repoints existing displays at the right player. Only *creation* has to wait.
+	-- Before the creation attempt and outside its combat guard: `SetUnit` registers events and marks
+	-- the container dirty, neither a protected call, so a roster change landing mid-combat still
+	-- repoints existing displays. Only *creation* has to wait.
 	ForEachDisplay(frame, function(record)
 		record.container:SetUnit(unit)
 	end)

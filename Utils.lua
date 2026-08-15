@@ -25,17 +25,12 @@ end
 
 --- Whether the cursor is inside a frame's rectangle.
 ---
---- Rectangle arithmetic rather than `GetMouseFoci`/`IsMouseOver`: those answer "is this frame the
---- mouse *focus*", which depends on stacking and on every frame having mouse input enabled -- and
---- the drop targets here fail both by design. The mover overlay is mouse-enabled, HIGH strata and
---- covers the grid, so the focus over any cell is the overlay; previews set `EnableMouse(false)`.
---- The caller wants a geometric answer: which cell is under the cursor.
+--- Rectangle arithmetic rather than `GetMouseFoci`/`IsMouseOver`, which answer whether the frame is the
+--- mouse *focus* -- and the drop targets here fail that by design: the mover overlay covers the grid and
+--- previews set `EnableMouse(false)`.
 ---
---- `GetCursorPosition` is in raw screen pixels while `GetLeft` and friends are in the frame's own
---- scaled units, so divide the cursor by that frame's effective scale, not UIParent's -- a panel
---- and a grid cell at different scales then both measure correctly.
----
---- A frame never positioned has nil corners, read as "not under the cursor" rather than erroring.
+--- `GetCursorPosition` is in raw screen pixels while `GetLeft` and friends are in the frame's own scaled
+--- units, so the cursor is divided by *that* frame's effective scale rather than UIParent's.
 ---@param frame Frame
 ---@return boolean
 function Private.Utils.IsCursorOver(frame)

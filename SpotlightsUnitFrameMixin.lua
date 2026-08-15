@@ -48,10 +48,8 @@ for whole = 11, 100 do
 	healthPercentCurve:AddPoint((whole - 0.5) / 100, whole)
 end
 
---- The appearance block, or nil before the database has loaded.
----
---- Read per call rather than cached: every value is a setting the options frame can change at any
---- moment.
+--- The appearance block, or nil before the database has loaded. Read per call rather than cached: every
+--- value is a setting the options frame can change at any moment.
 ---@return SpotlightsAppearanceConfig?
 local function Appearance()
 	return Private.DB and Private.DB.appearance
@@ -59,11 +57,9 @@ end
 
 --- Whether `unit` is close enough to matter, for alpha purposes only.
 ---
---- **The return may be a secret value.** Pipe it directly into `SetAlphaFromBoolean`; never compare
---- it, cache it as a plain bool, or store it in a table we later iterate. The companion validity
---- return cannot be tested from tainted addon code, so the API's primary result is the only value
---- used here.
----
+--- **The return may be a secret value.** Pipe it directly into `SetAlphaFromBoolean`; never compare it,
+--- cache it as a plain bool, or store it in a table we later iterate. The companion validity return
+--- cannot be tested from tainted addon code, so the API's primary result is the only value used here.
 ---@param unit string
 ---@return boolean inRange
 local function IsInRange(unit)
@@ -88,10 +84,8 @@ end
 ---@class SpotlightsNameStyle
 Private.NameStyle = {}
 
---- The horizontal justification implied by an anchor point.
----
---- The name spans the frame between opposed horizontal anchors, so `wordwrap=false` has a width to
---- truncate against. Justification still decides how text sits within that span.
+--- The name spans the frame between opposed horizontal anchors so `wordwrap=false` has a width to
+--- truncate against; justification decides how the text sits within that span.
 ---@param point string
 ---@return string
 local function JustifyForPoint(point)
@@ -104,18 +98,14 @@ local function JustifyForPoint(point)
 	return "CENTER"
 end
 
---- The frame the name is drawn in, created on first ask.
+--- The frame the name is drawn in, created on first ask, and shared with `Private.Preview`.
 ---
 --- The name used to be a FontString in the button's own `OVERLAY` layer, which is *below* every layer of
---- every child frame -- so an aura display, which hangs off a child frame, covered it and no draw-layer
---- change could rescue it. A layer of our own is a sibling of those child frames rather than a region
---- under them, which is what makes `nameStrata` expressible at all.
----
---- Shared with `Private.Preview` so a preview and a live spotlight stack their names the same way.
+--- every child frame, so an aura display covered it and no draw-layer change could rescue it. A layer of
+--- our own is a sibling of those child frames, which is what makes `nameStrata` expressible at all.
 ---
 --- **Out of combat only on a live spotlight.** The layer is parented to a secure unit button, so
---- `SetAllPoints` and `SetFrameLevel` on it are protected calls for the same reason the container's
---- `SetSize` is. Preview frames are ours and need no such care.
+--- `SetAllPoints` and `SetFrameLevel` on it are protected calls. Preview frames are ours.
 ---@param frame SpotlightsUnitFrame
 ---@return Frame
 function Private.NameStyle.EnsureLayer(frame)
@@ -127,20 +117,18 @@ function Private.NameStyle.EnsureLayer(frame)
 
 	layer = CreateFrame("Frame", nil, frame)
 
-	--- Load-bearing rather than incidental, which is why it is said out loud even though frames ship
-	--- with the mouse off: a mouse-enabled frame across the whole spotlight would swallow the clicks the
-	--- secure button exists to receive, and take the hover-only setting down with them.
+	-- Load-bearing despite being the default: a mouse-enabled frame across the whole spotlight would
+	-- swallow the clicks the secure button exists to receive.
 	layer:EnableMouse(false)
 
-	--- The parent's own level rather than the `+1` a new frame defaults to. An aura display's anchor is
-	--- a child frame at that `+1`, so at the default the name would rise over every aura the moment this
-	--- layer existed -- a profile rendering differently on the first load of a build it never configured.
-	--- Raising the name is what `nameStrata` is for, and it should take saying so.
+	-- The parent's own level rather than the `+1` a new frame defaults to: an aura display's anchor is a
+	-- child frame at that `+1`, so the default would raise the name over every aura the moment this
+	-- layer existed. Raising it is what `nameStrata` is for.
 	layer:SetFrameLevel(frame:GetFrameLevel())
 	layer:SetAllPoints(frame)
 
-	--- `ApplyLayout` anchors the name against `fontString:GetParent()`, so a layer covering the same
-	--- rectangle preserves every stored offset without that arithmetic learning the layer exists.
+	-- `ApplyLayout` anchors the name against `fontString:GetParent()`, so a layer covering the same
+	-- rectangle preserves every stored offset without that arithmetic learning the layer exists.
 	frame.name:SetParent(layer)
 
 	frame.spotlightsNameLayer = layer
@@ -148,12 +136,9 @@ function Private.NameStyle.EnsureLayer(frame)
 	return layer
 end
 
---- Puts the configured strata on the name layer.
----
 --- `SetFrameStrata` has no inverse, so `INHERIT` is expressed by naming the strata the layer *would*
---- have inherited rather than by leaving the call out -- a layer raised once and then set back to
---- inherit has to come back down. Read off the frame rather than out of the position block, so the
---- answer is also right for a preview, whose parent is not the container.
+--- have inherited -- one raised once and then set back to inherit has to come back down. Read off the
+--- frame rather than the position block, so the answer is also right for a preview.
 ---
 --- **A protected call on a live spotlight.** Callers on that path go through the deferral queue; the
 --- preview path may call it outright.
@@ -171,11 +156,8 @@ function Private.NameStyle.ApplyStrata(frame, appearance)
 	layer:SetFrameStrata(Private.Enum.FrameStrata[strata] and strata or frame:GetFrameStrata())
 end
 
---- Puts the configured strata on every live spotlight's name layer.
----
 --- Deferred rather than run inline because it is a protected call on every frame it touches. The panel
---- refuses to open in combat, but a slash command and an import do not -- and under `INHERIT` this also
---- runs off the container's own pass, which a fight starting can catch mid-flight.
+--- refuses to open in combat, but a slash command and an import do not.
 local function ApplyNameStrata()
 	if Private.Events.DeferIfInCombat(Private.Enum.DeferralKey.NameStrata) then
 		return
@@ -201,14 +183,12 @@ end
 
 --- Applies the font, size, placement, justification and *visibility* of the name, but not its colour.
 ---
---- The opposed anchors follow the selected row and preserve the selected point's offset. Keeping both
---- edges is important: a single anchor leaves the FontString unconstrained and allows names to bleed
+--- Both edges are anchored: a single anchor leaves the FontString unconstrained and lets names bleed
 --- outside the frame.
 ---
---- `nameEnabled` is applied here rather than by each caller, so the live frames, the grid previews and
---- the options pane all answer it from one place. `nameHoverOnly` is the live mixin's alone: a preview
---- has no cursor over it in the sense that setting means, and one that hid its name to be accurate
---- would be a preview of nothing.
+--- `nameEnabled` is applied here so the live frames, the grid previews and the options pane all answer
+--- it from one place. `nameHoverOnly` is the live mixin's alone -- a preview that hid its name to be
+--- accurate would be a preview of nothing.
 ---
 --- The shadow is re-asserted after `SetFont`, which clears it.
 ---@param fontString FontString
@@ -237,21 +217,13 @@ function Private.NameStyle.ApplyLayout(fontString, appearance)
 	fontString:SetJustifyH(JustifyForPoint(point))
 end
 
---- Blizzard's own opt-out for the temporary maximum-health-loss bar, cached rather than asked for
---- per update.
+--- Blizzard's own opt-out for the temporary maximum-health-loss bar, cached because
+--- `UpdateTempMaxHealthLoss` runs on two events and every `UpdateAll`, for an answer that changes only
+--- when a user opens the interface options.
 ---
---- `CVarCallbackRegistry:GetCVarValueBool` is not a cache read here. It only consults
---- `cvarValueCache` for CVars marked with `SetCVarCachable`, and **this CVar is not one of them** --
---- its single reader in the entire client is `Shared/UnitFrame.lua:29`. Every call is a `GetCVar` C
---- call.
----
---- A tainted execution could not use that cache even if it existed: `GetCVarValue` populates it only
---- under `issecure()` (`CvarUtil.lua:150-155`), which is never us. So the only cache we can have is
---- our own.
----
---- Worth caching because UpdateTempMaxHealthLoss runs on UNIT_MAXHEALTH,
---- UNIT_MAX_HEALTH_MODIFIERS_CHANGED and every UpdateAll, for an answer that changes only when a
---- user opens the interface options.
+--- `CVarCallbackRegistry:GetCVarValueBool` is not a cache read here: it consults `cvarValueCache` only
+--- for CVars marked `SetCVarCachable`, and **this one is not**. A tainted execution could not use that
+--- cache anyway -- `GetCVarValue` populates it only under `issecure()` (`CvarUtil.lua:150-155`).
 local TEMP_MAX_HEALTH_LOSS_CVAR = "showTempMaxHealthLoss"
 local showTempMaxHealthLoss = CVarCallbackRegistry:GetCVarValueBool(TEMP_MAX_HEALTH_LOSS_CVAR)
 
@@ -267,17 +239,14 @@ function SpotlightsUnitFrameMixin:UpdateHealthValues()
 	self.healthBar:SetValue(UnitHealth(unit))
 end
 
---- Health colour.
+--- Health colour, in priority order: a disconnected or dead unit is grey regardless of the setting,
+--- otherwise the static colour when class colour is off, otherwise the class colour.
 ---
---- UnitClass's second return carries no secret annotation -- only the localised first one does --
---- so indexing RAID_CLASS_COLORS with it is legal. UnitIsConnected and UnitIsDead are documented as
+--- `UnitClass`'s second return carries no secret annotation -- only the localised first one does -- so
+--- indexing `RAID_CLASS_COLORS` with it is legal. `UnitIsConnected` and `UnitIsDead` are documented as
 --- never secret, so both branches are safe.
 ---
---- Three cases in priority order: a disconnected or dead unit is grey regardless of the setting;
---- otherwise the static colour wins when class colour is off; otherwise the class colour.
----
---- The background follows the bar in every case except static, where it is its own setting: class
---- and disconnected derive it as the bar colour at a fifth, which the static default reproduces.
+--- The background follows the bar in every case except static, where it is its own setting.
 function SpotlightsUnitFrameMixin:UpdateHealthColor()
 	local unit = self.displayedUnit
 
@@ -315,13 +284,11 @@ function SpotlightsUnitFrameMixin:UpdateHealthColor()
 	self.background:SetVertexColor(bgR, bgG, bgB, bgA)
 end
 
---- The unit's name.
----
---- UnitName rather than GetUnitName: the realm suffix costs width the frame does not have, and every
+--- `UnitName` rather than `GetUnitName`: the realm suffix costs width the frame does not have, and every
 --- spotlight is a group member whose bare name is unambiguous in practice.
 ---
---- The name may arrive secret, which is harmless here: SetText accepts it and nothing reads it back.
---- Never route a name through this into Private.Roster -- that side needs real strings to key on.
+--- The name may arrive secret, which is harmless here -- `SetText` accepts it and nothing reads it back.
+--- **Never route a name through this into `Private.Roster`**, which needs real strings to key on.
 function SpotlightsUnitFrameMixin:UpdateName()
 	local unit = self.displayedUnit
 
@@ -381,15 +348,12 @@ function SpotlightsUnitFrameMixin:UpdateHealthText()
 	end
 end
 
---- The name's font, size, placement and colour -- everything about it except the text.
+--- The name's font, size, placement and colour -- everything about it except the text, which follows
+--- `UNIT_NAME_UPDATE` while the styling follows only a settings write.
 ---
---- Split from `UpdateName` because the two change on different beats: the text follows
---- `UNIT_NAME_UPDATE`, the styling follows only a settings write. A class colour reads the same
---- non-secret `UnitClass` second return the health colour does.
----
---- Layout is shared with the preview through `Private.NameStyle`; only the colour is decided here.
---- A child with no unit keeps the static colour rather than guessing a class one. The name is not
---- greyed on disconnect: the health bar already says that, and grey on grey reads worse.
+--- Layout is shared with the preview through `Private.NameStyle`; only the colour is decided here. A
+--- child with no unit keeps the static colour rather than guessing a class one. The name is not greyed
+--- on disconnect: the health bar already says that, and grey on grey reads worse.
 function SpotlightsUnitFrameMixin:UpdateNameStyle()
 	local appearance = Appearance()
 
@@ -415,7 +379,7 @@ function SpotlightsUnitFrameMixin:UpdateNameStyle()
 		end
 	end
 
-	-- SetVertexColor rather than SetTextColor, matching Blizzard's own name updater: it colours a
+	-- `SetVertexColor` rather than `SetTextColor`, matching Blizzard's own name updater: it colours a
 	-- FontString whose Text aspect may be secret, and the vertex colour is not that aspect.
 	self.name:SetVertexColor(r, g, b, a)
 end
@@ -424,9 +388,8 @@ end
 --- cursor is over this spotlight.
 ---
 --- **Nothing here is derived from the unit.** The name *text* may arrive secret, but the two settings
---- and the mouse state are ours, so `SetShown` on the FontString is legal and is what to use. There is
---- no secret in this path to justify an alpha trick, and reaching for one would make the FontString's
---- Alpha aspect secret for nothing.
+--- and the mouse state are ours, so `SetShown` on the FontString is legal and is what to use; reaching
+--- for an alpha trick would make its Alpha aspect secret for nothing.
 ---
 --- Not a protected call: a FontString is a region, not a frame, and hiding one on a secure button is
 --- what Blizzard's own name updater does.
@@ -443,9 +406,8 @@ end
 
 --- The outline shown while this unit is the player's target.
 ---
---- SetAlphaFromBoolean rather than SetShown. UnitIsUnit(unit, "target") may answer with a secret
---- depending on content type, which SetShown rejects outright. The value goes into the setter
---- instead, and the question stops being ours to ask.
+--- `SetAlphaFromBoolean` rather than `SetShown`: `UnitIsUnit(unit, "target")` may answer with a secret
+--- depending on content type, which `SetShown` rejects outright.
 function SpotlightsUnitFrameMixin:UpdateSelectionHighlight()
 	local unit = self.displayedUnit
 
@@ -458,11 +420,9 @@ end
 
 --- The absorb overlay.
 ---
---- UnitGetTotalAbsorbs is always secret but never needs arithmetic: on the same 0..maxHealth scale
---- as health, the secret goes straight into SetValue. That is why the incoming-heal overlay is out
---- and this is in -- prediction needs derived widths, and a width is a number you must compute.
----
---- Zero needs no special case: an empty bar is the correct rendering of no absorb.
+--- `UnitGetTotalAbsorbs` is always secret but never needs arithmetic: on the same 0..maxHealth scale as
+--- health, the secret goes straight into `SetValue`. That is why the incoming-heal overlay is out and
+--- this is in -- prediction needs derived widths, and a width is a number you must compute.
 function SpotlightsUnitFrameMixin:UpdateAbsorb()
 	local unit = self.displayedUnit
 	local absorbBar = self.spotlightsAbsorbBar
@@ -477,18 +437,16 @@ end
 
 --- Temporary maximum-health loss: the slice of the bar the unit cannot currently heal into.
 ---
---- Reimplemented from TempMaxHealthLossMixin (`Shared/UnitFrame.lua:25-53`): it pulls the health bar's
---- right edge in by the lost fraction and fills the gap, but also drives a divider texture that only
---- the player frame declares.
+--- Reimplemented from `TempMaxHealthLossMixin` (`Shared/UnitFrame.lua:25-53`), which also drives a
+--- divider texture only the player frame declares.
 ---
---- GetUnitTotalModifiedMaxHealthPercent carries no secret annotation, which makes the arithmetic
---- legal. **Never** substitute UNIT_MAX_HEALTH_MODIFIERS_CHANGED's arg2 -- that event is
---- SecretPayloads and the Clamp would be comparing a secret.
+--- `GetUnitTotalModifiedMaxHealthPercent` carries no secret annotation, which makes the arithmetic
+--- legal. **Never** substitute `UNIT_MAX_HEALTH_MODIFIERS_CHANGED`'s arg2 -- that event is
+--- SecretPayloads and the `Clamp` would be comparing a secret.
 ---
---- Blizzard's CVar opt-out is respected rather than reimplemented as a setting. Restoring the anchor
---- when it is off matters: the health bar keeps whatever edge the last update gave it, so disabling
---- the feature mid-session would otherwise keep a permanently short bar. That is also why the
---- callback below redraws rather than only updating the cache.
+--- Restoring the anchor when the CVar is off matters: the health bar keeps whatever edge the last update
+--- gave it, so disabling the feature mid-session would otherwise leave a permanently short bar. That is
+--- also why the callback below redraws rather than only updating the cache.
 function SpotlightsUnitFrameMixin:UpdateTempMaxHealthLoss()
 	local unit = self.displayedUnit
 
@@ -507,10 +465,10 @@ function SpotlightsUnitFrameMixin:UpdateTempMaxHealthLoss()
 	-- to change -- reading it back would compound the inset on every update.
 	local fullWidth = self:GetWidth() - (HEALTH_BAR_INSET * 2)
 
-	--- Both corners, though only the second carries the loss: `PixelUtil` snaps against the effective
-	--- scale *at the call*, and the template's raw offsets are not snapped at all, so a bar with one
-	--- corner from each wears a border a whole pixel thicker on one side than the other at any scale
-	--- where a UI unit is not a pixel. Re-run whenever that scale changes -- see `Container.ApplyDisplay`.
+	-- Both corners, though only the second carries the loss: `PixelUtil` snaps against the effective
+	-- scale *at the call* and the template's raw offsets are not snapped at all, so a bar with one
+	-- corner from each wears a border a pixel thicker on one side. Re-run whenever that scale changes
+	-- -- see `Container.ApplyDisplay`.
 	PixelUtil.SetPoint(self.healthBar, "TOPLEFT", self, "TOPLEFT", HEALTH_BAR_INSET, -HEALTH_BAR_INSET)
 
 	PixelUtil.SetPoint(
@@ -522,9 +480,9 @@ function SpotlightsUnitFrameMixin:UpdateTempMaxHealthLoss()
 		HEALTH_BAR_INSET
 	)
 
-	--- The same rectangle, snapped the same way. Only this bar's right edge is ever visible -- the health
-	--- bar covers the other three -- but it is the edge the loss reveals, and an unsnapped one there means
-	--- the frame's border changes thickness the moment a loss lands.
+	-- The same rectangle, snapped the same way. Only this bar's right edge is ever visible, but it is
+	-- the edge the loss reveals, and an unsnapped one changes the frame's border thickness the moment a
+	-- loss lands.
 	PixelUtil.SetPoint(self.tempMaxHealthLoss, "TOPLEFT", self, "TOPLEFT", HEALTH_BAR_INSET,
 		-HEALTH_BAR_INSET)
 	PixelUtil.SetPoint(self.tempMaxHealthLoss, "BOTTOMRIGHT", self, "BOTTOMRIGHT", -HEALTH_BAR_INSET,
@@ -534,16 +492,13 @@ function SpotlightsUnitFrameMixin:UpdateTempMaxHealthLoss()
 	self.tempMaxHealthLoss:SetShown(lost > 0)
 end
 
---- The frame's whole-frame fade: dead first, then out of range.
+--- The frame's whole-frame fade: dead first, then out of range. Both write `self`'s alpha, so they
+--- cannot be independent setters -- the last to run would win. Dead takes precedence.
 ---
---- Both fades write `self`'s alpha, so they cannot be two independent setters -- the last to run
---- would win. Resolved here into one write. Dead takes precedence: a dead player also out of range
---- reads as dead.
----
---- Death is safe to branch on because `UnitIsDead` is documented as never secret, unlike range, so
---- it can gate which fade runs. Both branches write through `SetAlphaFromBoolean`: range makes this
---- frame's Alpha aspect secret, and the two branches must not disagree about whether it is secret
---- from one call to the next. Never read GetAlpha() on a spotlight.
+--- `UnitIsDead` is documented as never secret, unlike range, so it can gate which fade runs. Both
+--- branches write through `SetAlphaFromBoolean`: range makes this frame's Alpha aspect secret, and the
+--- two must not disagree about whether it is secret from one call to the next. **Never read
+--- `GetAlpha()` on a spotlight.**
 function SpotlightsUnitFrameMixin:UpdateRangeAlpha()
 	local unit = self.displayedUnit
 
@@ -698,14 +653,12 @@ function SpotlightsUnitFrameMixin:RegisterGlobalEvents()
 	end
 end
 
---- Creates the bar UpdateAbsorb drives. Once per child, from InitChild.
+--- Creates the bar `UpdateAbsorb` drives, once per child from `InitChild`. The one region the template
+--- cannot declare, because it reads the health bar's orientation and fill direction at construction.
 ---
---- The one region the template cannot declare, because it has to read the health bar's orientation
---- and fill direction at construction time.
----
---- A StatusBar rather than the sized textures Blizzard's absorb overlay uses: those are positioned
---- by arithmetic on the absorb amount, which a secret value cannot be subjected to. This inherits
---- the health bar's scale and geometry, so UpdateAbsorb needs no maths.
+--- A StatusBar rather than the sized textures Blizzard's absorb overlay uses: those are positioned by
+--- arithmetic on the absorb amount, which a secret value cannot be subjected to. This inherits the
+--- health bar's scale and geometry, so `UpdateAbsorb` needs no maths.
 function SpotlightsUnitFrameMixin:CreateAbsorbBar()
 	if self.spotlightsAbsorbBar then
 		return
@@ -722,7 +675,7 @@ function SpotlightsUnitFrameMixin:CreateAbsorbBar()
 	absorbBar:SetOrientation(healthBar:GetOrientation())
 	absorbBar:SetReverseFill(healthBar:GetReverseFill())
 
-	-- A texture has to exist before SetTextureWithAddressModeOptions can point it at the atlas. Same
+	-- A texture has to exist before `SetTextureWithAddressModeOptions` can point it at the atlas. Same
 	-- call Blizzard makes for its own absorb fill, so it tiles the way the native shield does.
 	absorbBar:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
 
@@ -739,18 +692,16 @@ function SpotlightsUnitFrameMixin:CreateAbsorbBar()
 	self.spotlightsAbsorbBar = absorbBar
 end
 
---- Mirrors the header's secure `unit` assignment into plain Lua fields.
+--- Mirrors the header's secure `unit` assignment into plain Lua fields. Read rather than written,
+--- always: writing it back ourselves would taint a value Blizzard set cleanly, and is combat-blocked.
 ---
---- Read rather than written, always. The header assigns `unit` securely; writing it back ourselves
---- would taint a value Blizzard set cleanly, and is combat-blocked besides.
----
---- The early-out is load-bearing. configureChildren writes SetAttribute("unit", ...)
---- unconditionally with no compare-before-write, so every displayed child is rewritten on every
---- header update even when nothing changed.
+--- The early-out is load-bearing -- `configureChildren` writes `SetAttribute("unit", ...)`
+--- unconditionally with no compare-before-write, so every displayed child is rewritten on every header
+--- update even when nothing changed.
 ---@param value string? the new unit token, or nil when the child is released
 function SpotlightsUnitFrameMixin:OnUnitAttributeChanged(value)
-	-- Comparing the two is safe without an issecretvalue guard: SetAttribute is
-	-- AllowedWhenUntainted, so a secret can never become a frame attribute in the first place.
+	-- Comparing the two is safe without an `issecretvalue` guard: `SetAttribute` is AllowedWhenUntainted,
+	-- so a secret can never become a frame attribute in the first place.
 	local changed = value ~= self.unit
 
 	if not changed then

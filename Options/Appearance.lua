@@ -1,50 +1,39 @@
 ---@type string, Spotlights
 local _, Private = ...
 
---- The Appearance tab: what a spotlight looks like, under a *Frame / Name / Health* sub-tab strip
---- with a preview pane beside whichever sub-tab is open.
+--- The Appearance tab: what a spotlight looks like, under a *Frame / Name / Health* sub-tab strip with a
+--- preview pane beside whichever sub-tab is open.
 ---
---- Three pages rather than one column, because this is the largest settings group in the addon and its
---- three parts are edited one at a time -- nobody adjusts a font size and a bar texture in the same
---- sitting. The strip runs the full content width and the pane sits beside the pages rather than inside
---- each one, so switching sub-tabs moves the controls and leaves the preview where it was.
+--- The strip runs the full content width and the pane sits beside the pages rather than inside each one, so
+--- switching sub-tabs moves the controls and leaves the preview where it was.
 ---
---- One writer per *kind* of write rather than a closure per control -- see the getter and setter
---- factories below -- because two dozen fields are read and written identically and only a handful
---- need anything more than the plain pair.
+--- One writer per *kind* of write rather than a closure per control -- see the factories below -- because
+--- two dozen fields are read and written identically.
 
---- What the label column costs in a ~260px half of the left pane. Wider than General's 100 because
---- these labels are noun phrases -- `Out Of Range Alpha`, `Static Health Color` -- where that tab's
---- are single words, and a clipped label here would lose which of three colours a swatch is.
+--- Wider than General's 100 because these labels are noun phrases, and a clipped one here would lose which
+--- of three colours a swatch is.
 local COLUMN_LABEL_WIDTH = 120
 
 local FRAME_WIDTH_MIN, FRAME_WIDTH_MAX = 40, 300
 local FRAME_HEIGHT_MIN, FRAME_HEIGHT_MAX = 20, 200
 
---- Never fully transparent: a spotlight at zero opacity is indistinguishable from a bug, and the
---- floor is where one is still visible enough to be found and turned back up.
----
---- The step is what the value box shows, two decimals -- see `Controls`' `FRACTION_STEP`.
+--- Never fully transparent: a spotlight at zero opacity is indistinguishable from a bug, and the floor is
+--- where one is still visible enough to be turned back up. The step matches `Controls`' `FRACTION_STEP`.
 local ALPHA_MIN, ALPHA_MAX, ALPHA_STEP = 0.1, 1, 0.01
 
 local FONT_SIZE_MIN, FONT_SIZE_MAX = 6, 32
 local OFFSET_MIN, OFFSET_MAX = -100, 100
 
---- The pane, kept here so a setting can repaint it.
----
---- It is a sibling of the controls rather than one of their children, so nothing a control's own
---- `Refresh` reaches would ever redraw it -- the same problem the Grid tab's fill-order pane has, and
---- solved one step cheaper: that pane reads settings the controls beside it write, so a full
---- `Options.Refresh` is the honest answer there, while here only the preview has to be told.
+--- The pane, kept here because it is a sibling of the controls rather than one of their children, so
+--- nothing a control's own `Refresh` reaches would redraw it.
 ---@type SpotlightsPreviewPaneNode?
 local previewPane
 
 ---@return SpotlightsAppearanceConfig
 local function Appearance()
-	-- The defaults stand in only before `ADDON_LOADED`, when the panel cannot be open. Falling back to
-	-- them rather than to a literal per field means a control can never read a number this addon does
-	-- not actually ship with, and `Migration` repairs every missing field on load -- so past this
-	-- point every field below is present.
+	-- The defaults stand in only before `ADDON_LOADED`, when the panel cannot be open. Falling back to them
+	-- rather than to a literal per field means a control can never read a number this addon does not ship
+	-- with, and `Migration` repairs every missing field on load.
 	return Private.DB and Private.DB.appearance or Private.Migration.DefaultAppearance()
 end
 
@@ -55,10 +44,9 @@ end
 
 --- Brings every spotlight and every preview in line with the current appearance block.
 ---
---- One sweep, whichever field changed. Most appearance writes touch only one region, but a sweep of
---- the four updaters is cheap -- they re-read settings and repaint our own frames, no protected call
---- -- and a table mapping field to updater would duplicate knowledge the updaters already hold.
---- `UpdateTexture` ends in `UpdateHealthColor`, so the health colour rides along with it.
+--- One sweep whichever field changed: the four updaters re-read settings and repaint our own frames with no
+--- protected call, and a field-to-updater table would duplicate what they already know. `UpdateTexture`
+--- ends in `UpdateHealthColor`, so the health colour rides along with it.
 local function ApplyAppearance()
 	Private.SlotHeader.ForEachChild(function(child)
 		child:UpdateTexture()
@@ -67,8 +55,7 @@ local function ApplyAppearance()
 		child:UpdateRangeAlpha()
 	end)
 
-	-- Previews are not header children, so `ForEachChild` does not reach them -- and while the mover
-	-- is unlocked they are the only thing on screen out of a raid.
+	-- Previews are not header children, so `ForEachChild` does not reach them.
 	Private.Preview.Restyle()
 end
 
@@ -81,8 +68,7 @@ local function RefreshPreview()
 	end
 end
 
---- Reads one appearance field. A factory rather than a function per setting: every field on this tab
---- is read the same way, and a hand-written pair each would restate that two dozen times.
+--- Reads one appearance field.
 ---@param field string
 ---@return fun(): any
 local function Getter(field)
@@ -91,11 +77,8 @@ local function Getter(field)
 	end
 end
 
---- Writes one appearance field, then repaints whatever shows it.
----
---- Reaches for the database directly rather than through `Appearance` above, and refuses when there is
---- none: that fallback builds a *fresh* default table, so writing into it would be a setting the user
---- watched take effect and then lose.
+--- Writes one appearance field, then repaints whatever shows it. Reaches for the database directly and
+--- refuses when there is none, because `Appearance`'s fallback builds a *fresh* default table each call.
 ---@param field string
 ---@return fun(value: any)
 local function Setter(field)
@@ -113,10 +96,8 @@ local function Setter(field)
 	end
 end
 
---- Reads a colour stored as four numbered fields.
----
---- `<prefix>R/G/B/A` is how every colour in the appearance block is spelled -- fields rather than a
---- colour object, so a database written by one build reads on another without a metatable in the way.
+--- Reads a colour stored as four numbered fields. `<prefix>R/G/B/A` is how every colour in the appearance
+--- block is spelled -- plain fields, so a saved variable carries no metatable.
 ---@param prefix string
 ---@return fun(): number, number, number, number
 local function ColorGetter(prefix)
@@ -128,10 +109,8 @@ local function ColorGetter(prefix)
 	end
 end
 
---- Writes all four channels, then applies once.
----
---- A colour picker fires continuously while dragged, and four single-field writes per frame would
---- sweep the whole grid four times for one visual change.
+--- Writes all four channels, then applies once: a colour picker fires continuously while dragged, and four
+--- single-field writes would sweep the whole grid four times per frame.
 ---@param prefix string
 ---@return fun(r: number, g: number, b: number, a: number)
 local function ColorSetter(prefix)
@@ -152,12 +131,9 @@ local function ColorSetter(prefix)
 	end
 end
 
---- Writes a field another control's enablement is gated on, and refreshes the whole tab.
----
---- The gated control samples that value only in its own `Refresh`, so the plain setter would repaint the
---- frames and leave a just-disabled swatch looking clickable, or a hover-only toggle offering a setting
---- for a region that is not drawn. No relayout: a disabled control dims rather than hides, so nothing
---- moves.
+--- Writes a field another control's enablement is gated on, and refreshes the whole tab, since the gated
+--- control samples that value only in its own `Refresh`. No relayout is owed -- a disabled control dims
+--- rather than hides.
 ---@param field string
 ---@return fun(value: any)
 local function GatingSetter(field)
@@ -169,11 +145,9 @@ local function GatingSetter(field)
 	end
 end
 
---- Writes the name strata, which is the one field on this tab the appearance sweep cannot carry.
----
---- The name layer is parented to a secure unit button, so `SetFrameStrata` on it is a protected call
---- and goes through the deferral queue -- the panel refuses to open in combat, but this setter is also
---- what a reset ends up in.
+--- Writes the name strata, the one field on this tab the appearance sweep cannot carry: the name layer is
+--- parented to a secure unit button, so `SetFrameStrata` is a protected call and goes through the deferral
+--- queue.
 ---@param value string
 local function SetNameStrata(value)
 	local appearance = Private.DB and Private.DB.appearance
@@ -205,11 +179,8 @@ local function IsNameShown()
 	return Appearance().nameEnabled
 end
 
---- The strata list with `Inherit` at its head, built per call because the labels are localised and this
---- file loads before the localisation table is filled.
----
---- Labelled from `L.Settings.Strata` exactly as the General tab's Frame Strata dropdown is, so the two
---- cannot end up calling the same layer different things.
+--- The strata list with `Inherit` at its head, built per call because this file loads before the
+--- localisation table is filled. Labelled from `L.Settings.Strata`, as the General tab's dropdown is.
 ---@return { value: any, label: string }[]
 local function NameStrataChoices()
 	local L = Private.L.Settings
@@ -231,10 +202,9 @@ local function SizeGetter(field)
 	end
 end
 
---- The two size fields live on the layout block rather than the appearance one, since the container
---- places cells from them -- so they request a layout pass instead of an appearance sweep. Every drag
---- frame comes through here and the pass is deferred and keyed, so a drag costs one pass per frame
---- rather than one per event.
+--- The two size fields live on the layout block, since the container places cells from them, so they
+--- request a layout pass instead of an appearance sweep. The pass is deferred and keyed, so a drag costs
+--- one per frame rather than one per event.
 ---@param field "frameWidth" | "frameHeight"
 ---@return fun(value: number)
 local function SizeSetter(field)
@@ -331,13 +301,11 @@ local HEALTH_TEXT_FIELDS = {
 	"healthTextY",
 }
 
---- Writes a list of appearance fields back to their shipped defaults, then re-reads the whole tab --
---- the controls, and with them the pane and the swatches whose enablement a colour mode may just have
---- changed.
+--- Writes a list of appearance fields back to their shipped defaults, then re-reads the whole tab, since a
+--- restored colour mode changes which swatches are enabled.
 ---
---- `Private.Migration.DefaultAppearance` is the one source of those defaults, freshly built, so a
---- reset can never drift from what a new install ships. Fields are copied by name rather than the
---- block swapped wholesale, so a sub-tab's reset touches only its own.
+--- `Private.Migration.DefaultAppearance` is the one source of those defaults. Fields are copied by name
+--- rather than the block swapped wholesale, so a sub-tab's reset touches only its own.
 ---@param fields string[]
 local function ResetFields(fields)
 	local appearance = Private.DB and Private.DB.appearance
@@ -390,9 +358,8 @@ end
 local function BuildFrameSubTab(page)
 	local L = Private.L.Settings
 
-	--- A heading spans, so each group below starts back in the left column and an odd group leaves a
-	--- hole. Members are ordered so that hole falls at the group's end rather than in its middle: the
-	--- absorb checkbox ends the health bar group, the frame opacity ends the opacity one.
+	--- A heading spans, so each group starts back in the left column and an odd one leaves a hole. Members
+	--- are ordered so that hole falls at the group's end rather than in its middle.
 	return Private.Node.Grid(page, {
 		Private.Controls.SubHeading(page, L.GroupSize),
 
@@ -413,8 +380,7 @@ local function BuildFrameSubTab(page)
 		Private.Controls.ColorSwatch(page, L.HealthColor, ColorGetter("healthColor"),
 			ColorSetter("healthColor"), IsStaticColor("healthUseClassColor")),
 
-		-- The unfilled tail of the bar. Only meaningful in static mode -- class mode derives it -- so
-		-- it dims alongside the static bar colour above.
+		-- The unfilled tail of the bar, which class mode derives, so it dims with the static bar colour.
 		Private.Controls.ColorSwatch(page, L.HealthBgColor, ColorGetter("healthBgColor"),
 			ColorSetter("healthBgColor"), IsStaticColor("healthUseClassColor")),
 
@@ -468,14 +434,13 @@ local function BuildNameSubTab(page)
 		Private.Controls.Dropdown(page, L.NameAnchor, Private.Controls.AnchorChoices, Getter("namePoint"),
 			Setter("namePoint")),
 
-		--- Which layer the name is drawn in, rather than where on the frame it sits -- but it belongs
-		--- here for the same reason the anchor does: both answer "where does the name end up", and an
-		--- aura display over the name is a placement problem however it is solved.
+		--- Which layer rather than which point, but grouped with positioning: an aura display over the name
+		--- is a placement problem however it is solved.
 		Private.Controls.Dropdown(page, L.NameStrata, NameStrataChoices(), Getter("nameStrata"),
 			SetNameStrata),
 
-		-- Sliders rather than the kit's number pair, unlike the Grid tab's spacing: an offset is
-		-- dragged against what it moves, and the pane beside these is what it moves.
+		-- Sliders rather than the kit's number pair, unlike the Grid tab's spacing: an offset is dragged
+		-- against the pane beside it.
 		Private.Controls.Slider(page, L.NameOffsetX, OFFSET_MIN, OFFSET_MAX, 1, Getter("nameX"),
 			Setter("nameX")),
 		Private.Controls.Slider(page, L.NameOffsetY, OFFSET_MIN, OFFSET_MAX, 1, Getter("nameY"),

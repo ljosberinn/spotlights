@@ -1,27 +1,18 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/">
-	<!-- Ours from the ground up.
+	<!-- Ours from the ground up. **Do not inherit CompactUnitFrameTemplate**: it put every spotlight
+	     inside CompactUnitFrame.lua's shared module state, which taint.log named as the only place our
+	     taint crossed onto Blizzard's own raid frames. PingableUnitFrameTemplate and
+	     BasePrivateAuraBehaviorMixin are deliberately not inherited either. See
+	     docs/notes/UnitFrameTemplate.md.
 
-	     Inheriting CompactUnitFrameTemplate put every spotlight inside CompactUnitFrame.lua's
-	     shared module state, and taint.log named that file as the only place our taint crossed
-	     onto Blizzard's own raid frames: `frame.updateAllSetupFunc` at :437, and :2281-2284, where
-	     GetIconAnchor writes `self` into a module-level table shared by every CompactUnitFrame
-	     in the game before handing it to C_UnitAuras.AddPrivateAuraAnchor. We were only ever in
-	     that file because of the template.
+	     Script attributes take a *global* function name, which is why nothing of ours appears here:
+	     the only global this addon defines is the mixin table. SecureUnitButtonTemplate supplies
+	     OnClick -> SecureUnitButton_OnClick, which is what makes the *type1/*type2 attributes in
+	     SlotHeader.InitChild work.
 
-	     The two Blizzard scripts below are the only inherited behaviour left, and both come from
-	     Mainline/UnitFrame.lua rather than CompactUnitFrame.lua. Script attributes take a *global*
-	     function name, which is why nothing of ours appears here: the only global this addon
-	     defines is the mixin table.
-
-	     SecureUnitButtonTemplate supplies OnClick -> SecureUnitButton_OnClick, which is what
-	     makes the *type1/*type2 attributes in SlotHeader.InitChild work. Not inherited, and
-	     deliberately: PingableUnitFrameTemplate, whose receiver attribute we cleared by hand,
-	     and BasePrivateAuraBehaviorMixin, whose anchor path is one of the two taint sites.
-
-	     No frameStrata, deliberately: it used to declare LOW, which is a strata set once per frame
-	     at creation and never revisited. The strata is the container's now (position.strata), and
-	     inherited down through the slot header, so changing the setting restacks the spotlights
-	     already on screen instead of only the ones built afterwards. -->
+	     No frameStrata, deliberately: one declared here is set once per frame at creation and never
+	     revisited. The strata is the container's now (position.strata), inherited down through the slot
+	     header, so changing the setting restacks the spotlights already on screen. -->
 	<Button name="SpotlightsUnitFrameTemplate" inherits="SecureUnitButtonTemplate" mixin="SpotlightsUnitFrameMixin" virtual="true">
 		<Layers>
 			<Layer level="BACKGROUND">
@@ -29,16 +20,14 @@
 				<Texture parentKey="background" atlas="raidframe-hp-bg-white" hWrapMode="REPEAT" vWrapMode="REPEAT" setAllPoints="true"/>
 			</Layer>
 			<Layer level="OVERLAY">
-				<!-- OVERLAY rather than Blizzard's ARTWORK. The health bar is a child frame at the
+				<!-- OVERLAY rather than Blizzard's ARTWORK: the health bar is a child frame at the
 				     parent's frame level, so its fill texture and an ARTWORK FontString here would
-				     be a draw-order tie broken by creation order. One level up decides it outright.
+				     be a draw-order tie broken by creation order.
 
-				     Anchored to both edges so the name uses the full frame width. Blizzard's layout
-				     reserved space for a role icon we never display, which left the name visibly
-				     offset to the right of a gap; the second anchor is also what gives
-				     `wordwrap="false"` a width to truncate against. The offsets here are only what
-				     a frame shows before the appearance block lands: `NameStyle.ApplyLayout`
-				     re-anchors the name from `nameX`/`nameY`, which default to these. -->
+				     Anchored to both edges so the name uses the full frame width and
+				     `wordwrap="false"` has one to truncate against. These offsets are only what a
+				     frame shows before the appearance block lands: `NameStyle.ApplyLayout`
+				     re-anchors the name from `nameX`/`nameY`, which default to them. -->
 				<FontString parentKey="name" inherits="GameFontHighlightSmall" wordwrap="false" justifyH="LEFT">
 					<Anchors>
 						<Anchor point="TOPLEFT" x="3" y="-3"/>
@@ -52,20 +41,20 @@
 				</FontString>
 			</Layer>
 			<Layer level="OVERLAY" textureSubLevel="1">
-				<!-- Starts at alpha 0 rather than hidden. UpdateSelectionHighlight drives it with
+				<!-- Starts at alpha 0 rather than hidden: UpdateSelectionHighlight drives it with
 				     SetAlphaFromBoolean, because UnitIsUnit(unit, "target") may answer with a secret
-				     and SetShown rejects a secret bool outright. A texture that is never hidden and
-				     never shown has no state for a secret to leak through.
+				     and SetShown rejects one outright. A texture never hidden and never shown has no
+				     state for a secret to leak through.
 
-				     ignoreParentAlpha so the target outline stays fully opaque on a frame the
-				     range fade has dimmed. -->
+				     ignoreParentAlpha so the target outline stays opaque on a frame the range fade
+				     has dimmed. -->
 				<Texture parentKey="selectionHighlight" atlas="RaidFrame-TargetFrame" ignoreParentAlpha="true" setAllPoints="true" alpha="0"/>
 			</Layer>
 		</Layers>
 		<Frames>
-			<!-- Inset by one pixel on every side, which is what makes the background read as a
-			     border. The absorb overlay is created against this bar in Lua rather than declared
-			     here, because it has to mirror the bar's orientation and fill direction. -->
+			<!-- Inset by one pixel on every side, which is what makes the background read as a border.
+			     The absorb overlay is created against this bar in Lua because it has to mirror the
+			     bar's orientation and fill direction. -->
 			<StatusBar parentKey="healthBar" useParentLevel="true">
 				<BarTexture atlas="RaidFrame-Hp-Fill" hWrapMode="REPEAT" vWrapMode="REPEAT" horizTile="true" vertTile="true"/>
 				<Anchors>
@@ -73,13 +62,11 @@
 					<Anchor point="BOTTOMRIGHT" x="-1" y="1"/>
 				</Anchors>
 			</StatusBar>
-			<!-- The unusable tail of the health bar under a temporary maximum-health loss. Spans
-			     the same rectangle as the health bar and is revealed by pulling the health bar's
-			     right edge in, so the two never need to agree on a width.
-
-			     Reverse fill so the loss eats in from the right to meet that shortened edge, and
-			     a 0..1 scale because UpdateTempMaxHealthLoss drives this with a *fraction*: it
-			     shares the health bar's rectangle, not its scale. -->
+			<!-- The unusable tail of the health bar under a temporary maximum-health loss. Spans the
+			     same rectangle as the health bar and is revealed by pulling that bar's right edge in,
+			     so the two never need to agree on a width. Reverse fill so the loss eats in from the
+			     right to meet it, and a 0..1 scale because UpdateTempMaxHealthLoss drives this with a
+			     *fraction* rather than the health bar's own scale. -->
 			<StatusBar parentKey="tempMaxHealthLoss" hidden="true" drawLayer="ARTWORK" useParentLevel="true" fillStyle="Reverse" minValue="0" maxValue="1">
 				<BarTexture atlas="_RaidFrame-Resource-Fill" hWrapMode="REPEAT" vWrapMode="REPEAT" horizTile="true" vertTile="true"/>
 				<Anchors>
@@ -89,9 +76,9 @@
 			</StatusBar>
 		</Frames>
 		<Scripts>
-			<!-- Mainline/UnitFrame.lua:380-387. Both read `self.unit`, which the attribute mirror owns, and
-			     neither touches CompactUnitFrame. Declaring OnEnter and OnLeave here does not
-			     disturb the OnClick inherited from SecureUnitButtonTemplate. -->
+			<!-- Mainline/UnitFrame.lua:380-387. Both read `self.unit`, which the attribute mirror owns,
+			     and declaring them here does not disturb the OnClick inherited from
+			     SecureUnitButtonTemplate. -->
 			<OnEnter function="UnitFrame_OnEnter"/>
 			<OnLeave function="UnitFrame_OnLeave"/>
 		</Scripts>

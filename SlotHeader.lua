@@ -47,33 +47,25 @@ function Private.SlotHeader.ApplyAttributes(header, nameList, width, height)
 	SetAttributeIfChanged(header, "point", "TOPLEFT")
 	SetAttributeIfChanged(header, "initialConfigFunction", BuildInitialConfig(width, height))
 
-	-- The template brings `showRaid`; this is the other half of "any group we render for". The two do
-	-- not overlap -- GetGroupHeaderType tests the raid first (SecureGroupHeaders.lua:266-272), so a raid
-	-- is still a `RAID` header and only a party reaches the `PARTY` branch.
+	-- The template brings `showRaid`; this is the other half of "any group we render for", and the two do
+	-- not overlap because GetGroupHeaderType tests the raid first (SecureGroupHeaders.lua:266-272).
 	--
-	-- `showPlayer` and `showSolo` stay unset -- nil is falsy there -- which makes the party walk start
-	-- at index 1 rather than 0, so the player is never a spotlight, and leaves a solo player with no
-	-- kind at all.
+	-- `showPlayer` and `showSolo` stay unset, which starts the party walk at index 1 rather than 0 -- so the
+	-- player is never a spotlight -- and leaves a solo player with no kind at all.
 	SetAttributeIfChanged(header, "showParty", true)
 
-	-- No `auraContainerTemplate`, deliberately. The attribute makes SecureGroupHeaders.lua:111-112
-	-- build exactly **one** container per child, parented straight to the unit button -- wrong twice
-	-- over. Four independently positioned displays need four independently movable rectangles, and a
-	-- container's rect is the only transform above the aura button's access restriction, so they
-	-- cannot share one. And a container built here is built for every spotlight at header-creation
-	-- time, where `Private.Auras` builds one only for a switched-on display on a spotlight with a
-	-- unit.
+	-- No `auraContainerTemplate`, deliberately: it builds exactly one container per child at
+	-- header-creation time (SecureGroupHeaders.lua:111-112). Four independently positioned displays need
+	-- four rectangles, a container's rect being the only transform above the aura button's access
+	-- restriction, and `Private.Auras` builds one only for a switched-on display on an occupied spotlight.
 	SetAttributeIfChanged(header, "nameList", nameList or SENTINEL)
 end
 
 --- Pushes new child dimensions into a header. Out of combat only.
 ---
---- Only affects children created *after* this call -- initialConfigFunction runs once per child, at
---- creation. Existing children are resized by re-running ApplyChildConfig, which Layout does in the
---- same pass.
----
---- Kept separate from ApplyAttributes so a geometry change need not know the header's current
---- nameList to avoid clobbering it.
+--- Only affects children created *after* this call, since initialConfigFunction runs once per child;
+--- existing ones are resized by ApplyChildConfig, which Layout runs in the same pass. Kept separate from
+--- ApplyAttributes so a geometry change need not know the header's current nameList.
 ---@param header Frame
 ---@param width number
 ---@param height number
@@ -81,23 +73,19 @@ function Private.SlotHeader.ApplySize(header, width, height)
 	SetAttributeIfChanged(header, "initialConfigFunction", BuildInitialConfig(width, height))
 end
 
---- Resizes an existing child. Out of combat only, and safe to re-run.
----
---- initialConfigFunction sizes a child at creation and never runs again, so a width or height
---- change must reach existing children some other way -- which is all this is. Every region in the
---- template is anchored relatively, so nothing else needs telling the frame grew.
+--- Resizes an existing child, since initialConfigFunction never runs again after creation. Out of combat
+--- only, and safe to re-run.
 ---@param child SpotlightsUnitFrame
 function Private.SlotHeader.ApplyChildConfig(child)
 	local size = Private.FrameConfig.Get()
 
 	child:SetSize(size.frameWidth, size.frameHeight)
 
-	-- The one region whose anchor is computed rather than declared, so also the one a resize
-	-- invalidates.
+	-- The one region whose anchor is computed rather than declared, so also the one a resize invalidates.
 	child:UpdateTempMaxHealthLoss()
 
-	-- The other, one layer out. An aura bar is stored as a fraction of the spotlight, so its
-	-- anchor's rect is recomputed here or never -- the display is nested under a frozen aura button.
+	-- The other, one layer out: an aura bar is stored as a fraction of the spotlight, and its display is
+	-- nested under a frozen aura button, so the rect is recomputed here or never.
 	Private.Auras.ApplyChild(child)
 end
 
@@ -108,19 +96,14 @@ function Private.SlotHeader.InitChild(child)
 
 	child:CreateAbsorbBar()
 
-	--- The name's own frame. Created here rather than lazily because everything about it is a protected
-	--- call -- `SetAllPoints`, `SetFrameLevel` and `SetFrameStrata` on a child of a secure unit button --
-	--- and this is the one path guaranteed to be out of combat.
-	---
-	--- The strata is requested rather than applied inline: the sweep is keyed and idempotent, so a header
-	--- rebuild that initialises several children costs one pass, and a child created before the database
-	--- loaded still gets its strata on the next one.
+	--- Created here rather than lazily because every call on a child of a secure unit button is protected
+	--- and this path is guaranteed out of combat. The strata is requested rather than applied inline, so
+	--- several children cost one keyed pass and a child created before the database loaded still gets one.
 	Private.NameStyle.EnsureLayer(child)
 	Private.NameStyle.Request()
 
-	--- Hooked rather than set. `OnEnter` and `OnLeave` are wired to Blizzard globals in the template --
-	--- script attributes take global function names -- and `UnitFrame_OnEnter` is what puts the unit
-	--- tooltip up, so replacing them would trade the name setting for the tooltip.
+	--- Hooked rather than set: the template wires `OnEnter` to `UnitFrame_OnEnter`, which is what puts the
+	--- unit tooltip up, so replacing it would trade the name setting for the tooltip.
 	child:HookScript("OnEnter", function(self)
 		self.spotlightsHovered = true
 
@@ -136,26 +119,20 @@ function Private.SlotHeader.InitChild(child)
 	-- After CreateAbsorbBar, which is what there is to apply the showAbsorb setting to.
 	child:UpdateTexture()
 
-	-- Left-click target, right-click menu, wired by hand rather than through SecureUnitButton_OnLoad.
-	-- Two of the three attributes it sets are hazards here.
+	-- Wired by hand rather than through SecureUnitButton_OnLoad, two of whose three attributes are hazards.
 	--
-	-- `menu-function` is invoked as self:ExecuteAttribute("menu-function", ...)
-	-- (SecureTemplates.lua:262-266), running the stored function with the taint of whoever stored it.
-	-- Set from our code, every menu entry reaching a protected API fails (SetRaidTarget from the raid
-	-- marker submenu is the one users hit within seconds). `togglemenu` builds the same RAID_PLAYER
-	-- popup entirely inside SecureTemplates (:269-319) with no tainted value in the call.
+	-- `menu-function` runs the stored function with the taint of whoever stored it
+	-- (SecureTemplates.lua:262-266), so set from our code every menu entry reaching a protected API fails.
+	-- `togglemenu` builds the same RAID_PLAYER popup entirely inside SecureTemplates (:269-319).
 	--
-	-- `unit` is the header's to own. Writing it ourselves taints a value Blizzard assigned securely,
-	-- and configureChildren overwrites it on the next update anyway. Leaving it alone also keeps
-	-- click-casting addons working.
+	-- `unit` is the header's to own: writing it taints a value Blizzard assigned securely, and
+	-- configureChildren overwrites it on the next update anyway.
 	child:RegisterForClicks("AnyUp")
 	child:SetAttribute("*type1", "target")
 	child:SetAttribute("*type2", "togglemenu")
 
-	-- No UnregisterAllEvents needed. A frame from the old template arrived with **21 global events**
-	-- already registered by CompactUnitFrame_OnLoad, none with a reader once its OnEvent was
-	-- replaced, each putting our tainted Lua into a dispatch Blizzard's compact frames registered
-	-- for. Ours arrives with none.
+	-- No UnregisterAllEvents needed: ours arrives with none, where a CompactUnitFrame_OnLoad frame arrived
+	-- with 21 global registrations putting our tainted Lua into dispatches Blizzard's own frames share.
 	child:SetScript("OnEvent", child.OnEvent)
 	child:RegisterGlobalEvents()
 
@@ -181,9 +158,8 @@ end
 ---@param height number
 ---@return Frame
 local function CreateHeader(index, parent, nameList, width, height)
-	-- SecureRaidGroupHeaderTemplate is SecureGroupHeaderTemplate plus showRaid = true, which is one of
-	-- the two kinds we want; ApplyAttributes adds `showParty` for the other. Outside a group
-	-- GetGroupHeaderType returns no kind at all and the child hides itself, so solo needs no gating.
+	-- SecureRaidGroupHeaderTemplate is SecureGroupHeaderTemplate plus showRaid; ApplyAttributes adds
+	-- `showParty`. Outside a group GetGroupHeaderType returns no kind and the child hides itself.
 	local header = CreateFrame(
 		"Frame",
 		"SpotlightsSlotHeader" .. index,
@@ -201,16 +177,12 @@ local function CreateHeader(index, parent, nameList, width, height)
 	return header
 end
 
---- Initialises the header's child if it exists and has not been set up yet.
+--- Initialises the header's child if it exists and has not been set up yet. Idempotent, so safe to call on
+--- every build pass.
 ---
---- Creating a header while the container is hidden does **not** create a child: OnShow runs
---- SecureGroupHeader_Update, and a header inside a hidden container never fires it. So a spotlight
---- built while out of a group has no child1 at Create time; the child appears later when the state
---- driver shows the container -- by which point nothing would have applied the config, hidden the
---- unused regions, or installed the attribute mirror. The frame renders unstyled and `unit` is never
---- mirrored, which makes UnitFrame_UpdateTooltip pass nil to C_TooltipInfo.GetUnit.
----
---- Idempotent, so safe to call on every build pass.
+--- Creating a header while the container is hidden does **not** create a child, because the child is made
+--- by the OnShow that never fires. It appears later when the state driver shows the container, so without
+--- this pass the frame would render unstyled with `unit` never mirrored.
 ---@param header Frame
 ---@return boolean initialised
 function Private.SlotHeader.EnsureChild(header)
@@ -249,10 +221,8 @@ end
 
 --- The header for a slot index, created on first use. Out of combat only.
 ---
---- Geometry is deliberately *not* re-applied to an existing header. initialConfigFunction only runs
---- at child-creation time, so rewriting it later changes nothing about an existing child -- a resize
---- reaches the child through ApplyChildConfig instead. Writing it anyway would cost a full roster
---- scan per header for no effect.
+--- Geometry is deliberately *not* re-applied to an existing header: initialConfigFunction only runs at
+--- child-creation time, so rewriting it would cost a full roster scan per header for no effect.
 ---@param index integer
 ---@param width number
 ---@param height number
@@ -270,17 +240,12 @@ function Private.SlotHeader.Acquire(index, width, height)
 	return header
 end
 
---- The *cell* whose live spotlight is under the cursor, or nil.
----
---- A cell, not a slot: the pool is indexed by cell, and with `allowGaps` off a cell shows whichever
---- slot compaction put there. Callers acting on the model must pass this through
+--- The *cell* whose live spotlight is under the cursor, or nil. A cell, not a slot: with `allowGaps` off a
+--- cell shows whichever slot compaction put there, so callers acting on the model must pass this through
 --- `Private.Registry.SlotOfCell`.
 ---
---- A drop target while the grid shows real players. `Private.Preview` answers for empty cells, and
---- the two can never both answer: a preview is shown exactly when its cell's child is not visible.
----
---- Reads geometry and visibility off a protected frame, which is not a protected call -- nothing
---- here writes to a header or its child.
+--- `Private.Preview` answers for empty cells, and the two can never both answer. Reading geometry and
+--- visibility off a protected frame is not a protected call.
 ---@return integer? cell
 function Private.SlotHeader.CellUnderCursor()
 	for i = 1, #pool do
@@ -294,16 +259,12 @@ function Private.SlotHeader.CellUnderCursor()
 	return nil
 end
 
---- Runs `callback` over every initialised child in the pool. For changes that apply to every
---- spotlight at once, such as an option table the environment has invalidated.
+--- Runs `callback` over every initialised child in the pool, for changes that apply to every spotlight at
+--- once. The walk knows two things worth not duplicating: `child1` may be absent, and an uninitialised
+--- child must not be touched.
 ---
---- The cell index is passed alongside, for callers that must *name* the spotlight rather than only
---- act on it. It is the pool index and therefore the cell, not the slot -- with `allowGaps` off the
---- two differ, and a caller acting on the model must put it through `Private.Registry.SlotOfCell`.
----
---- Second argument rather than a second function, because the alternative is every such caller
---- rewriting this walk, which knows two things worth not duplicating: that `child1` may be absent
---- and that an uninitialised child must not be touched.
+--- The index passed alongside is the cell, not the slot -- with `allowGaps` off the two differ, and a
+--- caller acting on the model must put it through `Private.Registry.SlotOfCell`.
 ---@param callback fun(child: SpotlightsUnitFrame, cell: integer)
 function Private.SlotHeader.ForEachChild(callback)
 	for i = 1, #pool do

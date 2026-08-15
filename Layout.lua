@@ -9,9 +9,8 @@ local GrowX = Private.Enum.GrowX
 local GrowY = Private.Enum.GrowY
 local DeferralKey = Private.Enum.DeferralKey
 
---- Nil until the database has loaded, which a geometry pass fired at load can outrun. Every caller
---- early-outs on that rather than substituting defaults: a grid laid out against numbers the user
---- never chose would be visibly wrong for the frame before the real pass replaced it.
+--- Nil until the database has loaded, which a geometry pass fired at load can outrun. Callers early-out
+--- rather than substituting defaults, which would draw a grid the user never chose for one frame.
 ---@return SpotlightsLayoutConfig?
 local function Config()
 	return Private.DB and Private.DB.layout
@@ -22,14 +21,10 @@ function Private.Layout.GetConfig()
 	return Config()
 end
 
---- Cell coordinates for a slot index, 1-based in both axes.
+--- Cell coordinates for a slot index, 1-based in both axes. `stride` means columns when filling
+--- horizontally and rows when filling vertically, which is why it is not called "columns".
 ---
---- `stride` is the user's single control and means columns when filling horizontally, rows when
---- filling vertically -- which is why it cannot simply be called "columns".
----
---- Exported rather than kept local: the Grid tab's fill-order preview places the same indices the
---- same way, and a second copy of this arithmetic is exactly the kind of thing that drifts from the
---- original the first time either one changes.
+--- Exported because the Grid tab's fill-order preview places the same indices the same way.
 ---@param index integer
 ---@param config SpotlightsLayoutConfig
 ---@return integer row, integer column
@@ -45,8 +40,8 @@ function Private.Layout.CellOf(index, config)
 	return minor, major
 end
 
---- How many rows and columns a given number of cells occupies. Exported for the same reason as
---- `CellOf`: the fill-order preview's bounding box has to agree with the container's.
+--- How many rows and columns a given number of cells occupies. Exported so the fill-order preview's
+--- bounding box agrees with the container's.
 ---@param count integer
 ---@param config SpotlightsLayoutConfig
 ---@return integer rows, integer columns
@@ -65,11 +60,8 @@ function Private.Layout.Extent(count, config)
 	return across, full
 end
 
---- The frame point every header anchors by, derived from the growth directions.
----
---- Growth directions are not frame points; inverting them is the trick: growing *right* means
---- anchoring each cell's *left* edge, so the grid extends away from a corner that stays put. That
---- keeps the container's anchor stable when the slot count changes.
+--- The frame point every header anchors by. Growth directions are inverted to get there -- growing *right*
+--- means anchoring each cell's *left* edge -- so the grid extends away from a corner that stays put.
 ---@param config SpotlightsLayoutConfig
 ---@return string point
 local function AnchorPoint(config)
@@ -89,16 +81,12 @@ function Private.Layout.OffsetOf(index, config)
 	local x = (column - 1) * (config.frameWidth + config.spacingX)
 	local y = (row - 1) * (config.frameHeight + config.spacingY)
 
-	-- Signs follow the growth direction, since both offsets are measured from the anchor corner
-	-- rather than from the screen.
+	-- Signs follow the growth direction, since both offsets are measured from the anchor corner.
 	return config.growX == GrowX.Right and x or -x, config.growY == GrowY.Down and -y or y
 end
 
---- The container's size for a given slot count.
----
---- Computed from the **configured** count, never the currently-present one. A container that
---- resized as players came and went would move its own drag box mid-raid, and the container's
---- `SetClampedToScreen` needs a bounding box that means something.
+--- The container's size for a given slot count, from the **configured** count and never the present one: a
+--- container that resized as players came and went would move its own drag box mid-raid.
 ---@param count integer
 ---@param config SpotlightsLayoutConfig
 ---@return number width, number height
@@ -106,8 +94,8 @@ function Private.Layout.ContainerSize(count, config)
 	local rows, columns = Private.Layout.Extent(count, config)
 
 	if rows < 1 then
-		-- A zero-size frame is not a legal anchor target, and an empty grid still has to be
-		-- somewhere for the mover to find.
+		-- A zero-size frame is not a legal anchor target, and an empty grid still has to be somewhere for
+		-- the mover to find.
 		return config.frameWidth, config.frameHeight
 	end
 
@@ -115,21 +103,19 @@ function Private.Layout.ContainerSize(count, config)
 		rows * config.frameHeight + (rows - 1) * config.spacingY
 end
 
---- The child dimensions the Blizzard layout pass was last run with. Re-running that pass is the
---- expensive and taint-adjacent part of a geometry update, and only a dimension change requires it.
+--- The child dimensions the Blizzard layout pass was last run with; re-running it is the expensive,
+--- taint-adjacent part of a geometry update.
 local applied = { width = 0, height = 0 }
 
 --- Re-anchors and resizes one header. Out of combat only.
 ---
---- The Hide/Show dance is a hard requirement, not hygiene. Every attribute write on a *visible*
---- header synchronously runs SecureGroupHeader_Update, which re-anchors children with SetPoint and
---- **without ClearAllPoints first** (SecureGroupHeaders.lua:202-211) -- so a child accumulates its
---- old anchor alongside the new one and the grid cascades diagonally, recoverable only by /reload.
---- Hiding first means the update does not run.
+--- **The Hide/Show dance is a hard requirement.** Every attribute write on a *visible* header synchronously
+--- runs SecureGroupHeader_Update, which re-anchors children with SetPoint and without ClearAllPoints first
+--- (SecureGroupHeaders.lua:202-211), so a child accumulates anchors and the grid cascades diagonally until
+--- a /reload. Hiding first means the update does not run.
 ---
---- The previous shown state is captured and restored rather than assumed: Registry.Refresh has
---- already decided which headers should be visible, and geometry runs after it in DeferralOrder.
---- Unconditionally showing here would reveal every blank slot.
+--- The previous shown state is restored rather than assumed: Registry.Refresh has already decided which
+--- headers are visible, and geometry runs after it in DeferralOrder.
 ---@param header Frame
 ---@param index integer
 ---@param config SpotlightsLayoutConfig
@@ -152,10 +138,8 @@ local function PlaceHeader(header, index, config)
 	end
 end
 
---- Anchors and sizes every header, and resizes the children that already exist.
----
---- Out of combat only, and idempotent. Everything here is a protected call on a header or a resize
---- of a protected child, so there is no partial-application hazard beyond the re-check in the loop.
+--- Anchors and sizes every header, and resizes the children that already exist. Out of combat only, and
+--- idempotent, so the in-loop re-check can abandon a half-finished pass safely.
 local function ApplyGeometry()
 	if Private.Events.DeferIfInCombat(DeferralKey.Geometry) then
 		return
@@ -167,9 +151,8 @@ local function ApplyGeometry()
 		return
 	end
 
-	-- Pushes the new dimensions into the shared config *before* anything reads it. The header's
-	-- initialConfigFunction only sizes children created later, so existing children are resized by
-	-- re-running the config pass over them below, which reads this.
+	-- Pushed into the shared config *before* anything reads it: initialConfigFunction only sizes children
+	-- created later, so existing ones are resized by the pass below, which reads this.
 	Private.FrameConfig.Get(config.frameWidth, config.frameHeight)
 
 	local count = Private.SlotHeader.Count()
@@ -184,10 +167,8 @@ local function ApplyGeometry()
 		PlaceHeader(header, i, config)
 	end
 
-	-- Only when the size actually moved. Geometry is requested on every roster event and zone
-	-- change, while a dimension change is a rare deliberate act -- and anchoring a header does not
-	-- need this, because SetPoint moves the child with its parent. Only a dimension change has to
-	-- reach the children. What this now guards is a SetSize and an anchor.
+	-- Only when the size moved: geometry is requested on every roster event and zone change, while
+	-- re-anchoring a header already moves its child with it.
 	if applied.width ~= config.frameWidth or applied.height ~= config.frameHeight then
 		applied.width = config.frameWidth
 		applied.height = config.frameHeight
@@ -198,18 +179,12 @@ end
 
 --- Sizes the container and positions the preview frames. Out of combat only.
 ---
---- The container is protected despite being a plain frame we created. Protection is not only
---- inherited parent-to-child: anchoring or parenting a protected frame *to* an unprotected one
---- protects the target too, because moving it would move the protected frame. Every slot header is
---- parented and anchored to this container, so from the first header onwards `container:SetSize` is
---- a protected call. Measured, not deduced: `ADDON_ACTION_BLOCKED ... SpotlightsContainer:SetSize()`.
+--- The container is protected despite being a plain frame we created: anchoring a protected frame *to* an
+--- unprotected one protects the target too, so from the first header onwards `container:SetSize` is a
+--- protected call. See `Container.Get`.
 ---
---- Split from ApplyGeometry because it touches only frames of ours, and running after geometry
---- means the container is sized against headers that have already moved.
----
---- The guard also covers `Private.Container.Get()` below: a first-ever call creates the frame and
---- registers its state driver, and the SecureHandlers API errors outright in combat
---- (`SecureHandlers.lua:435`).
+--- The guard also covers `Private.Container.Get()` below: a first-ever call registers a state driver, and
+--- the SecureHandlers API errors outright in combat (`SecureHandlers.lua:435`).
 local function ApplyContainer()
 	if Private.Events.DeferIfInCombat(DeferralKey.Layout) then
 		return
@@ -233,8 +208,8 @@ local function ApplyContainer()
 
 		Private.Preview.Place(i, point, x, y, config, slots[i])
 
-		-- Beside it and with the same offsets, so an aura preview lands exactly where its display
-		-- will. It takes no slot: an aura display looks the same whoever is in the cell.
+		-- The same offsets, so an aura preview lands where its display will. It takes no slot: an aura
+		-- display looks the same whoever is in the cell.
 		Private.AuraPreview.Place(i, point, x, y, config)
 	end
 
@@ -245,12 +220,9 @@ end
 Private.Events.RegisterHandler(DeferralKey.Geometry, ApplyGeometry)
 Private.Events.RegisterHandler(DeferralKey.Layout, ApplyContainer)
 
---- Requests a full geometry, container and position pass.
----
---- Position is included rather than left to the drag, because the container's *size* decides
---- whether its saved position is still on screen. Adding a slot or widening a frame grows the
---- bounding box, and a grid already flush against an edge grows straight off it. Clamping is owed
---- to every geometry change, not only to a move.
+--- Requests a full geometry, container and position pass. Position is included because the container's
+--- *size* decides whether its saved position is still on screen, so clamping is owed to every geometry
+--- change and not only to a move.
 function Private.Layout.Request()
 	Private.Events.Request(DeferralKey.Geometry)
 	Private.Events.Request(DeferralKey.Layout)

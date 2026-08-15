@@ -7,10 +7,8 @@ Private.Migration = {}
 --- Bump this and add the matching step whenever the shape of SpotlightsSaved changes.
 Private.Migration.CurrentVersion = 4
 
---- The layout defaults.
----
---- A function rather than a shared table: handing the same table to two callers would alias one
---- user's settings onto another's.
+--- A function rather than a shared table: handing the same table to two callers would alias one user's
+--- settings onto another's.
 ---@return SpotlightsLayoutConfig
 local function DefaultLayout()
 	return {
@@ -30,23 +28,19 @@ local function DefaultLayout()
 		-- layout (like `allowGaps`) because it is a grid behaviour the Roster tab surfaces.
 		clearOnLeave = false,
 
-		-- Damage alone, because those are the players anyone spotlights: a full raid's tanks and healers
-		-- are twenty rows scrolled past on the way to them.
+		-- Damage alone, because those are the players anyone spotlights.
 		--
-		-- All three keys are written, and a deselected role is stored `false` rather than removed. `Filled`
-		-- recurses into a table default and fills whatever the stored one lacks, so a hole here would be
-		-- read as "missing" and come back at the default -- turning Damage back on every load for the user
-		-- who switched it off.
+		-- **All three keys are written**, and a deselected role is stored `false` rather than removed:
+		-- `Filled` recurses into a table default and fills whatever the stored one lacks, so a hole would
+		-- read as "missing" and come back at the default.
 		unrosteredRoles = {
 			TANK = false,
 			HEALER = false,
 			DAMAGER = true,
 		},
 
-		-- Every role off, on the grounds `clearOnLeave` ships off: this one discards slots the user
-		-- arranged, and a default that threw any of them away would be a setting nobody asked for.
-		--
-		-- All three keys written, as above, so the shape matches what the panel writes back.
+		-- Every role off, on `clearOnLeave`'s grounds: this discards slots the user arranged. All three
+		-- keys written, as above.
 		autoRemoveRoles = {
 			TANK = false,
 			HEALER = false,
@@ -55,16 +49,12 @@ local function DefaultLayout()
 	}
 end
 
---- Where the grid sits, as a **corner-relative point plus an offset** rather than raw coordinates.
+--- Where the grid sits, as a **corner-relative point plus an offset** rather than raw coordinates: the
+--- point is picked from which region of the screen the grid was dropped in, so a position stays in the
+--- same region across resolutions instead of drifting toward the middle.
 ---
---- The point is picked from which region of the screen the grid was dropped in, and the offset is
---- measured from that corner, so a position stays in the same *region* across resolutions instead of
---- drifting toward the middle.
----
---- `CENTER` is the default and the one point where both offsets are measured from the screen centre.
----
---- `scale` and `strata` were added later and ship at what the grid already did: unscaled, and the
---- `LOW` the unit frame template used to declare for itself.
+--- `scale` and `strata` ship at what the grid already did: unscaled, and the `LOW` the unit frame
+--- template used to declare for itself.
 ---@return SpotlightsPositionConfig
 local function DefaultPosition()
 	return {
@@ -78,19 +68,15 @@ end
 
 --- How a spotlight looks.
 ---
---- `barTexture` is a LibSharedMedia **key**, never a resolved path: the path a key maps to depends
---- on which addons are loaded, so storing the path breaks when a media pack is removed. Resolution
---- happens at apply time, in `Private.Media`.
+--- `barTexture` is a LibSharedMedia **key**, never a resolved path: what a key maps to depends on which
+--- addons are loaded, so a stored path breaks when a media pack is removed.
 ---
---- The colour and name fields arrived after the block did, reproducing the hardcoded look that
---- preceded them. Static
---- colours are stored even while class colour is on, so switching it off reveals a chosen colour
+--- Static colours are stored even while class colour is on, so switching it off reveals a chosen colour
 --- rather than a blank one. `healthBgColor` is the background shown through unfilled health, used only
---- in static mode; its default is the static bar colour at a fifth (what class mode derives).
+--- in static mode, and defaults to the static bar colour at a fifth (what class mode derives).
 ---
---- `nameEnabled`, `nameHoverOnly` and `nameStrata` need no version step: every one of them ships at
---- what a database written before them already behaved as, so `Repair` filling them in changes nothing
---- about how an existing profile renders.
+--- **The rule for every field added here since:** a new one ships at whatever a database written before
+--- it already behaved as, so `Repair` filling it in changes nothing and no version step is owed.
 ---@return SpotlightsAppearanceConfig
 local function DefaultAppearance()
 	return {
@@ -111,9 +97,8 @@ local function DefaultAppearance()
 		nameEnabled = true,
 		nameHoverOnly = false,
 
-		--- Not a strata but the absence of one: the name layer sets none of its own and inherits the
-		--- container's, which is how every spotlight has always drawn. Anything else would restack an
-		--- existing profile the first time it loaded a build that had this field.
+		-- Not a strata but the absence of one: the name layer sets none of its own and inherits the
+		-- container's, which is how every spotlight has always drawn.
 		nameStrata = Private.Enum.NameStrataInherit,
 
 		nameUseClassColor = false,
@@ -141,31 +126,28 @@ local function DefaultAppearance()
 	}
 end
 
---- Exposed so the options panel's per-section reset buttons can write these defaults back. Same
---- fresh-per-call tables the migration and repair use, so a reset cannot alias one build's defaults
---- onto another's.
+--- Exposed so the options panel's per-section reset buttons can write these defaults back. The same
+--- fresh-per-call tables, so a reset cannot alias one build's defaults onto another's.
 Private.Migration.DefaultLayout = DefaultLayout
 Private.Migration.DefaultAppearance = DefaultAppearance
 
---- LibSharedMedia's own name for the empty border, and therefore how "no border" is spelled.
----
---- A media key rather than a separate on/off setting, because LSM registers `None` as an empty path
---- and every border dropdown already offers it.
+--- A media key rather than a separate on/off setting, because LSM registers `None` as an empty path and
+--- every border dropdown already offers it.
 local BORDER_NONE = "None"
 
---- One aura display drawn as a duration bar.
+--- **Two rules govern every display default below, and are stated only here.**
 ---
---- The parameters are exactly the fields the feature defaults disagree on; everything else about a bar is
---- the same for both.
+--- A display that ships *disabled* needs no version step: `Repair` fills its block into a database
+--- written before it existed, and a display that is off changes nothing about how that profile renders.
 ---
---- The defaults reproduce the adjacent Prescience addon for the default 100x50 frame: 100px wide by
---- 25px high, pinned to the top left, gold at half alpha. The fixed height keeps the bar off the
---- player's name.
+--- Every field is present and defaulted even where the panel offers no control for it, because
+--- `SetSetting` silently refuses a write to a field the stored block lacks.
+
+--- One aura display drawn as a duration bar. The parameters are exactly the fields the feature defaults
+--- disagree on.
 ---
---- Width and height are independent pixel dimensions, like the icon display.
----
---- `texture` is a LibSharedMedia key like `appearance.barTexture`. `Solid` is LSM's name for
---- `Interface\Buttons\WHITE8X8`, which is what Prescience draws.
+--- Sized for the default 100x50 frame: full width, and a fixed 25px height that keeps the bar off the
+--- player's name. `Solid` is LSM's name for `Interface\Buttons\WHITE8X8`.
 ---@param enabled boolean
 ---@param point AnchorPoint
 ---@param r number
@@ -187,13 +169,10 @@ local function DefaultAuraBar(enabled, point, r, g, b, y)
 		x = 0,
 		y = y,
 
-		-- Horizontal, which needs no version step for the reason `enabled` and the square block do not:
-		-- it is what every bar written before this field already drew, so `Repair` filling it in changes
-		-- nothing about how an existing profile renders.
+		-- What every bar written before this field already drew.
 		orientation = Private.Enum.Orientation.Horizontal,
 
-		-- The widget default, and the same no-version-step argument the orientation above makes: a bar
-		-- written before this field drained toward the axis' start, which is what `false` draws.
+		-- The widget default: a bar written before this field drained toward the axis' start.
 		reverseFill = false,
 
 		showIcon = false,
@@ -207,8 +186,6 @@ local function DefaultAuraBar(enabled, point, r, g, b, y)
 	}
 end
 
---- One aura display drawn as a spell icon.
----
 --- Width and height are independent pixel dimensions, so icons can match non-square frame layouts.
 ---@param enabled boolean
 ---@param width number
@@ -223,10 +200,9 @@ local function DefaultAuraIcon(enabled, width, height)
 		showSwipe = true,
 		showText = true,
 
-		-- A LibSharedMedia **font** key, and a western one deliberately: `Fetch` answers with the
-		-- client's own default for a key it does not know, so a locale that registers different names
-		-- gets its correct font. Storing LSM's per-locale default would freeze one client's answer
-		-- into a database that syncs across accounts.
+		-- A LibSharedMedia **font** key, and a western one deliberately: `Fetch` answers with the client's
+		-- own default for a key it does not know, so a locale registering different names gets its correct
+		-- font. Storing LSM's per-locale default would freeze one client's answer into a synced database.
 		font = "Friz Quadrata TT",
 		fontSize = 16,
 
@@ -240,33 +216,17 @@ local function DefaultAuraIcon(enabled, width, height)
 		borderG = 0,
 		borderB = 0,
 
-		-- Opaque, and it has to be *present*: `SetSetting` refuses a field the stored block does not
-		-- already have, so an icon without this one silently drops every border-alpha write -- and the
-		-- colour picker reads it back as the opacity it opens at. `Repair` fills it into a database
-		-- written before it was here, which is why no version step is needed.
 		borderA = 1,
 	}
 end
 
---- One aura display drawn as a coloured block.
+--- One aura display drawn as a coloured block. 14px is the size the display exists for: too small for an
+--- icon's art to be read, large enough to be seen against a health bar. Anchored top right, the corner
+--- the bar and icon defaults leave free, so all three switched on at once do not land on each other.
 ---
---- **Ships disabled for every feature, without exception**, which is the whole of why it needs no
---- version step: `Repair` fills the block into a database written before it existed, and a display that
---- is off changes nothing about how that profile renders.
----
---- One `size` rather than a width and a height -- see `SpotlightsAuraSquareConfig`. 14px is the size the
---- display exists for: too small for an icon's art to be read, large enough to be seen against a health
---- bar. Anchored top right, which is the one free corner once the bar defaults have taken the top left
---- and the icon defaults the bottom right, so all three switched on at once do not land on each other.
----
---- The colour is the feature's own, matching its bar, so a user switching between the two displays gets
---- the same colour rather than a white block. No border by default: at this size a 4px edge is most of
---- the display.
----
---- The duration text ships **off** while the swipe ships on. A square is sized where two digits do not
---- fit, and the swipe is how it says "and this much is left" -- but the font fields are here and
---- populated, because they are build-time and a field the stored block lacks is a write `SetSetting`
---- silently refuses.
+--- The colour is the feature's own, matching its bar, so switching between the two displays gets the
+--- same colour rather than a white block. No border, because at this size a 4px edge is most of the
+--- display, and no duration text, because two digits do not fit.
 ---@param point AnchorPoint
 ---@param r number
 ---@param g number
@@ -296,19 +256,12 @@ local function DefaultAuraSquare(point, r, g, b)
 	}
 end
 
---- One aura display drawn as a bare countdown.
+--- One aura display drawn as a bare countdown. No size of its own -- the anchor's rect is derived from
+--- `fontSize`, see the `text` entry in `Auras.lua`'s `DISPLAYS`. Anchored bottom left, the corner the
+--- other three defaults leave free.
 ---
---- **Ships disabled for every feature, without exception**, which is why it needs no version step, exactly
---- as the square does not: `Repair` fills the block into a database written before it existed, and a
---- display that is off changes nothing about how that profile renders.
----
---- No size of its own -- the anchor's rect is derived from `fontSize`, see the `text` entry in `Auras.lua`'s
---- `DISPLAYS`. Anchored bottom left, the corner the other three defaults leave free, so all four switched
---- on at once do not land on each other.
----
---- The colour is the feature's own, matching its bar and its block, so two categories drawing bare numbers
---- at once are still told apart. 16px because the display is *only* the number: the square's 10px is sized
---- to fit inside a block, and this has no block to fit inside.
+--- The colour is the feature's own, so two categories drawing bare numbers at once are still told apart.
+--- 16px because the display is *only* the number, where the square's 10px fits inside a block.
 ---@param point AnchorPoint
 ---@param r number
 ---@param g number
@@ -327,8 +280,6 @@ local function DefaultAuraText(point, r, g, b)
 		x = 0,
 		y = 0,
 
-		-- No border by default, and the fields present even so: they are build-time, and `SetSetting`
-		-- silently refuses a write to a field the stored block lacks.
 		borderTexture = BORDER_NONE,
 		borderSize = 4,
 		borderR = 0,
@@ -338,19 +289,11 @@ local function DefaultAuraText(point, r, g, b)
 	}
 end
 
---- One aura display drawn as a colour over the spotlight's health bar.
+--- One aura display drawn as a colour over the spotlight's health bar. The colour is the feature's own,
+--- so two categories tinting the same bar are still told apart.
 ---
---- **Ships disabled for every feature, without exception**, which is why it needs no version step, as
---- the square and the bare countdown do not: `Repair` fills the block into a database written before it
---- existed, and a display that is off changes nothing about how that profile renders.
----
---- The colour is the feature's own, matching its bar, its block and its countdown, so two categories
---- tinting the same bar are still told apart.
----
---- `point`, `x`, `y` and the border fields are inherited and have nothing to place or edge: this
---- display's rect is the health bar's rather than an offset from the frame. Present and defaulted even
---- so, because a field the stored block lacks is a write `SetSetting` silently refuses, and the panel
---- offers no control for any of them.
+--- `point`, `x`, `y` and the border fields have nothing to place or edge here: this display's rect is
+--- the health bar's rather than an offset from the frame.
 ---@param r number
 ---@param g number
 ---@param b number
@@ -362,9 +305,9 @@ local function DefaultAuraFrameColor(r, g, b)
 		g = g,
 		b = b,
 
-		--- Opaque, because "pick a colour for the health bar" means the bar wearing that colour rather
-		--- than being washed toward it. It is the one setting on this display that drags live, so a user
-		--- who wants the class colour showing through has it to hand.
+		-- Opaque, because "pick a colour for the health bar" means the bar wearing that colour rather than
+		-- being washed toward it. The one setting here that drags live, so showing the class colour
+		-- through is to hand.
 		alpha = 1,
 
 		point = "CENTER",
@@ -379,20 +322,15 @@ local function DefaultAuraFrameColor(r, g, b)
 	}
 end
 
---- One feature's set of displays at their shipped values, all freshly built.
+--- One feature's set of displays at their shipped values, all freshly built, so a reset cannot alias one
+--- feature's block onto another's.
 ---
---- Which one starts on is per-feature: a duration bar is what Prescience wants; an icon with a swipe
---- is what Sense Power wants. Every bar ships anchored **top left**, which is the corner a bar sized
---- against a spotlight is measured from -- at `TOP` a bar narrower or wider than the frame stays
---- centred, so a width dragged to match the frame never lines up with it. Only one bar ships enabled,
---- so nothing overlaps out of the box; two switched on are told apart by their colours.
+--- Which display starts on is per-feature. Every bar ships anchored **top left**, the corner a bar sized
+--- against a spotlight is measured from: at `TOP` a bar narrower or wider than the frame stays centred,
+--- so a width dragged to match the frame never lines up with it.
 ---
---- Public and split out from `DefaultAuras` so the Reset button has one feature's defaults to write
---- back. Fresh tables every call, so a reset cannot alias one feature's block onto another's.
----
---- Every feature ships **enabled**, which is what makes the field free to add: `Repair` fills it into
---- a database written before it existed, and `true` is what those databases already behaved as. Which
---- displays a feature draws stays the per-display question it was.
+--- Every feature ships **enabled**, which is what made the field free to add: `true` is what a database
+--- written before it already behaved as.
 ---@param featureKey SpotlightsAuraFeatureKey
 ---@return SpotlightsAuraFeatureConfig
 function Private.Migration.DefaultAuraFeature(featureKey)
@@ -417,9 +355,8 @@ function Private.Migration.DefaultAuraFeature(featureKey)
 			bar = DefaultAuraBar(false, "TOPLEFT", 1, 1, 1, 0),
 			icon = DefaultAuraIcon(true, 25, 25),
 
-			-- Both stored like every other display's block even though a pooled feature draws icons only,
-			-- for the reason its bar block is: the shapes are identical on purpose, and a feature missing
-			-- one is a nil index in anything that walks the set.
+			-- Stored even though a pooled feature draws icons only: the shapes are identical on purpose,
+			-- and a feature missing one is a nil index in anything that walks the set.
 			square = DefaultAuraSquare("TOPRIGHT", 1, 1, 1),
 			text = DefaultAuraText("BOTTOMLEFT", 1, 1, 1),
 			frameColor = DefaultAuraFrameColor(1, 1, 1),
@@ -436,8 +373,6 @@ function Private.Migration.DefaultAuraFeature(featureKey)
 	}
 end
 
---- Every tracked aura, each with every display.
----
 --- Every feature carries a full set of displays even though it starts with most of them off: they are
 --- meant to be swappable, so the config a user turns *on* has to already exist.
 ---@return SpotlightsAurasConfig
@@ -449,9 +384,8 @@ local function DefaultAuras()
 		cooldownAuras = Private.Migration.DefaultAuraFeature("cooldownAuras"),
 		defensiveAuras = Private.Migration.DefaultAuraFeature("defensiveAuras"),
 
-		-- Both empty until the user touches something. `cooldowns` records only the built-ins turned
-		-- *off*, so an empty table means "every shipped cooldown is on" -- which is why nothing has to
-		-- reconcile this against the list in `Auras.lua` when that list grows.
+		-- `cooldowns` records only the built-ins turned *off*, so an empty table means "every shipped
+		-- cooldown is on" -- which is why nothing reconciles this against `Auras.lua` when that list grows.
 		cooldowns = {},
 		custom = {},
 		defensives = {},
@@ -459,13 +393,11 @@ local function DefaultAuras()
 	}
 end
 
---- One step per version, keyed by the version it *produces*. A step receives the database at
---- version n-1 and leaves it at version n; the runner writes `version` itself.
+--- One step per version, keyed by the version it *produces*. A step receives the database at version
+--- n-1 and leaves it at version n; the runner writes `version` itself.
 ---
---- Empty at version 1: there is nothing to migrate *to* the initial shape. The runner exists anyway,
---- because retrofitting versioning onto saved data already in the wild is the expensive mistake. The
---- steps for versions 2 through 10 were collapsed before release, since no wild database ever claimed
---- those versions. `Repair` still fills any field a fresh install's blocks would have.
+--- Empty at version 1, since there is nothing to migrate *to* the initial shape. The runner exists
+--- anyway, because retrofitting versioning onto saved data already in the wild is the expensive mistake.
 ---@type table<integer, fun(db: SpotlightsDB)>
 local steps = {
 	[2] = function(db)
@@ -505,15 +437,12 @@ local steps = {
 	end,
 }
 
---- Fills in every field `defaults` has and `target` lacks, returning what to store: `target` patched,
---- or `defaults` outright if `target` is not a table.
+--- Fills in every field `defaults` has and `target` lacks, returning `target` patched or `defaults`
+--- outright if `target` is not a table. Recursive because the aura block is two levels deep.
 ---
---- Recursive because the aura block is two levels deep where layout and appearance are flat: a
---- feature holds two displays and a display holds its fields.
----
---- A table default always recurses rather than being copied wholesale, so a database missing one
---- field of one display gains it and keeps the eleven around it. Every caller passes a freshly built
---- `defaults`, so nothing here can alias one block onto another.
+--- A table default always recurses rather than being copied wholesale, so a database missing one field
+--- of one display gains it and keeps the rest. Every caller passes a freshly built `defaults`, so
+--- nothing here can alias one block onto another.
 ---@generic T: table
 ---@param target any
 ---@param defaults T
@@ -536,13 +465,10 @@ end
 
 --- Fills in any field a settings block is missing, replacing the block outright if it is not a table.
 ---
---- Separate from the migration and run on every load, because they answer different questions. The
---- migration handles *known* shape changes between versions; this handles a database that is nominally
---- current but damaged -- hand-edited SavedVariables, a partial write, or a field added without a
---- version bump. A nil where a number is expected becomes arithmetic on nil deep in the layout maths.
----
---- Field-by-field is right for layout and appearance because each field stands alone. Position is the
---- exception and gets its own repair below.
+--- Separate from the migration and run on every load, because they answer different questions: the
+--- migration handles *known* shape changes between versions, this handles a database that is nominally
+--- current but damaged. A nil where a number is expected becomes arithmetic on nil deep in the layout
+--- maths.
 ---@param db SpotlightsDB
 ---@param key "layout" | "appearance" | "auras" | "minimap" | "presets"
 ---@param build fun(): table
@@ -550,15 +476,12 @@ local function RepairBlock(db, key, build)
 	db[key] = Filled(db[key], build())
 end
 
---- Fills in a missing or damaged position block, for the same reasons RepairBlock exists.
----
---- Stricter than RepairBlock's field-by-field fill: *where* the grid sits is only meaningful as a
+--- Stricter than `RepairBlock`'s field-by-field fill: *where* the grid sits is only meaningful as a
 --- whole, so a partial anchor is replaced rather than patched. `point` is validated against the set
---- CalcPoint can produce, because SetPoint errors outright on an unrecognised one.
+--- `CalcPoint` can produce, because `SetPoint` errors outright on an unrecognised one.
 ---
---- Scale and strata are the exception and are repaired field by field, because neither is part of
---- that anchor: a database written before they existed has a perfectly good position, and throwing
---- it away over a field it could not have had would move the user's grid on first login.
+--- Scale and strata are repaired field by field, because neither is part of that anchor: throwing away a
+--- good position over a field it could not have had would move the user's grid on first login.
 ---@param db SpotlightsDB
 local function RepairPosition(db)
 	local position = db.position
@@ -587,14 +510,10 @@ local function RepairPosition(db)
 	end
 end
 
---- Validates the one appearance field a field-by-field fill cannot repair.
----
---- `RepairBlock` only replaces nils, and a nil is not the failure mode here: `SetFrameStrata` errors
---- outright on a name it does not know and takes the pass with it, so a hand-edited `nameStrata` has to
---- be checked against the value space rather than merely for presence. The same check `RepairPosition`
---- gives `position.strata`, and separate from it for the same reason it is separate there.
----
---- Runs after `RepairBlock` has guaranteed the block is a table.
+--- Validates the one appearance field a field-by-field fill cannot repair. `RepairBlock` only replaces
+--- nils, and a nil is not the failure mode here: `SetFrameStrata` errors outright on a name it does not
+--- know and takes the pass with it, so `nameStrata` is checked against the value space rather than for
+--- presence. Runs after `RepairBlock` has guaranteed the block is a table.
 ---@param db SpotlightsDB
 local function RepairNameStrata(db)
 	local appearance = db.appearance
@@ -605,12 +524,10 @@ local function RepairNameStrata(db)
 	end
 end
 
---- Every repair, in one call, so no caller has to remember the set.
----
---- Adding a settings block means adding it here as well as to CreateDefault and a migration step.
---- Three places, but they answer three different questions -- what a new database contains, what an
---- old one gains, what a damaged one gets back -- and collapsing them would mean a migration that
---- silently repairs, which is how a schema bug becomes undetectable.
+--- Every repair, in one call. Adding a settings block means adding it here as well as to `CreateDefault`
+--- and a migration step: three places, answering what a new database contains, what an old one gains and
+--- what a damaged one gets back. Collapsing them would mean a migration that silently repairs, which is
+--- how a schema bug becomes undetectable.
 ---@param db SpotlightsDB
 local function Repair(db)
 	RepairBlock(db, "layout", DefaultLayout)
@@ -622,9 +539,8 @@ local function Repair(db)
 		return { hide = false }
 	end)
 
-	--- Empty defaults, so this only ever replaces a `presets` that is not a table: the block is a
-	--- library the user filled rather than a set of fields we ship, and there is no such thing as a
-	--- preset missing from it.
+	-- Empty defaults, so this only ever replaces a `presets` that is not a table: the block is a library
+	-- the user filled, and there is no such thing as a preset missing from it.
 	RepairBlock(db, "presets", function()
 		return {}
 	end)
@@ -644,11 +560,9 @@ local function CreateDefault()
 	}
 end
 
---- Brings saved data up to CurrentVersion, replacing it when it is unusable.
----
---- Data from a *newer* version is left untouched and reported rather than downgraded: the user has
---- run a later build on this account, and quietly rewriting their slots to fit an older schema
---- destroys data no reload brings back.
+--- Brings saved data up to `CurrentVersion`, replacing it when it is unusable. Data from a *newer*
+--- version is left untouched and reported rather than downgraded: quietly rewriting a user's slots to
+--- fit an older schema destroys data no reload brings back.
 ---@param saved SpotlightsDB?
 ---@return SpotlightsDB db, boolean fresh
 function Private.Migration.Run(saved)

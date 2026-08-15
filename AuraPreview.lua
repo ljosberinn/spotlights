@@ -6,33 +6,28 @@ Private.AuraPreview = {}
 
 --- Fake aura displays, one set per configured cell, shown while the Auras tab is open.
 ---
---- This file owns cells and lifetimes only. What a display looks like lives in `Private.Auras`,
---- which hands back records built by the same `Create` the live path uses and restyles them with
---- the same `Style`/`ApplyAnchor`.
+--- This file owns cells and lifetimes only; what a display looks like lives in `Private.Auras`, which
+--- builds these with the same `Create` and restyles them with the same `Style`/`ApplyAnchor` as the live
+--- path.
 ---
---- Why a preview is needed: half the aura settings cannot reach a live display -- the button is
---- access-restricted the moment it is drawn, so a texture or colour change waits out a debounce and
---- then leaks the frames it replaces. Here nothing is registered or restricted, so every setting
---- applies instantly.
+--- They are needed because half the aura settings cannot reach a live display: the button is
+--- access-restricted the moment it is drawn, so a texture or colour change waits out a debounce and then
+--- leaks the frames it replaces. Nothing here is registered or restricted.
 ---
---- Parented to the mover's rectangle, like the player previews (`Private.Mover.GetOverlay`): the
---- only frame both unprotected and grid-aligned, so these inherit correct positioning and their
---- whole lifetime from it. `Mover.Sync` also keeps it one strata above the configured grid strata,
---- so a preview sits on top of a live spotlight -- in a raid the real frames are the backdrop to
---- style against.
+--- Parented to the mover's rectangle like the player previews (`Private.Mover.GetOverlay`), which
+--- `Mover.Sync` keeps one strata above the configured grid strata, so a preview sits on top of a live
+--- spotlight rather than behind it.
 
 local shown = false
 
---- One host frame per cell, each holding a full set of preview displays. Never destroyed, because
---- frames cannot be.
+--- One host frame per cell, each holding a full set of preview displays. Never destroyed, because frames
+--- cannot be.
 ---@type table<integer, { host: Frame, previews: SpotlightsAuraPreview[] }>
 local cells = {}
 
---- The host for one cell, created on first use.
----
---- A frame of its own rather than anchoring displays straight to the overlay, so one `SetShown`
---- covers a cell's whole set and the displays can reuse the anchor arithmetic they use against a
---- spotlight. The host *is* the spotlight as far as they are concerned.
+--- The host for one cell, created on first use. A frame of its own rather than anchoring displays straight
+--- to the overlay, so one `SetShown` covers a cell's whole set and the displays reuse the anchor arithmetic
+--- they use against a spotlight -- the host *is* the spotlight as far as they are concerned.
 ---@param index integer
 ---@return { host: Frame, previews: SpotlightsAuraPreview[] }
 local function Acquire(index)
@@ -50,23 +45,19 @@ local function Acquire(index)
 	return cell
 end
 
---- Positions and restyles one cell's previews, and decides whether they belong on screen.
+--- Positions and restyles one cell's previews, and decides whether they belong on screen. Called from
+--- `Layout.ApplyContainer` with the same offsets `Preview.Place` gets.
 ---
---- Called from `Layout.ApplyContainer` beside `Preview.Place`, with the same cell offsets -- so a
---- preview lands exactly where its display will.
----
---- Unlike a player preview, this is shown whether or not the cell holds a live spotlight: a player
---- preview behind a real frame would show through and read as a rendering fault, but an aura
---- preview over one is the point.
+--- Unlike a player preview, shown whether or not the cell holds a live spotlight: an aura preview over a
+--- real frame is the point.
 ---@param index integer
 ---@param point AnchorPoint
 ---@param x number
 ---@param y number
 ---@param config SpotlightsLayoutConfig
 function Private.AuraPreview.Place(index, point, x, y, config)
-	-- Nothing is created until the tab is first opened. `ApplyContainer` runs on every roster event
-	-- and zone change, so building a grid's worth of frames here unconditionally would cost them
-	-- from login for a feature most sessions never touch.
+	-- Nothing is created until the tab is first opened: `ApplyContainer` runs on every roster event and zone
+	-- change, so building unconditionally would cost a grid's worth of frames from login.
 	if not shown then
 		local existing = cells[index]
 
@@ -98,11 +89,9 @@ function Private.AuraPreview.HideFrom(first)
 	end
 end
 
---- Re-runs the placement pass, so live previews pick up a changed aura setting.
----
---- Routed through the layout pass rather than looping cells here (see `Private.Preview.Restyle`):
---- `ApplyContainer` already holds each cell's offsets and frame size. A no-op when nothing is
---- previewed, so the options frame can call it after every aura write without checking.
+--- Re-runs the placement pass, so live previews pick up a changed aura setting. Routed through the layout
+--- pass rather than looping cells here (see `Private.Preview.Restyle`), and a no-op when nothing is
+--- previewed.
 function Private.AuraPreview.Restyle()
 	if not shown then
 		return
@@ -111,10 +100,8 @@ function Private.AuraPreview.Restyle()
 	Private.Events.Request(Private.Enum.DeferralKey.Layout)
 end
 
---- Rebuilds preview records after a specialization changes which aura features are active.
----
---- Frames cannot be destroyed, so the old records are hidden and replaced with new records under the
---- existing cell hosts. This is only used for the rare specialization transition, not normal styling.
+--- Rebuilds preview records after a specialization changes which aura features are active. Frames cannot be
+--- destroyed, so the old records are hidden and replaced under the existing cell hosts.
 function Private.AuraPreview.Rebuild()
 	for _, cell in pairs(cells) do
 		for i = 1, #cell.previews do
@@ -144,9 +131,8 @@ function Private.AuraPreview.SetShown(value)
 	Private.Mover.SetPreviewingAuras(value)
 
 	if value then
-		-- The full request rather than the Layout key alone (see `Private.Preview`): these are
-		-- anchored to the overlay, which `Mover.Sync` aligns to the container in the Position pass,
-		-- after Layout has sized the container.
+		-- The full request rather than the Layout key alone (see `Private.Preview`): these anchor to the
+		-- overlay, which `Mover.Sync` aligns in the Position pass.
 		Private.Layout.Request()
 	end
 end
