@@ -38,6 +38,50 @@ function Private.Registry.SlotOf(guid)
 	return nil
 end
 
+--- A kind rather than a boolean because one set of slots serves both party and raid, and the two are
+--- different lists in practice -- so converting between them is a leave as much as disbanding is.
+---@return "none"|"party"|"raid"
+local function GroupKind()
+	if IsInRaid() then
+		return "raid"
+	end
+
+	if IsInGroup() then
+		return "party"
+	end
+
+	return "none"
+end
+
+--- Checked on both keys because either can be the only one we have: an offline-assigned slot has a name
+--- and no GUID, and two headers with the same `nameList` would silently show the same person twice.
+---@param guid string?
+---@param name string?
+---@return integer? index
+local function FindOccupant(guid, name)
+	local slots = Slots()
+
+	if not slots then
+		return nil
+	end
+
+	for i = 1, #slots do
+		local slot = slots[i]
+
+		if slot.kind == "player" then
+			if guid and slot.guid == guid then
+				return i
+			end
+
+			if name and slot.name == name then
+				return i
+			end
+		end
+	end
+
+	return nil
+end
+
 --- Resolves the name when the slot carries no GUID, because `SelfHeal` fills those in a deferral later
 --- than the callers here run: a slot configured while its player was away would otherwise read as
 --- roleless for one more event after they turned up.
@@ -88,6 +132,160 @@ local function AutoRemoveRoles()
 	return removed
 end
 
+--- Who the auto-add sweep has already offered, so a member taken back out by hand stays out.
+---
+--- **Not persisted**: a reload re-offers everyone, which beats a saved variable growing GUIDs that mean
+--- nothing a minute later.
+---@type table<string, boolean>
+local autoAdded = {}
+
+--- Appends every party damage dealer who is not in the grid, once each.
+---
+--- **On arrival, not on every pass**, which is the whole difference from `AutoRemoveRoles`: a removal sweep
+--- that keeps removing leaves the Remove button meaningful, while an addition sweep that keeps adding makes
+--- it a button that undoes itself. So `autoAdded` records who has been offered, and someone taken back out
+--- by hand is not offered again.
+---
+--- Party only. A raid's damage dealers are fifteen to twenty people, which is not a grid anyone wants built
+--- for them, and presets exist for raids. The player is never added because the party scan walks
+--- `GetNumSubgroupMembers`, which excludes index 0.
+---
+--- A member with no role assigned is never added, on `AutoRemoveRoles`' grounds: absent information is not
+--- evidence. In a party formed by invite this setting therefore does nothing until someone runs a role
+--- check, which fires `PLAYER_ROLES_ASSIGNED` and is taken below.
+---
+--- Appends directly rather than going through `AssignByGuid`, which applies once per member: filling a
+--- party would otherwise schedule four deferral passes and four geometry requests instead of the one
+--- `Apply` runs around this.
+---@return boolean added
+local function AutoAddPartyDamagers()
+	local slots = Slots()
+	local layout = Private.Layout.GetConfig()
+
+	if not slots or not layout or not layout.autoAddPartyDamagers or GroupKind() ~= "party" then
+		return false
+	end
+
+	local roster = Private.Roster.List()
+
+	---@type table<string, boolean>
+	local present = {}
+
+	for i = 1, #roster do
+		present[roster[i].guid] = true
+	end
+
+	-- Pruned against the current group, so someone who leaves and rejoins is offered again. `pairs` is legal
+	-- because every GUID in here came from the roster, which drops the secret ones.
+	for guid in pairs(autoAdded) do
+		if not present[guid] then
+			autoAdded[guid] = nil
+		end
+	end
+
+	local removedRoles = layout.autoRemoveRoles
+	local added = false
+
+	for i = 1, #roster do
+		local member = roster[i]
+
+		if not autoAdded[member.guid] and Private.Roster.GetRole(member.guid) == "DAMAGER" then
+			-- Skipped outright when the role is also set to be auto-removed, rather than added and swept back
+			-- out: the pairing would churn the slot list on every roster event.
+			if not (removedRoles and removedRoles.DAMAGER) and not FindOccupant(member.guid, member.name) then
+				slots[#slots + 1] = { kind = "player", guid = member.guid, name = member.name }
+				autoAdded[member.guid] = true
+
+				added = true
+			end
+		end
+	end
+
+	return added
+end
+
+--- Who the favourites sweep has already offered, on `autoAdded`'s grounds and not persisted for its reasons.
+---
+--- **A second set rather than a shared one.** `EnforceAutoAddPartyDamagers` wipes `autoAdded` when its
+--- checkbox is unticked, which must not re-offer every favourite the user has taken back out.
+---@type table<string, boolean>
+local favoritesHandled = {}
+
+--- Appends every starred player in the group who is not in the grid, once each.
+---
+--- **Party and raid alike.** The count argument that keeps `AutoAddPartyDamagers` out of raids does not
+--- apply to a named person, and solo the roster is empty.
+---
+--- Two filters gate the add, and they are not symmetrical. `autoRemoveRoles` is a veto for
+--- `AutoAddPartyDamagers`' reason -- adding and sweeping back out would churn the slot list on every roster
+--- event. `unrosteredRoles` gates too, so a favourite the Unrostered pane does not offer is not quietly
+--- added behind it; this is the one path that reads that filter as more than a display filter.
+---
+--- **A nil role blocks neither**, matching `Roster.Offers`: role is a veto here rather than the selection
+--- criterion it is for `AutoAddPartyDamagers`, so absent information excludes nobody.
+---
+--- Appends directly rather than through `AssignByGuid`, which applies once per member.
+---@return boolean added
+local function Favorites()
+	local slots = Slots()
+	local favorites = Private.DB and Private.DB.favorites
+	local layout = Private.Layout.GetConfig()
+
+	if not slots or not favorites or not layout then
+		return false
+	end
+
+	local roster = Private.Roster.List()
+
+	---@type table<string, boolean>
+	local present = {}
+
+	for i = 1, #roster do
+		present[roster[i].guid] = true
+	end
+
+	-- Pruned against the current group, so someone who leaves and rejoins is offered again.
+	for guid in pairs(favoritesHandled) do
+		if not present[guid] then
+			favoritesHandled[guid] = nil
+		end
+	end
+
+	local removedRoles = layout.autoRemoveRoles
+	local added = false
+
+	for i = 1, #roster do
+		local member = roster[i]
+		local guid = member.guid
+
+		if favorites[guid] and not favoritesHandled[guid] then
+			local role = Private.Roster.GetRole(guid)
+
+			if
+				Private.Roster.Offers(layout.unrosteredRoles, role)
+				and not (role and removedRoles and removedRoles[role])
+			then
+				-- Refreshed while we have the roster's own spelling, so a rename or a realm transfer since the
+				-- star does not leave the slash command listing a name nobody answers to.
+				favorites[guid] = member.name
+
+				-- Marked whether or not we are the one who put them there, unlike `AutoAddPartyDamagers`: a
+				-- favourite already in the grid has had what the star asks for, so taking them out by hand
+				-- has to stick, and a preset applied over them must not be re-polluted.
+				favoritesHandled[guid] = true
+
+				if not FindOccupant(guid, member.name) then
+					slots[#slots + 1] = { kind = "player", guid = guid, name = member.name }
+
+					added = true
+				end
+			end
+		end
+	end
+
+	return added
+end
+
 --- Schedules the model onto the headers. Both keys, always: `Build` creates or grows the pool, `Refresh`
 --- applies the model to it, and `DeferralOrder` guarantees that sequence within one pass.
 ---
@@ -96,13 +294,16 @@ end
 --- plain table write and always legal; the guard belongs in `Build` and `Refresh`, where the restricted
 --- calls are.
 ---
---- The role removal runs here because every mutation in this file ends here, and it never calls back
---- into `Apply`, so no recursion follows.
+--- The role removal and the two additions run here because every mutation in this file ends here, and none
+--- of them calls back into `Apply`, so no recursion follows. Removal first, so it cannot interleave with
+--- either; favourites before the party sweep, so a named person takes the lower slot.
 ---
 --- The cost of deferring is that the model and the frames can disagree for the length of a pull, which
 --- is why the slash commands say so and `/spotlights list` reads the model.
 local function Apply()
 	AutoRemoveRoles()
+	Favorites()
+	AutoAddPartyDamagers()
 
 	Private.Events.Request(DeferralKey.Build)
 	Private.Events.Request(DeferralKey.Registry)
@@ -110,35 +311,6 @@ local function Apply()
 	-- Geometry follows registry in DeferralOrder, so a slot added here is anchored in the same pass
 	-- it is created rather than on the next unrelated event.
 	Private.Layout.Request()
-end
-
---- Checked on both keys because either can be the only one we have: an offline-assigned slot has a name
---- and no GUID, and two headers with the same `nameList` would silently show the same person twice.
----@param guid string?
----@param name string?
----@return integer? index
-local function FindOccupant(guid, name)
-	local slots = Slots()
-
-	if not slots then
-		return nil
-	end
-
-	for i = 1, #slots do
-		local slot = slots[i]
-
-		if slot.kind == "player" then
-			if guid and slot.guid == guid then
-				return i
-			end
-
-			if name and slot.name == name then
-				return i
-			end
-		end
-	end
-
-	return nil
 end
 
 local containerHooked = false
@@ -624,23 +796,6 @@ end
 Private.Events.RegisterHandler(DeferralKey.Build, Build)
 Private.Events.RegisterHandler(DeferralKey.Registry, Refresh)
 
---- Which kind of group the player was in the last time the roster changed.
----
---- A kind rather than a boolean because one set of slots serves both party and raid, and the two are
---- different lists in practice -- so converting between them is a leave as much as disbanding is.
----@return "none"|"party"|"raid"
-local function GroupKind()
-	if IsInRaid() then
-		return "raid"
-	end
-
-	if IsInGroup() then
-		return "party"
-	end
-
-	return "none"
-end
-
 --- **A remembered edge rather than a live test of `GroupKind`**, which is what makes the setting safe: a
 --- bare "not in a group, so clear" would fire on the `PLAYER_ENTERING_WORLD` below and wipe the user's
 --- entire configuration on every login, reload and reconnect.
@@ -668,6 +823,11 @@ local function ClearOnLeave()
 		return false
 	end
 
+	-- Whatever the clear setting says: the group the two add sweeps filled for is over, so re-enter one and
+	-- they fill again.
+	table.wipe(autoAdded)
+	table.wipe(favoritesHandled)
+
 	local layout = Private.Layout.GetConfig()
 	local slots = Slots()
 
@@ -694,15 +854,62 @@ function Private.Registry.EnforceAutoRemoveRoles()
 	return true
 end
 
+--- Runs the auto-add sweep for a caller that just changed the setting, so ticking it fills the grid on
+--- screen rather than at the next roster event.
+---
+--- Turning it off forgets who has been offered, so ticking it again fills from scratch rather than
+--- remembering a party the user has since stopped caring about.
+---@return boolean added
+function Private.Registry.EnforceAutoAddPartyDamagers()
+	local layout = Private.Layout.GetConfig()
+
+	if not layout or not layout.autoAddPartyDamagers then
+		table.wipe(autoAdded)
+
+		return false
+	end
+
+	if not AutoAddPartyDamagers() then
+		return false
+	end
+
+	Apply()
+
+	return true
+end
+
+--- Runs the favourites sweep for a caller that just changed what it reads, so a star fills the grid on
+--- screen rather than at the next roster event.
+---
+--- `guid` is the favourite that changed, if one did: its handled entry goes, so starring, unstarring and
+--- starring again offers them each time. Unlike `EnforceAutoAddPartyDamagers` this never wipes the whole
+--- set -- there is no switch here to turn off, only one player at a time.
+---@param guid string?
+---@return boolean added
+function Private.Registry.EnforceFavorites(guid)
+	if guid then
+		favoritesHandled[guid] = nil
+	end
+
+	if not Favorites() then
+		return false
+	end
+
+	Apply()
+
+	return true
+end
+
 Private.Events.RegisterEvent("GROUP_ROSTER_UPDATE", function()
 	ClearOnLeave()
 	Apply()
 end)
 
 -- A role change moves nobody in or out of the group, so nothing else in this file hears it: without it,
--- a damage dealer switching to healing keeps their slot until the next membership change.
+-- a damage dealer switching to healing keeps their slot until the next membership change, and a party
+-- whose role check lands after its members do is never filled.
 Private.Events.RegisterEvent("PLAYER_ROLES_ASSIGNED", function()
-	if AutoRemoveRoles() then
+	if AutoRemoveRoles() or Favorites() or AutoAddPartyDamagers() then
 		Apply()
 	end
 end)

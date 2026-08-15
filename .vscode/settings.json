@@ -21,6 +21,8 @@
     "AnchorUtil",
     "AuraContainerSortDirection",
     "AuraContainerSortMethod",
+    "BATTLE_PET_FAVORITE",
+    "BATTLE_PET_UNFAVORITE",
     "BLACK_FONT_COLOR",
     "CANCEL",
     "Clamp",
@@ -73,7 +75,9 @@
     "UnitFrame_OnEnter",
     "UnitFrame_OnLeave",
     "UnitHealthPercent",
-    "UNKNOWN"
+    "UNKNOWN",
+    "BATTLE_PET_FAVORITE",
+    "BATTLE_PET_UNFAVORITE"
   ],
   "Lua.workspace.ignoreDir": ["Libs"]
 }

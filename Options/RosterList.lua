@@ -7,6 +7,10 @@ Private.RosterList = {}
 local ROW_HEIGHT = 22
 local BUTTON_WIDTH = 24
 
+--- What the fullest row needs: remove, down, up and the favourite star. Every row builds all four and hides
+--- the ones its action list does not fill, since a pooled row is a different row after each rebuild.
+local BUTTON_COUNT = 4
+
 --- Base size. `scale` grows the texture from its centre without touching the button's size or hit area.
 local ICON_SIZE = 18
 
@@ -51,6 +55,7 @@ local HEIGHTS = {
 ---@field text FontString the label, shown only when the action has no icon
 ---@field icon Texture the atlas or file icon, hidden on a text-only action
 ---@field highlight Texture the hover tint, sized to the icon
+---@field tooltip string? what to say on hover, nil on an action that explains itself
 
 ---@class SpotlightsRosterRow : Frame
 ---@field label FontString
@@ -80,9 +85,19 @@ local HEIGHTS = {
 ---
 --- `numbered` and `player` are the list's shape rather than the row's contents: they reserve the leading
 --- columns whether or not *this* row fills them, so a spacer's label starts where a player's does.
+--- One right-aligned button on a row. `label` is drawn only when there is no icon to draw instead, and
+--- `tooltip` only on an icon that does not say what it does.
+---@class SpotlightsRosterAction
+---@field label string
+---@field atlas string?
+---@field texture integer?
+---@field scale number?
+---@field tooltip string?
+---@field onClick fun()
+
 ---@class SpotlightsRosterRowSpec
 ---@field text string
----@field actions { label: string, atlas: string?, texture: integer?, scale: number?, onClick: fun() }[]
+---@field actions SpotlightsRosterAction[]
 ---@field position integer? the number this row shows at its leading edge
 ---@field guid string? whose class dot and role icon it wears
 ---@field numbered boolean? this list reserves the leading number column
@@ -92,6 +107,28 @@ local HEIGHTS = {
 
 --- Published so a list laying its own rows out does not restate the stride.
 Private.RosterList.RowHeight = ROW_HEIGHT
+
+--- Read off the button rather than captured, because a pooled button stands for a different action after
+--- each rebuild.
+---@param self SpotlightsRosterButton
+local function ShowButtonTooltip(self)
+	if not self.tooltip then
+		return
+	end
+
+	GameTooltip:SetOwner(self --[[@as Frame]], "ANCHOR_RIGHT")
+	GameTooltip:SetText(self.tooltip, HIGHLIGHT_FONT_COLOR.r, HIGHLIGHT_FONT_COLOR.g,
+		HIGHLIGHT_FONT_COLOR.b, 1, true)
+	GameTooltip:Show()
+end
+
+--- Owner-checked, because by the time the cursor leaves, something else may have taken the tooltip.
+---@param self SpotlightsRosterButton
+local function HideButtonTooltip(self)
+	if GameTooltip:GetOwner() == self then
+		GameTooltip:Hide()
+	end
+end
 
 --- The class colour for a GUID, or nil when there is no class behind it to colour with.
 ---@param guid string?
@@ -181,11 +218,16 @@ function Private.RosterList.AcquireRow(parent, rows, index)
 	---@type SpotlightsRosterButton[]
 	row.buttons = {}
 
-	for i = 1, 3 do
+	for i = 1, BUTTON_COUNT do
 		local button = CreateFrame("Button", nil, row) --[[@as SpotlightsRosterButton]]
 
 		button:SetSize(BUTTON_WIDTH, ROW_HEIGHT - 4)
 		button:SetPoint("RIGHT", row, "RIGHT", -((i - 1) * (BUTTON_WIDTH + 2)), 0)
+
+		-- Propagated so the row keeps its hover wash while the cursor is on a button, which is otherwise
+		-- the child stealing the parent's mouse. Blizzard's own list rows re-fire the scripts by hand
+		-- instead (`Blizzard_AuctionHouseTableBuilder.lua:227`).
+		button:SetPropagateMouseMotion(true)
 
 		button.text = button:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
 		button.text:SetPoint("CENTER")
@@ -200,6 +242,9 @@ function Private.RosterList.AcquireRow(parent, rows, index)
 		button.highlight:SetPoint("CENTER")
 		button.highlight:SetSize(ICON_SIZE, ICON_SIZE)
 		button.highlight:SetColorTexture(1, 1, 1, 0.18)
+
+		button:SetScript("OnEnter", ShowButtonTooltip)
+		button:SetScript("OnLeave", HideButtonTooltip)
 		button:Hide()
 
 		row.buttons[i] = button
@@ -293,11 +338,13 @@ function Private.RosterList.ConfigureRow(row, spec)
 			local size = ICON_SIZE * (action.scale or 1)
 			button.icon:SetSize(size, size)
 
+			button.tooltip = action.tooltip
 			button:SetScript("OnClick", action.onClick)
 			button:Show()
 		else
 			button.text:SetText("")
 			button.icon:Hide()
+			button.tooltip = nil
 			button:SetScript("OnClick", nil)
 			button:Hide()
 		end
@@ -383,22 +430,6 @@ function Private.RosterList.SlotDisplay(slot)
 	return slot.name or L.UnknownSlot, slot.guid
 end
 
---- Whether the list offers a role, against the set the user picked.
----
---- **A member with no role is always offered**, because `GetRole` answers nil for a group that has had no
---- role check and hiding on that would empty the pane for a whole raid. Which is also why the dropdown has
---- no "no role" entry. A missing set offers everything, for a database older than the field.
----@param roles table<string, boolean>?
----@param role string?
----@return boolean
-local function Offers(roles, role)
-	if not role or not roles then
-		return true
-	end
-
-	return roles[role] == true
-end
-
 --- Everyone in the group whose role the list offers and who is not already in the grid, keeping the
 --- alphabetical order `Roster.List` produced.
 ---
@@ -416,7 +447,7 @@ function Private.RosterList.Available()
 	for i = 1, #members do
 		local member = members[i]
 
-		if Offers(roles, Private.Roster.GetRole(member.guid)) then
+		if Private.Roster.Offers(roles, Private.Roster.GetRole(member.guid)) then
 			offered = offered + 1
 
 			if not Private.Registry.SlotOf(member.guid) then

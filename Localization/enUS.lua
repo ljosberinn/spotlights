@@ -13,6 +13,7 @@ L.SlashCommands.Recenter = "Returns the grid to the screen center"
 L.SlashCommands.Add = "Spotlights a group member by name"
 L.SlashCommands.List = "Lists the configured slots"
 L.SlashCommands.Rescan = "Forces every occupied slot to re-match the roster"
+L.SlashCommands.Favorites = "Lists your favourites, or 'clear' to forget them"
 L.SlashCommands.Options = "Opens the settings panel"
 
 L.Migration = {}
@@ -186,6 +187,9 @@ L.Settings.FillOrderCaption = "%s · wraps every %d · grows %s, %s"
 
 L.Settings.AllowGaps = "Render Empty Cells"
 L.Settings.ClearOnLeave = "Clear Roster When Leaving The Group"
+-- "DPS" rather than the `DAMAGER` global's "Damage", because this is a sentence of ours and not a role
+-- label in a list.
+L.Settings.AutoAddPartyDamagers = "Add all DPS automatically while in a Party"
 -- Says what it does to the grid rather than to the list, because it is destructive: these roles are taken
 -- out and kept out, not hidden.
 L.Settings.AutoRemoveRoles = "Automatically Remove These Roles"
@@ -433,6 +437,15 @@ L.ContextMenu = {}
 L.ContextMenu.Title = "Spotlights"
 L.ContextMenu.Add = "Spotlight this player"
 L.ContextMenu.Remove = "Stop spotlighting"
+
+L.Favorites = {}
+
+L.Favorites.Empty = "no favourites - click the star beside a player on the Roster tab"
+L.Favorites.ListHeader = "%d favourite(s):"
+L.Favorites.ListEntry = "  %s |cff808080%s|r"
+L.Favorites.ClearHint = "/spotlights favorites clear empties the list"
+L.Favorites.ClearPrompt = "Forget every favourite? Slots already in the grid are left alone."
+L.Favorites.ClearConfirm = "Forget"
 
 L.DragAssign = {}
 

@@ -78,3 +78,8 @@ Colors the entire health bar. Careful about using multiple since they conflict.
 
 - added Shifting Sands as dedicatedly trackable and customizable aura
 - Sense Power prompts can now be ignored until reload
+
+# Unreviewed
+
+- added Add all DPS automatically while in a Party, which spotlights every party damage dealer as they turn up, once each, so removing one by hand keeps them out
+- added favourites: star a player on the Roster tab or from their right-click menu and they are spotlighted in every party and raid they turn up in, listed and cleared with /spotlights favorites
