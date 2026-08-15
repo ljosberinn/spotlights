@@ -2101,9 +2101,6 @@ local function PromptSensePower(text)
 		timeout = 0,
 		whileDead = true,
 		hideOnEscape = true,
-		-- `StaticPopup_EscapePressed` routes Escape into `OnCancel` on any `hideOnEscape` dialog, so without
-		-- this dismissing the prompt would silently suppress it for the session.
-		noCancelOnEscape = true,
 		-- The legacy click path sends button 2 to `OnCancel` and never looks at `OnButton2`, which needs
 		-- `selectCallbackByIndex` no other prompt in the addon sets.
 		OnCancel = function()
