@@ -5,7 +5,7 @@ local _, Private = ...
 Private.Migration = {}
 
 --- Bump this and add the matching step whenever the shape of SpotlightsSaved changes.
-Private.Migration.CurrentVersion = 5
+Private.Migration.CurrentVersion = 6
 
 --- A function rather than a shared table: handing the same table to two callers would alias one user's
 --- settings onto another's.
@@ -454,6 +454,9 @@ local steps = {
 			auras.defensiveCustom = nil
 		end
 	end,
+	[6] = function(db)
+		db.favorites = db.favorites or {}
+	end,
 }
 
 --- Fills in every field `defaults` has and `target` lacks, returning `target` patched or `defaults`
@@ -489,7 +492,7 @@ end
 --- current but damaged. A nil where a number is expected becomes arithmetic on nil deep in the layout
 --- maths.
 ---@param db SpotlightsDB
----@param key "layout" | "appearance" | "auras" | "minimap" | "presets" | "clickCasts"
+---@param key "layout" | "appearance" | "auras" | "minimap" | "presets" | "favorites" | "clickCasts"
 ---@param build fun(): table
 local function RepairBlock(db, key, build)
 	db[key] = Filled(db[key], build())
@@ -564,6 +567,12 @@ local function Repair(db)
 		return {}
 	end)
 
+	-- Empty defaults for `presets`' reason. What is *in* it is validated where it is read: the sweep drops a
+	-- GUID the roster does not answer for.
+	RepairBlock(db, "favorites", function()
+		return {}
+	end)
+
 	-- A list the user built, so empty defaults for `presets`' reason. What is *in* it is validated where it
 	-- is read: `ClickCasts.ApplyChild` refuses a button the secure templates give no usable suffix.
 	RepairBlock(db, "clickCasts", function()
@@ -582,6 +591,7 @@ local function CreateDefault()
 		auras = DefaultAuras(),
 		minimap = { hide = false },
 		presets = {},
+		favorites = {},
 		clickCasts = {},
 	}
 end

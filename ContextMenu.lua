@@ -75,17 +75,28 @@ local function Append(rootDescription, contextData)
 		rootDescription:CreateButton(L.Remove, function()
 			Private.Registry.Unassign(slot)
 		end)
+	else
+		rootDescription:CreateButton(L.Add, function()
+			-- Re-resolved rather than captured: the menu may have been open across a roster change, and
+			-- assigning a GUID that has since left the raid would store a slot the header cannot match.
+			local current = ResolveGuid(contextData and contextData.unit)
 
-		return
+			if current then
+				Private.Registry.AssignByGuid(current)
+			end
+		end)
 	end
 
-	rootDescription:CreateButton(L.Add, function()
-		-- Re-resolved rather than captured: the menu may have been open across a roster change, and
-		-- assigning a GUID that has since left the raid would store a slot the header cannot match.
+	-- Offered whether or not they hold a slot, and the reach the Roster tab does not have: the Unrostered
+	-- pane's role filter gates both what it lists and what the sweep adds, so a tank is otherwise
+	-- unstarrable under the shipped filter without widening it first.
+	local favorited = Private.Favorites.IsFavorite(guid)
+
+	rootDescription:CreateButton(favorited and BATTLE_PET_UNFAVORITE or BATTLE_PET_FAVORITE, function()
 		local current = ResolveGuid(contextData and contextData.unit)
 
 		if current then
-			Private.Registry.AssignByGuid(current)
+			Private.Favorites.Toggle(current)
 		end
 	end)
 end

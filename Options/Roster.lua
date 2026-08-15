@@ -29,6 +29,13 @@ local DOWN_TEXTURE = 136472
 local PLUS_TEXTURE = 130838
 local ARROW_SCALE = 1.5
 
+--- The pair every favourite toggle in the default UI draws, filled and hollow
+--- (`Blizzard_AuctionHouseSharedTemplates.lua:781`). Both states are always shown, as the stable and the
+--- recipe list show them, rather than the hollow one appearing on hover: these sit among the row's other
+--- buttons, which are always drawn too.
+local FAVORITE_ATLAS = "auctionhouse-icon-favorite"
+local FAVORITE_OFF_ATLAS = "auctionhouse-icon-favorite-off"
+
 --- Shared with every other confirmation in the panel: the dialog is registered at click time by whoever
 --- was clicked, and a second key would stack a second identical prompt.
 local CLEAR_POPUP = "SPOTLIGHTS_ROSTER_CLEAR"
@@ -129,6 +136,9 @@ end
 --- invalidates no geometry. Stored `false` rather than removed, because the default is not empty -- see
 --- `Migration.DefaultLayout`.
 ---
+--- The favourites sweep reads this too, so re-ticking a role adds the favourites it was keeping out rather
+--- than waiting for the next roster event.
+---
 --- Refreshes the tab rather than the pane, because rows come and go. The open menu survives it: a checkbox
 --- click responds `MenuResponse.Refresh`, and the kit's multiselect declines to regenerate while its list
 --- is down.
@@ -143,6 +153,7 @@ local function SetRoleOffered(role, offered)
 
 	layout.unrosteredRoles[role] = offered
 
+	Private.Registry.EnforceFavorites()
 	Private.Options.Refresh()
 end
 
@@ -157,6 +168,9 @@ end
 
 --- Ticks or unticks a role in the set kept out of the grid, and acts on the grid at once, so a tick takes
 --- the healers already on screen out rather than waiting for the next roster event.
+---
+--- Removal first, then the favourites the untick lets back in: the other order would sweep them straight
+--- out again.
 ---@param role string
 ---@param removed boolean
 local function SetRoleRemoved(role, removed)
@@ -169,9 +183,34 @@ local function SetRoleRemoved(role, removed)
 	layout.autoRemoveRoles[role] = removed
 
 	Private.Registry.EnforceAutoRemoveRoles()
+	Private.Registry.EnforceFavorites()
 
 	-- The tab: slots leave the left list and their players come back to the right one.
 	Private.Options.Refresh()
+end
+
+--- The star, as the last action in a row's list -- so it lands at the inner edge of the button group in
+--- both panes and no existing button moves, `actions[1]` being the rightmost.
+---
+--- The labels are the client's own, as `ROLE_CHOICES` uses the role globals.
+---@param guid string
+---@return SpotlightsRosterAction
+local function FavoriteAction(guid)
+	local favorited = Private.Favorites.IsFavorite(guid)
+
+	return {
+		label = favorited and BATTLE_PET_UNFAVORITE or BATTLE_PET_FAVORITE,
+		atlas = favorited and FAVORITE_ATLAS or FAVORITE_OFF_ATLAS,
+		tooltip = favorited and BATTLE_PET_UNFAVORITE or BATTLE_PET_FAVORITE,
+
+		onClick = function()
+			Private.Favorites.Toggle(guid)
+
+			-- The tab rather than the pane: a star can fill a slot, which moves its row from one list to
+			-- the other.
+			Private.Options.Refresh()
+		end,
+	}
 end
 
 --- Appends a spacer, which is the one slot the grid can hold that nobody is in.
@@ -229,46 +268,51 @@ local function BuildSlotList(page, rows)
 			local label, guid = Private.RosterList.SlotDisplay(slots[i])
 			local row = Private.RosterList.AcquireRow(list, rows, i)
 
+			-- Rightmost first. Remove, then down, then up, then the star -- which a spacer and a slot
+			-- configured by name while its player was offline do not get, favourites being GUID-keyed.
+			local actions = {
+				{
+					label = L.RemoveShort,
+					atlas = REMOVE_ATLAS,
+					onClick = function()
+						Private.Registry.Unassign(index)
+
+						-- A row has gone and the list beside this one has gained the player back, so the
+						-- tab rather than the pane.
+						Private.Options.Refresh()
+					end,
+				},
+				{
+					label = L.DownShort,
+					texture = DOWN_TEXTURE,
+					scale = ARROW_SCALE,
+					onClick = function()
+						Private.Registry.Move(index, index + 1)
+						Private.Options.Refresh()
+					end,
+				},
+				{
+					label = L.UpShort,
+					texture = UP_TEXTURE,
+					scale = ARROW_SCALE,
+					onClick = function()
+						Private.Registry.Move(index, index - 1)
+						Private.Options.Refresh()
+					end,
+				},
+			}
+
+			if guid then
+				actions[#actions + 1] = FavoriteAction(guid)
+			end
+
 			Private.RosterList.ConfigureRow(row, {
 				text = label,
 				position = index,
 				guid = guid,
 				numbered = true,
 				player = true,
-
-				-- Rightmost first. Remove, then down, then up.
-				actions = {
-					{
-						label = L.RemoveShort,
-						atlas = REMOVE_ATLAS,
-						onClick = function()
-							Private.Registry.Unassign(index)
-
-							-- A row has gone and the list beside this one has gained the player back, so the
-							-- tab rather than the pane.
-							Private.Options.Refresh()
-						end,
-					},
-					{
-						label = L.DownShort,
-						texture = DOWN_TEXTURE,
-						scale = ARROW_SCALE,
-						onClick = function()
-							Private.Registry.Move(index, index + 1)
-							Private.Options.Refresh()
-						end,
-					},
-					{
-						label = L.UpShort,
-						texture = UP_TEXTURE,
-						scale = ARROW_SCALE,
-						onClick = function()
-							Private.Registry.Move(index, index - 1)
-							Private.Options.Refresh()
-						end,
-					},
-				},
-
+				actions = actions,
 				target = { slot = index, section = "slots" },
 			})
 
@@ -349,6 +393,8 @@ local function BuildMemberList(page, rows)
 							Private.Options.Refresh()
 						end,
 					},
+
+					FavoriteAction(member.guid),
 				},
 
 				target = { guid = member.guid, section = "members" },

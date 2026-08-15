@@ -10,6 +10,7 @@ L.SlashCommands.Recenter = "Возвращает сетку в центр экр
 L.SlashCommands.Add = "Выделяет участника группы по имени"
 L.SlashCommands.List = "Показывает настроенные слоты"
 L.SlashCommands.Rescan = "Заставляет каждый занятый слот заново сопоставиться с составом"
+L.SlashCommands.Favorites = "Показывает избранных, либо 'clear' чтобы их забыть"
 L.SlashCommands.Options = "Открывает панель настроек"
 
 L.Migration.FromTheFuture =
@@ -309,6 +310,13 @@ L.Auras.SensePowerIgnore = "Не напоминать до перезагруз�
 L.ContextMenu.Title = "Spotlights"
 L.ContextMenu.Add = "Выделить этого игрока"
 L.ContextMenu.Remove = "Прекратить выделение"
+
+L.Favorites.Empty = "избранных нет — нажмите звезду рядом с игроком на вкладке «Состав»"
+L.Favorites.ListHeader = "избранных: %d"
+L.Favorites.ListEntry = "  %s |cff808080%s|r"
+L.Favorites.ClearHint = "/spotlights favorites clear очищает список"
+L.Favorites.ClearPrompt = "Забыть всех избранных? Слоты, уже стоящие в сетке, останутся на месте."
+L.Favorites.ClearConfirm = "Забыть"
 
 L.DragAssign.HintDrag = "Перетащите %s на выделение"
 L.DragAssign.HintAdd = "Добавить %s как слот %d"

@@ -34,6 +34,7 @@ Migration.lua
 Roster.lua
 Layout.lua
 Registry.lua
+Favorites.lua
 Mover.lua
 Media.lua
 Preview.lua

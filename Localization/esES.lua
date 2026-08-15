@@ -10,6 +10,7 @@ L.SlashCommands.Recenter = "Devuelve la rejilla al centro de la pantalla"
 L.SlashCommands.Add = "Destaca a un miembro del grupo por su nombre"
 L.SlashCommands.List = "Lista las ranuras configuradas"
 L.SlashCommands.Rescan = "Fuerza a cada ranura ocupada a volver a emparejarse con la lista"
+L.SlashCommands.Favorites = "Lista tus favoritos, o 'clear' para olvidarlos"
 L.SlashCommands.Options = "Abre el panel de ajustes"
 
 L.Migration.FromTheFuture =
@@ -309,6 +310,13 @@ L.Auras.SensePowerIgnore = "Ignorar hasta recargar"
 L.ContextMenu.Title = "Spotlights"
 L.ContextMenu.Add = "Destacar a este jugador"
 L.ContextMenu.Remove = "Dejar de destacar"
+
+L.Favorites.Empty = "sin favoritos: haz clic en la estrella junto a un jugador en la pestaña Lista"
+L.Favorites.ListHeader = "%d favorito(s):"
+L.Favorites.ListEntry = "  %s |cff808080%s|r"
+L.Favorites.ClearHint = "/spotlights favorites clear vacía la lista"
+L.Favorites.ClearPrompt = "¿Olvidar todos los favoritos? Las ranuras ya en la cuadrícula no se tocan."
+L.Favorites.ClearConfirm = "Olvidar"
 
 L.DragAssign.HintDrag = "Arrastra a %s sobre un destacado"
 L.DragAssign.HintAdd = "Añadir a %s como ranura %d"

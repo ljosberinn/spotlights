@@ -28,6 +28,7 @@
 ---@field SlotHeader SpotlightsSlotHeader
 ---@field Migration SpotlightsMigration
 ---@field Roster SpotlightsRoster
+---@field Favorites SpotlightsFavorites
 ---@field Registry SpotlightsRegistry
 ---@field Layout SpotlightsLayout
 ---@field FillOrder SpotlightsFillOrder
@@ -135,10 +136,16 @@
 ---@field modifiers number
 ---@field spellID integer stored as the base ID; a talent override is resolved by `CastSpellByID` itself
 
+--- The players whose grid slot should be rebuilt in every group, keyed by GUID because a GUID survives
+--- a rename and a realm transfer. The value is the last roster-sourced name, kept for display only: the
+--- sweep assigns through the GUID and resolves the name from the roster itself.
+---@alias SpotlightsFavoriteMap table<string, string>
+
 ---@class SpotlightsDB
 ---@field version integer
 ---@field slots SpotlightsSlot[]
 ---@field presets SpotlightsPresets
+---@field favorites SpotlightsFavoriteMap
 ---@field clickCasts SpotlightsClickCast[]
 ---@field layout SpotlightsLayoutConfig
 ---@field position SpotlightsPositionConfig
@@ -429,7 +436,7 @@
 ---@field frameHeight number
 ---@field allowGaps boolean
 ---@field clearOnLeave boolean wipe every configured slot when the kind of group changes
----@field unrosteredRoles table<string, boolean> which roles the Unrostered list offers, keyed by the tokens `UnitGroupRolesAssigned` answers with. A display filter on that list only: nothing here decides who may be spotlighted
+---@field unrosteredRoles table<string, boolean> which roles the Unrostered list offers, keyed by the tokens `UnitGroupRolesAssigned` answers with. A display filter on that list, and the one gate the favourites sweep reads: a favourite whose role the list does not offer is not added. `autoAddPartyDamagers` still ignores it
 ---@field autoRemoveRoles table<string, boolean> which roles are kept out of the grid, keyed the same way. Destructive, unlike `unrosteredRoles`: a slot whose player plays one of these is taken out and stays out
 ---@field autoAddPartyDamagers boolean append every party damage dealer to the grid, once each. Party only, and a member taken back out by hand stays out for the rest of that group
 

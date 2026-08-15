@@ -74,6 +74,11 @@ local NOT_EXPORTED = {
 		return current and current.presets or {}
 	end,
 
+	--- GUIDs of people this account groups with, which mean nothing to whoever the string is sent to.
+	favorites = function(current)
+		return current and current.favorites or {}
+	end,
+
 	position = function(current)
 		return current and current.position
 	end,

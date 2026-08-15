@@ -10,6 +10,7 @@ L.SlashCommands.Recenter = "Retorna a grade ao centro da tela"
 L.SlashCommands.Add = "Destaca um membro do grupo pelo nome"
 L.SlashCommands.List = "Lista os espaços configurados"
 L.SlashCommands.Rescan = "Força cada espaço ocupado a corresponder novamente à lista"
+L.SlashCommands.Favorites = "Lista seus favoritos, ou 'clear' para esquecê-los"
 L.SlashCommands.Options = "Abre o painel de configurações"
 
 L.Migration.FromTheFuture =
@@ -310,6 +311,13 @@ L.Auras.SensePowerIgnore = "Ignorar até recarregar"
 L.ContextMenu.Title = "Spotlights"
 L.ContextMenu.Add = "Destacar este jogador"
 L.ContextMenu.Remove = "Parar de destacar"
+
+L.Favorites.Empty = "nenhum favorito: clique na estrela ao lado de um jogador na aba Lista"
+L.Favorites.ListHeader = "%d favorito(s):"
+L.Favorites.ListEntry = "  %s |cff808080%s|r"
+L.Favorites.ClearHint = "/spotlights favorites clear esvazia a lista"
+L.Favorites.ClearPrompt = "Esquecer todos os favoritos? Os espaços já na grade não são alterados."
+L.Favorites.ClearConfirm = "Esquecer"
 
 L.DragAssign.HintDrag = "Arraste %s até um destaque"
 L.DragAssign.HintAdd = "Adicionar %s como espaço %d"

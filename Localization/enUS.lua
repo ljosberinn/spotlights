@@ -13,6 +13,7 @@ L.SlashCommands.Recenter = "Returns the grid to the screen center"
 L.SlashCommands.Add = "Spotlights a group member by name"
 L.SlashCommands.List = "Lists the configured slots"
 L.SlashCommands.Rescan = "Forces every occupied slot to re-match the roster"
+L.SlashCommands.Favorites = "Lists your favourites, or 'clear' to forget them"
 L.SlashCommands.Options = "Opens the settings panel"
 
 L.Migration = {}
@@ -436,6 +437,15 @@ L.ContextMenu = {}
 L.ContextMenu.Title = "Spotlights"
 L.ContextMenu.Add = "Spotlight this player"
 L.ContextMenu.Remove = "Stop spotlighting"
+
+L.Favorites = {}
+
+L.Favorites.Empty = "no favourites - click the star beside a player on the Roster tab"
+L.Favorites.ListHeader = "%d favourite(s):"
+L.Favorites.ListEntry = "  %s |cff808080%s|r"
+L.Favorites.ClearHint = "/spotlights favorites clear empties the list"
+L.Favorites.ClearPrompt = "Forget every favourite? Slots already in the grid are left alone."
+L.Favorites.ClearConfirm = "Forget"
 
 L.DragAssign = {}
 

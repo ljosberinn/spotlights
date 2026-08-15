@@ -194,6 +194,23 @@ function Private.Roster.GetRole(guid)
 	return role
 end
 
+--- Whether a set of roles offers this one. Read by both the Unrostered list and the favourites sweep, so
+--- the pane and the grid cannot disagree about who a narrowed filter leaves out.
+---
+--- **A member with no role is always offered**, because `GetRole` answers nil for a group that has had no
+--- role check and hiding on that would empty the pane for a whole raid. Which is also why the dropdown has
+--- no "no role" entry. A missing set offers everything, for a database older than the field.
+---@param roles table<string, boolean>?
+---@param role string?
+---@return boolean
+function Private.Roster.Offers(roles, role)
+	if not role or not roles then
+		return true
+	end
+
+	return roles[role] == true
+end
+
 --- GUID -> unit token in O(1), so nothing here needs a name-scan loop.
 ---
 --- Ours and clean, unlike a token read off a secure child's `unit` attribute: that one is tainted,

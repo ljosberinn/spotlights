@@ -10,6 +10,7 @@ L.SlashCommands.Recenter = "Setzt das Raster in die Bildschirmmitte zurück"
 L.SlashCommands.Add = "Hebt ein Gruppenmitglied namentlich hervor"
 L.SlashCommands.List = "Listet die konfigurierten Plätze auf"
 L.SlashCommands.Rescan = "Erzwingt einen erneuten Abgleich aller belegten Plätze mit der Gruppe"
+L.SlashCommands.Favorites = "Listet deine Favoriten auf, oder 'clear' zum Leeren"
 L.SlashCommands.Options = "Öffnet das Einstellungsfenster"
 
 L.Migration.FromTheFuture =
@@ -312,6 +313,13 @@ L.Auras.SensePowerIgnore = "Bis Neuladen ignorieren"
 L.ContextMenu.Title = "Spotlights"
 L.ContextMenu.Add = "Diesen Spieler hervorheben"
 L.ContextMenu.Remove = "Hervorhebung beenden"
+
+L.Favorites.Empty = "keine Favoriten – klicke im Reiter Gruppe auf den Stern neben einem Spieler"
+L.Favorites.ListHeader = "%d Favorit(en):"
+L.Favorites.ListEntry = "  %s |cff808080%s|r"
+L.Favorites.ClearHint = "/spotlights favorites clear leert die Liste"
+L.Favorites.ClearPrompt = "Alle Favoriten vergessen? Bereits im Raster vergebene Plätze bleiben unangetastet."
+L.Favorites.ClearConfirm = "Vergessen"
 
 L.DragAssign.HintDrag = "Ziehe %s auf eine Hervorhebung"
 L.DragAssign.HintAdd = "%s als Platz %d hinzufügen"
