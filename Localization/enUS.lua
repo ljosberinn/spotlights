@@ -406,6 +406,7 @@ L.Auras.SensePowerMissing =
 "Spotlights cannot tell whether Sense Power is active unless it is on one of your action bars.\n\nOnly the cooldowns you have enabled can be tracked, which leaves out some summons. For complete tracking, Sense Power must be active, so put it on a bar if you wish to turn it on."
 L.Auras.SensePowerInactive =
 "Sense Power is not active.\n\nOnly the cooldowns you have enabled can be tracked, which leaves out some summons. For complete tracking, please activate Sense Power."
+L.Auras.SensePowerIgnore = "Ignore until Reload"
 
 L.ContextMenu = {}
 

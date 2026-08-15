@@ -2058,6 +2058,10 @@ local SENSE_POWER_CAST = 361021
 local SENSE_POWER_KEY = "sensePower"
 local SENSE_POWER_POPUP = "SPOTLIGHTS_SENSE_POWER"
 
+--- Set by the prompt's second button, and cleared by nothing: a reload or a relog is the whole of its
+--- lifetime, which is what the button says.
+local sensePowerIgnored = false
+
 --- How long after a loading screen to look. Action bar contents and specialisation both arrive some
 --- frames after the screen lifts and neither has an event meaning "and now they are correct", so a
 --- shorter guess prompts against a bar the client has not filled in yet.
@@ -2093,9 +2097,18 @@ local function PromptSensePower(text)
 	StaticPopupDialogs[SENSE_POWER_POPUP] = {
 		text = text,
 		button1 = OKAY,
+		button2 = Private.L.Auras.SensePowerIgnore,
 		timeout = 0,
 		whileDead = true,
 		hideOnEscape = true,
+		-- `StaticPopup_EscapePressed` routes Escape into `OnCancel` on any `hideOnEscape` dialog, so without
+		-- this dismissing the prompt would silently suppress it for the session.
+		noCancelOnEscape = true,
+		-- The legacy click path sends button 2 to `OnCancel` and never looks at `OnButton2`, which needs
+		-- `selectCallbackByIndex` no other prompt in the addon sets.
+		OnCancel = function()
+			sensePowerIgnored = true
+		end,
 		preferredIndex = 3,
 	}
 
@@ -2112,6 +2125,12 @@ end
 --- mechanism being tested is that the two *differ*: hardcoding the active one would make an art change
 --- read as "permanently switched off".
 local function CheckSensePower()
+	-- Ahead of every other gate, and here rather than in `PromptSensePower`, so a check already scheduled
+	-- by `C_Timer.After` when the button was clicked finds the flag set and does no action bar scan.
+	if sensePowerIgnored then
+		return
+	end
+
 	-- Group-gated at the one point every path passes through: the specialisation-change event and the
 	-- display toggle in `SetSetting` reach here directly, so a respec or switch-on outside a group would
 	-- prompt about displays that have no spotlight to draw on.

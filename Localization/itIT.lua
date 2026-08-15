@@ -288,6 +288,7 @@ L.Auras.SensePowerMissing =
 "Spotlights non può stabilire se Percepire potere è attivo a meno che non sia su una delle tue barre delle azioni.\n\nSolo i recuperi che hai abilitato possono essere tracciati, il che esclude alcune evocazioni. Per un tracciamento completo, Percepire potere deve essere attivo, quindi mettilo su una barra se vuoi attivarlo."
 L.Auras.SensePowerInactive =
 "Percepire potere non è attivo.\n\nSolo i recuperi che hai abilitato possono essere tracciati, il che esclude alcune evocazioni. Per un tracciamento completo, attiva Percepire potere."
+L.Auras.SensePowerIgnore = "Ignora fino al ricaricamento"
 
 L.ContextMenu.Title = "Spotlights"
 L.ContextMenu.Add = "Metti in evidenza questo giocatore"

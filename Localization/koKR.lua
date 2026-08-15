@@ -278,6 +278,7 @@ L.Settings.Anchors.BOTTOMRIGHT = "오른쪽 아래"
 L.Auras.SensePowerMissing =
 "힘 감지가 행동 단축바 중 하나에 있지 않으면 Spotlights는 활성화 여부를 알 수 없습니다.\n\n활성화한 재사용 대기시간만 추적할 수 있어 일부 소환이 제외됩니다. 완전한 추적을 위해서는 힘 감지가 활성화되어야 하므로, 켜려면 단축바에 놓으세요."
 L.Auras.SensePowerInactive = "힘 감지가 활성화되지 않았습니다.\n\n활성화한 재사용 대기시간만 추적할 수 있어 일부 소환이 제외됩니다. 완전한 추적을 위해 힘 감지를 활성화하세요."
+L.Auras.SensePowerIgnore = "다시 불러올 때까지 무시"
 
 L.ContextMenu.Title = "Spotlights"
 L.ContextMenu.Add = "이 플레이어 조명"

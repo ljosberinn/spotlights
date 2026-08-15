@@ -288,6 +288,7 @@ L.Auras.SensePowerMissing =
 "Spotlights não consegue saber se Sentir Poder está ativo a menos que esteja em uma de suas barras de ação.\n\nApenas as recargas que você habilitou podem ser rastreadas, o que exclui algumas invocações. Para rastreamento completo, Sentir Poder deve estar ativo, então coloque-o em uma barra se desejar ativá-lo."
 L.Auras.SensePowerInactive =
 "Sentir Poder não está ativo.\n\nApenas as recargas que você habilitou podem ser rastreadas, o que exclui algumas invocações. Para rastreamento completo, por favor ative Sentir Poder."
+L.Auras.SensePowerIgnore = "Ignorar até recarregar"
 
 L.ContextMenu.Title = "Spotlights"
 L.ContextMenu.Add = "Destacar este jogador"

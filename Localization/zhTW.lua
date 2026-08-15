@@ -277,6 +277,7 @@ L.Settings.Anchors.BOTTOMRIGHT = "右下"
 L.Auras.SensePowerMissing =
 "除非感知力量位於你的某個動作條上，否則 Spotlights 無法判斷它是否處於啟用狀態。\n\n只有你啟用的冷卻才能被追蹤，這會遺漏部分召喚。若要完整追蹤，感知力量必須處於啟用狀態，因此如果你希望開啟它，請將其放到動作條上。"
 L.Auras.SensePowerInactive = "感知力量未啟用。\n\n只有你啟用的冷卻才能被追蹤，這會遺漏部分召喚。若要完整追蹤，請啟用感知力量。"
+L.Auras.SensePowerIgnore = "重載前不再提示"
 
 L.ContextMenu.Title = "Spotlights"
 L.ContextMenu.Add = "聚焦此玩家"

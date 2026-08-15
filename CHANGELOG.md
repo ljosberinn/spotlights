@@ -52,3 +52,7 @@ v1.1.0
 
 - added Shifting Sands as dedicatedly trackable and customizable aura
 - aura preview now has a second preview the moment you enable more than one display kind for an aura (e.g. Status Bar and Text for Prescience), so you can see them at the same time
+
+# Unreviewed
+
+- the Sense Power prompt has a second button, Ignore until Reload, which silences it for the rest of the session

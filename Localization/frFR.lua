@@ -281,6 +281,7 @@ L.Settings.Anchors.BOTTOMRIGHT = "En bas à droite"
 
 L.Auras.SensePowerMissing = "Spotlights ne peut pas savoir si Détection de puissance est active à moins qu'elle ne soit sur l'une de vos barres d'action.\n\nSeuls les temps de recharge que vous avez activés peuvent être suivis, ce qui exclut certaines invocations. Pour un suivi complet, Détection de puissance doit être active, alors placez-la sur une barre si vous souhaitez l'activer."
 L.Auras.SensePowerInactive = "Détection de puissance n'est pas active.\n\nSeuls les temps de recharge que vous avez activés peuvent être suivis, ce qui exclut certaines invocations. Pour un suivi complet, veuillez activer Détection de puissance."
+L.Auras.SensePowerIgnore = "Ignorer jusqu'au rechargement"
 
 L.ContextMenu.Title = "Spotlights"
 L.ContextMenu.Add = "Mettre ce joueur en avant"

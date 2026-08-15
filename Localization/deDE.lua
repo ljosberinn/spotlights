@@ -290,6 +290,7 @@ L.Auras.SensePowerMissing =
 "Spotlights kann nicht erkennen, ob Macht spüren aktiv ist, es sei denn, es befindet sich auf einer deiner Aktionsleisten.\n\nNur die von dir aktivierten Abklingzeiten können verfolgt werden, wodurch einige Beschwörungen ausgelassen werden. Für eine vollständige Verfolgung muss Macht spüren aktiv sein, lege es also auf eine Leiste, wenn du es einschalten möchtest."
 L.Auras.SensePowerInactive =
 "Macht spüren ist nicht aktiv.\n\nNur die von dir aktivierten Abklingzeiten können verfolgt werden, wodurch einige Beschwörungen ausgelassen werden. Für eine vollständige Verfolgung aktiviere bitte Macht spüren."
+L.Auras.SensePowerIgnore = "Bis Neuladen ignorieren"
 
 L.ContextMenu.Title = "Spotlights"
 L.ContextMenu.Add = "Diesen Spieler hervorheben"
