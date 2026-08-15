@@ -5,7 +5,7 @@ local _, Private = ...
 Private.Migration = {}
 
 --- Bump this and add the matching step whenever the shape of SpotlightsSaved changes.
-Private.Migration.CurrentVersion = 4
+Private.Migration.CurrentVersion = 5
 
 --- A function rather than a shared table: handing the same table to two callers would alias one user's
 --- settings onto another's.
@@ -349,7 +349,7 @@ function Private.Migration.DefaultAuraFeature(featureKey)
 		}
 	end
 
-	if featureKey == "cooldownAuras" or featureKey == "defensiveAuras" then
+	if featureKey == "cooldownAuras" or featureKey == "defensiveAuras" or featureKey == "customAuras" then
 		return {
 			enabled = true,
 			bar = DefaultAuraBar(false, "TOPLEFT", 1, 1, 1, 0),
@@ -383,13 +383,13 @@ local function DefaultAuras()
 		sensePower = Private.Migration.DefaultAuraFeature("sensePower"),
 		cooldownAuras = Private.Migration.DefaultAuraFeature("cooldownAuras"),
 		defensiveAuras = Private.Migration.DefaultAuraFeature("defensiveAuras"),
+		customAuras = Private.Migration.DefaultAuraFeature("customAuras"),
 
 		-- `cooldowns` records only the built-ins turned *off*, so an empty table means "every shipped
 		-- cooldown is on" -- which is why nothing reconciles this against `Auras.lua` when that list grows.
 		cooldowns = {},
-		custom = {},
 		defensives = {},
-		defensiveCustom = {},
+		customSpells = {},
 	}
 end
 
@@ -429,11 +429,23 @@ local steps = {
 
 		local auras = db.auras or {}
 		auras.defensives = auras.defensives or {}
-		auras.defensiveCustom = auras.defensiveCustom or {}
 		db.auras = auras
 	end,
 	[4] = function(db)
 		db.presets = db.presets or {}
+	end,
+	[5] = function(db)
+		-- Cast, because the fields being dropped are gone from the current shape: naming them is the
+		-- whole of what this step does.
+		local auras = db.auras --[[@as table<string, any>]]
+
+		-- The two per-pool custom lists became one pool of their own, `customSpells`, which `Repair`
+		-- installs. Nothing carries over: the lists meant "extra cooldowns" and "extra defensives", and
+		-- the new pool is neither.
+		if auras then
+			auras.custom = nil
+			auras.defensiveCustom = nil
+		end
 	end,
 }
 

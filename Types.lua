@@ -183,24 +183,24 @@
 --- Tracked auras. Every feature carries an identical shape on purpose: one customisation set pointed
 --- at whichever spells the feature watches, so none may grow a field the others lack.
 ---
---- The four pool tables sit beside the features rather than inside any one of them, keeping that rule
+--- The three pool tables sit beside the features rather than inside any one of them, keeping that rule
 --- true: a spell pool is a list belonging to the aura block, not to a customisation set -- and the
 --- cooldown pool is read by two features, `sensePower` and `cooldownAuras`.
 ---
---- Both are **sparse**, holding only what the user changed. `cooldowns` overrides the built-in list
---- in `Auras.lua` and is only ever written `false`; a built-in absent from it is on, so adding a
---- spell to that list in a later version needs no migration. `custom` is the opposite -- empty until
---- the user adds to it -- mapping each ID to its own toggle.
+--- All three are **sparse**, holding only what the user changed. `cooldowns` overrides the built-in
+--- list in `Auras.lua` and is only ever written `false`; a built-in absent from it is on, so adding a
+--- spell to that list in a later version needs no migration. `customSpells` is the opposite -- empty
+--- until the user adds to it -- mapping each ID to its own toggle.
 ---@class SpotlightsAurasConfig
 ---@field prescience SpotlightsAuraFeatureConfig
 ---@field shiftingSands SpotlightsAuraFeatureConfig
 ---@field sensePower SpotlightsAuraFeatureConfig
 ---@field cooldownAuras SpotlightsAuraFeatureConfig
 ---@field defensiveAuras SpotlightsAuraFeatureConfig
+---@field customAuras SpotlightsAuraFeatureConfig
 ---@field cooldowns table<integer, boolean> built-in overrides; only ever `false`, meaning "off"
----@field custom table<integer, boolean> user-added spell IDs, each mapped to its enabled state
 ---@field defensives table<integer, boolean> defensive overrides; absent means the shipped default
----@field defensiveCustom table<integer, boolean> user-added defensive spell IDs
+---@field customSpells table<integer, boolean> user-added spell IDs, each mapped to its enabled state
 
 --- One aura's four displays, independent of each other and all optional, under one switch for the
 --- feature as a whole.

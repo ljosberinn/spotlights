@@ -29,15 +29,25 @@ local OFF_ALPHA = 0.5
 
 --- The categories in strip order. `augmentation` is the whole of the gating rule, restating the partition
 --- `Private.Auras` splits its feature sets on, because a tab has to be *drawn* disabled for a feature that
---- list has already dropped.
----@type { key: SpotlightsAuraFeatureKey, augmentation: boolean }[]
+--- list has already dropped. Nil is the third state: a feature in **both** sets, which no specialisation
+--- gates.
+---@type { key: SpotlightsAuraFeatureKey, augmentation: boolean? }[]
 local CATEGORIES = {
 	{ key = "prescience",     augmentation = true },
 	{ key = "shiftingSands",  augmentation = true },
 	{ key = "sensePower",     augmentation = true },
 	{ key = "cooldownAuras",  augmentation = false },
 	{ key = "defensiveAuras", augmentation = false },
+	{ key = "customAuras" },
 }
+
+--- Whether a category is one the given specialisation configures.
+---@param category { key: SpotlightsAuraFeatureKey, augmentation: boolean? }
+---@param augmentation boolean
+---@return boolean
+local function Applies(category, augmentation)
+	return category.augmentation == nil or category.augmentation == augmentation
+end
 
 --- Which feature both sub-tabs are about. Corrected against the specialisation by the first refresh, which
 --- happens before anything is drawn.
@@ -71,6 +81,7 @@ local function CategoryNames()
 		sensePower = L.SensePower,
 		cooldownAuras = L.Cooldowns,
 		defensiveAuras = L.Defensives,
+		customAuras = L.CustomAuras,
 	}
 end
 
@@ -96,7 +107,7 @@ local function FirstApplicable(augmentation)
 	for i = 1, #CATEGORIES do
 		local category = CATEGORIES[i]
 
-		if category.augmentation == augmentation then
+		if Applies(category, augmentation) then
 			return category.key
 		end
 	end
@@ -121,7 +132,7 @@ local function RefreshCategories()
 	for i = 1, #CATEGORIES do
 		local category = CATEGORIES[i]
 
-		if category.key == activeFeature and category.augmentation ~= augmentation then
+		if category.key == activeFeature and not Applies(category, augmentation) then
 			activeFeature = FirstApplicable(augmentation)
 
 			break
@@ -130,11 +141,11 @@ local function RefreshCategories()
 
 	for i = 1, #CATEGORIES do
 		local category = CATEGORIES[i]
-		local applies = category.augmentation == augmentation
+		local applies = Applies(category, augmentation)
 		local enabled = Private.Auras.IsFeatureEnabled(category.key)
 
 		-- A reason only where there is one to give: the three Evoker features say who they are for, and the
-		-- two pooled ones are left unexplained.
+		-- rest are left unexplained.
 		categoryStrip:SetTabEnabled(categoryTabs[category.key], applies,
 			category.augmentation and L.AuraAugmentationOnly or nil)
 
@@ -225,6 +236,10 @@ local function CreateCategoryStrip(page)
 		end
 
 		activeFeature = key
+
+		-- The Tracked search box moves between the rail and the pane depending on the category, so a query
+		-- left behind would filter the incoming list from a box that is no longer on screen.
+		Private.AuraTracked.ResetSearch()
 
 		ApplyPreviewFeature()
 

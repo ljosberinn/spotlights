@@ -185,8 +185,9 @@ L.Settings.PresetImportErrorPrefix = "die Zeichenfolge ist keine Spotlights-Vorl
 L.Settings.PresetImportErrorPayload = "die decodierten Daten sind keine Platzliste"
 L.Settings.Prescience = "Voraussicht"
 L.Settings.ShiftingSands = "Verändernde Sande"
-L.Settings.Cooldowns = "Abklingzeiten & benutzerdefinierte Auren"
+L.Settings.Cooldowns = "Abklingzeiten"
 L.Settings.Defensives = "Defensive"
+L.Settings.CustomAuras = "Benutzerdefinierte Auren"
 L.Settings.AuraAugmentationOnly = "Voraussicht, Verändernde Sande und Macht erspüren sind nur für Rufer der Verstärkung verfügbar."
 L.Settings.AuraTracked = "Überwacht"
 L.Settings.AuraFeatureToggle = "%s überwachen"
@@ -263,11 +264,8 @@ L.Settings.AuraNoTrackedSpells =
 L.Settings.AuraNoSpellMatches = "Keine Zauber entsprechen deiner Suche."
 L.Settings.AurasRebuildHelp =
 "Einige Einstellungen benötigen nach der Anwendung möglicherweise ein Neuladen. Du wirst dazu aufgefordert, sobald du mit dem Anpassen fertig bist."
-L.Settings.AuraCustomCooldowns = "Benutzerdefinierte Auren"
-L.Settings.AuraCustomCooldownsNote =
+L.Settings.AuraCustomNote =
 "Dies müssen STÄRKUNGSZAUBER sein, die auf Spielern erscheinen, Schmuckstück-Effekte funktionieren beispielsweise. Schwächungszauber und Zauber können hier nicht verfolgt werden, und das Hinzufügen bewirkt überhaupt nichts."
-L.Settings.AuraCustomDefensivesNote =
-"Defensive Zauber-IDs hinzufügen, die nicht in der mitgelieferten Liste enthalten sind."
 L.Settings.AuraCustomAdd = "Hinzufügen"
 L.Settings.AuraCustomSpellID = "Zauber-ID"
 L.Settings.ReloadPrompt =

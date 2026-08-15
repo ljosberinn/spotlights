@@ -183,8 +183,9 @@ L.Settings.PresetImportErrorPrefix = "la cadena no es un preajuste de Spotlights
 L.Settings.PresetImportErrorPayload = "los datos decodificados no son una lista de posiciones"
 L.Settings.Prescience = "Presciencia"
 L.Settings.ShiftingSands = "Arenas cambiantes"
-L.Settings.Cooldowns = "Reutilizaciones y auras personalizadas"
+L.Settings.Cooldowns = "Reutilizaciones"
 L.Settings.Defensives = "Defensivos"
+L.Settings.CustomAuras = "Auras personalizadas"
 L.Settings.AuraAugmentationOnly = "Presciencia, Arenas cambiantes y Detectar poder solo están disponibles para Evocadores de Aumento."
 L.Settings.AuraTracked = "Seguimiento"
 L.Settings.AuraFeatureToggle = "Seguir %s"
@@ -260,11 +261,8 @@ L.Settings.AuraNoTrackedSpells = "%s vigila un aura concreta, así que aquí no 
 L.Settings.AuraNoSpellMatches = "Ningún hechizo coincide con tu búsqueda."
 L.Settings.AurasRebuildHelp =
 "Algunos ajustes pueden requerir una recarga tras aplicarse. Se te pedirá que lo hagas cuando termines de personalizar."
-L.Settings.AuraCustomCooldowns = "Auras personalizadas"
-L.Settings.AuraCustomCooldownsNote =
+L.Settings.AuraCustomNote =
 "Estas deben ser BENEFICIOS que aparezcan en los jugadores, para que funcionen los efectos de abalorios. Los perjuicios y los lanzamientos no se pueden rastrear aquí, y añadir uno no hará absolutamente nada."
-L.Settings.AuraCustomDefensivesNote =
-"Añade IDs de hechizos defensivos que no estén en la lista incluida."
 L.Settings.AuraCustomAdd = "Añadir"
 L.Settings.AuraCustomSpellID = "ID de hechizo"
 L.Settings.ReloadPrompt =

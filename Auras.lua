@@ -30,6 +30,7 @@ local ANY_FILTER = AuraUtil.CreateFilterString(AuraUtil.AuraFilters.Helpful)
 ---@field filter string the aura filter string its slot parses with
 ---@field Candidates fun(): table<integer, true> every spell its slot may show, `spellID` included
 ---@field multiple boolean
+---@field shared boolean? set on a feature in both specialisation sets, whose displays a swap must keep
 
 --- Which pass a changed setting needs: a re-anchor on the next frame, or a replacement container once
 --- the value stops moving.
@@ -220,24 +221,23 @@ local function Config()
 	return Private.DB and Private.DB.auras
 end
 
---- One spell pool: a shipped catalogue grouped by class, sparse overrides over it, and the user's own
---- IDs beside it.
+--- One spell pool: a shipped catalogue grouped by class with sparse overrides over it, *or* the user's
+--- own IDs. A pool is one or the other, which is what the nilable keys say.
 ---
 --- Cooldowns and defensives differ only in what a catalogue entry *means*, so that lives in
 --- `DefaultEnabled` and every operation below is written once. They keep separate saved tables and
 --- separate features; this is shared behaviour, not a merged pool.
 ---@class SpotlightsAuraPool
 ---@field catalog table<integer, table<integer, boolean>> the shipped spells, grouped by class
----@field overridesKey string the `SpotlightsAurasConfig` field holding deviations from the catalogue
----@field customKey string the `SpotlightsAurasConfig` field holding the user's own spell IDs
----@field DefaultEnabled fun(shipped: boolean): boolean what a catalogue entry says about its default
+---@field overridesKey string? the `SpotlightsAurasConfig` field holding deviations from the catalogue
+---@field customKey string? the `SpotlightsAurasConfig` field holding the user's own spell IDs
+---@field DefaultEnabled? fun(shipped: boolean): boolean what a catalogue entry says about its default
 
 ---@type table<string, SpotlightsAuraPool>
 local POOLS = {
 	cooldown = {
 		catalog = COOLDOWNS,
 		overridesKey = "cooldowns",
-		customKey = "custom",
 		DefaultEnabled = function()
 			return true
 		end,
@@ -246,15 +246,20 @@ local POOLS = {
 	defensive = {
 		catalog = DEFENSIVES,
 		overridesKey = "defensives",
-		customKey = "defensiveCustom",
 		DefaultEnabled = function(shipped)
 			return shipped
 		end,
 	},
+
+	--- No catalogue, so no overrides and no default rule: every entry is one the user typed in.
+	customAura = {
+		catalog = {},
+		customKey = "customSpells",
+	},
 }
 
---- The one place either table is reached by key. The nil case is the window before the migration and
---- `Repair` have run, which a slash command during login reaches.
+--- The one place either table is reached by key. The nil cases are a pool without that half, and the
+--- window before the migration and `Repair` have run, which a slash command during login reaches.
 ---@param pool SpotlightsAuraPool
 ---@return table<integer, boolean>? overrides, table<integer, boolean>? custom
 local function PoolTables(pool)
@@ -264,7 +269,8 @@ local function PoolTables(pool)
 		return nil, nil
 	end
 
-	return auras[pool.overridesKey], auras[pool.customKey]
+	return pool.overridesKey and auras[pool.overridesKey] or nil,
+		pool.customKey and auras[pool.customKey] or nil
 end
 
 --- Whether the pool ships this spell, and switched on or off if so.
@@ -272,6 +278,10 @@ end
 ---@param spellID integer
 ---@return boolean? default nil when the spell is not in the catalogue at all
 local function ShippedDefault(pool, spellID)
+	if not pool.DefaultEnabled then
+		return nil
+	end
+
 	for _, spells in pairs(pool.catalog) do
 		local shipped = spells[spellID]
 
@@ -298,17 +308,20 @@ end
 local function PoolCandidates(pool, candidates)
 	candidates = candidates or {}
 	local overrides, custom = PoolTables(pool)
+	local DefaultEnabled = pool.DefaultEnabled
 
-	for _, spells in pairs(pool.catalog) do
-		for spellID, shipped in pairs(spells) do
-			local enabled = overrides and overrides[spellID]
+	if DefaultEnabled then
+		for _, spells in pairs(pool.catalog) do
+			for spellID, shipped in pairs(spells) do
+				local enabled = overrides and overrides[spellID]
 
-			if enabled == nil then
-				enabled = pool.DefaultEnabled(shipped)
-			end
+				if enabled == nil then
+					enabled = DefaultEnabled(shipped)
+				end
 
-			if enabled then
-				candidates[spellID] = true
+				if enabled then
+					candidates[spellID] = true
+				end
 			end
 		end
 	end
@@ -368,17 +381,19 @@ end
 local function SetPoolEnabled(pool, spellID, enabled, custom)
 	local overrides, entries = PoolTables(pool)
 
-	if not overrides or not entries then
-		return false
-	end
-
+	-- One table per branch, because a pool has only the half it is about: requiring both refused every
+	-- write to a custom-only pool.
 	if custom then
-		if entries[spellID] == nil then
+		if not entries or entries[spellID] == nil then
 			return false
 		end
 
 		entries[spellID] = enabled
 	else
+		if not overrides then
+			return false
+		end
+
 		local default = ShippedDefault(pool, spellID)
 
 		if default == nil then
@@ -509,6 +524,11 @@ local function DefensiveCandidates()
 	return PoolCandidates(POOLS.defensive)
 end
 
+---@return table<integer, true>
+local function CustomAuraCandidates()
+	return PoolCandidates(POOLS.customAura)
+end
+
 ---@param candidates table<integer, true>
 ---@return integer[]
 local function CandidateIDs(candidates)
@@ -522,6 +542,18 @@ local function CandidateIDs(candidates)
 
 	return spellIDs
 end
+
+--- The one feature every specialisation has, so the **same table** is in both sets below rather than a
+--- copy in each: `SetFeatureMode` compares identity to decide what a swap keeps.
+---@type SpotlightsAuraFeature
+local CUSTOM_AURAS_FEATURE = {
+	key = "customAuras",
+	spellID = 0,
+	filter = ANY_FILTER,
+	Candidates = CustomAuraCandidates,
+	multiple = true,
+	shared = true,
+}
 
 --- Prescience is one spell from one caster, while Sense Power shares its slot with every major
 --- cooldown the spotlighted player might have, cast by them rather than by us -- so a feature is no
@@ -549,8 +581,10 @@ local EVOKER_FEATURES = {
 		Candidates = SensePowerCandidates,
 		multiple = false
 	},
+	CUSTOM_AURAS_FEATURE,
 }
 
+---@type SpotlightsAuraFeature[]
 local NON_EVOKER_FEATURES = {
 	{
 		key = "cooldownAuras",
@@ -566,6 +600,7 @@ local NON_EVOKER_FEATURES = {
 		Candidates = DefensiveCandidates,
 		multiple = true,
 	},
+	CUSTOM_AURAS_FEATURE,
 }
 
 local FEATURES = NON_EVOKER_FEATURES
@@ -618,14 +653,20 @@ local function SetFeatureMode()
 			return
 		end
 
-		for _, featureBuilt in pairs(built) do
-			for _, record in pairs(featureBuilt) do
-				record.anchor:Hide()
-				record.container:Hide()
+		-- A feature in both sets is valid either side of the swap, so discarding its containers would
+		-- abandon frames only to build the same thing back.
+		for featureKey, featureBuilt in pairs(built) do
+			local feature = FeatureByKey(featureKey)
+
+			if not feature or not feature.shared then
+				for _, record in pairs(featureBuilt) do
+					record.anchor:Hide()
+					record.container:Hide()
+				end
+
+				built[featureKey] = nil
 			end
 		end
-
-		table.wipe(built)
 	end)
 
 	Private.Events.Request(DeferralKey.Auras)
@@ -2461,35 +2502,16 @@ function Private.Auras.Defensives()
 end
 
 ---@param spellID integer
----@param custom boolean? whether `spellID` is a user-added entry rather than a shipped one
 ---@return boolean
-function Private.Auras.IsCooldownEnabled(spellID, custom)
-	return IsPoolEnabled(POOLS.cooldown, spellID, custom)
+function Private.Auras.IsCooldownEnabled(spellID)
+	return IsPoolEnabled(POOLS.cooldown, spellID)
 end
 
 ---@param spellID integer
 ---@param enabled boolean
----@param custom boolean? whether `spellID` is a user-added entry rather than a shipped one
 ---@return boolean applied
-function Private.Auras.SetCooldownEnabled(spellID, enabled, custom)
-	return SetPoolEnabled(POOLS.cooldown, spellID, enabled, custom)
-end
-
----@return integer[]
-function Private.Auras.CustomCooldowns()
-	return CustomPoolSpells(POOLS.cooldown)
-end
-
----@param spellID integer
----@return boolean added false when it is already in the list
-function Private.Auras.AddCustomCooldown(spellID)
-	return AddCustomPoolSpell(POOLS.cooldown, spellID)
-end
-
----@param spellID integer
----@return boolean removed
-function Private.Auras.RemoveCustomCooldown(spellID)
-	return RemoveCustomPoolSpell(POOLS.cooldown, spellID)
+function Private.Auras.SetCooldownEnabled(spellID, enabled)
+	return SetPoolEnabled(POOLS.cooldown, spellID, enabled)
 end
 
 ---@return boolean applied
@@ -2498,40 +2520,51 @@ function Private.Auras.ResetCooldowns()
 end
 
 ---@param spellID integer
----@param custom boolean? whether `spellID` is a user-added entry rather than a shipped one
 ---@return boolean
-function Private.Auras.IsDefensiveEnabled(spellID, custom)
-	return IsPoolEnabled(POOLS.defensive, spellID, custom)
+function Private.Auras.IsDefensiveEnabled(spellID)
+	return IsPoolEnabled(POOLS.defensive, spellID)
 end
 
 ---@param spellID integer
 ---@param enabled boolean
----@param custom boolean? whether `spellID` is a user-added entry rather than a shipped one
 ---@return boolean applied
-function Private.Auras.SetDefensiveEnabled(spellID, enabled, custom)
-	return SetPoolEnabled(POOLS.defensive, spellID, enabled, custom)
-end
-
----@return integer[]
-function Private.Auras.CustomDefensives()
-	return CustomPoolSpells(POOLS.defensive)
-end
-
----@param spellID integer
----@return boolean added false when it is already in the list
-function Private.Auras.AddCustomDefensive(spellID)
-	return AddCustomPoolSpell(POOLS.defensive, spellID)
-end
-
----@param spellID integer
----@return boolean removed
-function Private.Auras.RemoveCustomDefensive(spellID)
-	return RemoveCustomPoolSpell(POOLS.defensive, spellID)
+function Private.Auras.SetDefensiveEnabled(spellID, enabled)
+	return SetPoolEnabled(POOLS.defensive, spellID, enabled)
 end
 
 ---@return boolean applied
 function Private.Auras.ResetDefensives()
 	return ResetPool(POOLS.defensive)
+end
+
+---@param spellID integer
+---@return boolean
+function Private.Auras.IsCustomAuraEnabled(spellID)
+	return IsPoolEnabled(POOLS.customAura, spellID, true)
+end
+
+---@param spellID integer
+---@param enabled boolean
+---@return boolean applied
+function Private.Auras.SetCustomAuraEnabled(spellID, enabled)
+	return SetPoolEnabled(POOLS.customAura, spellID, enabled, true)
+end
+
+---@return integer[]
+function Private.Auras.CustomAuraSpells()
+	return CustomPoolSpells(POOLS.customAura)
+end
+
+---@param spellID integer
+---@return boolean added false when it is already in the list
+function Private.Auras.AddCustomAura(spellID)
+	return AddCustomPoolSpell(POOLS.customAura, spellID)
+end
+
+---@param spellID integer
+---@return boolean removed
+function Private.Auras.RemoveCustomAura(spellID)
+	return RemoveCustomPoolSpell(POOLS.customAura, spellID)
 end
 
 --- Whether the user should be offered a reload, because frames have been abandoned or are about to be.

@@ -37,7 +37,7 @@ Private.Enum.GrowY = {
 ---| "absValueAbbreviated"
 
 ---@alias SpotlightsAuraDisplayKey "bar" | "icon" | "square" | "text" | "frameColor"
----@alias SpotlightsAuraFeatureKey "prescience" | "shiftingSands" | "sensePower" | "cooldownAuras" | "defensiveAuras"
+---@alias SpotlightsAuraFeatureKey "prescience" | "shiftingSands" | "sensePower" | "cooldownAuras" | "defensiveAuras" | "customAuras"
 
 --- Work deferred past combat, and the throttle keys used out of combat. Both queues drain through
 --- the same ordered dispatch.
