@@ -27,6 +27,17 @@ Private.Enum.GrowY = {
 	Up = "UP",
 }
 
+--- Which way a pooled category's icons flow from the first one. One enum rather than the grid's pair
+--- above, because a pooled display flows along a single axis: composing GrowX with GrowY would offer a
+--- diagonal nothing can draw.
+---@enum SpotlightsAuraGrowDirection
+Private.Enum.AuraGrowDirection = {
+	Right = "RIGHT",
+	Left = "LEFT",
+	Down = "DOWN",
+	Up = "UP",
+}
+
 --- What a configured slot holds. `Blank` is a user-placed spacer that reserves its grid cell;
 --- `Retired` is a pooled header kept alive but hidden, since frames cannot be destroyed.
 ---@alias SlotKind "player" | "blank" | "retired"
@@ -37,7 +48,7 @@ Private.Enum.GrowY = {
 ---| "absValueAbbreviated"
 
 ---@alias SpotlightsAuraDisplayKey "bar" | "icon" | "square" | "text" | "frameColor"
----@alias SpotlightsAuraFeatureKey "prescience" | "shiftingSands" | "sensePower" | "cooldownAuras" | "defensiveAuras"
+---@alias SpotlightsAuraFeatureKey "prescience" | "shiftingSands" | "sensePower" | "cooldownAuras" | "defensiveAuras" | "customAuras"
 
 --- Work deferred past combat, and the throttle keys used out of combat. Both queues drain through
 --- the same ordered dispatch.

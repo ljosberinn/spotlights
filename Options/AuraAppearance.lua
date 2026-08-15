@@ -15,6 +15,7 @@ Private.AuraAppearance = {}
 --- a copy: the Tracked sub-tab is about the same category, and neither of them owns it.
 
 local Orientation = Private.Enum.Orientation
+local GrowDirection = Private.Enum.AuraGrowDirection
 
 --- What the label column costs in the ~250px half of a section's control grid. Narrower than the
 --- Appearance tab's 120 because these labels are one or two short words, and the sliders here are the
@@ -642,9 +643,18 @@ local function BuildIconBody(page)
 			Getter("icon", "height"), Setter("icon", "height")),
 
 		-- Only a category pooling several icons has anything to space; offered where it does nothing, it
-		-- would read as a broken setting.
+		-- would read as a broken setting. The same holds for the direction below.
 		OnlyWhen(Full(Private.Controls.Slider(page, L.AuraGap, GAP_MIN, GAP_MAX, 1,
 			Getter("icon", "gap"), Setter("icon", "gap"))), function()
+			return Private.Auras.IsPooled(ActiveFeature())
+		end),
+
+		OnlyWhen(Full(Private.Controls.Dropdown(page, L.AuraGrowDirection, {
+			{ value = GrowDirection.Right, label = L.GrowRight },
+			{ value = GrowDirection.Left,  label = L.GrowLeft },
+			{ value = GrowDirection.Down,  label = L.GrowDown },
+			{ value = GrowDirection.Up,    label = L.GrowUp },
+		}, Getter("icon", "growDirection"), Setter("icon", "growDirection"))), function()
 			return Private.Auras.IsPooled(ActiveFeature())
 		end),
 

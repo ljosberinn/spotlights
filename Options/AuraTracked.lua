@@ -10,7 +10,8 @@ Private.AuraTracked = {}
 ---
 --- Which category reaches this file as an accessor rather than a copy, as it does the Appearance sub-tab.
 --- What that category *contains* is `Options/AuraSpells.lua`'s answer: this file draws groups and counts
---- without knowing that two of the five categories share one pool and two others have no spells at all.
+--- without knowing that two categories share one pool, two have no spells at all, and one is the user's
+--- own list with no classes to rail.
 
 --- 196 of the content rectangle's 863.
 local RAIL_WIDTH = 196
@@ -103,8 +104,8 @@ local ActiveName
 local selectedKey
 
 --- Held rather than looked up per node, because a lookup rebuilds the category's group list and the
---- header, rows, note and add row would each pay for one. Written in the pane's `Refresh`, which runs
---- after the rail's -- the rail is what corrects `selectedKey`.
+--- header, rows, note and add row would each pay for one. Written by the sub-tab's own `Refresh`, ahead
+--- of both sides: a category with no rail has nothing else to correct `selectedKey`.
 ---@type SpotlightsAuraSpellGroup?
 local selectedGroup
 
@@ -112,10 +113,10 @@ local selectedGroup
 ---@type string
 local query = ""
 
---- Kept so the sub-tab can empty it on the way out. One rail, one box, so a module local rather than
---- something threaded back out of the tree.
----@type EditBox?
-local searchBox
+--- Kept so the sub-tab can empty them on the way out. Two, because the box moves into the pane for a
+--- category with no rail to put it in -- one is visible at a time, and both share `query`.
+---@type EditBox[]
+local searchBoxes = {}
 
 ---@class SpotlightsAuraRailRow : Button
 ---@field accent Texture the selected row's fill
@@ -227,8 +228,6 @@ local function BuildGroupList(page)
 
 		visible = VisibleGroups()
 
-		local selected = ResolveSelection(visible)
-
 		for i = 1, #visible do
 			local group = visible[i]
 			local row = AcquireRow(list, rows, i)
@@ -237,7 +236,7 @@ local function BuildGroupList(page)
 			row.label:SetText(group.heading)
 			row.label:SetTextColor(group.r, group.g, group.b)
 			row.count:SetText(string.format(L.AuraGroupCount, enabled, total))
-			row.accent:SetShown(selected ~= nil and group.key == selected.key)
+			row.accent:SetShown(selectedGroup ~= nil and group.key == selectedGroup.key)
 
 			-- Rebound on every pass rather than captured once, because the rows are pooled: a handler
 			-- closed over the group this frame stood for last time would select the wrong one.
@@ -298,7 +297,7 @@ local function BuildSearch(page)
 	box:SetPoint("LEFT", node, "LEFT", SEARCH_INSET, 0)
 	box:SetHeight(SEARCH_HEIGHT)
 
-	searchBox = box
+	searchBoxes[#searchBoxes + 1] = box
 
 	box:HookScript("OnTextChanged", function(self)
 		local text = self:GetText():lower()
@@ -355,9 +354,17 @@ local function ConfirmReset()
 	StaticPopup_Show(RESET_POPUP)
 end
 
+--- Whether the selected category is drawn with a rail beside its pane. The reset button and the search
+--- box ride along with it: the one restores shipped defaults a custom pool has none of, the other moves
+--- into the pane.
+---@return boolean
+local function HasRail()
+	return Private.AuraSpells.HasRail(ActiveFeature())
+end
+
 --- The rail: the search box, the groups, and the reset under them. Hidden whole for a category with no
---- tracked list, where `Split` gives the pane the rail's width back rather than leaving it beside an
---- empty column.
+--- rail, where `Split` gives the pane the rail's width back rather than leaving it beside an empty
+--- column.
 ---@param page Frame
 ---@param height number what the sub-tab has to spend on it
 ---@return SpotlightsNode
@@ -369,9 +376,7 @@ local function BuildRail(page, height)
 		BuildSearch(page),
 		Private.Node.ScrollPane(page, BuildGroupList(page), listHeight),
 		Private.Controls.ActionButton(page, Private.L.Settings.AuraReset, ConfirmReset, true),
-	}, RAIL_GAP), function()
-		return Private.AuraSpells.HasSpells(ActiveFeature())
-	end)
+	}, RAIL_GAP), HasRail)
 end
 
 --- The spells of the selected group the search box admits: the rows the pane draws and the set its bulk
@@ -549,7 +554,7 @@ local function BuildSpellList(page)
 			row.label:SetText(label)
 			row.meta:SetText(meta)
 			row.icon:SetTexture(texture)
-			row.check:SetChecked(Private.AuraSpells.IsEnabled(featureKey, spellID, custom))
+			row.check:SetChecked(Private.AuraSpells.IsEnabled(featureKey, spellID))
 			row.remove:SetShown(custom)
 
 			-- The row can change spell under a cursor that never moved -- removing a custom entry pulls
@@ -562,7 +567,7 @@ local function BuildSpellList(page)
 			-- Rebound on every pass rather than captured once, because the rows are pooled: a handler
 			-- closed over the spell this frame stood for last time would toggle the wrong one.
 			local function Toggle(enabled)
-				Private.AuraSpells.SetEnabled(featureKey, spellID, enabled, custom)
+				Private.AuraSpells.SetEnabled(featureKey, spellID, enabled)
 
 				-- The rail's count for this group has just changed, so the pass belongs to the sub-tab
 				-- rather than to the row.
@@ -642,8 +647,7 @@ local function BuildPaneHeader(page)
 			return
 		end
 
-		Private.AuraSpells.SetSpellsEnabled(ActiveFeature(), VisibleSpells(), enabled,
-			selectedGroup.custom)
+		Private.AuraSpells.SetSpellsEnabled(ActiveFeature(), VisibleSpells(), enabled)
 		Private.Options.Refresh()
 	end
 
@@ -852,7 +856,9 @@ local function BuildAddSpell(page)
 	return node
 end
 
---- The pane: the header, the spells under it, and -- for the user's own group -- what adds one.
+--- The pane: the header, the spells under it, and -- for the user's own group -- what adds one. The
+--- search box joins it where there is no rail to hold one, since a custom list can grow long enough to
+--- want filtering.
 ---
 --- Two ways to have no group to be about: a category with no tracked list, and a search that admitted
 --- none. Both put a note where the list would be, since a blank pane says only that something is missing.
@@ -863,23 +869,37 @@ local function BuildPane(page, height)
 	local L = Private.L.Settings
 
 	-- The header and the add row are pinned; the list gets what is left. Reserved whether or not the add
-	-- row is showing, so switching to the custom group does not resize what is under the cursor.
-	local listHeight = math.max(height - Private.Controls.RowHeight * 2 - RAIL_GAP * 2, MIN_LIST_HEIGHT)
+	-- row is showing, so switching to the custom group does not resize what is under the cursor. Read per
+	-- layout rather than once, because the search box is only the pane's for some categories.
+	local function ListHeight()
+		local reserved = Private.Controls.RowHeight * 2 + RAIL_GAP * 2
+
+		if not HasRail() then
+			reserved = reserved + SEARCH_HEIGHT + RAIL_GAP
+		end
+
+		return math.max(height - reserved, MIN_LIST_HEIGHT)
+	end
 
 	local function HasGroup()
 		return selectedGroup ~= nil
 	end
 
+	local function IsCustomGroup()
+		return selectedGroup ~= nil and selectedGroup.custom == true
+	end
+
 	-- In the scroll pane rather than pinned beside the box it is about: it is two or three lines depending
 	-- on the locale, and a band whose height is a translation's business cannot be reserved.
 	local note = Private.Node.OnlyWhen(Private.Controls.Paragraph(page, function()
-		return ActiveFeature() == "defensiveAuras" and L.AuraCustomDefensivesNote
-			or L.AuraCustomCooldownsNote
-	end), function()
-		return selectedGroup ~= nil and selectedGroup.custom == true
-	end)
+		return L.AuraCustomNote
+	end), IsCustomGroup)
 
 	local pane = Private.Node.Column(page, {
+		Private.Node.OnlyWhen(BuildSearch(page), function()
+			return not HasRail()
+		end),
+
 		Private.Node.OnlyWhen(Private.Controls.Paragraph(page, function()
 			return Private.AuraSpells.HasSpells(ActiveFeature())
 				and L.AuraNoSpellMatches
@@ -891,32 +911,21 @@ local function BuildPane(page, height)
 		Private.Node.OnlyWhen(BuildPaneHeader(page), HasGroup),
 		Private.Node.OnlyWhen(
 			Private.Node.ScrollPane(page, Private.Node.Column(page, { note, BuildSpellList(page) }),
-				listHeight), HasGroup),
-		Private.Node.OnlyWhen(BuildAddSpell(page), function()
-			return selectedGroup ~= nil and selectedGroup.custom == true
-		end),
+				ListHeight), HasGroup),
+		Private.Node.OnlyWhen(BuildAddSpell(page), IsCustomGroup),
 	}, RAIL_GAP)
-
-	local Refresh = pane.Refresh
-
-	-- Resolves the selection the rail has just corrected, before anything inside reads it. Everything here
-	-- is about that one group, so it is resolved once rather than looked up per node.
-	function pane:Refresh()
-		selectedGroup = Private.AuraSpells.Group(ActiveFeature(), selectedKey)
-
-		Refresh(self)
-	end
 
 	return pane
 end
 
---- Empties the search box, which is what makes the filter belong to the visit rather than the panel: a
---- query left behind hides most of the rail on the way back in.
+--- Empties the search boxes, which is what makes the filter belong to the visit rather than the panel: a
+--- query left behind hides most of the rail on the way back in, and one typed on the rail would otherwise
+--- reach a category whose own box is empty.
 ---
---- The box drives the filter through its own `OnTextChanged`, so emptying the text is the whole of it.
+--- A box drives the filter through its own `OnTextChanged`, so emptying the text is the whole of it.
 function Private.AuraTracked.ResetSearch()
-	if searchBox then
-		searchBox:SetText("")
+	for i = 1, #searchBoxes do
+		searchBoxes[i]:SetText("")
 	end
 end
 
@@ -932,8 +941,18 @@ function Private.AuraTracked.Build(page, GetFeature, GetName)
 	local height = math.max(page:GetHeight() - Private.Node.SubTabHeight - CHROME_RESERVE,
 		MIN_RAIL_HEIGHT)
 
-	-- The rail refreshes first, which the pane relies on: the rail is what corrects the selection the pane
-	-- then resolves.
-	return Private.Node.Split(page, BuildRail(page, height), BuildPane(page, height),
+	local split = Private.Node.Split(page, BuildRail(page, height), BuildPane(page, height),
 		{ leftWidth = RAIL_WIDTH })
+
+	local Refresh = split.Refresh
+
+	-- Ahead of both sides rather than inside either, so neither depends on the other having run: the rail
+	-- only paints the selection, and a category drawn without one still has it corrected.
+	function split:Refresh()
+		selectedGroup = ResolveSelection(VisibleGroups())
+
+		Refresh(self)
+	end
+
+	return split
 end

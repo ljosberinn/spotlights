@@ -185,9 +185,9 @@ L.Settings.PresetImportErrorPrefix = "a string não é uma predefinição do Spo
 L.Settings.PresetImportErrorPayload = "os dados decodificados não são uma lista de espaços"
 L.Settings.Prescience = "Presciência"
 L.Settings.ShiftingSands = "Areias Cambiantes"
-L.Settings.Cooldowns = "Recargas e auras personalizadas"
+L.Settings.Cooldowns = "Recargas"
 L.Settings.Defensives = "Defensivos"
-L.Settings.AuraAugmentationOnly = "Presciência, Areias Cambiantes e Detectar Poder só estão disponíveis para Evocadores de Aprimoramento."
+L.Settings.CustomAuras = "Auras personalizadas"
 L.Settings.AuraTracked = "Rastreadas"
 L.Settings.AuraFeatureToggle = "Rastrear %s"
 L.Settings.SensePower = "Detectar Poder"
@@ -217,6 +217,7 @@ L.Settings.AuraShowIcon = "Ícone embutido"
 L.Settings.AuraIconSide = "Lado do ícone"
 L.Settings.AuraIconLeft = "À esquerda da barra"
 L.Settings.AuraGap = "Espaçamento"
+L.Settings.AuraGrowDirection = "Direção de crescimento"
 L.Settings.AuraIconRight = "À direita da barra"
 L.Settings.AuraIconTop = "Acima da barra"
 L.Settings.AuraIconBottom = "Abaixo da barra"
@@ -262,11 +263,8 @@ L.Settings.AuraNoTrackedSpells = "%s observa uma aura específica, então não h
 L.Settings.AuraNoSpellMatches = "Nenhuma magia corresponde à sua busca."
 L.Settings.AurasRebuildHelp =
 "Algumas configurações podem precisar de um recarregamento após a aplicação. Você será solicitado a fazê-lo quando terminar de personalizar."
-L.Settings.AuraCustomCooldowns = "Auras personalizadas"
-L.Settings.AuraCustomCooldownsNote =
+L.Settings.AuraCustomNote =
 "Estas devem ser BÊNÇÃOS que aparecem nos jogadores, para que efeitos de berloques funcionem. Maldições e conjurações não podem ser rastreadas aqui, e adicionar uma não fará absolutamente nada."
-L.Settings.AuraCustomDefensivesNote =
-"Adicione IDs de feitiços defensivos que não estejam na lista incluída."
 L.Settings.AuraCustomAdd = "Adicionar"
 L.Settings.AuraCustomSpellID = "ID de magia"
 L.Settings.ClickCastIntro =

@@ -67,7 +67,6 @@
 ---@field SetTabSelectedCallback fun(self: SpotlightsTabSystemFrame, callback: fun(tabID: integer, isUserAction: boolean?): boolean?)
 ---@field SetTab fun(self: SpotlightsTabSystemFrame, tabID: integer, isUserAction: boolean?) runs the selection callback
 ---@field SetTabVisuallySelected fun(self: SpotlightsTabSystemFrame, tabID: integer) paints the selection without running the callback
----@field SetTabEnabled fun(self: SpotlightsTabSystemFrame, tabID: integer, enabled: boolean, errorReason: string?) greys the label and refuses the click, with the reason in the tooltip
 ---@field SetTabShown fun(self: SpotlightsTabSystemFrame, tabID: integer, isShown: boolean) takes the tab out of the strip entirely, the rest closing up over it
 
 --- The reworked options window.
@@ -205,24 +204,24 @@
 --- Tracked auras. Every feature carries an identical shape on purpose: one customisation set pointed
 --- at whichever spells the feature watches, so none may grow a field the others lack.
 ---
---- The four pool tables sit beside the features rather than inside any one of them, keeping that rule
+--- The three pool tables sit beside the features rather than inside any one of them, keeping that rule
 --- true: a spell pool is a list belonging to the aura block, not to a customisation set -- and the
 --- cooldown pool is read by two features, `sensePower` and `cooldownAuras`.
 ---
---- Both are **sparse**, holding only what the user changed. `cooldowns` overrides the built-in list
---- in `Auras.lua` and is only ever written `false`; a built-in absent from it is on, so adding a
---- spell to that list in a later version needs no migration. `custom` is the opposite -- empty until
---- the user adds to it -- mapping each ID to its own toggle.
+--- All three are **sparse**, holding only what the user changed. `cooldowns` overrides the built-in
+--- list in `Auras.lua` and is only ever written `false`; a built-in absent from it is on, so adding a
+--- spell to that list in a later version needs no migration. `customSpells` is the opposite -- empty
+--- until the user adds to it -- mapping each ID to its own toggle.
 ---@class SpotlightsAurasConfig
 ---@field prescience SpotlightsAuraFeatureConfig
 ---@field shiftingSands SpotlightsAuraFeatureConfig
 ---@field sensePower SpotlightsAuraFeatureConfig
 ---@field cooldownAuras SpotlightsAuraFeatureConfig
 ---@field defensiveAuras SpotlightsAuraFeatureConfig
+---@field customAuras SpotlightsAuraFeatureConfig
 ---@field cooldowns table<integer, boolean> built-in overrides; only ever `false`, meaning "off"
----@field custom table<integer, boolean> user-added spell IDs, each mapped to its enabled state
 ---@field defensives table<integer, boolean> defensive overrides; absent means the shipped default
----@field defensiveCustom table<integer, boolean> user-added defensive spell IDs
+---@field customSpells table<integer, boolean> user-added spell IDs, each mapped to its enabled state
 
 --- One aura's four displays, independent of each other and all optional, under one switch for the
 --- feature as a whole.
@@ -267,6 +266,7 @@
 ---@field borderB number
 ---@field borderA number
 ---@field gap number?
+---@field growDirection SpotlightsAuraGrowDirection?
 
 --- A duration bar with independent pixel dimensions.
 ---
@@ -312,6 +312,7 @@
 ---@field font string
 ---@field fontSize number
 ---@field gap number in pixels between multiple icons
+---@field growDirection SpotlightsAuraGrowDirection which way pooled icons flow from the first
 
 --- A coloured block, optionally with a cooldown swipe and remaining duration across it.
 ---
@@ -488,6 +489,21 @@
 ---@field SetAuraGroupMaxFrameCount fun(self: SpotlightsAuraContainer, groupKey: string, maxFrameCount: number)
 ---@field SetAuraGroupLayout fun(self: SpotlightsAuraContainer, groupKey: string, layoutOptions: table)
 ---@field SetAuraSlotCandidateFilters fun(self: SpotlightsAuraContainer, slotKey: string, candidateFilters: table) asserts on an unknown slot key
+---@field SetFlowLayoutAxis fun(self: SpotlightsAuraContainer, layoutAxis: number) asserts on a value outside AnchorUtil.FlowLayoutAxis
+---@field SetFlowLayoutAnchorPoint fun(self: SpotlightsAuraContainer, anchorPoint: AnchorPoint)
+---@field SetFlowLayoutGrowthDirection fun(self: SpotlightsAuraContainer, horizontal: number, vertical: number) asserts on values outside AnchorUtil.FlowDirection
+
+--- One grow direction spelled out for both paths that place pooled icons: the container's flow layout,
+--- and the preview's item-to-item chain. See `GROW_LAYOUTS` in `Auras.lua`.
+---@class SpotlightsAuraGrowLayout
+---@field axis number an AnchorUtil.FlowLayoutAxis value
+---@field anchorPoint AnchorPoint the container corner every element is anchored to
+---@field horizontal number an AnchorUtil.FlowDirection value
+---@field vertical number an AnchorUtil.FlowDirection value
+---@field chainPoint AnchorPoint
+---@field chainRelativePoint AnchorPoint
+---@field chainX number the sign the gap carries horizontally
+---@field chainY number the sign the gap carries vertically
 
 --- The drawable parts of one display, whichever kind it is.
 ---

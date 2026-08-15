@@ -24,20 +24,30 @@ local DOT_SIZE = 16
 local DOT_INSET = 8
 
 --- Applied to the label's alpha rather than its colour, because the template owns the font object and swaps
---- it on every selection -- and because the disabled colour already means "not this specialisation's".
+--- it on every selection.
 local OFF_ALPHA = 0.5
 
 --- The categories in strip order. `augmentation` is the whole of the gating rule, restating the partition
---- `Private.Auras` splits its feature sets on, because a tab has to be *drawn* disabled for a feature that
---- list has already dropped.
----@type { key: SpotlightsAuraFeatureKey, augmentation: boolean }[]
+--- `Private.Auras` splits its feature sets on, because a tab has to be taken off the strip for a feature that
+--- list has already dropped. Nil is the third state: a feature in **both** sets, which no specialisation
+--- gates.
+---@type { key: SpotlightsAuraFeatureKey, augmentation: boolean? }[]
 local CATEGORIES = {
 	{ key = "prescience",     augmentation = true },
 	{ key = "shiftingSands",  augmentation = true },
 	{ key = "sensePower",     augmentation = true },
 	{ key = "cooldownAuras",  augmentation = false },
 	{ key = "defensiveAuras", augmentation = false },
+	{ key = "customAuras" },
 }
+
+--- Whether a category is one the given specialisation configures.
+---@param category { key: SpotlightsAuraFeatureKey, augmentation: boolean? }
+---@param augmentation boolean
+---@return boolean
+local function Applies(category, augmentation)
+	return category.augmentation == nil or category.augmentation == augmentation
+end
 
 --- Which feature both sub-tabs are about. Corrected against the specialisation by the first refresh, which
 --- happens before anything is drawn.
@@ -71,6 +81,7 @@ local function CategoryNames()
 		sensePower = L.SensePower,
 		cooldownAuras = L.Cooldowns,
 		defensiveAuras = L.Defensives,
+		customAuras = L.CustomAuras,
 	}
 end
 
@@ -96,7 +107,7 @@ local function FirstApplicable(augmentation)
 	for i = 1, #CATEGORIES do
 		local category = CATEGORIES[i]
 
-		if category.augmentation == augmentation then
+		if Applies(category, augmentation) then
 			return category.key
 		end
 	end
@@ -106,22 +117,21 @@ end
 
 --- Brings the strip in line with the specialisation and with the switches behind its dots.
 ---
---- Gating is `TabSystemButtonMixin`'s own `SetTabEnabled`, which greys the label, refuses the click,
---- carries the reason into the tooltip and preserves the disabled state across `SetTabSelected`.
+--- Gating is `SetTabShown`, which takes the tab out of the strip's layout entirely -- a specialisation's
+--- own categories then read as the whole strip rather than as part of a longer one.
 local function RefreshCategories()
 	if not categoryStrip then
 		return
 	end
 
-	local L = Private.L.Settings
 	local augmentation = Private.Utils.IsAugmentation()
 
 	-- The selection is corrected before the tabs are painted, so the strip ends the pass selecting a
-	-- tab it has just enabled rather than one it has just greyed out.
+	-- tab it has just shown rather than one it has just removed.
 	for i = 1, #CATEGORIES do
 		local category = CATEGORIES[i]
 
-		if category.key == activeFeature and category.augmentation ~= augmentation then
+		if category.key == activeFeature and not Applies(category, augmentation) then
 			activeFeature = FirstApplicable(augmentation)
 
 			break
@@ -130,23 +140,13 @@ local function RefreshCategories()
 
 	for i = 1, #CATEGORIES do
 		local category = CATEGORIES[i]
-		local applies = category.augmentation == augmentation
+		local applies = Applies(category, augmentation)
 		local enabled = Private.Auras.IsFeatureEnabled(category.key)
 
-		-- A reason only where there is one to give: the three Evoker features say who they are for, and the
-		-- two pooled ones are left unexplained.
-		categoryStrip:SetTabEnabled(categoryTabs[category.key], applies,
-			category.augmentation and L.AuraAugmentationOnly or nil)
-
+		categoryStrip:SetTabShown(categoryTabs[category.key], applies)
 		categoryStrip:GetTabButton(categoryTabs[category.key]).Text:SetAlpha(enabled and 1 or OFF_ALPHA)
 
-		local dot = categoryDots[category.key]
-
-		dot:SetChecked(enabled)
-
-		-- A category this specialisation does not have is not a switch to offer: the feature would not
-		-- render either way.
-		dot:SetEnabled(applies)
+		categoryDots[category.key]:SetChecked(enabled)
 	end
 
 	-- Painted rather than selected: the selection has not changed here, and `SetTab` would run the
@@ -225,6 +225,10 @@ local function CreateCategoryStrip(page)
 		end
 
 		activeFeature = key
+
+		-- The Tracked search box moves between the rail and the pane depending on the category, so a query
+		-- left behind would filter the incoming list from a box that is no longer on screen.
+		Private.AuraTracked.ResetSearch()
 
 		ApplyPreviewFeature()
 
