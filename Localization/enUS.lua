@@ -28,8 +28,8 @@ L.Registry.Unknown = "no group member matches '%s'"
 L.Registry.IdentitySecret = "cannot match '%s' - %d group member(s) have secret identities here"
 L.Registry.NotInRoster = "that player is not in the group, so their name cannot be matched reliably"
 L.Registry.Duplicate = "%s already holds slot %d"
--- Refused rather than added and taken straight back out, so the setting explains itself the first time
--- it stops someone from being spotlighted.
+-- Refused rather than added and taken straight back out, so the setting explains itself the first time it
+-- stops someone from being spotlighted.
 L.Registry.RoleAutoRemoved = "%s plays a role set to be removed from the grid"
 L.Registry.NoSuchSlot = "there is no slot %d"
 L.Registry.Assigned = "slot %d spotlights %s"
@@ -58,14 +58,13 @@ L.Settings.TabImportExport = "Import / Export"
 L.Settings.ShowMinimapButton = "Show Minimap Button"
 L.Settings.ClickToOpenSettings = "Click To Open Settings"
 
--- The second tooltip line. Assigning a slot is the most common reason to open the panel, so the button
--- says the shortcut rather than leaving it to be found.
+-- The second tooltip line, since assigning a slot is the most common reason to open the panel.
 L.Settings.RightClickToOpenRoster = "Right-Click To Open The Roster Tab"
 L.Settings.Import = "Import"
 L.Settings.Export = "Export"
 L.Settings.ImportError = "Import failed: %s"
--- Said in terms of the kind of string rather than the prefix it lacks, because a preset string does
--- start with SPOTLIGHTS! and is still refused here.
+-- Said in terms of the kind of string rather than the prefix it lacks: a preset string does start with
+-- SPOTLIGHTS! and is still refused here.
 L.Settings.ImportErrorPrefix = "the string is not a Spotlights profile"
 L.Settings.ImportErrorDecode = "the string could not be decoded"
 L.Settings.ImportErrorPayload = "the decoded data is not a settings table"
@@ -82,8 +81,7 @@ L.Settings.Scale = "Frame Scale"
 L.Settings.FrameStrata = "Frame Strata"
 L.Settings.SlashHint = "Type |cffffd100/spotlights|r for every command."
 
---- The frame strata, as display strings. Named for what the layer is rather than transliterated, since
---- the value itself never reaches the user.
+--- Named for what the layer is rather than transliterated; the stored value never reaches the user.
 L.Settings.Strata = {
 	BACKGROUND = "Background",
 	LOW = "Low",
@@ -112,12 +110,9 @@ L.Settings.HealthColor = "Static Bar Color"
 L.Settings.HealthBgColor = "Background Color"
 L.Settings.ResetFrame = "Reset Frame Settings"
 
---- Group headings, one level between a section title and a control's own label. Kept under their own
---- prefix rather than reusing the control labels they sit over: `Size` heads a group whose members are
---- `Frame Width` and `Frame Height`, and a heading that repeated a label would read as a duplicate row.
----
---- Shared across tabs on purpose -- `Text`, `Color` and `Positioning` mean the same thing over the name
---- as over the health text, and one string each is what keeps them spelled the same way.
+--- Group headings, one level between a section title and a control's own label. Their own prefix rather
+--- than the control labels they sit over, which would read as a duplicate row, and shared across tabs so
+--- `Text`, `Color` and `Positioning` stay spelled the same way wherever they appear.
 L.Settings.GroupSize = "Size"
 L.Settings.GroupHealthBar = "Health Bar"
 L.Settings.GroupOpacity = "Opacity"
@@ -135,8 +130,8 @@ L.Settings.ShowName = "Show Name"
 L.Settings.NameHoverOnly = "Show Name On Hover Only"
 L.Settings.NameStrata = "Name Strata"
 
--- Not a strata but the absence of one: the name draws in the layer the grid is already in. Named for
--- what it does rather than "Default", since every other entry in the list is a layer.
+-- Not a strata but the absence of one, and named for that rather than "Default", since every other entry
+-- in the list is a layer.
 L.Settings.NameStrataInherit = "Inherit"
 
 L.Settings.NameColorMode = "Name Color"
@@ -164,12 +159,12 @@ L.Settings.ResetHealthText = "Reset Health Settings"
 
 L.Settings.PreviewHeading = "Preview"
 
--- The size the previewed frame really is, then what the pane had to shrink it by to fit -- so a
--- preview that reads smaller than its own numbers is explained rather than misleading.
+-- The frame's real size, then what the pane shrank it by, so a preview smaller than its own numbers is
+-- explained rather than misleading.
 L.Settings.PreviewCaption = "%d × %d · shown at %d%%"
 
--- An axis, on both dropdowns it labels: which way the grid wraps, and which way a bar's fill runs. The
--- end that fill starts at is `AuraFillDirection`, which is a separate control on the same panel.
+-- An axis on both dropdowns it labels: which way the grid wraps, and which way a bar's fill runs. Which
+-- end that fill starts at is `AuraFillDirection`, a separate control.
 L.Settings.Orientation = "Fill Axis"
 L.Settings.Horizontal = "Across, Then Down"
 L.Settings.Vertical = "Down, Then Across"
@@ -190,16 +185,15 @@ L.Settings.FillOrderCaption = "%s · wraps every %d · grows %s, %s"
 
 L.Settings.AllowGaps = "Render Empty Cells"
 L.Settings.ClearOnLeave = "Clear Roster When Leaving The Group"
--- Says what it does to the grid rather than what it does to the list, because it is destructive: the
--- roles picked here are taken out of the grid and kept out, not merely hidden somewhere.
+-- Says what it does to the grid rather than to the list, because it is destructive: these roles are taken
+-- out and kept out, not hidden.
 L.Settings.AutoRemoveRoles = "Automatically Remove These Roles"
 
--- The two pane headings are read as a pair: each names the people in its own list rather than the
--- structure behind it, and the right one is not "group members" because anyone already spotlighted is
--- left out of it.
+-- Read as a pair, each naming the people in its own list. Not "group members" on the right, since anyone
+-- already spotlighted is left out of it.
 L.Settings.SpotlightedHeader = "Spotlighted"
 L.Settings.UnrosteredHeader = "Unrostered"
--- Ends in an ellipsis on purpose: the dropdown under it finishes the sentence with the roles picked.
+-- Ends in an ellipsis: the dropdown under it finishes the sentence with the roles picked.
 L.Settings.UnrosteredRoleFilter = "Show roles matching..."
 L.Settings.AddSpacer = "Add Spacer"
 L.Settings.NoSlots =
@@ -211,43 +205,39 @@ L.Settings.BlankSlot = "(spacer)"
 L.Settings.UnknownSlot = "(empty)"
 L.Settings.NotInGroup = "not in a group"
 L.Settings.AllSpotlighted = "everyone is spotlighted"
--- The third empty state, and the one the role filter above the list adds: the group has members, but
--- none playing a role the list was told to show. Names no role itself, because which ones are shown is
--- the user's to change and the dropdown right above says so.
+-- The empty state the role filter adds: members exist, none in a shown role. Names no role itself, since
+-- the dropdown right above says which are shown.
 L.Settings.NoOfferedRoles = "no one in the group plays the roles this list shows"
 L.Settings.UpShort = "^"
 L.Settings.DownShort = "v"
 L.Settings.RemoveShort = "x"
 L.Settings.PlusShort = "+"
 
--- The presets block under the unrostered list. A preset is a slot layout and nothing else, which is
--- what the delete prompt says out loud: "delete" beside a list of slots could be read as deleting the
--- slots.
+-- A preset is a slot layout and nothing else, which the delete prompt says out loud: "delete" beside a list
+-- of slots could be read as deleting the slots.
 L.Settings.PresetsHeading = "Presets"
 L.Settings.PresetsCount = "%d saved"
 L.Settings.PresetsNone = "No presets saved yet. Save the slots you have configured to start one."
--- The dropdown with nothing picked, which is what a fresh session and a finished import both leave
--- behind: an import fills the library without applying anything, so the block has to be able to say
--- that the grid is nobody's preset.
+-- What a fresh session and a finished import both leave behind: an import fills the library without
+-- applying anything, so the block has to be able to say the grid is nobody's preset.
 L.Settings.PresetNoneSelected = "None selected"
 
 L.Settings.PresetSave = "Save"
 L.Settings.PresetDelete = "Delete"
 L.Settings.PresetSavePrompt = "Name this preset:"
 
--- The same dialog, asked of an imported string, which arrives with the name its author gave it: the
--- question is whether to keep that name rather than what to call an unnamed thing.
+-- The same dialog asked of an imported string, where the question is whether to keep the author's name
+-- rather than what to call an unnamed thing.
 L.Settings.PresetImportNamePrompt = "Preset name is currently %s - do you wish to rename it?"
 L.Settings.PresetOverwritePrompt = "A preset called \"%s\" already exists. Replace it?"
 L.Settings.PresetOverwriteConfirm = "Replace"
 L.Settings.PresetDeletePrompt = "Delete the preset \"%s\"? Your configured slots are not touched."
 
--- What commits the pasted string. It adds a preset to the library rather than applying one, so it says
--- "add" where the Import/Export tab's button says "import".
+-- "Add" rather than the Import/Export tab's "import": it adds a preset to the library without applying one.
 L.Settings.PresetImportAdd = "Add Preset"
 
--- A preset string and a profile string cannot be swapped, and each says so in the other's words: this
--- is the answer to a full profile pasted into the preset box.
+-- The answer to a full profile pasted into the preset box; the two kinds of string cannot be swapped, and
+-- each says so in the other's words.
 L.Settings.PresetImportErrorPrefix = "the string is not a Spotlights preset"
 L.Settings.PresetImportErrorPayload = "the decoded data is not a slot list"
 
@@ -265,30 +255,27 @@ L.Settings.AuraFeatureToggle = "Track %s"
 L.Settings.AuraBar = "Status Bar"
 L.Settings.AuraIcon = "Icon"
 
--- The third display: a coloured block with no spell art on it, for when presence and remaining time are
--- the whole of what is wanted. One size, since it is square, and its colour is all that tells two of
--- them apart -- which is why the label says what is being coloured.
+-- The third display: a coloured block with no spell art. One size, since it is square, and its colour is
+-- all that tells two of them apart -- hence a label saying what is being coloured.
 L.Settings.AuraSquare = "Square"
 L.Settings.AuraSquareSize = "Size"
 L.Settings.AuraSquareColor = "Block Color"
 
--- The fourth display: the remaining duration and nothing else. Its three style labels drop the `Duration`
--- the icon's and the square's carry, because there is nothing else on this display for them to be about.
+-- The fourth display: the remaining duration and nothing else, so its labels drop the `Duration` the icon's
+-- and the square's carry.
 L.Settings.AuraText = "Text"
 L.Settings.AuraTextFont = "Font"
 L.Settings.AuraTextFontSize = "Size"
 L.Settings.AuraTextColor = "Text Color"
--- The fifth display: the spotlight's health bar wearing a colour for as long as the aura is up. Two
--- controls and no others -- its rect is the health bar's, so there is no size, no anchor and no border to
--- offer. The note says what the opacity costs, because at 1 the class colour is gone while the aura is up
--- and that reads as a bug rather than as the setting doing what it says.
+-- The fifth display: the health bar wearing a colour while the aura is up. Its rect is the health bar's, so
+-- there is no size, anchor or border to offer. The note says what the opacity costs, because at 1 the class
+-- colour disappears and that reads as a bug.
 L.Settings.AuraFrameColor = "Frame Color"
 L.Settings.AuraFrameColorColor = "Health Bar Color"
 L.Settings.AuraFrameColorNote =
 "Colors the health bar while the aura is up. At full opacity the class color is hidden until the aura falls off; lower it to let the class color show through. Drawn over the name unless you raise Name Strata."
 
--- The tint's summary. The shortest of the five, because opacity is the only thing it has to say: it has no
--- size, no anchor and no border.
+-- The shortest of the five summaries, because opacity is all this display has.
 L.Settings.AuraSummaryFrameColor = "%d%% opacity"
 
 L.Settings.AuraEnabled = "Show"
@@ -310,13 +297,12 @@ L.Settings.AuraIconRight = "Right Of The Bar"
 L.Settings.AuraIconTop = "Above The Bar"
 L.Settings.AuraIconBottom = "Below The Bar"
 
--- Which axis a bar's fill runs along, under the `L.Settings.Orientation` label the Grid tab also uses.
--- Not that tab's own two choices: "Across, Then Down" is a wrapping rule and says nothing about a bar.
+-- Under the `L.Settings.Orientation` label the Grid tab also uses, but not that tab's own two choices:
+-- "Across, Then Down" is a wrapping rule and says nothing about a bar.
 L.Settings.AuraFillHorizontal = "Horizontal"
 L.Settings.AuraFillVertical = "Vertical"
 
--- Which end of that axis the fill is anchored to. Four choices for two stored values: the pair offered
--- names the ends of whichever axis is set, and the summary reuses the same words.
+-- Four choices for two stored values: the pair offered names the ends of whichever axis is set.
 L.Settings.AuraFillDirection = "Fill Direction"
 L.Settings.AuraFillLeftToRight = "Left To Right"
 L.Settings.AuraFillRightToLeft = "Right To Left"
@@ -333,18 +319,17 @@ L.Settings.AuraBorderStyle = "Border Style"
 L.Settings.AuraBorderSize = "Border Size"
 L.Settings.AuraBorderColor = "Border Color"
 
--- What a collapsed display section says about itself: its size, where it hangs, the one option that
--- most changes how it reads, and its border. Formatted from the live config on every edit, so the
--- header tracks the body -- and replaced outright by `AuraSummaryHidden` for a display that is off,
--- since a size for something nothing will draw is worse than no summary at all.
+-- What a collapsed display section says about itself, formatted from the live config on every edit.
+-- Replaced outright by `AuraSummaryHidden` for a display that is off, since a size for something nothing
+-- will draw is worse than no summary.
 L.Settings.AuraSummary = "%d × %d · %s · %s · %s"
 
--- The bar's own, one field longer: its fill direction goes between the size and the anchor, because a
--- `100 × 25` that drains upward reads as a lie without it.
+-- The bar's own, one field longer: a `100 × 25` that drains upward reads as a lie without its fill
+-- direction.
 L.Settings.AuraSummaryBar = "%d × %d · %s · %s · %s · %s"
 
--- The bare countdown's own, three fields shorter: it has no size of its own -- the font size is what
--- stands in for one -- and no swipe, so what is left is how big, where, and its border.
+-- The bare countdown's own, three fields shorter: no size of its own -- the font size stands in -- and no
+-- swipe.
 L.Settings.AuraSummaryText = "%dpx · %s · %s"
 L.Settings.AuraSummaryHidden = "Hidden"
 L.Settings.AuraSummarySwipeOn = "swipe on"
@@ -354,45 +339,40 @@ L.Settings.AuraSummaryNoInlineIcon = "no inline icon"
 L.Settings.AuraSummaryBorder = "%dpx border"
 L.Settings.AuraSummaryNoBorder = "no border"
 
--- The second pane in a display section, shown only once the category has two displays on: the same mini
--- spotlight wearing all of them at once, which is where the offsets that separate them are judged. The
--- caption names what is on the frame rather than restating its size, which the pane above already gives.
+-- The second pane, shown once a category has two displays on: where the offsets separating them are judged.
+-- Names what is on the frame rather than restating the size the pane above already gives.
 L.Settings.AuraCombinedPreviewHeading = "All Active Displays"
 L.Settings.AuraCombinedPreviewCaption = "Every display this category has switched on, together."
 
 L.Settings.AuraReset = "Reset To Defaults"
 L.Settings.AuraResetConfirm = "Reset"
--- Names the display and then the category it belongs to, because the Appearance sub-tab carries one
--- reset per display and the three are configured independently. Silent about the tracked spell list,
--- which a display reset does not touch and which two of the five categories do not have.
+-- Names the display and then its category, because the Appearance sub-tab carries one reset per display.
+-- Silent about the tracked spell list, which a display reset does not touch.
 L.Settings.AuraResetDisplayPrompt = "Reset The %s For %s To Its Default Settings?"
 
--- The tracked list has a reset of its own, under the class rail. It says what it leaves alone, because
--- a spell the user typed in has no default to return to and deleting it is not what a reset is for.
+-- The tracked list's own reset says what it leaves alone: a spell the user typed in has no default to
+-- return to, and deleting it is not what a reset is for.
 L.Settings.AuraResetSpellsPrompt = "Reset Which Spells %s Tracks To The Shipped Defaults? Spells You Added Yourself Are Kept."
 
 -- How much of a class is switched on, beside its name in the rail: enabled over total.
 L.Settings.AuraGroupCount = "%d/%d"
 
--- The bulk switches over the spell pane. They act on whatever the search box left showing, so that a
--- filtered list does exactly what the buttons above it say.
+-- These act on whatever the search box left showing, so a filtered list does what the buttons say.
 L.Settings.AuraEnableAll = "Enable All"
 L.Settings.AuraDisableAll = "Disable All"
 
--- What stands in for the spell pane when there is no group to show. Prescience and Shifting Sands watch
--- one specific aura each, so there is nothing to choose; the other is a search that matched nothing.
+-- What stands in for the spell pane when there is no group to show: a one-aura category, or a search that
+-- matched nothing.
 L.Settings.AuraNoTrackedSpells = "%s watches one specific aura, so there is nothing to choose here."
 L.Settings.AuraNoSpellMatches = "No spells match your search."
 
--- The one place the cost of the design is visible to the user, so it says what it costs rather than
--- only that it costs something.
+-- The one place the cost of the design is visible to the user, so it says what that cost is.
 L.Settings.AurasRebuildHelp =
 "Some settings may need a reload after application. You will get prompted to do so when you finished customizing."
 
 L.Settings.AuraCustomCooldowns = "Custom Auras"
 
--- Says what will silently not work, because the failure mode is a spell that was added successfully and
--- then simply never appears -- which reads as a bug rather than as a limit.
+-- Says what will silently not work: a spell added successfully and then never seen reads as a bug.
 L.Settings.AuraCustomCooldownsNote =
 "These must be BUFFS that appear on players, so trinket effects work. Debuffs and casts cannot be tracked here, and adding one will do nothing at all."
 L.Settings.AuraCustomDefensivesNote = "Add defensive spell IDs that are not in the shipped list."
@@ -420,8 +400,8 @@ L.Settings.Anchors = {
 
 L.Auras = {}
 
--- Two prompts rather than one, because they ask for different things. The first is a setup problem
--- the user may not know they have; the second is a switch they can flick.
+-- Two prompts, because the first is a setup problem the user may not know they have and the second is a
+-- switch they can flick.
 L.Auras.SensePowerMissing =
 "Spotlights cannot tell whether Sense Power is active unless it is on one of your action bars.\n\nOnly the cooldowns you have enabled can be tracked, which leaves out some summons. For complete tracking, Sense Power must be active, so put it on a bar if you wish to turn it on."
 L.Auras.SensePowerInactive =
@@ -445,8 +425,8 @@ L.DragAssign.HintRemove = "Remove %s"
 
 L.Preview = {}
 
--- Only ever seen on a slot with nobody assigned to it, so it has to read as a stand-in rather than
--- as a player whose name failed to resolve.
+-- Only ever seen on an unassigned slot, so it has to read as a stand-in rather than as a name that failed
+-- to resolve.
 L.Preview.Label = "Spotlight %d"
 
 L.Mover = {}

@@ -7,25 +7,18 @@ Private.RosterPresets = {}
 --- The Presets block under the Unrostered list: a saved slot layout per raid composition, and the four
 --- things that can be done with one.
 ---
---- A preset is a **slot list and nothing else**. Appearance, auras and the grid's position are the
---- same whichever raid is in front of you; who is in the grid is exactly what is not, and rebuilding
---- twenty slots by hand for the second composition of the night is the problem this block exists for.
+--- A preset is a **slot list and nothing else** -- appearance, auras and position are the same whichever
+--- raid is in front of you. Applying one replaces the grid outright, because a merge would have to guess
+--- what happens to a slot the preset does not name.
 ---
---- Applying one replaces the grid outright rather than merging into it. A merge would have to answer
---- what happens to a slot the preset does not name, and there is no answer that is not a guess -- a
---- preset is a whole arrangement, not a set of edits.
----
---- Nothing here writes a slot itself: applying goes through `Private.Registry.SetSlots`, like every
---- other front-end onto the slot list.
+--- Nothing here writes a slot itself: applying goes through `Private.Registry.SetSlots`.
 
---- What a text box in this column costs. Less than half the Import/Export tab's 160, because the block
---- shares its column with the Unrostered list and every pixel it takes is a raid member that list stops
---- showing -- and a preset string is read by selecting it, not by reading it.
+--- Less than half the Import/Export tab's 160, because every pixel this block takes is a raid member the
+--- Unrostered list above it stops showing.
 local BOX_HEIGHT = 70
 
---- Registered at click time by whoever raised them, so the localisation table is filled by then --
---- and shared keys deliberately, as every other prompt in this panel: `StaticPopup_Show` reuses the
---- dialog already on screen for a key, where a second key would stack a second identical one.
+--- Registered at click time so the localisation table is filled by then, and keyed as sparsely as every
+--- other prompt here: `StaticPopup_Show` reuses the dialog already on screen for a key.
 local NAME_POPUP = "SPOTLIGHTS_PRESET_NAME"
 local OVERWRITE_POPUP = "SPOTLIGHTS_PRESET_OVERWRITE"
 local DELETE_POPUP = "SPOTLIGHTS_PRESET_DELETE"
@@ -34,20 +27,17 @@ local DELETE_POPUP = "SPOTLIGHTS_PRESET_DELETE"
 --- reasons that are specific to a preset are said in the *detail* the dialog is formatted with.
 local IMPORT_ERROR_POPUP = "SPOTLIGHTS_IMPORT_ERROR"
 
---- Which preset the dropdown is on. Transient, like the search box on the Tracked sub-tab: it is a
---- position in a list rather than a setting, and a preset selected in one session says nothing about
---- what the next one is for.
+--- Which preset the dropdown is on. Transient, like the Tracked sub-tab's search box: a position in a list
+--- rather than a setting.
 ---@type string?
 local selected
 
---- Which box, if either, is open under the buttons. `nil` is the resting state: neither string is
---- something the user needs in front of them until they ask for it, and both are as tall as several
---- raid members.
+--- Which box, if either, is open under the buttons. `nil` is the resting state.
 ---@type "import" | "export" | nil
 local box
 
---- What has been pasted into the import box, for the same reason the Import/Export tab keeps its own:
---- there is nothing in the database to read it back from between a paste and the click.
+--- What has been pasted into the import box: there is nothing in the database to read it back from between
+--- a paste and the click.
 local pending = ""
 
 ---@return SpotlightsPresets
@@ -57,11 +47,8 @@ local function Presets()
 	return db and db.presets or {}
 end
 
---- The preset names in a stable order.
----
---- Sorted rather than `pairs`, which is the same reason the class rail sorts its groups: a map's
---- iteration order can differ between sessions, and a list that reshuffles itself is a list nobody
---- can find anything in twice.
+--- The preset names in a stable order: `pairs` can differ between sessions, and a list that reshuffles
+--- itself is one nobody can find anything in twice.
 ---@return string[]
 local function Names()
 	local names = {}
@@ -87,14 +74,11 @@ local function Choices()
 	return choices
 end
 
---- The selection, corrected first.
+--- The selection, corrected first: a preset can go while it is selected, by a delete or by an import
+--- replacing the database under the panel.
 ---
---- Re-read rather than trusted, because a preset can go while it is selected -- the user deletes it,
---- or an import replaces the database under the panel.
----
---- Dropped rather than moved to a neighbour, for the reason deleting one is: the grid still holds what
---- it held, so naming any remaining preset would claim an arrangement that was never applied. No
---- selection is a state the dropdown can say out loud.
+--- Dropped rather than moved to a neighbour, since the grid still holds what it held and naming any
+--- remaining preset would claim an arrangement that was never applied.
 ---@return string?
 local function Selected()
 	local presets = Presets()
@@ -106,10 +90,8 @@ local function Selected()
 	return selected
 end
 
---- The current grid as a preset stores it: kinds and names, no GUIDs.
----
---- See `SpotlightsPresets`. The GUID belongs to the raid the preset was saved in, and keeping one
---- would only give `SetSlots` a stale answer to prefer over the name.
+--- The current grid as a preset stores it: kinds and names, no GUIDs. See `SpotlightsPresets` -- a GUID
+--- belongs to the raid the preset was saved in, and would give `SetSlots` a stale answer to prefer.
 ---@return SpotlightsSlot[]
 local function Snapshot()
 	local slots = Private.Registry.GetSlots()
@@ -126,13 +108,9 @@ end
 
 --- Stores a preset under a name, closing whatever box was open.
 ---
---- Saving the grid selects what was stored, and that is the confirmation: the dropdown reads back what
---- was just saved, so a name that was typed and a name that was stored are visibly the same thing. An
---- import stores without selecting -- it fills the shelf and touches nothing else, so a selection here
---- would name an arrangement the grid does not have.
----
---- An import landing on the selected preset drops the selection instead of leaving it: the name still
---- exists, but its slots are no longer the grid's, which is the same lie by another route.
+--- Saving the grid selects what was stored, which is the confirmation. An import does not: it fills the
+--- shelf and touches nothing else, so a selection would name an arrangement the grid does not have -- and
+--- an import landing *on* the selected preset drops the selection for the same reason.
 ---@param name string
 ---@param slots SpotlightsSlot[]
 ---@param selecting boolean
@@ -182,21 +160,13 @@ end
 
 --- Asks for a name, then stores the slots under it.
 ---
---- One dialog for both callers -- saving the grid and naming an imported string -- because they ask
---- the same question about different slots, and the accept handler is registered with the slots it is
---- about rather than handed them through the dialog's `data`.
+--- One dialog for both callers -- saving the grid and naming an imported string -- with the accept handler
+--- registered against the slots it is about rather than handed them through the dialog's `data`. An
+--- existing name is a second prompt rather than a refusal.
 ---
---- An existing name is a second prompt rather than a refusal: overwriting a preset is what the user
---- means most of the time they type a name they have used, and refusing it would leave them renaming
---- around their own library.
----
---- A `suggested` name is what an imported string carried. It changes the question the dialog asks --
---- naming something is not the same act as keeping or rejecting the name it arrived with -- and
---- nothing else about it.
----
---- `selecting` is carried rather than derived from `suggested`, which happens to answer the same
---- question today: the two are about different things, and a dialog's wording is no place to keep
---- whether the grid is about to be claimed.
+--- `suggested` is the name an imported string carried, and changes only the question the dialog asks.
+--- `selecting` is carried rather than derived from it: the two happen to agree today but are about
+--- different things.
 ---@param slots SpotlightsSlot[]
 ---@param selecting boolean
 ---@param suggested string?
@@ -231,16 +201,14 @@ local function PromptName(slots, selecting, suggested)
 		hideOnEscape = true,
 		preferredIndex = 3,
 		hasEditBox = true,
-		-- The codec's bound, so a name typed here and a name arriving in a string are held to the one
-		-- limit. `hasEditBox` enforces it as the user types, so a name is never truncated after the fact.
+		-- The codec's bound, so a typed name and an arriving one are held to the one limit, enforced as the
+		-- user types rather than truncated after the fact.
 		maxLetters = Private.Profile.MAX_PRESET_NAME_LETTERS,
 
 		OnShow = function(dialog)
 			local editBox = dialog:GetEditBox()
 
 			-- Filled with the imported name and selected, so accepting keeps it and typing replaces it.
-			-- Empty when saving the grid, where there is nothing to save under no name and the button
-			-- says so until there is one.
 			editBox:SetText(suggested or "")
 			editBox:HighlightText()
 			editBox:SetFocus()
@@ -248,8 +216,7 @@ local function PromptName(slots, selecting, suggested)
 			dialog:GetButton1():SetEnabled(suggested ~= nil)
 		end,
 
-		-- Blizzard's own handler for exactly this: it enables the accept button once the box holds
-		-- something.
+		-- Blizzard's own handler: it enables the accept button once the box holds something.
 		EditBoxOnTextChanged = StaticPopup_StandardNonEmptyTextHandler,
 
 		---@param editBox any
@@ -268,11 +235,9 @@ local function PromptName(slots, selecting, suggested)
 	StaticPopup_Show(NAME_POPUP)
 end
 
---- Deletes the selected preset, after asking.
----
---- Confirmed for the reason the roster's own clear is: it discards an arrangement that took a raid
---- night to lay out, and the button sits beside three that are not destructive at all. The prompt
---- says the grid itself is untouched, since "delete" next to a list of slots could mean either.
+--- Deletes the selected preset, after asking: it discards an arrangement that took a raid night to lay out,
+--- from a button sitting beside three that are not destructive. The prompt says the grid itself is
+--- untouched, since "delete" next to a list of slots could mean either.
 local function ConfirmDelete()
 	local L = Private.L.Settings
 	local name = Selected()
@@ -299,9 +264,8 @@ local function ConfirmDelete()
 
 			db.presets[name] = nil
 
-			-- Said here as well as in `Selected`, which would drop it on the next pass anyway: the grid
-			-- keeps the slots the deleted preset gave it, and a neighbour picked to fill the gap would
-			-- silently arm Delete over whatever was beside what was just deleted.
+			-- Said here as well as in `Selected`, which would drop it next pass anyway: a neighbour picked to
+			-- fill the gap would silently arm Delete over whatever sat beside what was deleted.
 			selected = nil
 			box = nil
 
@@ -333,12 +297,9 @@ end
 
 --- Reads the pasted string and, if it is a preset, offers the name it arrived under.
 ---
---- Still a prompt rather than a straight store, because the name is the author's and the library is
---- this account's: the two can collide, and a preset that appeared under a name nobody was shown
---- would be a preset nobody could find. The prompt answers both -- it says what the string calls
---- itself and it is the place to say otherwise.
----
---- Nothing is applied to the grid. An import fills the shelf; selecting is what puts a preset in play.
+--- A prompt rather than a straight store, because the author's name can collide with one in this account's
+--- library and a preset stored under a name nobody was shown is one nobody can find. Nothing is applied to
+--- the grid -- an import fills the shelf; selecting is what puts a preset in play.
 local function DoImport()
 	local preset, reason = Private.Profile.ImportPresetString(strtrim(pending))
 
@@ -351,11 +312,8 @@ local function DoImport()
 	PromptName(preset.slots, false, preset.name)
 end
 
---- Opens one of the two boxes, or closes the one that is open.
----
---- A toggle rather than two states, because both buttons are also the way out: the box takes a third
---- of the column and the user who opened it by accident should not have to find something else to
---- click.
+--- Opens one of the two boxes, or closes the one that is open. A toggle, so the button that opened a box
+--- taking a third of the column is also the way out of it.
 ---@param kind "import" | "export"
 local function ToggleBox(kind)
 	box = box ~= kind and kind or nil
@@ -386,16 +344,12 @@ function Private.RosterPresets.Build(page)
 			return not HasPresets()
 		end),
 
-		--- No label: the section header above already says what the dropdown lists, and this column is
-		--- 250 wide -- a label column here would leave a dropdown too narrow to read a name in.
-		---
-		--- The placeholder is what a library nobody has picked from reads as, which is every session's
-		--- first open, everything after a delete, and everything after an import.
+		--- No label: the section header says what the dropdown lists, and a label column would leave a
+		--- dropdown too narrow to read a name in at this column's 250.
 		Private.Node.OnlyWhen(Private.Controls.Dropdown(page, nil, Choices, Selected, function(name)
 			selected = name
 
-			-- Selecting *is* applying, which is what makes the block worth having: the alternative is a
-			-- second click on an Apply button that could never mean anything else.
+			-- Selecting *is* applying: an Apply button beside it could never mean anything else.
 			Private.Registry.SetSlots(Presets()[name] or {})
 			Private.Options.Refresh()
 		end, nil, L.PresetNoneSelected), HasPresets),
@@ -458,8 +412,7 @@ function Private.RosterPresets.Build(page)
 	end, function()
 		local count = #Names()
 
-		-- Silent at zero: the body already says there is nothing here, and "0 saved" in the header
-		-- would say it twice in the one place a collapsed section has to be brief.
+		-- Silent at zero: the body already says there is nothing here.
 		return count > 0 and string.format(L.PresetsCount, count) or nil
 	end, body, false)
 end

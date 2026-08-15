@@ -24,10 +24,9 @@ local skipped = 0
 
 --- Records one member, or counts them as skipped.
 ---
---- Shared by both scans because the guarding is the whole substance of either: issecretvalue before
---- the nil checks, since comparing a secret is itself an error. Name and GUID are secret only when
---- unit identity is restricted, which means rated PvP -- for party members exactly as for raid ones.
---- Counting skips rather than erroring turns that into a reportable state -- see GetStats.
+--- `issecretvalue` comes before the nil checks, since comparing a secret is itself an error. Name and GUID
+--- are secret only when unit identity is restricted, which means rated PvP. Counting skips rather than
+--- erroring turns that into a reportable state -- see GetStats.
 ---@param name string?
 ---@param guid string?
 ---@param class string?
@@ -55,19 +54,18 @@ local function Record(name, guid, class, secret)
 end
 
 --- The name and class of one party member, composed the way `GetGroupRosterInfo` composes them for a
---- `PARTY` header (SecureGroupHeaders.lua:298-305) -- `UnitName`, suffixed with `-realm` only when
---- the realm is non-empty. Anything else and the header's nameList match finds nothing.
+--- `PARTY` header (SecureGroupHeaders.lua:298-305) -- `UnitName`, suffixed with `-realm` only when the
+--- realm is non-empty. Anything else and the header's nameList match finds nothing.
 ---
---- `player` is deliberately unreachable from here: the header walks index 0 only with `showPlayer`
---- set, and it is not, so offering the player as assignable would offer a name nothing can match.
+--- `player` is deliberately unreachable: the header walks index 0 only with `showPlayer` set, and it is
+--- not.
 ---@param unit string
 ---@return string? name, string? class, boolean? secret
 local function PartyMember(unit)
 	local name, realm = UnitName(unit)
 
-	-- The realm is *part of* the name here, unlike the class, so a secret realm makes the name
-	-- unusable rather than merely uncoloured: storing the bare name would match a same-realm
-	-- stranger. Reported rather than composed, so Record counts it as the skip it is.
+	-- The realm is *part of* the name, so a secret realm makes it unusable rather than merely uncoloured:
+	-- storing the bare name would match a same-realm stranger.
 	if issecretvalue(realm) then
 		return nil, nil, true
 	end
@@ -82,12 +80,11 @@ local function PartyMember(unit)
 	return name, class
 end
 
---- Rescans the group. Plain table work, so legal in combat and cheap enough to run on every roster
---- event -- which lets a build blocked by combat run as one pass once combat ends.
+--- Rescans the group. Plain table work, so legal in combat and cheap enough to run on every roster event.
 ---
---- The two branches mirror `GetGroupHeaderType` (SecureGroupHeaders.lua:261-287): a raid wins over a
---- party for the same group, and the party walk stops at `GetNumSubgroupMembers`, which excludes the
---- player. Solo scans nothing, because no header renders solo.
+--- The two branches mirror `GetGroupHeaderType` (SecureGroupHeaders.lua:261-287): a raid wins over a party
+--- for the same group, and the party walk stops at `GetNumSubgroupMembers`, which excludes the player.
+--- Solo scans nothing, because no header renders solo.
 function Private.Roster.Rebuild()
 	table.wipe(nameByGuid)
 	table.wipe(guidByName)
@@ -98,8 +95,7 @@ function Private.Roster.Rebuild()
 
 	if IsInRaid() then
 		for i = 1, GetNumGroupMembers() do
-			-- Sixth return is `fileName`, the English class token -- not the fifth, which is the
-			-- localised class name and would key nothing.
+			-- Sixth return is `fileName`; the fifth is the localised class name and would key nothing.
 			local name, _, _, _, _, class = GetRaidRosterInfo(i)
 
 			Record(name, UnitGUID("raid" .. i), class)
@@ -115,8 +111,8 @@ function Private.Roster.Rebuild()
 	for i = 1, GetNumSubgroupMembers() do
 		local unit = "party" .. i
 
-		-- Mirrors the existence check the secure side makes before reading a party unit
-		-- (SecureGroupHeaders.lua:300). GetNumSubgroupMembers is not a promise every index resolves.
+		-- Mirrors the secure side's own existence check (SecureGroupHeaders.lua:300);
+		-- GetNumSubgroupMembers is not a promise every index resolves.
 		if UnitExists(unit) then
 			local name, class, secret = PartyMember(unit)
 
@@ -127,9 +123,8 @@ end
 
 --- The name for a GUID, and whether it came from the group roster.
 ---
---- Only a roster-sourced name may be written back into a slot: GetPlayerInfoByGUID returns name and
+--- **Only a roster-sourced name may be written back into a slot**: GetPlayerInfoByGUID returns name and
 --- realm separately, so rebuilding `Name-Realm` from them is a synthesis the header will not match.
---- The cache answer is for display and diagnostics only.
 ---@param guid string
 ---@return string? name, boolean fromRoster
 function Private.Roster.GetName(guid)
@@ -139,7 +134,7 @@ function Private.Roster.GetName(guid)
 		return name, true
 	end
 
-	-- The client name cache answers for players not in the group -- what a slot assigned to someone
+	-- The client name cache answers for players not in the group, which is what a slot assigned to someone
 	-- offline needs to describe itself. It carries no secret annotation.
 	local _, _, _, _, _, cachedName, realm = GetPlayerInfoByGUID(guid)
 
@@ -160,13 +155,9 @@ function Private.Roster.GetGuid(name)
 	return guidByName[name]
 end
 
---- The English class token for a GUID, or nil.
----
---- Roster first, then the client's name cache, which answers for someone not in the group -- so a
---- slot assigned to an absent player still carries their colour.
----
---- Unlike `GetName`, the two sources need not be distinguished: a class token is only read to pick
---- a colour, never written back, so a cached answer is as good as a scanned one.
+--- The English class token for a GUID, or nil. Roster first, then the client's name cache, so a slot
+--- assigned to an absent player still carries their colour. Unlike `GetName`, the two sources need not be
+--- distinguished: a class token is only read to pick a colour, never written back.
 ---@param guid string
 ---@return string? class
 function Private.Roster.GetClass(guid)
@@ -176,7 +167,7 @@ function Private.Roster.GetClass(guid)
 		return class
 	end
 
-	-- Second return is `englishClass`; the first is localised and would key nothing.
+	-- Second return is `englishClass`; the first is localised.
 	local _, englishClass = GetPlayerInfoByGUID(guid)
 
 	return englishClass
@@ -185,15 +176,11 @@ end
 --- The assigned role for a GUID, as `UnitGroupRolesAssigned` spells it, or nil.
 ---
 --- Not cached beside the class, and could not be: the role comes off a *unit*, so it only exists for
---- someone currently in the group. A slot configured for an absent player has no role to show, which
---- is a state the options list draws rather than an answer worth reconstructing.
+--- someone currently in the group. `NONE` is folded into nil, since a caller drawing an icon treats an
+--- unpicked role and an absent member alike.
 ---
---- `NONE` is folded into nil. A member who has not picked a role and a member who is not there are
---- the same thing to a caller that draws an icon for one.
----
---- Secret-guarded even though a secret GUID never reaches the roster maps: this one may be handed a
---- GUID out of the database, and a slot's player could be in a rated match where unit identity is
---- restricted. Comparing a secret is itself an error, so the test comes before the comparison.
+--- Secret-guarded even though a secret GUID never reaches the roster maps, because this one may be handed a
+--- GUID out of the database. Comparing a secret is itself an error, so the test comes first.
 ---@param guid string
 ---@return string? role
 function Private.Roster.GetRole(guid)
@@ -217,10 +204,8 @@ function Private.Roster.GetToken(guid)
 	return UnitTokenFromGUID(guid)
 end
 
---- Resolves free-typed input to the exact name the header will match against.
----
---- Case-insensitive, and matches the bare name of a cross-realm member, so `/spotlights add bob`
---- finds `Bob-Silvermoon`. What gets stored is always the scan's own spelling.
+--- Resolves free-typed input to the exact name the header will match against. Case-insensitive, and matches
+--- the bare name of a cross-realm member, so `/spotlights add bob` finds `Bob-Silvermoon`.
 ---@param input string
 ---@return string? name, string? guid
 function Private.Roster.Resolve(input)
@@ -230,16 +215,16 @@ function Private.Roster.Resolve(input)
 
 	local wanted = string.lower(input)
 
-	-- pairs is legal here because Rebuild drops every entry whose name or GUID was secret, so all
-	-- these keys are plain strings. A table that may hold secret keys needs secureexecuterange.
+	-- pairs is legal because Rebuild drops every entry whose name or GUID was secret. A table that may hold
+	-- secret keys needs secureexecuterange.
 	for name, guid in pairs(guidByName) do
 		if string.lower(name) == wanted then
 			return name, guid
 		end
 	end
 
-	-- Second pass so an exact match wins: with both `Bob` and `Bob-Silvermoon` in the group,
-	-- `/spotlights add bob` must mean the former.
+	-- Second pass so an exact match wins: with both `Bob` and `Bob-Silvermoon` in the group, `add bob` means
+	-- the former.
 	for name, guid in pairs(guidByName) do
 		local bare = string.match(name, "^([^%-]+)")
 
@@ -251,13 +236,9 @@ function Private.Roster.Resolve(input)
 	return nil
 end
 
---- Every scanned group member as `{ guid, name }`, sorted by name.
----
---- A sorted copy rather than the live map: a hash-order list of thirty names reshuffles on every
---- rebuild and becomes unusable to click in.
----
---- No class, deliberately: `GetClass` answers for any GUID, so carrying it here too would be a
---- second path to the same value that goes stale differently.
+--- Every scanned group member as `{ guid, name }`, sorted by name -- a hash-order list of thirty reshuffles
+--- on every rebuild and becomes unusable to click in. No class: `GetClass` answers for any GUID, and a
+--- second path to it would go stale differently.
 ---@return { guid: string, name: string }[]
 function Private.Roster.List()
 	local list = {}

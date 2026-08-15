@@ -18,11 +18,8 @@ function Private.Registry.GetSlots()
 	return Slots() or {}
 end
 
---- Which slot a GUID currently occupies, or nil.
----
 --- GUID only, unlike the internal `FindOccupant`, which also matches on name so an offline-configured
---- slot still counts as taken. This answers the narrower "is this player already in the grid", and
---- every caller has a GUID from the current roster.
+--- slot still counts as taken. This answers the narrower "is this player already in the grid".
 ---@param guid string?
 ---@return integer? index
 function Private.Registry.SlotOf(guid)
@@ -41,11 +38,9 @@ function Private.Registry.SlotOf(guid)
 	return nil
 end
 
---- The role a slot's player is playing right now, or nil when there is nobody to ask about.
----
---- Resolves the name when the slot carries no GUID, because `SelfHeal` fills those in a deferral
---- later than the callers here run: a slot configured while its player was away would otherwise read
---- as roleless for one more event after they turned up.
+--- Resolves the name when the slot carries no GUID, because `SelfHeal` fills those in a deferral later
+--- than the callers here run: a slot configured while its player was away would otherwise read as
+--- roleless for one more event after they turned up.
 ---@param slot SpotlightsSlot
 ---@return string? role
 local function SlotRole(slot)
@@ -60,17 +55,14 @@ end
 
 --- Takes every slot whose player is playing a role the user set to be removed back out of the grid.
 ---
---- **Backwards**, because a removal shifts the rest up: forwards would skip the slot after each one
---- and leave half the healers in.
+--- **Backwards**, because a removal shifts the rest up: forwards would skip the slot after each one.
 ---
---- Only a slot that resolves to a role is a candidate. `GetRole` answers nil for a player who is not
---- in the group, one who has not picked a role, and one whose identity is secret -- and an absent
---- raider's slot is the thing the grid exists to hold open, so an absence of information never
---- removes anything.
+--- Only a slot that resolves to a role is a candidate. `GetRole` answers nil for a player not in the
+--- group, one who has not picked a role, and one whose identity is secret -- and an absent raider's slot
+--- is what the grid exists to hold open, so an absence of information never removes anything.
 ---
---- Silent, unlike the leave-the-group clear. That one is a single wipe of everything the user has,
---- announced because it is indistinguishable from data loss; this runs on every roster event and
---- takes out exactly what the setting names, so a line per healer joining would be chat spam.
+--- Silent, unlike the leave-the-group clear: this runs on every roster event and takes out exactly what
+--- the setting names, so a line per healer joining would be chat spam.
 ---@return boolean removed
 local function AutoRemoveRoles()
 	local slots = Slots()
@@ -96,23 +88,19 @@ local function AutoRemoveRoles()
 	return removed
 end
 
---- Schedules the model onto the headers. Both keys, always: Build creates or grows the
---- pool, Refresh applies the model to it, and DeferralOrder guarantees that sequence
---- within one pass.
+--- Schedules the model onto the headers. Both keys, always: `Build` creates or grows the pool, `Refresh`
+--- applies the model to it, and `DeferralOrder` guarantees that sequence within one pass.
 ---
---- Deliberately not an InCombatLockdown guard on the mutation itself. The deferral queue carries
---- keys and no arguments, so a guard here could only drop the mutation, not delay it. Mutating the
---- model is a plain Lua table write and always legal; only applying it to a protected header is
---- restricted, and that guard belongs in Build and Refresh where the restricted calls are.
+--- **No `InCombatLockdown` guard on the mutation itself.** The deferral queue carries keys and no
+--- arguments, so a guard here could only drop the mutation rather than delay it. Mutating the model is a
+--- plain table write and always legal; the guard belongs in `Build` and `Refresh`, where the restricted
+--- calls are.
 ---
---- The role removal runs here rather than beside each caller because every mutation in this file
---- ends here: a preset, a drop, a slash command and a roster event all arrive at one place. It never
---- calls back into Apply, so the recursion that would otherwise follow cannot happen.
+--- The role removal runs here because every mutation in this file ends here, and it never calls back
+--- into `Apply`, so no recursion follows.
 ---
---- A burst of in-combat mutations is recorded in order and applied in a single pass on
---- PLAYER_REGEN_ENABLED, with nothing lost. The cost is that the model and the frames can disagree
---- for the length of a pull, which is why the slash commands say so and `/spotlights list` reads the
---- model.
+--- The cost of deferring is that the model and the frames can disagree for the length of a pull, which
+--- is why the slash commands say so and `/spotlights list` reads the model.
 local function Apply()
 	AutoRemoveRoles()
 
@@ -124,9 +112,8 @@ local function Apply()
 	Private.Layout.Request()
 end
 
---- Which slot already holds this player, if any. Checked on both keys because either can be the
---- only one we have: an offline-assigned slot has a name and no GUID, and two headers with the same
---- nameList would silently show the same person twice.
+--- Checked on both keys because either can be the only one we have: an offline-assigned slot has a name
+--- and no GUID, and two headers with the same `nameList` would silently show the same person twice.
 ---@param guid string?
 ---@param name string?
 ---@return integer? index
@@ -156,12 +143,11 @@ end
 
 local containerHooked = false
 
---- Grows the header pool to the configured slot count. Frame creation only: anchoring and
---- sizing belong to Private.Layout, and nameList is Refresh's job.
+--- Grows the header pool to the configured slot count. Frame creation only: anchoring and sizing belong
+--- to `Private.Layout`, and `nameList` is `Refresh`'s job.
 ---
---- Split from Refresh so the two defer independently. DeferralOrder runs build before
---- registry, so combat starting between them cannot leave a nameList written to a header
---- that does not exist yet, and each re-queues only its own half.
+--- Split from `Refresh` so the two defer independently: `DeferralOrder` runs build before registry, so
+--- combat starting between them cannot leave a `nameList` written to a header that does not exist yet.
 local function Build()
 	if Private.Events.DeferIfInCombat(DeferralKey.Build) then
 		return
@@ -178,20 +164,17 @@ local function Build()
 	if not containerHooked then
 		containerHooked = true
 
-		-- A header created while the container is hidden has no child at all: OnShow is what
-		-- runs SecureGroupHeader_Update, and a header inside a hidden container never fires
-		-- it. The state driver shows the container after the roster event that triggered it,
-		-- so roster events alone always run too early. Hooking the container and deferring a
-		-- frame lands after the children exist.
+		-- A header created while the container is hidden has no child at all: `OnShow` runs
+		-- `SecureGroupHeader_Update`, and a header inside a hidden container never fires it. The state
+		-- driver shows the container *after* the roster event that triggered it, so roster events alone
+		-- always run too early.
 		--
-		-- Safe in a way hooking a header would not be: the container is ours, plain and
-		-- unprotected.
+		-- Safe in a way hooking a header would not be: the container is ours, plain and unprotected.
 		container:HookScript("OnShow", Apply)
 	end
 
-	-- Seeded from the layout rather than left at the native default. Build runs before
-	-- geometry in DeferralOrder, so without this every header is created at 72x36 and
-	-- resized a step later -- one frame of visibly wrong geometry on the first pass.
+	-- Seeded from the layout rather than left at the native default: `Build` runs before geometry, so
+	-- without this every header is created at 72x36 and resized a step later.
 	local layout = Private.Layout.GetConfig()
 	local config = layout and Private.FrameConfig.Get(layout.frameWidth, layout.frameHeight)
 		or Private.FrameConfig.Get()
@@ -209,16 +192,13 @@ local function Build()
 	end
 end
 
---- Keeps a slot's stored name and GUID pointing at the same player.
+--- Keeps a slot's stored name and GUID pointing at the same player. Both directions, because either half
+--- can be missing: an offline-assigned slot has only a name, and a name can go stale through a rename or
+--- realm transfer.
 ---
---- Both directions, because either half can be missing. A roster-sourced slot has both; an
---- offline-assigned slot has only a name and picks up its GUID the first time the player appears.
---- A name can go stale on its own through a rename or realm transfer, which self-heals here into a
---- one-cycle blip rather than a permanently dead slot.
----
---- Only a roster-sourced name is ever written back. Private.Roster.GetName's second return enforces
---- that: a cache-sourced name is reassembled from a bare name and a realm, which is exactly what
---- SecureGroupHeaders will not match.
+--- **Only a roster-sourced name is ever written back**, which `Private.Roster.GetName`'s second return
+--- enforces: a cache-sourced name is reassembled from a bare name and a realm, which is exactly what
+--- `SecureGroupHeaders` will not match.
 ---@param slot SpotlightsSlot
 local function SelfHeal(slot)
 	if slot.kind ~= "player" then
@@ -240,21 +220,17 @@ local function SelfHeal(slot)
 	end
 end
 
---- Which slot each grid cell is currently showing, rebuilt by `ResolveCells` on every apply.
----
---- With gaps on this is the identity map. With gaps off it is the inverse of compaction, and it is
---- the difference between a drop landing where the user pointed and landing somewhere plausible.
+--- Which slot each grid cell is currently showing, rebuilt by `ResolveCells` on every apply. With gaps
+--- on this is the identity map; with gaps off it is the inverse of compaction.
 ---@type integer[]
 local slotByCell = {}
 
---- The slot a grid cell is showing.
+--- The slot a grid cell is showing. **Anything that reads a cell index off the screen and hands it to
+--- the model must come through here**: with `allowGaps` off, cells hold present players in slot order,
+--- so cell 2 can be showing slot 5.
 ---
---- Cell and slot are the same number only while `allowGaps` is on, which is the default. With gaps
---- off, cells hold present players in slot order, so cell 2 can be showing slot 5 -- and anything
---- that reads a cell index off the screen and hands it to the model must come through here first.
----
---- Falls back to the identity when no apply has run yet: with no mapping there is no compaction to
---- undo.
+--- Falls back to the identity when no apply has run yet, since with no mapping there is no compaction
+--- to undo.
 ---@param cell integer
 ---@return integer slot
 function Private.Registry.SlotOfCell(cell)
@@ -321,9 +297,8 @@ end
 local function ApplySlot(header, name, config)
 	local occupied = name ~= false
 
-	-- Attributes before visibility. Every attribute write on a visible header runs a full
-	-- synchronous roster scan, so writing them while hidden and then showing once is one scan
-	-- instead of several.
+	-- Attributes before visibility: every attribute write on a visible header runs a full synchronous
+	-- roster scan, so writing while hidden and showing once is one scan instead of several.
 	Private.SlotHeader.ApplyAttributes(
 		header,
 		occupied and name or nil,
@@ -331,19 +306,18 @@ local function ApplySlot(header, name, config)
 		config.frameHeight
 	)
 
-	-- An occupied slot stays visible even while its player is absent. A hidden header early-outs
-	-- before its roster scan, and that scan is the entire mechanism that catches a player rejoining
-	-- mid-combat -- so hiding an empty-but-assigned slot would trade away the reason this
-	-- architecture was chosen. Blank slots have nothing to catch and so cost nothing.
+	-- **An occupied slot stays visible even while its player is absent.** A hidden header early-outs
+	-- before its roster scan, and that scan is the entire mechanism catching a player who rejoins
+	-- mid-combat.
 	--
-	-- Show and Hide are legal here because Refresh is out-of-combat only. The resulting OnShow runs
-	-- SecureGroupHeader_Update inside our tainted call, which measurably does not poison the
-	-- header's later untainted updates.
+	-- `Show`/`Hide` are legal because `Refresh` is out-of-combat only. The resulting `OnShow` runs
+	-- `SecureGroupHeader_Update` inside our tainted call, which measurably does not poison the header's
+	-- later untainted updates.
 	header:SetShown(occupied)
 
-	-- A header hidden until a moment ago had no child, and OnShow has just created one. Build's own
-	-- EnsureChild ran before that happened, so without this the first frame a slot becomes occupied
-	-- would render unstyled with no attribute mirror installed. Idempotent.
+	-- A header hidden until a moment ago had no child, and `OnShow` has just created one after `Build`'s
+	-- own `EnsureChild` ran -- so without this the first frame a slot becomes occupied renders unstyled
+	-- with no attribute mirror. Idempotent.
 	if occupied then
 		Private.SlotHeader.EnsureChild(header)
 	end
@@ -370,9 +344,8 @@ local function Refresh()
 		return
 	end
 
-	-- Self-heal before resolving, not during: compaction reads whether each slot's player is
-	-- currently in the roster, and a stale name would be counted absent and collapsed away on the
-	-- very pass that would have fixed it.
+	-- Self-heal before resolving, not during: compaction reads whether each slot's player is currently in
+	-- the roster, and a stale name would be collapsed away on the very pass that would have fixed it.
 	for i = 1, #slots do
 		SelfHeal(slots[i])
 	end
@@ -391,9 +364,9 @@ local function Refresh()
 		end
 	end
 
-	-- Headers past the configured count. Frames cannot be destroyed, so removing a slot leaves its
-	-- header behind; sentinel and hide it. Costs nothing afterwards, because a hidden header
-	-- early-outs in SecureGroupHeader_OnEvent before it scans anything.
+	-- Headers past the configured count. Frames cannot be destroyed, so removing a slot leaves its header
+	-- behind; sentinel and hide it, which then costs nothing because a hidden header early-outs in
+	-- `SecureGroupHeader_OnEvent`.
 	for i = #slots + 1, Private.SlotHeader.Count() do
 		if Private.Events.DeferIfInCombat(DeferralKey.Registry) then
 			return
@@ -427,10 +400,8 @@ local function Assign(guid, name, index)
 	local roles = layout and layout.autoRemoveRoles
 	local role = guid and Private.Roster.GetRole(guid)
 
-	-- Refused rather than left to the sweep in `Apply`, which would take the slot straight back out.
-	-- The outcome is the same either way; what differs is that `/spotlights add` gets to say why
-	-- instead of reporting a slot that is gone by the time the line is printed, and a drag that goes
-	-- nowhere is explained rather than watched.
+	-- Refused rather than left to `Apply`'s sweep, which would take the slot straight back out: the
+	-- outcome is the same, but this way `/spotlights add` gets to say why.
 	if role and roles and roles[role] then
 		return false, string.format(Private.L.Registry.RoleAutoRemoved, name)
 	end
@@ -438,10 +409,8 @@ local function Assign(guid, name, index)
 	---@type SpotlightsSlot
 	local slot = { kind = "player", guid = guid, name = name }
 
-	-- An explicit index **inserts**, pushing the rest of the grid down. Replace would silently
-	-- discard whoever was already there, and a drop is a gesture people miss by an inch. Inserting
-	-- cannot lose a slot to a misaimed drop, and the position the user pointed at is still where the
-	-- player lands.
+	-- An explicit index **inserts**, pushing the rest of the grid down: replace would silently discard
+	-- whoever was already there, and a drop is a gesture people miss by an inch.
 	local target = index and slots[index] and index or #slots + 1
 
 	if target > #slots then
@@ -455,11 +424,8 @@ local function Assign(guid, name, index)
 	return true, nil, target
 end
 
---- Assigns by name, resolving the GUID if the player is in the group.
----
---- A name with no GUID behind it is a legitimate state, not a failure: GetPlayerInfoByGUID only
---- goes GUID to name, so there is no way to obtain a GUID for someone not currently in the group.
---- The slot works regardless -- the name is what the header matches on -- and SelfHeal fills the
+--- Assigns by name, resolving the GUID if the player is in the group. A name with no GUID behind it is a
+--- legitimate state, not a failure: the name is what the header matches on, and `SelfHeal` fills the
 --- GUID in the first time they appear.
 ---@param name string exactly as the roster scan spells it
 ---@param index integer?
@@ -468,13 +434,12 @@ function Private.Registry.AssignByName(name, index)
 	return Assign(Private.Roster.GetGuid(name), name, index)
 end
 
---- Assigns by GUID, which is what a drop and the options roster list both have.
----
---- `index` inserts at that position rather than replacing it; see `Assign`.
+--- Assigns by GUID, which is what a drop and the options roster list both have. `index` inserts rather
+--- than replacing; see `Assign`.
 ---
 --- Refuses when only the client name cache knows the name, rather than storing a reassembled
---- `Name-Realm` the header would fail to match. Every front-end that produces a GUID sources it from
---- the current group, so this rejection should be unreachable -- hence loud rather than silent.
+--- `Name-Realm` the header would fail to match. Every front-end sources its GUID from the current group,
+--- so this rejection should be unreachable -- hence loud rather than silent.
 ---@param guid string
 ---@param index integer?
 ---@return boolean ok, string? reason, integer? assignedTo
@@ -488,8 +453,8 @@ function Private.Registry.AssignByGuid(guid, index)
 	return Assign(guid, name, index)
 end
 
---- Removes a slot entirely, shifting the ones after it up. Blanking is SetBlank; this is
---- for taking a cell out of the grid.
+--- Removes a slot entirely, shifting the ones after it up. Blanking is `SetBlank`; this takes a cell out
+--- of the grid.
 ---@param index integer
 ---@return boolean ok, string? reason
 function Private.Registry.Unassign(index)
@@ -529,10 +494,7 @@ function Private.Registry.SetBlank(index)
 	return true
 end
 
---- Empties the grid: every player and every spacer.
----
---- Spacers go too, on the same grounds the leave-the-group clear takes them: a grid with its players
---- gone but its holes kept is not cleared, and the shape is a handful of clicks to lay out again.
+--- Empties the grid, spacers included: a grid with its players gone but its holes kept is not cleared.
 ---
 --- Answers false on an already-empty grid rather than applying, so a caller can tell "nothing to do"
 --- from "done" without counting slots itself.
@@ -553,13 +515,11 @@ end
 --- Replaces the whole slot list, for the one caller that arrives with a list rather than an edit:
 --- applying a roster preset.
 ---
---- Copied rather than stored by reference. The list handed in belongs to the preset library and has
---- to keep belonging to it -- assigning it directly would make every later edit of the grid an edit
---- of the preset.
+--- **Copied rather than stored by reference**: the list belongs to the preset library, and assigning it
+--- directly would make every later edit of the grid an edit of the preset.
 ---
---- GUIDs are resolved from the names here rather than carried over, because a preset names the same
---- people in every raid while their GUIDs are the ones it happened to see. A name is what the header
---- matches on, and `SelfHeal` fills the GUID back in the first time the player is in the group.
+--- GUIDs are resolved from the names rather than carried over, because a preset names the same people in
+--- every raid while its GUIDs are the ones it happened to see.
 ---@param slots SpotlightsSlot[]
 ---@return boolean ok, string? reason
 function Private.Registry.SetSlots(slots)
@@ -574,8 +534,8 @@ function Private.Registry.SetSlots(slots)
 	for i = 1, #slots do
 		local slot = slots[i]
 
-		-- Anything that is not a player is a spacer. `retired` is a header's state rather than a
-		-- slot's, so it cannot legitimately be stored here and is not worth a second branch.
+		-- Anything that is not a player is a spacer: `retired` is a header's state rather than a slot's,
+		-- so it cannot legitimately be stored here.
 		if slot.kind == "player" and slot.name then
 			current[i] = { kind = "player", name = slot.name, guid = Private.Roster.GetGuid(slot.name) }
 		else
@@ -614,14 +574,13 @@ function Private.Registry.Move(from, to)
 	return true
 end
 
---- Forces every occupied header to re-scan the roster, by bouncing its nameList through the
---- sentinel and back.
+--- Forces every occupied header to re-scan the roster, by bouncing its `nameList` through the sentinel
+--- and back.
 ---
---- Exposed as `/spotlights rescan` and deliberately wired to no event. It is the recovery path for
---- one unproven case: a spotlighted player who leaves and rejoins the group while in combat, if the
---- header's own scan does not pick them up. Wire it to PLAYER_REGEN_ENABLED only once that is known
---- to happen -- an unconditional bounce costs two full roster scans per slot and defeats the diff
---- guard the whole cost model rests on.
+--- Exposed as `/spotlights rescan` and **deliberately wired to no event**: it is the recovery path for
+--- one unproven case, a spotlighted player who leaves and rejoins in combat. Wire it to
+--- `PLAYER_REGEN_ENABLED` only once that is known to happen -- an unconditional bounce costs two full
+--- roster scans per slot and defeats the diff guard the cost model rests on.
 ---@return integer rescanned
 function Private.Registry.Rescan()
 	if Private.Events.DeferIfInCombat(DeferralKey.Registry) then
@@ -642,9 +601,8 @@ function Private.Registry.Rescan()
 
 	local config = Private.FrameConfig.Get()
 
-	-- Resolved rather than read straight off the slots. With gaps off, header i holds the i-th
-	-- present player rather than slot i's, so bouncing `slots[i].name` through the sentinel would
-	-- re-point half the grid at the wrong people until the next Refresh.
+	-- Resolved rather than read straight off the slots: with gaps off, header i holds the i-th present
+	-- player, so bouncing `slots[i].name` would re-point half the grid at the wrong people.
 	local byCell = ResolveCells(slots, layout)
 	local count = 0
 
@@ -683,27 +641,22 @@ local function GroupKind()
 	return "none"
 end
 
---- What makes this setting safe, and the reason it is a remembered edge rather than a live test of
---- `GroupKind`. A bare "not in a group, so clear" would fire on the `PLAYER_ENTERING_WORLD` below and
---- wipe the user's entire configuration on every login, reload and reconnect.
+--- **A remembered edge rather than a live test of `GroupKind`**, which is what makes the setting safe: a
+--- bare "not in a group, so clear" would fire on the `PLAYER_ENTERING_WORLD` below and wipe the user's
+--- entire configuration on every login, reload and reconnect.
 ---
---- Starting at `none` is correct: a session that begins outside a group has not left one, and a
---- session that begins inside one sees its first roster event as an arrival.
+--- Starting at `none` is correct: a session that begins outside a group has not left one.
 ---@type "none"|"party"|"raid"
 local lastGroupKind = "none"
 
---- Wipes every configured slot when the kind of group the player is in changes, if the setting says
---- to. Leaving, and converting in either direction, all count; arriving from nothing does not.
+--- Wipes every configured slot when the kind of group the player is in changes, if the setting says to.
+--- Leaving, and converting in either direction, all count; arriving from nothing does not.
 ---
---- Everything, including spacers. The setting says "clear the roster" and a grid with its players
---- gone but its holes kept is not cleared; anyone who wants the shape back has the mover and an
---- empty grid.
+--- Not combat-guarded and does not need to be: wiping a table is plain Lua, and the frames catch up
+--- through the deferral queue.
 ---
---- Not combat-guarded, and does not need to be: wiping a table is plain Lua. The frames catch up
---- through the deferral queue like every other mutation in this file.
----
---- Announced, because a settings-driven deletion the user did not watch happen is indistinguishable
---- from data loss.
+--- Announced, because a settings-driven deletion the user did not watch happen is indistinguishable from
+--- data loss.
 ---@return boolean cleared
 local function ClearOnLeave()
 	local kind = GroupKind()
@@ -746,9 +699,8 @@ Private.Events.RegisterEvent("GROUP_ROSTER_UPDATE", function()
 	Apply()
 end)
 
--- A role change moves nobody in or out of the group, so nothing else in this file hears it. Without
--- it, a spotlighted damage dealer who switches to healing with Healer set to be removed keeps their
--- slot until the next membership change.
+-- A role change moves nobody in or out of the group, so nothing else in this file hears it: without it,
+-- a damage dealer switching to healing keeps their slot until the next membership change.
 Private.Events.RegisterEvent("PLAYER_ROLES_ASSIGNED", function()
 	if AutoRemoveRoles() then
 		Apply()
@@ -760,15 +712,14 @@ end)
 Private.Events.RegisterEvent("PLAYER_ENTERING_WORLD", Apply)
 
 Private.Events.RegisterEvent("PLAYER_LOGIN", function()
-	-- Rebuild the roster before anything asks for it, and unconditionally: it is plain table work,
-	-- so it runs even under lockdown. That makes a build blocked by a mid-combat reload one pass on
-	-- PLAYER_REGEN_ENABLED rather than a scan and then a build.
+	-- Unconditional, because it is plain table work and runs even under lockdown: that makes a build
+	-- blocked by a mid-combat reload one pass on `PLAYER_REGEN_ENABLED` rather than a scan then a build.
 	Private.Roster.Rebuild()
 	Apply()
 end)
 
---- Reports a mutation, and says so when the frames will lag the model. The model is always
---- current; only the headers wait for combat to end.
+--- Reports a mutation, and says so when the frames will lag the model: the model is always current, only
+--- the headers wait for combat to end.
 ---@param ok boolean
 ---@param reasonOrMessage string?
 local function Report(ok, reasonOrMessage)

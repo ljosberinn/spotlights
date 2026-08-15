@@ -4,24 +4,19 @@ local _, Private = ...
 ---@class SpotlightsContextMenu
 Private.ContextMenu = {}
 
---- "Spotlight this player" on the unit dropdown, added via `Menu.ModifyMenu` -- the sanctioned way
---- in, which lets addons insert elements without tainting surrounding element handlers
---- (`11_0_0_MenuImplementationGuide.lua`).
+--- "Spotlight this player" on the unit dropdown, added via `Menu.ModifyMenu`, which lets addons insert
+--- elements without tainting surrounding element handlers (`11_0_0_MenuImplementationGuide.lua`).
 ---
---- Not the `menu-function` attribute: that is invoked through `self:ExecuteAttribute` and runs with
---- the taint of whoever *stored* it, breaking every protected entry in its menu. This file adds a
---- menu entry; it does not supply a menu. Our entry does nothing protected (a table write plus a
---- deferred request), so the taint question is only about surrounding entries, which `ModifyMenu`
---- keeps clean.
+--- Not the `menu-function` attribute: that runs through `self:ExecuteAttribute` with the taint of whoever
+--- stored it, breaking every protected entry in its menu. This file adds an entry; it does not supply a
+--- menu, and the entry itself does nothing protected.
 
---- The unit-popup types worth adding the entry to.
+--- The unit-popup types worth adding the entry to, as `MENU_UNIT_<which>` (`UnitPopupShared.lua:106`).
+--- `SecureTemplates.lua:300-307` picks `RAID_PLAYER` for anyone in a raid, `RAID` comes from roster-style
+--- lists, and the rest cover parties and unit frames.
 ---
---- A tag is `MENU_UNIT_<which>` (`UnitPopupShared.lua:106`). `SecureTemplates.lua:300-307` picks
---- `RAID_PLAYER` for anyone in a raid, which our frames and Blizzard's raid frames produce; `RAID`
---- comes from roster-style lists; `SELF`, `PARTY`, `TARGET`, `FOCUS` cover the rest.
----
---- Deliberately not exhaustive: `BOSS`, `OTHERPET`, `FRIEND` and the rest cannot name a raid
---- member, and registering for them would run our filter on every menu in the game to reject it.
+--- Deliberately not exhaustive: `BOSS`, `OTHERPET` and the rest cannot name a raid member, so registering
+--- for them would run our filter on every menu in the game to reject it.
 local MENU_TAGS = {
 	"SELF",
 	"PARTY",
@@ -33,12 +28,10 @@ local MENU_TAGS = {
 
 --- The GUID this menu is about, if it is someone we can actually spotlight.
 ---
---- Gated on our own roster map rather than `UnitInRaid`: the map (`Private.Roster.Rebuild`) guards
---- every entry with `issecretvalue`, so anything in it is a group member with a readable name, in a
---- party as much as in a raid -- whereas `UnitInRaid` returns a raid *index*, which
---- `CompactUnitFrame` treats as a secret hazard, and answers nothing at all in a party.
---- The entry then appears exactly when the assignment would succeed (`Registry.AssignByGuid`
---- applies the same `fromRoster` test).
+--- Gated on our own roster map rather than `UnitInRaid`, which returns a raid *index* that
+--- `CompactUnitFrame` treats as a secret hazard and answers nothing in a party. `Private.Roster.Rebuild`
+--- guards every entry with `issecretvalue`, and `Registry.AssignByGuid` applies the same `fromRoster` test,
+--- so the entry appears exactly when the assignment would succeed.
 ---@param unit string?
 ---@return string? guid
 local function ResolveGuid(unit)

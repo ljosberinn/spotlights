@@ -4,20 +4,16 @@ local _, Private = ...
 --- The Import/Export tab: two in-place boxes rather than the pair of `StaticPopup`s a button opens. The
 --- codec itself lives in `Options/Profile.lua`, which the Roster tab's presets share.
 
---- Re-judged against the 610px window rather than scaled with it: two boxes, two headings, two buttons
---- and the gaps between them still leave room over at 160, and a box a profile string does not fill is
---- an empty tab rather than a generous one.
+--- Two boxes, two headings, two buttons and their gaps still leave room over at 160 in the 610px window.
 local EXPORT_HEIGHT = 160
 local IMPORT_HEIGHT = 160
 
---- What the user pasted, since it is not a setting -- there is nothing in the database to read it back
---- from between a paste and the Import click, and nothing to forget it once the tab is left and
---- returned to.
+--- What the user pasted: there is nothing in the database to read it back from between a paste and the
+--- Import click.
 local pending = ""
 
---- One key per prompt across the whole panel, the same rule `Panel.lua`'s `AURA_RELOAD_POPUP` follows:
---- `StaticPopup_Show` reuses the dialog already on screen for a given key, so a second key would stack
---- two identical dialogs.
+--- One key per prompt across the whole panel, as `Panel.lua`'s `AURA_RELOAD_POPUP` does: `StaticPopup_Show`
+--- reuses the dialog already on screen for a given key.
 local IMPORT_ERROR_POPUP = "SPOTLIGHTS_IMPORT_ERROR"
 local IMPORT_RELOAD_POPUP = "SPOTLIGHTS_IMPORT_RELOAD"
 

@@ -3,25 +3,15 @@ local addonName, Private = ...
 
 --- The General tab: where the grid sits, how big it is drawn and what it stacks against, beside the
 --- interface odds and ends that belong to no other tab.
----
---- Two columns rather than one list, because the two halves answer different questions and neither is
---- long enough to be a tab of its own.
 
---- What the label column costs in a ~350px half of the panel. Narrower than the kit's 130 default: a
---- column half the panel wide has half the room for a control, and the two rows that carry one here
---- are a slider and a dropdown.
+--- Narrower than the kit's 130 default, since a column half the panel wide has half the room for a control.
 local COLUMN_LABEL_WIDTH = 100
 
---- What a checkbox spends on its caption instead. A checkbox's label is a sentence where a slider's is
---- a noun, and clipping it to the column above would lose the half that says what the box does.
+--- A checkbox's label is a sentence where a slider's is a noun, and the column above would clip it.
 local CHECKBOX_LABEL_WIDTH = 220
 
---- Half size to double, in twentieths.
----
---- The floor is where a spotlight's name is still readable at the default 100x50; below it the frame is
---- a coloured bar. The ceiling is arbitrary in the same way every slider's is, and the clamp that
---- matters is the screen one -- `Container` re-clamps on every apply, so a grid scaled past the edge is
---- pulled back rather than lost.
+--- The floor is where a spotlight's name is still readable at the default 100x50. The ceiling is arbitrary;
+--- `Container` re-clamps on every apply, so a grid scaled past the screen edge is pulled back.
 local SCALE_MIN = 0.5
 local SCALE_MAX = 2
 local SCALE_STEP = 0.05
@@ -31,8 +21,7 @@ local function Position()
 	return Private.Container.GetPosition()
 end
 
---- The strata list as the dropdown wants it, built per call because the labels are localised and this
---- file loads before the localisation table is filled.
+--- Built per call because this file loads before the localisation table is filled.
 ---@return { value: any, label: string }[]
 local function StrataChoices()
 	local L = Private.L.Settings
@@ -46,11 +35,8 @@ local function StrataChoices()
 	return choices
 end
 
---- Recentres the grid, as `/spotlights recenter` does.
----
---- Silent in combat rather than printing what the slash command prints: the user is looking at the
---- panel, and the panel is closed by combat the moment it starts -- so this is only reachable in the
---- frame or two where a pull has begun and the close has not run yet.
+--- Recentres the grid, as `/spotlights recenter` does. Silent in combat rather than printing what the slash
+--- command prints: combat closes the panel, so this is reachable only in the frame or two before that runs.
 local function Recenter()
 	local position = Position()
 
@@ -80,8 +66,8 @@ local function SetScale(value)
 
 	position.scale = value
 
-	-- Every drag frame comes through here, and the apply is deferred and keyed, so a drag costs one
-	-- container pass per frame rather than one per event.
+	-- The apply is deferred and keyed, so a drag costs one container pass per frame rather than one per
+	-- event.
 	Private.Container.Request()
 end
 
@@ -112,8 +98,8 @@ local function GetMinimapShown()
 	return minimap and not minimap.hide or false
 end
 
---- Stored inverted -- LibDBIcon's own field is `hide` -- and pushed to the library rather than left for
---- the next login, since the button is what the user is looking at while they click this.
+--- Stored inverted, since LibDBIcon's own field is `hide`, and pushed to the library rather than left for
+--- the next login.
 ---@param value boolean
 local function SetMinimapShown(value)
 	local minimap = Private.DB and Private.DB.minimap

@@ -20,8 +20,8 @@ local deferred = {}
 ---@type table<string, fun(...)[]>
 local listeners = {}
 
---- Runs the handler for a key, if one is registered. A key with no handler is not an error: units
---- land in dependency order and a request may outlive its owner.
+--- Runs the handler for a key. A key with no handler is not an error: units land in dependency order and a
+--- request may outlive its owner.
 ---@param key string
 local function Run(key)
 	local handler = handlers[key]
@@ -31,9 +31,8 @@ local function Run(key)
 	end
 end
 
---- Drains a pending set in DeferralOrder, then anything outside that order arbitrarily. Clearing
---- the key before running lets a handler re-request itself for the next pass without being
---- swallowed by this one.
+--- Drains a pending set in DeferralOrder, then anything outside it arbitrarily. The key is cleared before
+--- running, so a handler can re-request itself for the next pass without this one swallowing it.
 ---@param pending table<string, boolean>
 local function Drain(pending)
 	for i = 1, #DeferralOrder do
@@ -51,9 +50,9 @@ local function Drain(pending)
 	end
 end
 
---- Frame-based throttle rather than C_Timer: OnUpdate only runs while shown, so a burst of
---- requests costs one pass next frame and no timer objects. Deliberately unparented -- a queue
---- parented to UIParent would stall while anything hides it (cinematic, pet battle).
+--- Frame-based throttle rather than C_Timer: OnUpdate only runs while shown, so a burst costs one pass next
+--- frame and no timer objects. Deliberately unparented -- under UIParent the queue would stall whenever
+--- something hides it (cinematic, pet battle).
 local dispatcher = CreateFrame("Frame")
 dispatcher:Hide()
 dispatcher:SetScript("OnUpdate", function(self)
@@ -98,27 +97,18 @@ function Private.Events.Request(key)
 	dispatcher:Show()
 end
 
---- Wraps a listener so it runs at most once per `interval`, on the leading edge and the trailing one.
+--- Wraps a listener so it runs at most once per `interval`, on both edges: leading so a lone roster change
+--- lands now, trailing so a burst whose last event is dropped does not leave the listener a state behind.
 ---
---- The leading call is what keeps a lone roster change immediate: a single join has to land now, not in
---- a second. The trailing call is what makes the throttle safe -- a burst whose last event is dropped
---- leaves its listener showing the state before it, and a roster burst is exactly the case where the
---- last event is the true one.
----
---- `C_Timer` rather than the dispatcher frame, against this file's own preference: that frame exists to
---- fold requests within one frame and holds no per-key deadline. One timer per burst at 1Hz is not the
---- cost that comment was written about.
----
---- Arguments are not forwarded. Every listener this is meant for reads current state rather than the
---- event's payload, and a trailing call could only carry the stale arguments of the event that
---- scheduled it.
+--- `C_Timer` rather than the dispatcher frame, which folds requests within one frame and holds no per-key
+--- deadline. Arguments are not forwarded -- every listener here reads current state, and a trailing call
+--- could only carry stale ones.
 ---@param interval number seconds
 ---@param handler fun()
 ---@return fun() listener
 function Private.Events.Throttled(interval, handler)
-	--- One interval in the past, so the first call is always a leading one. Zero would not do it:
-	--- `GetTime` is seconds since the client started, and an addon loading into an already-running
-	--- client is not the only case -- at login it can legitimately be under one.
+	--- One interval in the past, so the first call is always a leading one. Zero would not do: `GetTime` is
+	--- seconds since the client started, which at login can legitimately be under one interval.
 	local last = -interval
 	local scheduled = false
 

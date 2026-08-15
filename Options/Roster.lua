@@ -1,63 +1,44 @@
 ---@type string, Spotlights
 local _, Private = ...
 
---- The Roster tab: the grid's contents on the left, the people who could be in it on the right.
+--- The Roster tab: the grid's contents on the left, the people who could be in it on the right, read
+--- against each other rather than as the old panel's one interleaved column.
 ---
---- Two lists rather than the old panel's one interleaved column, which is the whole reason the tab was
---- worth redoing: those two lists are read against each other -- "who is in, who is left" -- and a
---- single column made that a scroll rather than a glance.
----
---- The presets block under the unrostered list is `Options/RosterPresets.lua`'s: it is a library with
---- its own storage and its own codec, and the only thing this file owes it is the height it takes.
----
---- Every row in either pane is `RosterList.lua`'s pooled row, built by `AcquireRow` and configured by
---- `ConfigureRow`. What this file owns is the arrangement: which rows each pane holds, what its buttons
---- do, and how much height each list gets.
----
---- No model code, like every other front-end onto the slot list: each action calls the same
---- `Private.Registry` entry point the slash commands do.
+--- The presets block under the unrostered list is `Options/RosterPresets.lua`'s and every row in either
+--- pane is `RosterList.lua`'s pooled row. What this file owns is the arrangement, and, like every other
+--- front-end onto the slot list, it holds no model code -- each action calls a `Private.Registry` entry
+--- point.
 
---- The unrostered list's width, as the design specifies it: 250 of the content rectangle's 748.
 local UNROSTERED_WIDTH = 250
 
---- What a checkbox spends on its caption. Both of these are sentences rather than nouns, and the kit's
---- 130 default would lose the half that says what the box does.
+--- Both captions here are sentences rather than nouns, and the kit's 130 default would lose half of one.
 local CHECKBOX_LABEL_WIDTH = 280
 
---- Between one band of a column and the next. Tighter than the kit's control rhythm, because a heading,
---- a list and the buttons under it read as one pane rather than as three stacked things.
+--- Tighter than the kit's control rhythm, so a heading, a list and the buttons under it read as one pane.
 local PANE_GAP = 6
 
---- A floor for either list, in case the window is ever shorter than this tab's chrome costs -- better a
---- cramped list than a negative height Blizzard errors on.
+--- Better a cramped list than the negative height Blizzard errors on, if the window is ever shorter than
+--- this tab's chrome costs.
 local MIN_LIST_HEIGHT = 60
 
---- The icons the row buttons wear. The two arrows are file IDs rather than atlases because there is no
---- atlas pair for "up" and "down" at this size; scaled up because both files carry a wide transparent
---- margin and draw small at the row height.
+--- The arrows are file IDs because there is no atlas pair for "up" and "down" at this size, and scaled up
+--- because both files carry a wide transparent margin.
 local REMOVE_ATLAS = "RedButton-Exit"
 local UP_TEXTURE = 136476
 local DOWN_TEXTURE = 136472
 local PLUS_TEXTURE = 130838
 local ARROW_SCALE = 1.5
 
---- Shared with every other confirmation in the panel deliberately: the dialog is registered at click
---- time by whoever was clicked, and a second key would stack a second identical prompt.
+--- Shared with every other confirmation in the panel: the dialog is registered at click time by whoever
+--- was clicked, and a second key would stack a second identical prompt.
 local CLEAR_POPUP = "SPOTLIGHTS_ROSTER_CLEAR"
 
---- How often the tab may rebuild itself, in seconds.
----
---- A repaint is not what the user is waiting on -- they are reading a list that is still changing -- so
---- the interval is set by how long a stale list is tolerable rather than by what the rebuild costs.
+--- Seconds. Set by how long a stale list is tolerable rather than by what the rebuild costs.
 local REFRESH_INTERVAL = 1
 
---- The three roles, in the order the game lists them. Both dropdowns on this tab pick from them: the
---- one narrowing the Unrostered list, and the one keeping roles out of the grid.
----
 --- Labelled from the globals rather than from our own keys, which is how the default UI labels the same
---- three tokens (`LFGList.lua:3757` resolves `_G[role]`) -- eleven locales of "Tank" for free, and the
---- exact wording the rest of the interface uses. Built at load because `GlobalStrings` is filled long
---- before an addon runs.
+--- three tokens (`LFGList.lua:3757` resolves `_G[role]`). Built at load because `GlobalStrings` is filled
+--- long before an addon runs.
 local ROLE_CHOICES = {
 	{ value = "TANK", label = TANK },
 	{ value = "HEALER", label = HEALER },
@@ -69,10 +50,9 @@ local function Layout()
 	return Private.Layout.GetConfig()
 end
 
---- Writes a layout field and schedules the geometry pass it invalidates.
----
---- Every layout write goes through here, including `clearOnLeave`, which invalidates nothing on screen:
---- the pass it requests is coalesced, so a redundant one costs a click.
+--- Writes a layout field and schedules the geometry pass it invalidates. Every layout write goes through
+--- here, including `clearOnLeave`, which invalidates nothing -- the pass is coalesced, so a redundant one
+--- costs a click.
 ---@param field string
 ---@param value any
 local function SetLayoutField(field, value)
@@ -98,9 +78,8 @@ end
 local function SetAllowGaps(value)
 	SetLayoutField("allowGaps", value)
 
-	-- Gaps changes what each cell *holds* rather than where the cells are, so the registry has to
-	-- re-resolve on top of the geometry pass. Geometry alone would leave the same names in the same
-	-- cells.
+	-- Gaps changes what each cell *holds* rather than where the cells are, so the registry has to re-resolve
+	-- on top of the geometry pass.
 	Private.Events.Request(Private.Enum.DeferralKey.Registry)
 end
 
@@ -127,15 +106,13 @@ end
 
 --- Ticks or unticks a role in the Unrostered list's filter.
 ---
---- Not through `SetLayoutField`, which writes a whole field: this one mutates a table inside the block,
---- and there is no geometry to invalidate either -- what the *options list* offers changes nothing about
---- where a spotlight sits or what it holds.
+--- Not through `SetLayoutField`: this mutates a table inside the block, and what the *options list* offers
+--- invalidates no geometry. Stored `false` rather than removed, because the default is not empty -- see
+--- `Migration.DefaultLayout`.
 ---
---- Stored `false` rather than removed, because the default is not empty: see `Migration.DefaultLayout`.
----
---- The tab rather than the pane, because rows come and go -- that is a height, not a repaint. The menu
---- survives it: a checkbox click responds `MenuResponse.Refresh`, and the kit's multiselect declines to
---- regenerate while its list is down.
+--- Refreshes the tab rather than the pane, because rows come and go. The open menu survives it: a checkbox
+--- click responds `MenuResponse.Refresh`, and the kit's multiselect declines to regenerate while its list
+--- is down.
 ---@param role string
 ---@param offered boolean
 local function SetRoleOffered(role, offered)
@@ -159,12 +136,8 @@ local function GetRoleRemoved(role)
 	return roles ~= nil and roles[role] == true
 end
 
---- Ticks or unticks a role in the set kept out of the grid, and acts on the grid at once, so a tick
---- takes the healers already on screen out rather than waiting for the next roster event.
----
---- The removal is the registry's rather than this file's, like every other action on this tab: it is
---- a model mutation with an apply behind it, and the panel is a front-end onto the same entry points
---- the slash commands use.
+--- Ticks or unticks a role in the set kept out of the grid, and acts on the grid at once, so a tick takes
+--- the healers already on screen out rather than waiting for the next roster event.
 ---@param role string
 ---@param removed boolean
 local function SetRoleRemoved(role, removed)
@@ -188,11 +161,8 @@ local function AddSpacer()
 	Private.Options.Refresh()
 end
 
---- Empties the grid, after asking.
----
---- Confirmed rather than immediate, for the reason the aura resets are: it discards a list the user may
---- have spent a raid night arranging, and a stray click on a button under the list is exactly the
---- accident a confirmation exists to catch.
+--- Empties the grid, after asking -- it discards a list the user may have spent a raid night arranging,
+--- from a button sitting directly under that list.
 local function ConfirmClear()
 	local L = Private.L.Settings
 
@@ -219,13 +189,8 @@ end
 
 --- The configured slots, one row each.
 ---
---- Rows are configured in `Refresh` and anchored in `Layout`, which is the kit's own split: what a row
---- says depends on the database, and where it sits depends on a width this node is not handed until
---- afterwards.
----
---- The list is rebuilt wholesale rather than diffed: it is at most twenty rows,
---- it runs only when the panel is open and something changed, and a diff would have to track identity
---- across a reorder -- the one operation this pane exists to perform.
+--- Rebuilt wholesale rather than diffed: at most twenty rows, only while the panel is open, and a diff
+--- would have to track identity across a reorder -- the one operation this pane exists to perform.
 ---@param page Frame
 ---@param rows SpotlightsRosterRow[] the pool, owned by the caller so it can be registered for drops
 ---@return SpotlightsNode
@@ -260,8 +225,8 @@ local function BuildSlotList(page, rows)
 						onClick = function()
 							Private.Registry.Unassign(index)
 
-							-- A row has gone, which is a height as well as a repaint, and the list
-							-- beside this one has gained the player back. So the tab rather than the pane.
+							-- A row has gone and the list beside this one has gained the player back, so the
+							-- tab rather than the pane.
 							Private.Options.Refresh()
 						end,
 					},
@@ -312,8 +277,7 @@ local function BuildSlotList(page, rows)
 			offset = offset + stride
 		end
 
-		-- The scroll pane above this reads the returned height as its extent, so a shortened list
-		-- shortens the bar rather than leaving empty space under the last row.
+		-- The scroll pane above reads the returned height as its extent, so a shortened list shortens the bar.
 		self:SetHeight(math.max(offset, 1))
 
 		return offset
@@ -356,9 +320,8 @@ local function BuildMemberList(page, rows)
 						onClick = function()
 							local ok, reason = Private.Registry.AssignByGuid(member.guid)
 
-							-- Said out loud, as the drop path says it: the button can be refused now that a
-							-- role can be set to be kept out of the grid, and a `+` that does nothing at all
-							-- reads as a broken button.
+							-- Said out loud, as the drop path says it: the assign can be refused by the
+							-- kept-out-of-grid roles, and a `+` that does nothing reads as a broken button.
 							if not ok and reason then
 								Private.Utils.Print(reason)
 							end
@@ -406,17 +369,14 @@ end
 
 --- One pane: a heading, then a scrolling list with a note where the list would be when it is empty.
 ---
---- The note is inside the scroll pane rather than pinned above it, for the reason the tracked-spells
---- note is: it is a line or three depending on the locale, and a band whose height is a translation's
---- business cannot be reserved without guessing.
+--- The note is inside the scroll pane rather than pinned above it, because it is a line or three depending
+--- on the locale and that height cannot be reserved without guessing.
 ---
---- The pane's rows are registered for drops here rather than by their list, because the viewport that
---- clips them belongs to the scroll pane and the block a drop lands in belongs to the pane as a whole.
+--- Rows are registered for drops here rather than by their list, because the viewport that clips them
+--- belongs to the scroll pane and the block a drop lands in belongs to the pane as a whole.
 ---
---- A `filter` sits between the heading and the list, on the list it filters: a pane that looks short is
---- explained by the control directly above it. It names itself -- the heading over it says what the list
---- holds, not what the control does with it -- so a caller passing a labelless control passes its caption
---- with it. The caller pays for the height of both, since only the caller knows what the column has left.
+--- A `filter` sits between the heading and the list, so a pane that looks short is explained by the control
+--- directly above it. The caller pays for the height of both, since only it knows what the column has left.
 ---@param page Frame
 ---@param heading string
 ---@param height number | fun(): number what the column has to spend on the list
@@ -454,11 +414,9 @@ end
 
 --- The trailing column: the unrostered list with the presets block pinned under it.
 ---
---- A `Column` would do this if the list could be sized last, and it cannot: a `ScrollPane` is a
---- *window*, so the list has to be told its height, and what is left for it is whatever the block
---- under it took -- a section's open state and which of its two boxes is showing, neither of which is
---- a constant this file could subtract. So the block is measured first and anchored afterwards.
---- Heights and anchors are set independently, so the order they are decided in is free.
+--- Not a `Column`, because a `ScrollPane` is a *window* and has to be told its height, which here is
+--- whatever the block under it left -- a section's open state, not a constant. So the block is measured
+--- first and anchored afterwards; heights and anchors are independent, so that order is free.
 ---@param page Frame
 ---@param members SpotlightsNode
 ---@param presets SpotlightsNode
@@ -505,24 +463,18 @@ end
 local function BuildRoster(page)
 	local L = Private.L.Settings
 
-	--- What each column spends on something other than its list. The left one carries the two slot
-	--- buttons and the three settings under its list; the right one carries its heading and the presets
-	--- block, whose height is decided per pass rather than here.
-	---
-	--- Both are counted from the same page height, which is why the two lists do not end level: the
-	--- design puts the controls under the slots, and an unrostered list cropped to match them would
-	--- waste a quarter of the tab on nothing.
+	--- What each column spends on something other than its list. Both are counted from the same page
+	--- height, which is why the two lists deliberately do not end level -- cropping the unrostered list to
+	--- match the controls under the slots would waste a quarter of the tab.
 	local heading = Private.Controls.HeadingHeight
 	local row = Private.Controls.RowHeight
 
 	local slotsHeight = math.max(page:GetHeight() - heading - row * 5 - PANE_GAP * 6, MIN_LIST_HEIGHT)
 
-	--- What the presets block took on this pass, written by the column below before it lays the list
-	--- out. Zero until then, which is only ever the case before the first pass.
+	--- What the presets block took on this pass, written by the column below before it lays the list out.
 	local reserved = 0
 
-	--- A caption, a row and two gaps of this are the role filter block's, which sits between the heading
-	--- and the list.
+	--- A caption, a row and two gaps of this are the role filter block's.
 	---
 	--- WARNING: get this subtraction wrong and nothing errors -- the list simply runs past the bottom of
 	--- the tab.
@@ -548,17 +500,14 @@ local function BuildRoster(page)
 		Private.Controls.Checkbox(page, L.ClearOnLeave, GetClearOnLeave, SetClearOnLeave, nil, true,
 			CHECKBOX_LABEL_WIDTH),
 
-		-- In the label column rather than captioned above a full-width dropdown, which the two
-		-- checkboxes over it already establish: the caption reads as the third of three settings, and
-		-- the column is wide enough that the dropdown still shows two role names at once.
+		-- In the label column the two checkboxes above already establish, so it reads as the third of three
+		-- settings; the column is wide enough that the dropdown still shows two role names at once.
 		Private.Controls.MultiselectDropdown(page, L.AutoRemoveRoles, ROLE_CHOICES, GetRoleRemoved,
 			SetRoleRemoved, CHECKBOX_LABEL_WIDTH),
 	}, PANE_GAP)
 
-	--- Captioned above rather than labelled beside: an untouched dropdown reads as `Damage` with nothing
-	--- saying what the word is doing there, and the heading over the pane names the list rather than the
-	--- filter. The label column was considered and rejected -- `Divide` takes 130 of label and 6 of gap
-	--- off the 250 this column has, leaving 114, and `Tank, Healer, Damage` does not fit in 114.
+	--- Captioned above rather than labelled beside: the label column takes 130 plus a 6 gap off this
+	--- column's 250, and `Tank, Healer, Damage` does not fit in the 114 left.
 	local roleFilter = Private.Node.Column(page, {
 		Private.Controls.Caption(page, L.UnrosteredRoleFilter),
 
@@ -568,9 +517,8 @@ local function BuildRoster(page)
 	local members = BuildPane(page, L.UnrosteredHeader, MembersHeight, "members", function()
 		local _, count, offered = Private.RosterList.Available()
 
-		-- Three empty states, because the filter splits what used to be two: nobody to list, nobody the
-		-- filter shows, or nobody left to list. Reporting the middle one as the last would tell a raid of
-		-- tanks and healers that everyone is spotlighted.
+		-- Three empty states, because the filter splits what used to be two: reporting "no offered roles" as
+		-- "all spotlighted" would tell a raid of tanks and healers that everyone is in the grid.
 		if count == 0 then
 			return L.NotInGroup
 		end
@@ -584,24 +532,16 @@ local function BuildRoster(page)
 
 	--- The one tab that goes stale on its own; everything else changes only when the user changes it.
 	---
-	--- Two events, because a row states two things: who is in the group, and what they are. Only the
-	--- first is a membership change; a role check finishing or a member picking a role fires
-	--- PLAYER_ROLES_ASSIGNED and nothing else, so the role column stays blank without it.
+	--- Two events, because a row states both who is in the group and what they are -- a role check finishing
+	--- fires PLAYER_ROLES_ASSIGNED and nothing else. They share one throttle window, so a role check, which
+	--- fires both, costs one rebuild.
 	---
-	--- Throttled rather than immediate because a raid forming fires one roster event per member, and each
-	--- one rebuilds both lists whole -- the panes are deliberately not diffed.
-	---
-	--- Both events share one window, so a role check -- which fires both -- costs one rebuild rather than
-	--- two. Two windows would allow two rebuilds a second, which is the thing being avoided.
-	---
-	--- Only this panel's repaint is throttled. The model scan, the grid's own enforcement and the aura
-	--- side all still take the event itself, so nothing reads a roster a second stale.
+	--- Only this panel's repaint is throttled; the model scan, the grid's enforcement and the aura side all
+	--- still take the event itself.
 	local Repaint = Private.Events.Throttled(REFRESH_INTERVAL, Private.Options.Refresh)
 
-	--- Guarded on the page rather than on the panel, so a roster event while the user is on Appearance
-	--- schedules nothing -- the tab is refreshed on selection anyway. The test wraps the throttle rather
-	--- than sitting inside it for that reason; a trailing call can still land just after the page is
-	--- hidden, which costs one refresh of a hidden panel.
+	--- Guarded on the page, so a roster event while the user is on another tab schedules nothing -- this one
+	--- is refreshed on selection anyway.
 	local function RefreshIfVisible()
 		if page:IsVisible() then
 			Repaint()

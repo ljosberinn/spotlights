@@ -4,37 +4,14 @@ local _, Private = ...
 ---@class SpotlightsDragAssign
 Private.DragAssign = {}
 
---- The drag assignment path: pick a row up out of the Roster tab and drop it on a grid cell. The other
---- two ways into `Private.Registry` are the unit menu's "Spotlight this player" and `/spotlights add`.
+--- Pick a row up out of the Roster tab and drop it on a grid cell: a raid member is added there, a
+--- configured slot is reordered.
 ---
---- **Two gestures, one mechanism.** Dragging a *raid member* adds them to the grid at the drop cell;
---- dragging a *configured slot* reorders it. Both are picked up from the Roster tab, both land on a
---- cell, and the payload decides which happened.
----
---- **The direction is forced, not chosen.** Picking a player up off a unit frame is not implementable:
---- `OnDragStart` must be set on the frame the drag begins on, and the frames a player is visible on
---- belong to Blizzard or other addons. So the source is something of ours that stands for a player,
---- and the target is the cell -- both ends frames we created.
----
---- **Where a player can be dropped** is three things:
----
---- - A live spotlight (`Private.SlotHeader.CellUnderCursor`).
---- - A preview (`Private.Preview.CellUnderCursor`), which out of a group is the only thing on screen
----   and is what makes the grid assignable before there is a group. It can never answer at the same
----   time as a live cell: a preview is shown exactly where a live spotlight is not.
---- - The Spotlighted pane (`Private.RosterList.TargetUnderCursor`, section `"slots"`) -- on a row to
----   insert at that position, anywhere else in the pane to append.
----
---- **Where a slot can be dropped** is a cell or another slot row, which reorders -- or the Unrostered
---- pane (section `"members"`), which removes it. That pane is where players come from, so dragging one
---- back into it is the one place a removal gesture can point at without meaning something else.
----
---- Neither pane being a target only through its rows is deliberate. With nothing configured there are
---- no cells and no slot rows, so without the *pane* the add gesture could not create the first slot;
---- with no group there are no Unrostered rows, so without the pane the remove gesture would stop
---- working.
+--- The direction is forced, not chosen. `OnDragStart` must be set on the frame the drag begins on, and
+--- the frames a player is visible on belong to Blizzard or other addons, so the source has to be
+--- something of ours. See docs/notes/DragAssignment.md.
 
---- What is being dragged, or nil when nothing is. Exactly one of `guid` and `slot` is set.
+--- Exactly one of `guid` and `slot` is set.
 ---@class SpotlightsDrag
 ---@field guid string? a raid member being added to the grid
 ---@field slot integer? a configured slot being reordered
@@ -43,15 +20,13 @@ Private.DragAssign = {}
 ---@type SpotlightsDrag?
 local dragging
 
---- The cursor-following label. `text` is ours, so it needs declaring.
 ---@class SpotlightsDragHint : Frame
 ---@field text FontString
 
 ---@type SpotlightsDragHint?
 local hint
 
---- What to call a slot in the hint. Matches the roster list's own labels, so the thing being dragged
---- reads the same as the row it came from.
+--- Matches the roster list's own labels, so a dragged slot reads the same as the row it came from.
 ---@param index integer
 ---@return string
 local function SlotLabel(index)
@@ -69,14 +44,8 @@ local function SlotLabel(index)
 	return slot.name or L.UnknownSlot
 end
 
---- Where a release here would land: a specific position, and/or a block of the roster list.
----
---- Either half can be the useful one. A `section` with no `slot` is still actionable -- appending to
---- or removing from the Spotlighted pane -- which lets both gestures work against a pane with no rows
---- yet. A `slot` with no section is a cell out on the grid.
----
---- The panel is checked first and exclusively: a cursor over the panel's background must not act on
---- whichever cell is underneath, whichever of the two the user's `position.strata` puts on top.
+--- The panel is checked first and exclusively: a cursor over its background must not act on a cell
+--- underneath, whichever way the user's `position.strata` orders the two.
 ---@return integer? slot, SpotlightsRowSection? section
 local function Target()
 	if Private.Options.IsCursorOver() then
@@ -86,9 +55,8 @@ local function Target()
 	local cell = Private.SlotHeader.CellUnderCursor()
 
 	if cell then
-		-- A live cell is not necessarily its own slot. With `allowGaps` off, cells hold present
-		-- players in slot order, so cell 2 can be showing slot 5 -- acting on the cell index would
-		-- insert next to whoever the user did not point at.
+		-- Cell index is not slot index: with `allowGaps` off, cells pack present players, so cell 2
+		-- can be showing slot 5.
 		return Private.Registry.SlotOfCell(cell), nil
 	end
 
@@ -96,12 +64,8 @@ local function Target()
 	return Private.Preview.CellUnderCursor(), nil
 end
 
---- What the hint should say right now.
----
---- Every branch names both subject and outcome, including the ones where the outcome is nothing. A
---- drag that resolves to nothing is otherwise indistinguishable from one that worked until you look at
---- the grid, and "released an inch outside the cell" and "that player is already spotlighted" are
---- failures with completely different fixes.
+--- Every branch names both subject and outcome, including the ones whose outcome is nothing -- a drag
+--- that resolves to nothing is otherwise indistinguishable from one that worked.
 ---@param drag SpotlightsDrag
 ---@return string
 local function HintText(drag)
@@ -126,9 +90,8 @@ local function HintText(drag)
 		return string.format(L.HintAlready, drag.label, occupied)
 	end
 
-	-- No Unrostered row carries a position, so the section test is redundant today. Written anyway,
-	-- because "a slot came back" and "that slot is somewhere a player may be added" are two claims and
-	-- only the second licenses an insert.
+	-- Redundant today, since no Unrostered row carries a position. Kept so a row that gains one cannot
+	-- license an insert.
 	if slot and section ~= "members" then
 		return string.format(L.HintAdd, drag.label, slot)
 	end
@@ -140,10 +103,8 @@ local function HintText(drag)
 	return string.format(L.HintDrag, drag.label)
 end
 
---- A label that follows the cursor, reporting what releasing here would do.
----
---- On `UIParent` and parented to nothing of ours, because it must draw over the options panel, the
---- mover overlay and the spotlights at once.
+--- On `UIParent` rather than anything of ours: it must draw over the options panel, the mover overlay
+--- and the spotlights at once.
 ---@return SpotlightsDragHint
 local function GetHint()
 	if hint then
@@ -171,8 +132,7 @@ local function GetHint()
 
 		self.text:SetText(HintText(dragging))
 
-		-- Width follows the text rather than being fixed. The strings differ in length a lot, and a
-		-- box sized for the longest has a visible empty tail on the others.
+		-- Sized to the text; a box fixed to the longest string has a visible empty tail on the others.
 		self:SetWidth(self.text:GetStringWidth() + 12)
 
 		local scale = UIParent:GetEffectiveScale()
@@ -185,11 +145,8 @@ local function GetHint()
 	return hint
 end
 
---- Ends a drag, acting on the cell under the cursor if there is one.
----
---- Out of combat only. The mutation itself is combat-safe (`Registry` queues it), but a drag that
---- began before a pull and ended after it would apply a change the user made in a different situation,
---- seconds later, with no visible connection to the drop.
+--- Out of combat only, even though `Registry` would queue the mutation safely: a drag that began
+--- before a pull and ended after it applies seconds later with no visible connection to the drop.
 ---@return boolean acted
 function Private.DragAssign.Drop()
 	local drag = dragging
@@ -203,8 +160,8 @@ function Private.DragAssign.Drop()
 
 	local slot, section = Target()
 
-	-- A drop with no slot is still actionable inside either pane: appending to the Spotlighted pane, or
-	-- removing from it. That is how the first slot gets added and the last one gets removed.
+	-- A drop with no slot is still actionable inside a pane: that is how the first slot is added and
+	-- the last one removed.
 	if not slot and not section then
 		return false
 	end
@@ -213,28 +170,22 @@ function Private.DragAssign.Drop()
 
 	if drag.slot then
 		if section == "members" then
-			-- Dragged out of the grid and into the list of people who could be in it, the one place a
-			-- removal gesture can point at without meaning anything else.
 			ok, reason = Private.Registry.Unassign(drag.slot)
 		elseif not slot or slot == drag.slot then
-			-- Reordering needs a position, so the section alone is not enough. Dropped on itself is
-			-- what a click that crossed the drag threshold looks like.
+			-- Dropped on itself is what a click that crossed the drag threshold looks like.
 			return false
 		else
 			ok, reason = Private.Registry.Move(drag.slot, slot)
 		end
 	elseif Private.Registry.SlotOf(drag.guid) then
-		-- Already in the grid, so nothing to add. Reordering is the slot row's job; doing it here too
-		-- would give one outcome two gestures. The hint has been saying so, which is why this is silent.
+		-- Silent because the hint has been saying so.
 		return false
 	elseif section == "members" then
-		-- The Unrostered pane is where players are dragged *from*. Released back into it, a player has not
-		-- been pointed at a position -- and `AssignByGuid` with no index appends, so without this the
-		-- gesture would quietly add them to the end of the grid.
+		-- `AssignByGuid` with no index appends, so without this a release back into the pane the player
+		-- was dragged from would quietly add them to the end of the grid.
 		return false
 	else
-		-- Everything left is a cell or the Spotlighted pane. A nil slot appends, which is what a drop in
-		-- that pane but not on one of its rows means.
+		-- A nil slot appends, which is what a drop in the Spotlighted pane but not on a row means.
 		ok, reason = Private.Registry.AssignByGuid(drag.guid, slot)
 	end
 
@@ -242,19 +193,14 @@ function Private.DragAssign.Drop()
 		Private.Utils.Print(reason)
 	end
 
-	-- The list now shows stale slot numbers, a stale available/assigned split, or both. Refreshed
-	-- unconditionally: a rejected drop leaves it correct, but a repaint costs nothing.
+	-- Unconditional: a rejected drop leaves the list correct already, but a repaint costs nothing.
 	Private.Options.Refresh()
 
 	return ok
 end
 
---- Makes `frame` a drag source.
----
---- `getDrag` returns `{ guid = ... }` for a raid member, `{ slot = ... }` for a configured slot, or
---- nil when not draggable right now. A function rather than a value because the roster list's rows are
---- pooled: a frame stands for a given player or slot only until the list is rebuilt, and capturing it
---- would make a reordered list drag whatever used to be there.
+--- Makes `frame` a drag source. `getDrag` is a function rather than a value because the roster list's
+--- rows are pooled: capturing the payload would make a reordered list drag whatever used to be there.
 ---@param frame Frame
 ---@param getDrag fun(): { guid: string?, slot: integer? }?
 function Private.DragAssign.Enable(frame, getDrag)
@@ -274,9 +220,8 @@ function Private.DragAssign.Enable(frame, getDrag)
 		if drag.slot then
 			dragging = { slot = drag.slot, label = SlotLabel(drag.slot) }
 		elseif drag.guid then
-			-- The same `fromRoster` test `Registry.AssignByGuid` applies, run before the drag starts.
-			-- A player whose name only the client's cache knows cannot be assigned at all, so the
-			-- honest behaviour is to refuse to pick them up.
+			-- `Registry.AssignByGuid`'s own `fromRoster` test, run early: a player known only to the
+			-- client's name cache cannot be assigned, so refuse to pick them up.
 			local name, fromRoster = Private.Roster.GetName(drag.guid)
 
 			if not name or not fromRoster then

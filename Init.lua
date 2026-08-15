@@ -12,11 +12,8 @@ local commands = {}
 ---@type string[]
 local ordered = {}
 
---- Registers a `/spotlights <name>` subcommand.
----
---- The description is named by its key in `L.SlashCommands`, not a resolved string, because
---- commands register at file-load while the locale tables populate later. Looked up lazily in
---- `PrintUsage`, by which point every locale file has run.
+--- Registers a `/spotlights <name>` subcommand. The description is a key in `L.SlashCommands` rather than a
+--- resolved string, because commands register at file-load while the locale tables populate later.
 ---@param name string
 ---@param descriptionKey string
 ---@param handler fun(args: string)
@@ -64,11 +61,8 @@ end
 
 Private.SlashCommands.Register("help", "Help", PrintUsage)
 
---- Redraws every spotlight after a zone change.
----
---- A loading screen is where a unit's health, range and target state can all have moved without a
---- single event reaching us. No combat guard: every updater writes a region of a frame we own and
---- none is a protected call.
+--- Redraws every spotlight after a zone change, where a unit's health, range and target state can all have
+--- moved without an event reaching us. No combat guard: every updater writes a region of a frame we own.
 local function RefreshConfig()
 	Private.SlotHeader.ForEachChild(function(child)
 		child:UpdateAll()
@@ -77,16 +71,10 @@ end
 
 Private.Events.RegisterHandler(Private.Enum.DeferralKey.Config, RefreshConfig)
 
---- Requested rather than run inline: a taint fix, not a throttling nicety.
----
---- PLAYER_ENTERING_WORLD is dispatched to every frame registered for it, and Blizzard's compact
---- frames handle it by rebuilding themselves. Running our own UpdateAll from inside that same
---- dispatch tainted Blizzard's frames -- measured in the field as CompactRaidGroup1Member1 and
---- CompactPartyFrameMember1 throwing on their own secret values right after a loading screen, even
---- with no spotlights configured.
----
---- Request defers to the next frame, past Blizzard's dispatch. What stays inside the dispatch is a
---- table write and a Show() on a hidden frame of ours.
+--- **Requested rather than run inline: a taint fix, not a throttling nicety.** PLAYER_ENTERING_WORLD is
+--- dispatched to every frame registered for it, and Blizzard's compact frames rebuild themselves there.
+--- Running UpdateAll inside that dispatch tainted them -- measured as CompactRaidGroup1Member1 throwing on
+--- its own secret values after a loading screen, with no spotlights configured. Request defers past it.
 local function RequestConfigRefresh()
 	Private.Events.Request(Private.Enum.DeferralKey.Config)
 end
@@ -109,9 +97,7 @@ EventUtil.ContinueOnAddOnLoaded(addonName, function()
 			type = "launcher",
 			text = addonName,
 			icon = iconTexture,
-			--- LibDBIcon forwards the button it registered `anyUp` for, so a right-click is ours to route
-			--- rather than another plain open. Assigning a slot is the most common reason to open the panel
-			--- at all, and the Roster tab is where that happens.
+			--- LibDBIcon forwards the button it registered `anyUp` for, so a right-click is ours to route.
 			OnClick = function(_, button)
 				if button == "RightButton" then
 					Private.Options.SelectTab("roster")

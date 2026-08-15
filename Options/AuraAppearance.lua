@@ -4,45 +4,36 @@ local _, Private = ...
 ---@class SpotlightsAuraAppearance
 Private.AuraAppearance = {}
 
---- The Auras tab's Appearance sub-tab: one collapsible section per kind of display the selected
---- category can draw, scrolling under a pinned reset button.
+--- The Auras tab's Appearance sub-tab: one collapsible section per kind of display the selected category
+--- can draw, scrolling under a pinned reset button.
 ---
---- An aura feature has five independent display modes, each with its own size, placement, swipe, border
---- and colour. Flat, that is a wall of four dozen controls with nothing saying which mode is actually on
---- or what it is set to. A section answers both in its header: the display's name, and a summary
---- formatted from the very fields its body edits -- `25 × 25 · Bottom · swipe on · 4px border`.
+--- Five display modes flat would be a wall of four dozen controls with nothing saying which is on. A
+--- section answers both in its header: the display's name, and a summary formatted from the very fields
+--- its body edits.
 ---
---- Which category all of this is about lives in `Options/Auras.lua`, on the strip along the bottom of
---- the window, and reaches this file as an accessor rather than a copy: the Tracked sub-tab beside this
---- one is about the same category, and neither of them owns it.
----
---- Every control here writes through `Private.Auras.SetSetting`, which decides on its own whether the
---- change is one a live display can hear or one that costs a replacement container -- so nothing in this
---- file has to know which kind of setting it is holding.
+--- Which category this is about lives in `Options/Auras.lua` and reaches here as an accessor rather than
+--- a copy: the Tracked sub-tab is about the same category, and neither of them owns it.
 
 local Orientation = Private.Enum.Orientation
 
 --- What the label column costs in the ~250px half of a section's control grid. Narrower than the
---- Appearance tab's 120 because these labels are one or two short words where that tab's are noun
---- phrases, and the sliders here are the ones dragged against a preview -- so the bar is worth the room.
+--- Appearance tab's 120 because these labels are one or two short words, and the sliders here are the
+--- ones dragged against a preview.
 local COLUMN_LABEL_WIDTH = 110
 
---- Between one section and the next. Wider than the kit's row rhythm on purpose: sections are groups
---- rather than rows, and at the column default a body's last control sits as close to the next header as
---- to its own siblings.
+--- Between one section and the next. Wider than the kit's row rhythm on purpose: at the column default a
+--- body's last control sits as close to the next header as to its own siblings.
 local SECTION_GAP = 12
 
---- LibSharedMedia's own name for the empty border, and therefore how "no border" is spelled. Restated
---- here rather than reached for across a module boundary, so the summary tests exactly what `StyleBorder`
---- tests and the two can never disagree about whether a border is drawn.
+--- How "no border" is spelled. Restated here rather than reached for across a module boundary, so the
+--- summary tests exactly what `StyleBorder` tests.
 local BORDER_NONE = "None"
 
---- The bounds of every numeric setting. The icon's floor is where spell art is still recognisable; its
---- ceiling is well past any spotlight the frame sliders can produce.
+--- The icon's floor is where spell art is still recognisable; its ceiling is past any spotlight the frame
+--- sliders can produce.
 local ICON_SIZE_MIN, ICON_SIZE_MAX = 16, 128
 
--- Reaches below the icon's floor deliberately: a block is the display for a size where spell art cannot
--- be read, so its range has to cover sizes an icon has no business being.
+-- Below the icon's floor deliberately: a block is the display for a size where spell art cannot be read.
 local SQUARE_SIZE_MIN, SQUARE_SIZE_MAX = 4, 128
 local BAR_WIDTH_MIN, BAR_WIDTH_MAX = 1, 500
 local BAR_HEIGHT_MIN, BAR_HEIGHT_MAX = 1, 200
@@ -51,23 +42,20 @@ local FONT_SIZE_MIN, FONT_SIZE_MAX = 6, 32
 local BORDER_SIZE_MIN, BORDER_SIZE_MAX = 1, 32
 local OFFSET_MIN, OFFSET_MAX = -200, 200
 
---- Never fully transparent, for the same reason a spotlight is not: a display at zero opacity is
---- indistinguishable from one that failed to build. The step is what the value box shows, two decimals
---- -- see `Controls`' `FRACTION_STEP`.
+--- Never fully transparent: a display at zero opacity is indistinguishable from one that failed to
+--- build. The step is what the value box shows -- see `Controls`' `FRACTION_STEP`.
 local ALPHA_MIN, ALPHA_MAX, ALPHA_STEP = 0.05, 1, 0.01
 
---- What this sub-tab's chrome costs its own height: the gap under the Auras tab's sub-tab strip. The
---- scroll pane gets everything else, so it fills the tab rather than a guess at how tall two sections
---- "usually" are.
+--- The gap under the Auras tab's sub-tab strip. The scroll pane gets everything else, so it fills the
+--- tab rather than a guess at how tall two sections "usually" are.
 local CHROME_RESERVE = 6
 
---- Floor for the scroll pane, in case the window is ever shorter than this tab's chrome costs -- better
---- a cramped pane than a negative height Blizzard errors on.
+--- Floor for the scroll pane, in case the window is shorter than this tab's chrome costs: better a
+--- cramped pane than a negative height Blizzard errors on.
 local MIN_SCROLL_HEIGHT = 80
 
---- Shared with the Tracked sub-tab deliberately, exactly as the reload prompt is: the dialog is
---- registered at click time by whichever button was clicked, and two keys would stack two identical
---- prompts.
+--- Shared with the Tracked sub-tab deliberately: the dialog is registered at click time by whichever
+--- button was clicked, and two keys would stack two identical prompts.
 local RESET_POPUP = "SPOTLIGHTS_AURA_RESET"
 
 --- Which category the strip has selected, and its localised name for the reset prompt. Both handed in by
@@ -78,8 +66,8 @@ local ActiveFeature
 ---@type fun(): string
 local ActiveName
 
---- The two parts of this tab that mirror settings rather than edit them, kept so a write can repaint
---- them without re-reading the controls it came from.
+--- The parts of this tab that mirror settings rather than edit them, kept so a write can repaint them
+--- without re-reading the controls it came from.
 ---@type SpotlightsSectionNode[]
 local sections = {}
 
@@ -98,9 +86,8 @@ local function Feature()
 	local feature = auras and auras[ActiveFeature()]
 
 	-- The defaults stand in only before `ADDON_LOADED`, when the panel cannot be open. Falling back to
-	-- them rather than to a literal per field means a control can never show a number this addon does
-	-- not ship with, and `Migration` repairs every missing field on load -- so past this point every
-	-- field read below is present.
+	-- them rather than to a literal per field means a control can never show a number this addon does not
+	-- ship with.
 	return feature or Private.Migration.DefaultAuraFeature(ActiveFeature())
 end
 
@@ -153,16 +140,15 @@ local function Display(displayKey)
 	return Icon()
 end
 
---- Repaints what shows a setting without re-reading what sets it: the section headers, whose summaries
---- are a formatting of the fields just written, and the preview pane inside each body.
+--- Repaints what shows a setting without re-reading what sets it: the section headers and the preview
+--- pane inside each body.
 ---
 --- Deliberately not `Options.Refresh`. A colour picker fires on every frame of a drag, and a whole-tree
---- refresh would regenerate every dropdown's menu with it, for a write that can change neither what is
---- shown nor what any control reads.
+--- refresh would regenerate every dropdown's menu with it.
 ---
---- It does re-evaluate the combined pane's `OnlyWhen`, so a write that crosses the one-versus-two
---- boundary changes a section's height from in here -- which is why `EnabledSetter` follows this with a
---- layout pass and the other setters do not.
+--- It does re-evaluate the combined pane's `OnlyWhen`, so a write crossing the one-versus-two boundary
+--- changes a section's height from in here -- which is why `EnabledSetter` follows this with a layout
+--- pass and the other setters do not.
 local function RefreshSections()
 	for i = 1, #sections do
 		sections[i]:RefreshHeader()
@@ -173,12 +159,9 @@ local function RefreshSections()
 	end
 end
 
---- Writes one aura setting through the one entry point that knows what it costs.
----
---- Requests nothing itself, unlike the appearance tab's setter: `Private.Auras` asks the display kind
---- whether the field is a next-frame reapply or a debounced rebuild, and that decision has to live with
---- the frames -- a settings file that knew which fields are frozen would be a second copy of a list that
---- can only be wrong.
+--- Writes one aura setting through the one entry point that knows what it costs. Requests nothing
+--- itself: a settings file that knew which fields are frozen would be a second copy of a list that can
+--- only be wrong.
 ---@param displayKey SpotlightsAuraDisplayKey
 ---@param field string
 ---@param value any
@@ -186,13 +169,13 @@ local function SetAura(displayKey, field, value)
 	Private.Auras.SetSetting(ActiveFeature(), displayKey, field, value)
 
 	-- The grid previews are where a drag's feedback comes from: half of these settings reach a live
-	-- display only after a debounce and a rebuild, and all of them reach a preview now.
+	-- display only after a debounce and a rebuild.
 	Private.AuraPreview.Restyle()
 	RefreshSections()
 end
 
---- Reads one display field. A factory rather than a function per setting: every field on this tab is
---- read the same way, and a hand-written pair each would restate that two dozen times.
+--- Reads one display field. A factory rather than a function per setting, since every field on this tab
+--- is read the same way.
 ---@param displayKey SpotlightsAuraDisplayKey
 ---@param field string
 ---@return fun(): any
@@ -211,16 +194,12 @@ local function Setter(displayKey, field)
 	end
 end
 
---- Writes a display's switch, then lays the tab out again.
+--- Writes a display's switch, then lays the tab out again: the one field here whose write can change how
+--- tall a section is, since the combined pane appears at two enabled displays and goes at one. Without a
+--- pass after it the section keeps the height it had.
 ---
---- The one field on this tab whose write can change how tall a section is: the combined pane below each
---- section's own appears at two enabled displays and goes at one, and `SetAura`'s `RefreshSections` is
---- what re-evaluates that predicate. Without a pass after it the section keeps the height it had, which
---- is the hole the tree's `Refresh`-before-`Layout` order exists to prevent.
----
---- `Relayout` rather than the `Refresh` the two setters below use: nothing here shows a value that has
---- changed, and a refresh from a write regenerates every dropdown's menu and re-reads an edit in
---- progress out from under the user.
+--- `Relayout` rather than the `Refresh` the setters below use: nothing here shows a changed value, and a
+--- refresh would regenerate every dropdown's menu and re-read an edit in progress.
 ---@param displayKey SpotlightsAuraDisplayKey
 ---@return fun(value: any)
 local function EnabledSetter(displayKey)
@@ -230,11 +209,9 @@ local function EnabledSetter(displayKey)
 	end
 end
 
---- Writes the border style and re-reads the whole tab.
----
---- `None` is how "no border" is spelled, and the thickness and colour beside it gate on that but only
---- sample it in their own `Refresh` -- so the plain setter would leave a just-disabled swatch looking
---- clickable. No relayout is owed: a disabled control dims rather than hides, so nothing moves.
+--- The thickness and colour beside the style gate on it but only sample it in their own `Refresh`, so
+--- the plain setter would leave a just-disabled swatch looking clickable. No relayout is owed: a
+--- disabled control dims rather than hides.
 ---@param displayKey SpotlightsAuraDisplayKey
 ---@return fun(value: any)
 local function BorderStyleSetter(displayKey)
@@ -244,22 +221,17 @@ local function BorderStyleSetter(displayKey)
 	end
 end
 
---- Writes the bar's fill axis and re-reads the whole tab.
----
---- The plain setter would leave the icon-side dropdown offering "Left Of The Bar" for what is now the top
---- end of the bar, and the fill-direction one offering "Left To Right" for a bar that runs down: both
---- lists are generated per menu-open, and only a refresh regenerates the *closed* button's text. No
---- relayout is owed -- no control appears or disappears with the axis.
+--- Writes the bar's fill axis and re-reads the whole tab: the plain setter would leave the icon-side and
+--- fill-direction dropdowns naming ends of the axis the bar no longer runs along. Both lists are
+--- generated per menu-open, and only a refresh regenerates the *closed* button's text.
 ---@param value SpotlightsOrientation
 local function OrientationSetter(value)
 	SetAura("bar", "orientation", value)
 	Private.Options.Refresh()
 end
 
---- Reads a colour stored as four separately named fields.
----
---- Named rather than derived from a prefix: a bar's own colour is `r`/`g`/`b`/`alpha` while its border's
---- is `borderR`..`borderA`, and one spelling rule cannot cover both.
+--- Reads a colour stored as four separately named fields. Named rather than derived from a prefix: a
+--- bar's own colour is `r`/`g`/`b`/`alpha` while its border's is `borderR`..`borderA`.
 ---@param displayKey SpotlightsAuraDisplayKey
 ---@param red string
 ---@param green string
@@ -274,12 +246,9 @@ local function ColorGetter(displayKey, red, green, blue, alpha)
 	end
 end
 
---- Writes all four channels, then repaints once.
----
---- Four writes rather than one costs nothing extra: each may queue a rebuild, but all four name the same
---- display, so they collapse into one entry and one timer. The *repaint* is what must not be repeated --
---- a colour picker fires continuously while dragged, and a sweep per channel would restyle every preview
---- four times for one visual change.
+--- Writes all four channels, then repaints once. The four writes collapse into one rebuild entry since
+--- they name the same display; the *repaint* is what must not be repeated, because a colour picker fires
+--- continuously while dragged.
 ---@param displayKey SpotlightsAuraDisplayKey
 ---@param red string
 ---@param green string
@@ -324,10 +293,8 @@ local function BorderPhrase(config)
 	return string.format(L.AuraSummaryBorder, config.borderSize)
 end
 
---- The header line for a display that is switched off, for both summaries.
----
---- A size and an anchor for something nothing will draw is worse than no summary at all: the whole point
---- of the header is answering "is this mode on" without expanding it.
+--- The header line for a display that is switched off. A size and an anchor for something nothing will
+--- draw is worse than no summary: the point of the header is answering "is this on" without expanding it.
 ---@param config SpotlightsAuraDisplayConfig
 ---@return string?
 local function HiddenSummary(config)
@@ -356,9 +323,9 @@ local function IconSummary()
 		BorderPhrase(config))
 end
 
---- Which way a bar's fill runs, in prose: the axis and the end it is anchored to as one phrase, because
---- naming only the axis summarises a reversed bar as the bar it is not. Shared by the summary and the
---- dropdown that sets the direction, so the header uses the control's own words.
+--- The axis and the end the fill is anchored to as one phrase, because naming only the axis summarises a
+--- reversed bar as the bar it is not. Shared with the dropdown that sets it, so the header uses the
+--- control's own words.
 ---@param config SpotlightsAuraBarConfig
 ---@return string
 local function FillName(config)
@@ -371,8 +338,8 @@ local function FillName(config)
 	return config.reverseFill and L.AuraFillRightToLeft or L.AuraFillLeftToRight
 end
 
---- The bar's summary, in its own format string: a `100 × 25` that drains upward reads as a lie without
---- the direction beside it, and the other two displays have no direction to name.
+--- Its own format string: a `100 × 25` that drains upward reads as a lie without the direction beside it,
+--- and no other display has a direction to name.
 ---@return string
 local function BarSummary()
 	local L = Private.L.Settings
@@ -383,9 +350,7 @@ local function BarSummary()
 		config.showIcon and L.AuraSummaryInlineIcon or L.AuraSummaryNoInlineIcon, BorderPhrase(config))
 end
 
---- The square's summary, in the same five fields as the other two: its size twice over, since one field
---- drives both axes, and the swipe as the option that most changes how it reads -- a block with no swipe
---- and no text says only that something is up.
+--- The same five fields as the icon's, with the size twice over since one field drives both axes.
 ---@return string
 local function SquareSummary()
 	local L = Private.L.Settings
@@ -396,9 +361,8 @@ local function SquareSummary()
 		BorderPhrase(config))
 end
 
---- The bare countdown's summary, in a format of its own and three fields shorter: it has no size setting
---- to name -- its rect is derived from the font size, which is what stands in for one -- and no swipe,
---- since a swipe with nothing under it is the square.
+--- Three fields shorter: no size setting to name, since the rect is derived from the font size, and no
+--- swipe, since a swipe with nothing under it is the square.
 ---@return string
 local function TextSummary()
 	local L = Private.L.Settings
@@ -408,9 +372,8 @@ local function TextSummary()
 		AnchorName(config), BorderPhrase(config))
 end
 
---- The tint's summary, and the shortest of the five: it has no size, no anchor and no border, because its
---- rect is the health bar's rather than anything it decides. What is left to say is its opacity, which is
---- the setting that decides whether the class colour shows through.
+--- The shortest of the five: no size, anchor or border, because the rect is the health bar's. What is
+--- left is the opacity, which decides whether the class colour shows through.
 ---@return string
 local function FrameColorSummary()
 	local L = Private.L.Settings
@@ -422,12 +385,9 @@ end
 
 local OnlyWhen = Private.Node.OnlyWhen
 
---- Gives a control a row of its own, closing whatever row was being filled.
----
---- `span` is the grid's own field; this is only what lets it be set on a control built inside a list. Two
---- controls here want it: the gap slider, which one kind of category does not have at all, and the anchor
---- dropdown above the two offsets that refine it. Both keep the pairs around them from re-flowing when a
---- category changes which controls exist.
+--- Gives a control a row of its own, closing whatever row was being filled. `span` is the grid's own
+--- field; this only lets it be set on a control built inside a list, which keeps the pairs around it from
+--- re-flowing when a category changes which controls exist.
 ---@param node SpotlightsNode
 ---@return SpotlightsNode
 local function Full(node)
@@ -436,11 +396,9 @@ local function Full(node)
 	return node
 end
 
---- How many of the selected category's displays are both drawn and switched on.
----
 --- Counted through `HasDisplay` rather than over the five `enabled` flags: every feature stores a block
---- for all five kinds whatever it renders, nothing stops those blocks being written, and a profile import
---- arrives with whatever the exporter had. A flag on a kind the category never draws must not count.
+--- for all five kinds whatever it renders, and a profile import arrives with whatever the exporter had,
+--- so a flag on a kind the category never draws must not count.
 ---@return integer
 local function EnabledDisplayCount()
 	local featureKey = ActiveFeature()
@@ -457,28 +415,20 @@ local function EnabledDisplayCount()
 	return count
 end
 
---- How tall the combined pane's stage is, against the shared 96.
----
---- 55px of room either side of a default 100 × 50 spotlight, where the shared height leaves 23 -- enough
---- for a 25px status bar lifted clear above the frame with a gap and a countdown below it, which is the
---- one thing this pane exists to show. Y is the axis that clips first at every frame size near the
---- default, and it is the axis two displays are separated along.
+--- How tall the combined pane's stage is, against the shared 96: 55px either side of a default 100 × 50
+--- spotlight, where the shared height leaves 23. Y is the axis that clips first at every frame size near
+--- the default, and the axis two displays are separated along.
 ---
 --- X is not fixed and cannot be: `PreviewPane.Width` is what the `Split` pins against, so widening this
---- pane alone re-flows every section's control grid. Past roughly ±37 an X offset leaves the pane.
+--- pane alone re-flows every section's control grid.
 local COMBINED_STAGE_HEIGHT = 160
 
---- The pane beside one section's controls: the Appearance tab's mini spotlight, with that section's
---- display -- and only that one -- hung off it. A nil `displayKey` is the combined pane below it, which
---- takes every kind the category draws on one shared spotlight.
+--- The pane beside one section's controls, with that section's display and only that one hung off it. A
+--- nil `displayKey` is the combined pane below it, which takes every kind the category draws.
 ---
---- One builder for both, because the per-category cache, the stale-set hiding on a category change and
---- the `panes` registration are the same for either and have to stay the same.
----
---- Records are built per category and kept rather than rebuilt on every switch. A preview bakes the spell
---- it is about into its icon when it is created, so a category change needs new ones; frames cannot be
---- destroyed, so building a set per switch would strand one per click of the strip. Five categories is
---- the whole of what can ever be kept.
+--- Records are built per category and **kept** rather than rebuilt on every switch: a preview bakes the
+--- spell it is about into its icon when created, so a category change needs new ones, and frames cannot
+--- be destroyed -- building a set per switch would strand one per click of the strip.
 ---@param page Frame
 ---@param displayKey SpotlightsAuraDisplayKey? every kind the category draws, when omitted
 ---@param options { heading: string?, CaptionText: (string | fun(): string)?, stageHeight: number? }?
@@ -511,9 +461,9 @@ local function BuildPreview(page, displayKey, options)
 		local featureKey = ActiveFeature()
 		local set = built[featureKey]
 
-		--- Tested for emptiness, not for nil: `CreatePreviews` answers `{}` while the database is not yet
-		--- readable, and an empty table is truthy -- so a first refresh before then would cache nothing
-		--- forever and the pane would never build.
+		-- Tested for emptiness, not nil: `CreatePreviews` answers `{}` while the database is not yet
+		-- readable, and an empty table is truthy -- so a first refresh before then would cache nothing
+		-- forever.
 		if not set or #set == 0 then
 			set = Private.Auras.CreatePreviews(self.frame, featureKey, displayKey)
 			built[featureKey] = set
@@ -537,18 +487,15 @@ local function BuildPreview(page, displayKey, options)
 	return pane
 end
 
---- Restores one display to its shipped values, after asking.
----
---- Confirmed rather than immediate: a reset discards a layout the user may have spent a while on, and a
---- stray click on the button ending a section is the accident a confirmation exists to catch.
+--- Restores one display to its shipped values, after asking: a reset discards a layout the user may have
+--- spent a while on, and a stray click on the button ending a section is what the confirmation catches.
 ---@param displayKey SpotlightsAuraDisplayKey
 ---@param label string the display's own name, which the prompt names beside the category's
 local function ConfirmReset(displayKey, label)
 	local L = Private.L.Settings
 
 	-- Registered at click time rather than at load: the localisation table is filled by now, and the
-	-- category named in the prompt is whichever the strip has selected at the click rather than whichever
-	-- it had when this tab was built.
+	-- category named in the prompt is whichever the strip has selected at the click.
 	StaticPopupDialogs[RESET_POPUP] = {
 		text = string.format(L.AuraResetDisplayPrompt, label, ActiveName()),
 		button1 = L.AuraResetConfirm,
@@ -571,11 +518,8 @@ local function ConfirmReset(displayKey, label)
 	StaticPopup_Show(RESET_POPUP)
 end
 
---- The border sub-heading and its three controls, identical for every display.
----
---- A border is the one piece of styling that does not care what it is around, so writing these once per
---- section would duplicate the same thing four times. Not offered on the health-bar tint, which has no
---- rect of its own for an edge to go around.
+--- The border sub-heading and its three controls, identical for every display. Not offered on the
+--- health-bar tint, which has no rect of its own for an edge to go around.
 ---@param page Frame
 ---@param displayKey SpotlightsAuraDisplayKey
 ---@return SpotlightsNode[]
@@ -592,8 +536,8 @@ local function BorderRows(page, displayKey)
 				Private.Media.IsBorderRegistered, Display(displayKey).borderTexture)
 		end, Getter(displayKey, "borderTexture"), BorderStyleSetter(displayKey)),
 
-		-- Both dim while the style is `None`, because both are then settings for something that is not
-		-- drawn -- which is otherwise only discoverable by picking a colour and watching nothing happen.
+		-- Both dim while the style is `None`, which is otherwise only discoverable by picking a colour and
+		-- watching nothing happen.
 		Private.Controls.Slider(page, L.AuraBorderSize, BORDER_SIZE_MIN, BORDER_SIZE_MAX, 1,
 			Getter(displayKey, "borderSize"), Setter(displayKey, "borderSize"), HasBorder(displayKey)),
 
@@ -628,13 +572,11 @@ end
 
 --- One section's body: its own groups, then the border group, then positioning, then the reset.
 ---
---- Two lists rather than one because the border group sits *between* what a display alone decides and
---- where it ends up, and it is shared -- so a body cannot simply be one literal with `BorderRows`
---- spliced into the middle of it.
+--- Two lists rather than one because the shared border group sits *between* what a display alone decides
+--- and where it ends up, so a body cannot be one literal with `BorderRows` spliced into it.
 ---
---- The reset is per display rather than one for the category, because the displays are configured
---- independently and one button for all of them would discard the parts the user was happy with. It
---- stays outside every group: it ends the body rather than belonging to one part of it.
+--- The reset is per display rather than per category, because the displays are configured independently
+--- and one button for all of them would discard the parts the user was happy with.
 ---@param page Frame
 ---@param rows SpotlightsNode[] everything above the border group
 ---@param displayKey SpotlightsAuraDisplayKey
@@ -642,8 +584,8 @@ end
 ---@param trailing SpotlightsNode[][]? the shared groups, `{}` for a display that has neither
 ---@return SpotlightsNode
 local function BuildBody(page, rows, displayKey, label, trailing)
-	--- Built here rather than defaulted at the call sites so a body that wants neither group -- the
-	--- health-bar tint, whose rect is not its own -- costs no frames for the controls it will not show.
+	-- Built here rather than defaulted at the call sites, so a body wanting neither group costs no frames
+	-- for controls it will not show.
 	trailing = trailing or { BorderRows(page, displayKey), PositioningRows(page, displayKey) }
 
 	for group = 1, #trailing do
@@ -660,18 +602,12 @@ local function BuildBody(page, rows, displayKey, label, trailing)
 		ConfirmReset(displayKey, label)
 	end, true)
 
-	--- Under the section's own pane rather than shared at the foot of the tab: the point of it is to be
-	--- beside the offset slider being dragged, and one at the bottom of a scrolling pane is off screen at
-	--- exactly the moment it is wanted.
-	---
-	--- Hidden at one enabled display, because it would then duplicate the pane above it. Hidden with the
-	--- category switched off too, since `ApplyAnchor` takes the feature's switch and the pane would be an
-	--- empty box beside an empty box -- which is only re-evaluated on a dot click because `CreateDot`
-	--- refreshes the tree.
-	---
-	--- `OnlyWhen` skips `Refresh` on a hidden node, and the lazy build lives inside `Refresh`, so a
-	--- category with one display enabled allocates nothing. A category with two allocates in all five
-	--- sections, open or collapsed: `Section:Refresh` refreshes its body either way.
+	-- Under the section's own pane rather than shared at the foot of the tab, so it is beside the offset
+	-- slider being dragged rather than off screen at the moment it is wanted.
+	--
+	-- Hidden at one enabled display, where it would duplicate the pane above it, and with the category
+	-- switched off. `OnlyWhen` skips `Refresh` on a hidden node and the lazy build lives inside `Refresh`,
+	-- so a category with one display enabled allocates nothing.
 	local combined = OnlyWhen(BuildPreview(page, nil, {
 		heading = L.AuraCombinedPreviewHeading,
 		CaptionText = L.AuraCombinedPreviewCaption,
@@ -705,8 +641,8 @@ local function BuildIconBody(page)
 		Private.Controls.Slider(page, L.AuraIconHeight, ICON_SIZE_MIN, ICON_SIZE_MAX, 1,
 			Getter("icon", "height"), Setter("icon", "height")),
 
-		--- The spacing between icons, so only a category that pools several of them has anything to
-		--- space. Offered where it does nothing, it would read as a setting that is broken.
+		-- Only a category pooling several icons has anything to space; offered where it does nothing, it
+		-- would read as a broken setting.
 		OnlyWhen(Full(Private.Controls.Slider(page, L.AuraGap, GAP_MIN, GAP_MAX, 1,
 			Getter("icon", "gap"), Setter("icon", "gap"))), function()
 			return Private.Auras.IsPooled(ActiveFeature())
@@ -748,17 +684,15 @@ local function BuildBarBody(page)
 				Private.Media.IsRegistered, Bar().texture)
 		end, Getter("bar", "texture"), Setter("bar", "texture")),
 
-		--- Beside the texture rather than with the width and the height, though it is the setting that
-		--- decides what those two mean: it is a property of the fill, and the size group is a pair of
-		--- sliders dragged against the pane.
+		-- Beside the texture rather than with the width and height, though it decides what those two mean:
+		-- it is a property of the fill, and the size group is a pair of sliders dragged against the pane.
 		Private.Controls.Dropdown(page, L.Orientation, {
 			{ value = Orientation.Horizontal, label = L.AuraFillHorizontal },
 			{ value = Orientation.Vertical,   label = L.AuraFillVertical },
 		}, Getter("bar", "orientation"), OrientationSetter),
 
-		--- Passed as a function for the reason the icon-side list is: the two labels are the ends of
-		--- whichever axis is set, and a list built once would keep offering "Left To Right" for a bar that
-		--- now runs down. The stored boolean is what reaches the database either way.
+		-- A function rather than a table: the labels are the ends of whichever axis is set, and a list
+		-- built once would keep offering "Left To Right" for a bar that now runs down.
 		Private.Controls.Dropdown(page, L.AuraFillDirection, function()
 			if Bar().orientation == Orientation.Vertical then
 				return {
@@ -773,8 +707,8 @@ local function BuildBarBody(page)
 			}
 		end, Getter("bar", "reverseFill"), Setter("bar", "reverseFill")),
 
-		--- The picker's own opacity writes `alpha`, which is the slider above it -- one field with two
-		--- controls over it. The slider re-reads on the next full refresh.
+		-- The picker's own opacity writes `alpha`, which is the slider above it: one field with two
+		-- controls over it, as on every other display here. The slider re-reads on the next full refresh.
 		Private.Controls.ColorSwatch(page, L.AuraColor, ColorGetter("bar", "r", "g", "b", "alpha"),
 			ColorSetter("bar", "r", "g", "b", "alpha")),
 
@@ -790,10 +724,9 @@ local function BuildBarBody(page)
 		Private.Controls.Checkbox(page, L.AuraShowIcon, Getter("bar", "showIcon"),
 			Setter("bar", "showIcon")),
 
-		--- Passed as a function for the reason the media pickers are, though the list is fixed: the two
-		--- labels are the *ends of the bar*, which the fill direction decides, and a list built once would
-		--- keep offering "Left Of The Bar" for the top of a vertical one. The stored `LEFT`/`RIGHT` is what
-		--- reaches the database either way.
+		-- A function for the fill direction's reason: the labels are the *ends of the bar*, so a list built
+		-- once would keep offering "Left Of The Bar" for the top of a vertical one. The stored
+		-- `LEFT`/`RIGHT` is what reaches the database either way.
 		Private.Controls.Dropdown(page, L.AuraIconSide, function()
 			if Bar().orientation == Orientation.Vertical then
 				return {
@@ -815,9 +748,8 @@ end
 local function BuildSquareBody(page)
 	local L = Private.L.Settings
 
-	--- Grouped like the other two, though the issue that asked for this only named them: a body left flat
-	--- beside two grouped ones reads as the one that was forgotten. `Block` rather than `Size`, because
-	--- one field drives both axes and the colour belongs beside it -- it is what tells two squares apart.
+	-- `Block` rather than `Size`, because one field drives both axes and the colour belongs beside it:
+	-- colour is what tells two squares apart.
 	return BuildBody(page, {
 		Private.Controls.SubHeading(page, L.GroupDisplay),
 
@@ -828,14 +760,11 @@ local function BuildSquareBody(page)
 
 		Private.Controls.SubHeading(page, L.GroupBlock),
 
-		--- One slider where the other sections have two, because one field drives both axes -- and paired
-		--- with the colour rather than given a row of its own, so the rows below it stay in the two-column
-		--- rhythm the icon and the bar have.
+		-- Paired with the colour rather than given a row of its own, so the rows below stay in the
+		-- two-column rhythm the icon and the bar have.
 		Private.Controls.Slider(page, L.AuraSquareSize, SQUARE_SIZE_MIN, SQUARE_SIZE_MAX, 1,
 			Getter("square", "size"), Setter("square", "size")),
 
-		--- The picker's own opacity writes `alpha`, which is the slider above it -- the same one field with
-		--- two controls over it the bar's colour has.
 		Private.Controls.ColorSwatch(page, L.AuraSquareColor,
 			ColorGetter("square", "r", "g", "b", "alpha"),
 			ColorSetter("square", "r", "g", "b", "alpha")),
@@ -861,10 +790,9 @@ end
 local function BuildTextBody(page)
 	local L = Private.L.Settings
 
-	--- The shortest body with a rect of its own: no size group, because the rect follows the font size, and no
-	--- cooldown group, because there is no swipe to switch and the countdown is the display rather than an
-	--- option on it. What is left is the text itself, so the labels drop the `Duration` the other two
-	--- sections need to say which of their parts is being styled.
+	-- The shortest body with a rect of its own: no size group, since the rect follows the font size, and
+	-- no cooldown group, since the countdown *is* the display. So the labels drop the `Duration` the other
+	-- sections need to say which of their parts is being styled.
 	return BuildBody(page, {
 		Private.Controls.SubHeading(page, L.GroupDisplay),
 
@@ -880,13 +808,11 @@ local function BuildTextBody(page)
 				Private.Media.IsFontRegistered, Text().font)
 		end, Getter("text", "font"), Setter("text", "font")),
 
-		--- Sets the display's rect as well as its glyphs -- `Size` derives one from the other -- so this is
-		--- the slider that moves the anchor the positioning group below places.
+		-- Sets the display's rect as well as its glyphs, since `Size` derives one from the other, so this
+		-- is the slider that moves the anchor the positioning group below places.
 		Private.Controls.Slider(page, L.AuraTextFontSize, FONT_SIZE_MIN, FONT_SIZE_MAX, 1,
 			Getter("text", "fontSize"), Setter("text", "fontSize")),
 
-		--- The picker's own opacity writes `alpha`, which is the slider above it -- the same one field with
-		--- two controls over it the bar's and the square's colours have.
 		Private.Controls.ColorSwatch(page, L.AuraTextColor, ColorGetter("text", "r", "g", "b", "alpha"),
 			ColorSetter("text", "r", "g", "b", "alpha")),
 	}, "text", L.AuraText)
@@ -897,19 +823,15 @@ end
 local function BuildFrameColorBody(page)
 	local L = Private.L.Settings
 
-	--- The only body with neither the border group nor the positioning group: this display's rect is the
-	--- spotlight's health bar, so there is no edge to draw and no offset to place. Two controls, and the
-	--- opacity is the one that matters -- at 1 the chosen colour replaces the class colour outright while
-	--- the aura is up, which is what "pick a colour for the health bar" asks for and not always what the
-	--- user wants once they see it.
+	-- The only body with neither the border nor the positioning group: this display's rect is the
+	-- spotlight's health bar, so there is no edge to draw and no offset to place. The opacity is the
+	-- control that matters -- at 1 the chosen colour replaces the class colour outright.
 	return BuildBody(page, {
 		Private.Controls.SubHeading(page, L.GroupDisplay),
 
 		Private.Controls.Checkbox(page, L.AuraEnabled, Getter("frameColor", "enabled"),
 			EnabledSetter("frameColor")),
 
-		--- The picker's own opacity writes `alpha`, which is the slider beside it -- one field with two
-		--- controls over it, as on the bar, the square and the countdown.
 		Private.Controls.ColorSwatch(page, L.AuraFrameColorColor,
 			ColorGetter("frameColor", "r", "g", "b", "alpha"),
 			ColorSetter("frameColor", "r", "g", "b", "alpha")),
@@ -921,27 +843,19 @@ local function BuildFrameColorBody(page)
 	}, "frameColor", L.AuraFrameColor, {})
 end
 
---- Opens the sections whose display is switched on and collapses the rest, so a category the user has
---- one display enabled on does not open with three bodies of controls that change nothing on screen
---- above the one that does.
----
---- The open state is transient and stays that way: this decides it rather than remembering it, and the
---- alternative -- a saved-variable field per section and a migration -- would persist something the user
---- changes by looking at the panel.
+--- Opens the sections whose display is switched on and collapses the rest. The open state is transient
+--- and stays that way: remembering it would persist something the user changes by looking at the panel.
 ---
 --- **Initial, not forced.** The enable checkbox is the first row *inside* each body, so a section held
---- collapsed while its display is off would be a display that can never be switched back on from the
---- panel. Called from the two moments a visit to a category begins -- the page being shown and the
---- category strip changing -- and never from a write, so a section the user opens stays open, and
---- switching a display off does not collapse the section under their cursor.
+--- collapsed while its display is off would be a display that can never be switched back on. Called only
+--- from the two moments a visit to a category begins, never from a write.
 ---
---- Not `startOpen`: `Build` runs once per session, thirty lines before `RefreshCategories` picks the
---- selected category, so a constructor argument would answer once for whichever category the file was
---- loaded pointing at.
+--- Not `startOpen`: `Build` runs once per session, before `RefreshCategories` picks the selected
+--- category, so a constructor argument would answer for whichever category the file was loaded pointing
+--- at.
 ---
---- Must run *before* the `Refresh` that follows it. `SetOpen` relayouts when the state changes, and a
---- relayout from underneath a pass in progress is what the tree's `Refresh`-before-`Layout` order exists
---- to prevent.
+--- Must run *before* the `Refresh` that follows it: `SetOpen` relayouts when the state changes, and a
+--- relayout from under a pass in progress is what `Refresh`-before-`Layout` exists to prevent.
 function Private.AuraAppearance.SyncSections()
 	for i = 1, #sections do
 		sections[i]:SetOpen(Display(SECTION_DISPLAY_KEYS[i]).enabled)
@@ -980,10 +894,8 @@ function Private.AuraAppearance.Build(page, GetFeature, GetName)
 		return L.AuraFrameColor
 	end, FrameColorSummary, BuildFrameColorBody(page))
 
-	--- A pooled category draws icons only, so there is no status bar, no square, no bare countdown and no
-	--- health-bar tint to configure and no section for any of them. Asked of `Private.Auras` rather than
-	--- decided here: which display kinds a category renders is the build path's rule, and a second copy of
-	--- it could only be wrong.
+	-- A pooled category draws icons only, so the other four have no section. Asked of `Private.Auras`
+	-- rather than decided here: a second copy of the build path's rule could only be wrong.
 	OnlyWhen(bar, function()
 		return Private.Auras.HasDisplay(ActiveFeature(), "bar")
 	end)

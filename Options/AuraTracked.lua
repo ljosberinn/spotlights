@@ -4,33 +4,26 @@ local _, Private = ...
 ---@class SpotlightsAuraTracked
 Private.AuraTracked = {}
 
---- The Auras tab's Tracked sub-tab: which spells the selected category watches.
+--- The Auras tab's Tracked sub-tab: which spells the selected category watches. The rail on the left
+--- lists the category's spells by class with a count of how many are on; the pane beside it is that
+--- group.
 ---
---- Two panes. The rail on the left lists the category's spells by class, with a count of how many of each
---- are switched on; the pane beside it is that group -- its spells, one row each, with the bulk switches
---- for the whole of what is showing.
----
---- Which category all of this is about lives in `Options/Auras.lua`, on the strip along the bottom of
---- the window, and reaches this file as an accessor rather than a copy -- exactly as it reaches the
---- Appearance sub-tab beside this one. What that category *contains* is `Options/AuraSpells.lua`'s
---- answer: this file draws groups and counts without knowing that two of the five categories share one
---- pool and two others have no spells at all.
+--- Which category reaches this file as an accessor rather than a copy, as it does the Appearance sub-tab.
+--- What that category *contains* is `Options/AuraSpells.lua`'s answer: this file draws groups and counts
+--- without knowing that two of the five categories share one pool and two others have no spells at all.
 
---- The rail's width, as the design specifies it: 196 of the content rectangle's 748.
+--- 196 of the content rectangle's 748.
 local RAIL_WIDTH = 196
 
---- One class row. Shorter than a control row: fourteen rows at the kit's 26 read as a ladder rather
---- than as a list.
+--- Shorter than a control row: fourteen rows at the kit's 26 read as a ladder rather than a list.
 local ROW_HEIGHT = 22
 
 --- What a row keeps clear at each end, and between a long class name and the count it must not reach.
 local ROW_INSET = 4
 local COUNT_GAP = 6
 
---- The selected row's fill, and the hover tint over it.
----
---- Both `SetColorTexture`, since the design's accent is a colour rather than art, and the selected one
---- is roughly twice the hover so that hovering the selected row still reads as hovering something.
+--- The selected row's fill is roughly twice the hover tint, so hovering the selected row still reads as
+--- hovering something.
 local ACCENT_ALPHA = 0.12
 local HIGHLIGHT_ALPHA = Private.Controls.HighlightAlpha
 
@@ -44,30 +37,26 @@ local SEARCH_INSET = 5
 --- bands.
 local RAIL_GAP = 6
 
---- A spell row, which is two lines: the name, and the spell ID under it. Taller than a rail row for
---- that reason, and the icon is sized to both lines rather than to either.
+--- A spell row is two lines, the name and the spell ID under it, so it is taller than a rail row and the
+--- icon is sized to both lines rather than either.
 local SPELL_ROW_HEIGHT = 32
 local SPELL_ICON_SIZE = 24
 local SPELL_TEXT_GAP = 6
 
---- What a row keeps at its trailing edge for the toggle, and beyond it for the remove button a custom
---- entry gets. The remove width is reserved on every row rather than only where it is used, so the
---- toggles stay in one column as the rail moves between a class group and the user's own.
+--- The remove width is reserved on every row rather than only where it is used, so the toggles stay in
+--- one column as the rail moves between a class group and the user's own.
 local CHECK_SIZE = 24
 local REMOVE_WIDTH = 20
 
 --- The exit atlas is drawn inside its button rather than filling it, so the target stays comfortable
---- while the glyph stays the size of the one in the roster's own lists.
+--- while the glyph matches the roster's own lists.
 local REMOVE_ICON_SIZE = 16
 local REMOVE_HIGHLIGHT_ALPHA = 0.18
 
---- The buttons this pane builds for itself: the two bulk switches in its header, and Add under the
---- custom list. The height is `Controls`' own button height, which is not published -- these are the
---- only buttons in the panel not built by that kit, and matching it is what keeps the header from
---- sitting proud of the reset button across the split.
----
---- The bulk buttons are sized to their labels, since "Enable All" is a phrase of a different length in
---- every locale and a fixed width would either clip one or leave the English pair floating.
+--- `Controls`' own button height, which is not published: these are the only buttons in the panel not
+--- built by that kit, and matching it keeps the header from sitting proud of the reset button across the
+--- split. The bulk buttons are sized to their labels, since a fixed width would clip one locale or leave
+--- another floating.
 local BUTTON_HEIGHT = 22
 local BULK_TEXT_PADDING = 20
 local BULK_GAP = 4
@@ -82,19 +71,16 @@ local PREVIEW_GAP = 10
 local PREVIEW_ICON_SIZE = 20
 local MAX_ID_DIGITS = 9
 
---- How long the typed ID is left alone before it is looked up.
----
---- A spell ID is typed a digit at a time and most prefixes name nothing, so the preview would otherwise
---- flicker through four wrong answers on the way to the right one.
+--- How long the typed ID is left alone before it is looked up: an ID is typed a digit at a time and most
+--- prefixes name nothing, so the preview would otherwise flicker through wrong answers on the way.
 local LOOKUP_DELAY = 0.35
 
---- What this sub-tab's chrome costs its own height: the gap under the Auras tab's sub-tab strip. Both
---- sides get everything else, so the reset button and the add-spell row end up on the window's bottom
---- edge rather than at a guess at how many rows there "usually" are.
+--- The gap under the Auras tab's sub-tab strip. Both sides get everything else, so the reset button and
+--- the add-spell row end up on the window's bottom edge.
 local CHROME_RESERVE = 6
 
---- Floors for the two sides and for the scrolling list inside each, in case the window is ever shorter
---- than this tab's chrome costs -- better a cramped list than a negative height Blizzard errors on.
+--- Floors for the two sides and the list inside each, in case the window is shorter than this tab's
+--- chrome costs: better a cramped list than a negative height Blizzard errors on.
 local MIN_RAIL_HEIGHT = 120
 local MIN_LIST_HEIGHT = 40
 
@@ -102,29 +88,23 @@ local MIN_LIST_HEIGHT = 40
 --- button was clicked, and a second key would stack a second identical prompt.
 local RESET_POPUP = "SPOTLIGHTS_AURA_RESET"
 
---- Which category the strip has selected, and its localised name for the reset prompt. Both handed in
---- by `Build`, because the strip they come from is not this file's.
+--- Which category the strip has selected, and its localised name for the reset prompt. Both handed in by
+--- `Build`, because the strip they come from is not this file's.
 ---@type fun(): SpotlightsAuraFeatureKey
 local ActiveFeature
 
 ---@type fun(): string
 local ActiveName
 
---- Which group the rail points at, as a key rather than a group: the groups themselves are rebuilt per
---- category, and a held table would be one belonging to a category the user has since left.
----
---- Deliberately not per category. A key that exists in both pools -- every class does -- keeps the rail
---- where the user left it when they switch between Cooldowns and Defensives, and one that does not is
---- corrected to the first row on the way in.
+--- A key rather than a group, because the groups are rebuilt per category and a held table would belong
+--- to one the user has since left. Deliberately not per category either: a key that exists in both pools
+--- keeps the rail where the user left it when they switch between Cooldowns and Defensives.
 ---@type string?
 local selectedKey
 
---- The group that key names, resolved once per pass by the pane and read by everything inside it.
----
---- Held rather than looked up per node because a lookup rebuilds the category's group list, and the
---- header, the rows, the note and the add row would each pay for one. Written in the pane's own `Refresh`,
---- which runs after the rail's -- the rail is what corrects `selectedKey`, so resolving any earlier would
---- name a group the rail is about to move off.
+--- Held rather than looked up per node, because a lookup rebuilds the category's group list and the
+--- header, rows, note and add row would each pay for one. Written in the pane's `Refresh`, which runs
+--- after the rail's -- the rail is what corrects `selectedKey`.
 ---@type SpotlightsAuraSpellGroup?
 local selectedGroup
 
@@ -132,13 +112,11 @@ local selectedGroup
 ---@type string
 local query = ""
 
---- The box itself, kept so the sub-tab can empty it on the way out. One rail, one box, so a module
---- local rather than something threaded back out of the tree.
+--- Kept so the sub-tab can empty it on the way out. One rail, one box, so a module local rather than
+--- something threaded back out of the tree.
 ---@type EditBox?
 local searchBox
 
---- A rail row. Its parts are named here rather than left implicit because a pooled frame is a
---- different group after every pass, and every one of them is re-pointed on each.
 ---@class SpotlightsAuraRailRow : Button
 ---@field accent Texture the selected row's fill
 ---@field label FontString
@@ -165,11 +143,9 @@ local function VisibleGroups()
 	return matches
 end
 
---- Corrects the selection against what the rail is actually listing, and answers with it.
----
---- Two things move it without the user having clicked anything: a category change, whose pool may not
---- have the selected class at all, and a search that filters it out. Both leave the pane beside the
---- rail describing a group with no row to point at it, so the first visible group takes over.
+--- Corrects the selection against what the rail is actually listing. Two things move it without a click:
+--- a category change whose pool may not have the selected class, and a search that filters it out. Both
+--- would leave the pane describing a group with no row, so the first visible one takes over.
 ---@param visible SpotlightsAuraSpellGroup[]
 ---@return SpotlightsAuraSpellGroup?
 local function ResolveSelection(visible)
@@ -186,12 +162,9 @@ local function ResolveSelection(visible)
 	return first
 end
 
---- One pooled rail row: a class name, the count of what is on inside it, and the accent saying it is
---- the selected one.
----
---- Pooled for the reason every list in this addon is: fourteen frames rebuilt whenever a letter is
---- typed into the search box would be fourteen new frames per keystroke, and frames cannot be
---- destroyed.
+--- One pooled rail row: a class name, the count of what is on inside it, and the accent marking the
+--- selection. Pooled because frames cannot be destroyed, and a rebuild per keystroke in the search box
+--- would be fourteen new frames per letter.
 ---@param list Frame
 ---@param rows SpotlightsAuraRailRow[]
 ---@param index integer
@@ -221,9 +194,8 @@ local function AcquireRow(list, rows, index)
 	row.count:SetPoint("RIGHT", row, "RIGHT", -ROW_INSET, 0)
 	row.count:SetJustifyH("RIGHT")
 
-	--- Anchored at both ends, the right one against the count rather than the row: a class name is as
-	--- long as its translation made it, and one that ran under its own count would read as a wrong
-	--- number. Truncated instead, which the count opposite it makes recoverable.
+	-- Anchored at both ends, the right one against the count rather than the row: a class name that ran
+	-- under its own count would read as a wrong number.
 	row.label = row:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
 	row.label:SetPoint("LEFT", row, "LEFT", ROW_INSET, 0)
 	row.label:SetPoint("RIGHT", row.count, "LEFT", -COUNT_GAP, 0)
@@ -235,11 +207,9 @@ local function AcquireRow(list, rows, index)
 	return row
 end
 
---- The scrolling list of groups.
----
---- Rows are configured in `Refresh` and anchored in `Layout`, which is the kit's own split: what a row
---- says depends on the database, and where it sits depends on a width this node is not handed until
---- afterwards.
+--- The scrolling list of groups. Rows are configured in `Refresh` and anchored in `Layout`, which is the
+--- kit's own split: what a row says depends on the database, where it sits depends on a width this node
+--- is not handed until afterwards.
 ---@param page Frame
 ---@return SpotlightsNode
 local function BuildGroupList(page)
@@ -316,10 +286,8 @@ local function BuildGroupList(page)
 	return list
 end
 
---- The search box over the rail.
----
---- `SearchBoxTemplate` ships the magnifier, the clear button and the instruction text, and its own
---- `OnTextChanged` is what keeps those in step -- so this hooks that script rather than replacing it.
+--- `SearchBoxTemplate`'s own `OnTextChanged` keeps its magnifier, clear button and instruction text in
+--- step, so this hooks that script rather than replacing it.
 ---@param page Frame
 ---@return SpotlightsNode
 local function BuildSearch(page)
@@ -335,9 +303,8 @@ local function BuildSearch(page)
 	box:HookScript("OnTextChanged", function(self)
 		local text = self:GetText():lower()
 
-		-- Compared against what is stored rather than acted on unconditionally: the script fires for a
-		-- `SetText` as well as for a keystroke, and re-typing a letter in a different case is the same
-		-- filter.
+		-- The script fires for a `SetText` as well as a keystroke, and re-typing a letter in a different
+		-- case is the same filter.
 		if text == query then
 			return
 		end
@@ -361,17 +328,13 @@ local function BuildSearch(page)
 	return node
 end
 
---- Restores the category's tracked list, after asking.
----
---- Confirmed rather than immediate, as both other resets on this tab are: it discards a set of toggles
---- the user may have spent a while on, and a stray click on the button under the rail is the accident a
---- confirmation exists to catch.
+--- Restores the category's tracked list, after asking: it discards a set of toggles the user may have
+--- spent a while on, and a stray click on the button under the rail is what the confirmation catches.
 local function ConfirmReset()
 	local L = Private.L.Settings
 
 	-- Registered at click time rather than at load: the localisation table is filled by now, and the
-	-- category named in the prompt is whichever the strip has selected at the click rather than
-	-- whichever it had when this tab was built.
+	-- category named in the prompt is whichever the strip has selected at the click.
 	StaticPopupDialogs[RESET_POPUP] = {
 		text = string.format(L.AuraResetSpellsPrompt, ActiveName()),
 		button1 = L.AuraResetConfirm,
@@ -392,11 +355,9 @@ local function ConfirmReset()
 	StaticPopup_Show(RESET_POPUP)
 end
 
---- The rail: the search box, the groups, and the reset under them.
----
---- Hidden whole for a category with no tracked list. Prescience and Shifting Sands watch one spell
---- each, so there is nothing to list and nothing to search -- and `Split` gives the pane the rail's
---- width back rather than leaving it beside an empty column.
+--- The rail: the search box, the groups, and the reset under them. Hidden whole for a category with no
+--- tracked list, where `Split` gives the pane the rail's width back rather than leaving it beside an
+--- empty column.
 ---@param page Frame
 ---@param height number what the sub-tab has to spend on it
 ---@return SpotlightsNode
@@ -413,8 +374,8 @@ local function BuildRail(page, height)
 	end)
 end
 
---- The spells of the selected group the search box admits, which is what every part of the pane is about
---- -- the rows it draws and the set its bulk buttons act on, which is the same set by construction.
+--- The spells of the selected group the search box admits: the rows the pane draws and the set its bulk
+--- buttons act on, which is the same set by construction.
 ---@return integer[]
 local function VisibleSpells()
 	if not selectedGroup then
@@ -424,14 +385,12 @@ local function VisibleSpells()
 	return Private.AuraSpells.MatchingSpells(selectedGroup, query)
 end
 
---- What a spell row shows, given an ID the client may not have cached yet.
----
---- A missing name is not an error and not a permanently unknown spell: `C_Spell.GetSpellName` answers nil
---- until the client has the data and fills it in afterwards, so the ID stands in for the name and the next
---- pass picks up the real one. An ID that is genuinely not a spell keeps showing as its own number.
+--- What a spell row shows, given an ID the client may not have cached yet. A missing name is not an
+--- error: `C_Spell.GetSpellName` answers nil until the client has the data, so the ID stands in and the
+--- next pass picks up the real one.
 ---
 --- The texture is a **file ID** when the spell has one and a path when it does not, which is why the
---- annotation admits both: `SetTexture` takes either.
+--- annotation admits both.
 ---@param spellID integer
 ---@return string label, string meta, string|integer texture
 local function SpellDisplay(spellID)
@@ -442,12 +401,9 @@ local function SpellDisplay(spellID)
 		C_Spell.GetSpellTexture(spellID) or QUESTION_MARK_ICON
 end
 
---- The client's own tooltip for a spell, anchored to whatever the cursor is actually on.
----
---- `ANCHOR_RIGHT` so the tooltip stands outside the list rather than over the rows under the cursor.
----
---- No `Show` and no guard against an ID the client has nothing for: `SetSpellByID` shows the tooltip
---- when there is data and hides it when there is not, which is the empty-frame case already answered.
+--- `ANCHOR_RIGHT` so the tooltip stands outside the list rather than over the rows under the cursor. No
+--- `Show` and no guard against an uncached ID: `SetSpellByID` shows the tooltip when there is data and
+--- hides it when there is not.
 ---@param owner Frame
 ---@param spellID integer?
 local function ShowSpellTooltip(owner, spellID)
@@ -459,10 +415,9 @@ local function ShowSpellTooltip(owner, spellID)
 	GameTooltip:SetSpellByID(spellID)
 end
 
---- Drops the tooltip when the frame it belongs to goes away under the cursor, which is the case
---- `OnLeave` does not answer: the pane scrolling, the group changing, the panel closing.
----
---- Owner-checked rather than unconditional, since by then something else may have taken the tooltip.
+--- Drops the tooltip when the frame it belongs to goes away under the cursor, which `OnLeave` does not
+--- answer: the pane scrolling, the group changing, the panel closing. Owner-checked, since by then
+--- something else may have taken the tooltip.
 ---@param self Frame
 local function HideSpellTooltip(self)
 	if GameTooltip:GetOwner() == self then
@@ -470,9 +425,6 @@ local function HideSpellTooltip(self)
 	end
 end
 
---- One spell row. Its parts are named here rather than left implicit for the reason the rail's are: a
---- pooled frame stands for a different spell after every pass, and every one of them is re-pointed on
---- each.
 ---@class SpotlightsAuraSpellRow : Button
 ---@field icon Texture
 ---@field label FontString
@@ -481,12 +433,9 @@ end
 ---@field remove Button
 ---@field spellID integer? which spell the row currently stands for
 
---- One pooled spell row: the icon, the name over its ID, the toggle, and the remove button a custom entry
---- gets.
----
---- A `Button` rather than a frame, so the whole row is the toggle: the checkbox at its far end is a small
---- target beside a name that reads as the thing being switched on. The checkbox and the remove button sit
---- on top and keep their own clicks.
+--- One pooled spell row. A `Button` rather than a frame, so the whole row is the toggle: the checkbox at
+--- its far end is a small target beside a name that reads as the thing being switched on. The checkbox
+--- and the remove button sit on top and keep their own clicks.
 ---@param list Frame
 ---@param rows SpotlightsAuraSpellRow[]
 ---@param index integer
@@ -518,9 +467,8 @@ local function AcquireSpellRow(list, rows, index)
 	row.remove:SetSize(REMOVE_WIDTH, SPELL_ROW_HEIGHT - 2)
 	row.remove:SetPoint("RIGHT", row, "RIGHT", 0, 0)
 
-	--- The same red exit atlas the roster's remove buttons use rather than an "X", so the gesture that
-	--- means "remove this" looks the same in both lists. The icon carries the meaning, so no text is set;
-	--- a hover tint sized to the icon stands in for the button template's own highlight.
+	-- The same red exit atlas the roster's remove buttons use, so the gesture looks the same in both
+	-- lists. A hover tint sized to the icon stands in for the button template's own highlight.
 	local removeIcon = row.remove:CreateTexture(nil, "ARTWORK")
 
 	removeIcon:SetPoint("CENTER")
@@ -537,9 +485,8 @@ local function AcquireSpellRow(list, rows, index)
 	row.check:SetSize(CHECK_SIZE, CHECK_SIZE)
 	row.check:SetPoint("RIGHT", row, "RIGHT", -REMOVE_WIDTH, 0)
 
-	--- Both lines are anchored at each end, the right one against the toggle rather than the row: a spell
-	--- name is as long as the client's translation made it, and one that ran under its own checkbox would
-	--- read as a row that cannot be switched off.
+	-- Both lines anchored at each end, the right one against the toggle rather than the row: a spell name
+	-- running under its own checkbox would read as a row that cannot be switched off.
 	row.label = row:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
 	row.label:SetPoint("TOPLEFT", row.icon, "TOPRIGHT", SPELL_TEXT_GAP, 0)
 	row.label:SetPoint("RIGHT", row.check, "LEFT", -SPELL_TEXT_GAP, 0)
@@ -552,8 +499,8 @@ local function AcquireSpellRow(list, rows, index)
 	row.meta:SetJustifyH("LEFT")
 	row.meta:SetWordWrap(false)
 
-	--- Read off the row rather than closed over, which is what lets these be set once here while the
-	--- click handlers are rebound every pass: a captured ID would be the previous spell's.
+	-- Read off the row rather than closed over, which lets these be set once while the click handlers are
+	-- rebound every pass: a captured ID would be the previous spell's.
 	local function ShowRowTooltip()
 		ShowSpellTooltip(row, row.spellID)
 	end
@@ -561,9 +508,8 @@ local function AcquireSpellRow(list, rows, index)
 	row:SetScript("OnEnter", ShowRowTooltip)
 	row:SetScript("OnLeave", GameTooltip_Hide)
 
-	--- The toggle and the remove button sit on top of the row, so the cursor crossing onto either one
-	--- leaves the row. Both re-show the row's own tooltip, anchored to the row, so sliding across the
-	--- row keeps one tooltip in one place instead of dropping it at the checkbox's edge.
+	-- The toggle and the remove button sit on top of the row, so crossing onto either leaves it. Both
+	-- re-show the row's own tooltip, so sliding across keeps one tooltip in one place.
 	row.check:SetScript("OnEnter", ShowRowTooltip)
 	row.check:SetScript("OnLeave", GameTooltip_Hide)
 	row.remove:SetScript("OnEnter", ShowRowTooltip)
@@ -670,11 +616,9 @@ local function BuildSpellList(page)
 	return list
 end
 
---- The pane's header: which group is being listed, how much of it is on, and the two bulk switches.
----
---- The count is the whole group's, as the rail's is, rather than the filtered set's -- it is the same
---- number about the same group, and two counts disagreeing across a divider would read as one of them
---- being wrong. What the *buttons* act on is the filtered set, which is what the rows under them show.
+--- The pane's header. The count is the whole group's, as the rail's is, rather than the filtered set's:
+--- two counts disagreeing across a divider would read as one of them being wrong. What the *buttons* act
+--- on is the filtered set, which is what the rows under them show.
 ---@param page Frame
 ---@return SpotlightsNode
 local function BuildPaneHeader(page)
@@ -741,9 +685,8 @@ local function BuildPaneHeader(page)
 		enableAll:SetWidth(enableAll:GetTextWidth() + BULK_TEXT_PADDING)
 		disableAll:SetWidth(disableAll:GetTextWidth() + BULK_TEXT_PADDING)
 
-		--- Sized to the name it holds so the count sits against it, and capped at what the buttons leave
-		--- so a long group name truncates instead of running under them. One pixel over the measured
-		--- width: a font string set to exactly its own is rounded down into an ellipsis.
+		-- Sized to the name it holds so the count sits against it, capped at what the buttons leave. One
+		-- pixel over the measured width: a font string set to exactly its own rounds down to an ellipsis.
 		local room = math.max(width - enableAll:GetWidth() - disableAll:GetWidth() - BULK_GAP
 			- count:GetStringWidth() - COUNT_GAP, 1)
 
@@ -755,17 +698,13 @@ local function BuildPaneHeader(page)
 	return node
 end
 
---- The add-spell row under the custom group's list: a numeric box, an Add button, and a preview of
---- whatever is currently typed.
+--- The add-spell row under the custom group's list. **The preview is the point**: a spell ID cannot be
+--- proofread, so the only way to know a number is not a typo is to be shown the icon and name before
+--- committing, and to be shown nothing when it names no spell.
 ---
---- The preview is the point. A spell ID is not something anyone can proofread, so the only way to know
---- that 466772 is Doom Winds and not a typo is to be shown the icon and name before committing -- and to
---- be shown nothing when the number names no spell, which is the same signal.
----
---- A rejected ID leaves the box as it was. Clearing it would swallow the failure -- the box would empty,
---- the list would not change, and nothing would say why -- and the two ways to be rejected are both
---- visible from here: an ID that names nothing has no preview, and a duplicate is already in the list
---- above.
+--- A rejected ID leaves the box as it was. Clearing it would swallow the failure, and both ways to be
+--- rejected are visible from here: an ID that names nothing has no preview, a duplicate is already in
+--- the list above.
 ---@param page Frame
 ---@return SpotlightsNode
 local function BuildAddSpell(page)
@@ -784,8 +723,8 @@ local function BuildAddSpell(page)
 	input:SetSize(INPUT_WIDTH, Private.Controls.RowHeight - 6)
 	input:SetAutoFocus(false)
 
-	-- Digits only, the whole of the validation this needs: a spell ID is a positive integer, and refusing
-	-- the keystroke is a clearer answer than accepting text and rejecting it on Add.
+	-- Digits only, the whole of the validation this needs: refusing the keystroke is a clearer answer than
+	-- accepting text and rejecting it on Add.
 	input:SetNumeric(true)
 	input:SetMaxLetters(MAX_ID_DIGITS)
 
@@ -795,9 +734,8 @@ local function BuildAddSpell(page)
 	add:SetPoint("LEFT", input, "RIGHT", ADD_GAP, 0)
 	add:SetText(L.AuraCustomAdd)
 
-	--- Beside the box rather than under it, which is the difference between a preview and an interruption:
-	--- a row that grew when a preview appeared would push the answer to what had just been typed down the
-	--- pane. Filling space the row already occupies cannot move anything.
+	-- Beside the box rather than under it: a row that grew when a preview appeared would push the answer
+	-- to what had just been typed down the pane. Filling space the row already occupies cannot.
 	local icon = node:CreateTexture(nil, "ARTWORK")
 
 	icon:SetSize(PREVIEW_ICON_SIZE, PREVIEW_ICON_SIZE)
@@ -811,17 +749,12 @@ local function BuildAddSpell(page)
 	preview:SetJustifyH("LEFT")
 	preview:SetWordWrap(false)
 
-	--- What the preview currently shows, which is what its hover is a tooltip for. An upvalue rather
-	--- than a field on the frame: there is one preview, not a pool of them.
 	---@type integer?
 	local previewSpellID
 
-	--- What carries the preview's hover. The two regions above are a texture and a font string, neither
-	--- of which takes a script, so the scripts ride on a frame over them.
-	---
-	--- Sized in `ShowPreview` to what is actually drawn rather than anchored to the row's trailing edge:
-	--- the name runs to whatever length the client's translation made it, and the empty space past a short
-	--- one is not part of what the cursor is pointing at.
+	-- What carries the preview's hover: the two regions above are a texture and a font string, neither of
+	-- which takes a script. Sized in `ShowPreview` to what is actually drawn rather than to the row's
+	-- trailing edge, since empty space past a short name is not what the cursor is pointing at.
 	local hover = CreateFrame("Frame", nil, node)
 
 	hover:SetPoint("LEFT", icon, "LEFT", 0, 0)
@@ -842,8 +775,8 @@ local function BuildAddSpell(page)
 	---@type FunctionContainer?
 	local timer
 
-	--- Shows what the typed ID names, or nothing. Both regions are children of the row, so every route
-	--- that hides the row -- the group changing, the tab changing, the panel closing -- hides these too.
+	-- Shows what the typed ID names, or nothing. Both regions are children of the row, so every route that
+	-- hides the row hides these too.
 	local function ShowPreview()
 		local spellID = tonumber(input:GetText())
 		local name = spellID and spellID > 0 and C_Spell.GetSpellName(spellID)
@@ -907,10 +840,9 @@ local function BuildAddSpell(page)
 	function node:Layout(width)
 		self:SetSize(width, Private.Controls.RowHeight)
 
-		--- Against the caption's *text* rather than at a label column, which is what every control row
-		--- spends its width on so the controls below line up. This row has a preview to fit instead, and
-		--- "Spell ID" is a third of that column. `InputBoxTemplate` insets its own left edge, hence the
-		--- extra offset.
+		-- Against the caption's *text* rather than at a label column, because this row has a preview to fit
+		-- and "Spell ID" is a third of that column. `InputBoxTemplate` insets its own left edge, hence the
+		-- extra offset.
 		input:ClearAllPoints()
 		input:SetPoint("LEFT", caption, "LEFT", caption:GetStringWidth() + INPUT_GAP, 0)
 
@@ -922,27 +854,24 @@ end
 
 --- The pane: the header, the spells under it, and -- for the user's own group -- what adds one.
 ---
---- There are two ways to have no group to be about: a category with no tracked list at all, and a search
---- that admitted none of the groups there are. Both put a note where the list would be rather than
---- leaving the pane blank, since a blank pane says only that something is missing.
+--- Two ways to have no group to be about: a category with no tracked list, and a search that admitted
+--- none. Both put a note where the list would be, since a blank pane says only that something is missing.
 ---@param page Frame
 ---@param height number what the sub-tab has to spend on it
 ---@return SpotlightsNode
 local function BuildPane(page, height)
 	local L = Private.L.Settings
 
-	--- The header and the add row are pinned; the list gets what is left. Reserved whether or not the add
-	--- row is showing, so the list is the same height in every group and switching to the custom one does
-	--- not resize what is under the cursor.
+	-- The header and the add row are pinned; the list gets what is left. Reserved whether or not the add
+	-- row is showing, so switching to the custom group does not resize what is under the cursor.
 	local listHeight = math.max(height - Private.Controls.RowHeight * 2 - RAIL_GAP * 2, MIN_LIST_HEIGHT)
 
 	local function HasGroup()
 		return selectedGroup ~= nil
 	end
 
-	--- The note the custom group carries, in the scroll pane rather than pinned beside the box it is
-	--- about: it is two or three lines of prose depending on the locale, and a band whose height is a
-	--- translation's business cannot be reserved without guessing.
+	-- In the scroll pane rather than pinned beside the box it is about: it is two or three lines depending
+	-- on the locale, and a band whose height is a translation's business cannot be reserved.
 	local note = Private.Node.OnlyWhen(Private.Controls.Paragraph(page, function()
 		return ActiveFeature() == "defensiveAuras" and L.AuraCustomDefensivesNote
 			or L.AuraCustomCooldownsNote
@@ -970,8 +899,8 @@ local function BuildPane(page, height)
 
 	local Refresh = pane.Refresh
 
-	--- Resolves the selection the rail has just corrected, before anything inside reads it. Everything in
-	--- the pane is about that one group, so it is resolved once here rather than looked up per node.
+	-- Resolves the selection the rail has just corrected, before anything inside reads it. Everything here
+	-- is about that one group, so it is resolved once rather than looked up per node.
 	function pane:Refresh()
 		selectedGroup = Private.AuraSpells.Group(ActiveFeature(), selectedKey)
 
@@ -981,14 +910,10 @@ local function BuildPane(page, height)
 	return pane
 end
 
---- Empties the search box, which is what makes the filter belong to the visit rather than to the panel.
+--- Empties the search box, which is what makes the filter belong to the visit rather than the panel: a
+--- query left behind hides most of the rail on the way back in.
 ---
---- Called when the tab goes off screen, on the same grounds the Appearance sub-tab resets its sections:
---- a query left behind hides most of the rail, and a user returning to a tab they left unfiltered would
---- have to work out why before they could work out anything else.
----
---- The box drives the filter through its own `OnTextChanged`, so emptying the text is the whole of it:
---- nothing has to remember to reset the query beside it.
+--- The box drives the filter through its own `OnTextChanged`, so emptying the text is the whole of it.
 function Private.AuraTracked.ResetSearch()
 	if searchBox then
 		searchBox:SetText("")
@@ -1007,8 +932,8 @@ function Private.AuraTracked.Build(page, GetFeature, GetName)
 	local height = math.max(page:GetHeight() - Private.Node.SubTabHeight - CHROME_RESERVE,
 		MIN_RAIL_HEIGHT)
 
-	--- The rail is the leading side, which is what `Split`'s `leftWidth` is for -- and it refreshes
-	--- first, which the pane relies on: the rail is what corrects the selection the pane then resolves.
+	-- The rail refreshes first, which the pane relies on: the rail is what corrects the selection the pane
+	-- then resolves.
 	return Private.Node.Split(page, BuildRail(page, height), BuildPane(page, height),
 		{ leftWidth = RAIL_WIDTH })
 end
