@@ -1316,12 +1316,14 @@ local BAR_INVALIDATION = Classification(ANCHOR_INVALIDATION, BORDER_INVALIDATION
 	iconSide = "rebuild",
 })
 
---- An icon's own half is its dimensions and the spacing between pooled copies: the art is the button's.
---- `gap` is the group's flow-layout spacing, which `ApplyGroupLayout` writes to a live container.
+--- An icon's own half is its dimensions and how pooled copies are laid out beside it: the art is the
+--- button's. `gap` is the group's flow-layout spacing and `growDirection` the container's own flow
+--- layout; both reach a live container through a setter, so neither owes a rebuild.
 local ICON_INVALIDATION = Classification(ANCHOR_INVALIDATION, BORDER_INVALIDATION, DURATION_INVALIDATION, {
 	width = "live",
 	height = "live",
 	gap = "live",
+	growDirection = "live",
 })
 
 --- A square's own half is the block's colour, which is a texture under the button. `size` is the
@@ -1555,6 +1557,81 @@ local function ApplyAnchor(anchor, parent, display, config, size, featureEnabled
 	anchor:SetShown(featureEnabled and config.enabled)
 end
 
+--- What a stored grow direction means to the container's flow layout, and to the preview's own chain.
+---
+--- `anchorPoint` is the *opposite* corner to the direction, because the flow layout anchors every
+--- element to that one point on the container and walks the cursor away from it: growing left means
+--- starting at the right edge. The vertical directions also switch the layout axis, since a flow that
+--- runs down is a column rather than a wrapped row.
+---
+--- The `chain` half is the preview's, which hangs item off item rather than off a container, so it needs
+--- the two points and the sign the gap carries between them.
+---@type table<SpotlightsAuraGrowDirection, SpotlightsAuraGrowLayout>
+local GROW_LAYOUTS = {
+	[Private.Enum.AuraGrowDirection.Right] = {
+		axis = AnchorUtil.FlowLayoutAxis.Horizontal,
+		anchorPoint = "TOPLEFT",
+		horizontal = AnchorUtil.FlowDirection.Right,
+		vertical = AnchorUtil.FlowDirection.Down,
+		chainPoint = "TOPLEFT",
+		chainRelativePoint = "TOPRIGHT",
+		chainX = 1,
+		chainY = 0,
+	},
+	[Private.Enum.AuraGrowDirection.Left] = {
+		axis = AnchorUtil.FlowLayoutAxis.Horizontal,
+		anchorPoint = "TOPRIGHT",
+		horizontal = AnchorUtil.FlowDirection.Left,
+		vertical = AnchorUtil.FlowDirection.Down,
+		chainPoint = "TOPRIGHT",
+		chainRelativePoint = "TOPLEFT",
+		chainX = -1,
+		chainY = 0,
+	},
+	[Private.Enum.AuraGrowDirection.Down] = {
+		axis = AnchorUtil.FlowLayoutAxis.Vertical,
+		anchorPoint = "TOPLEFT",
+		horizontal = AnchorUtil.FlowDirection.Right,
+		vertical = AnchorUtil.FlowDirection.Down,
+		chainPoint = "TOPLEFT",
+		chainRelativePoint = "BOTTOMLEFT",
+		chainX = 0,
+		chainY = -1,
+	},
+	[Private.Enum.AuraGrowDirection.Up] = {
+		axis = AnchorUtil.FlowLayoutAxis.Vertical,
+		anchorPoint = "BOTTOMLEFT",
+		horizontal = AnchorUtil.FlowDirection.Right,
+		vertical = AnchorUtil.FlowDirection.Up,
+		chainPoint = "BOTTOMLEFT",
+		chainRelativePoint = "TOPLEFT",
+		chainX = 0,
+		chainY = 1,
+	},
+}
+
+--- Validated like a saved anchor point: the container's setters assert on a direction they do not know,
+--- and that would take the whole aura pass with it. Right is the fallback because it is what every
+--- display drew before the setting existed.
+---@param growDirection SpotlightsAuraGrowDirection?
+---@return SpotlightsAuraGrowLayout
+local function GrowLayout(growDirection)
+	return GROW_LAYOUTS[growDirection] or GROW_LAYOUTS[Private.Enum.AuraGrowDirection.Right]
+end
+
+--- Points a pooled display's container at the direction its icons are to flow in. Container-level rather
+--- than per group, unlike the spacing beside it -- one container holds one group here, so the two are the
+--- same reach.
+---@param container SpotlightsAuraContainer
+---@param growDirection SpotlightsAuraGrowDirection?
+local function ApplyContainerFlow(container, growDirection)
+	local grow = GrowLayout(growDirection)
+
+	container:SetFlowLayoutAxis(grow.axis)
+	container:SetFlowLayoutAnchorPoint(grow.anchorPoint)
+	container:SetFlowLayoutGrowthDirection(grow.horizontal, grow.vertical)
+end
+
 --- Builds one display on one spotlight: an anchor of ours, a container inside it, and the slot.
 ---
 --- **Every irreversible decision in this addon is made here.** The button the container hands back is
@@ -1614,6 +1691,8 @@ local function AttachContainer(child, feature, display, config, anchor)
 	end
 
 	if feature.multiple then
+		ApplyContainerFlow(container, config.growDirection)
+
 		container:AddAuraGroup(feature.key, feature.filter, {
 			candidateFilters = { includeSpellIDs = feature.Candidates() },
 			maxFrameCount = #candidateIDs,
@@ -1783,18 +1862,37 @@ local function ForEachDisplay(child, callback)
 	end
 end
 
---- `gap` is the group's flow-layout spacing rather than a property of the protected aura button, so the
---- container setter marks layout dirty and the next aura pass applies it -- no rebuild.
+--- Every live container of one pooled display. Both settings below reach a container rather than the
+--- protected aura button under it, so each marks layout dirty and the next aura pass applies it -- no
+--- rebuild either way.
+---@param featureKey SpotlightsAuraFeatureKey
+---@param displayKey SpotlightsAuraDisplayKey
+---@param callback fun(container: SpotlightsAuraContainer)
+local function ForEachPooledContainer(featureKey, displayKey, callback)
+	Private.SlotHeader.ForEachChild(function(child)
+		ForEachDisplay(child, function(record, feature, display)
+			if feature.key == featureKey and display.key == displayKey and feature.multiple then
+				callback(record.container)
+			end
+		end)
+	end)
+end
+
 ---@param featureKey SpotlightsAuraFeatureKey
 ---@param displayKey SpotlightsAuraDisplayKey
 ---@param gap number
 local function ApplyGroupLayout(featureKey, displayKey, gap)
-	Private.SlotHeader.ForEachChild(function(child)
-		ForEachDisplay(child, function(record, feature, display)
-			if feature.key == featureKey and display.key == displayKey and feature.multiple then
-				record.container:SetAuraGroupLayout(featureKey, { elementSpacing = gap })
-			end
-		end)
+	ForEachPooledContainer(featureKey, displayKey, function(container)
+		container:SetAuraGroupLayout(featureKey, { elementSpacing = gap })
+	end)
+end
+
+---@param featureKey SpotlightsAuraFeatureKey
+---@param displayKey SpotlightsAuraDisplayKey
+---@param growDirection SpotlightsAuraGrowDirection?
+local function ApplyGrowDirection(featureKey, displayKey, growDirection)
+	ForEachPooledContainer(featureKey, displayKey, function(container)
+		ApplyContainerFlow(container, growDirection)
 	end)
 end
 
@@ -1968,8 +2066,9 @@ end
 --- longer reaches is hidden. That is what carries a Tracked-pane toggle into the preview immediately.
 ---
 --- Items after the first are chained rather than centred around the configured point, because that is
---- what the live container does -- `CustomAuraContainerLayoutDefaults` starts a group at the container's
---- top-left and grows right. Centring put a two-icon preview half a display left of the real ones.
+--- what the live container does -- it starts a group at one corner and flows away from it, which
+--- `GROW_LAYOUTS` states for both paths. Centring put a two-icon preview half a display left of the real
+--- ones.
 ---@param previews SpotlightsAuraPreview[]
 function Private.Auras.StylePreviews(previews)
 	local auras = Config()
@@ -2017,8 +2116,12 @@ function Private.Auras.StylePreviews(previews)
 				local anchoredTo = previous[feature.key]
 
 				if anchoredTo then
+					local grow = GrowLayout(config.growDirection)
+					local gap = config.gap or 0
+
 					preview.anchor:ClearAllPoints()
-					PixelUtil.SetPoint(preview.anchor, "TOPLEFT", anchoredTo, "TOPRIGHT", config.gap or 0, 0)
+					PixelUtil.SetPoint(preview.anchor, grow.chainPoint, anchoredTo, grow.chainRelativePoint,
+						gap * grow.chainX, gap * grow.chainY)
 				end
 
 				previous[feature.key] = preview.anchor
@@ -2294,8 +2397,12 @@ function Private.Auras.SetSetting(featureKey, displayKey, field, value)
 	local feature = FeatureByKey(featureKey)
 	local display = DisplayByKey(displayKey)
 
-	if field == "gap" and feature and feature.multiple then
-		ApplyGroupLayout(featureKey, displayKey, value or 0)
+	if feature and feature.multiple then
+		if field == "gap" then
+			ApplyGroupLayout(featureKey, displayKey, value or 0)
+		elseif field == "growDirection" then
+			ApplyGrowDirection(featureKey, displayKey, value)
+		end
 	end
 
 	-- The fallback is about a caller inventing a key: rebuilding a display that does not exist finds and

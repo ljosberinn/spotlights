@@ -245,6 +245,7 @@
 ---@field borderB number
 ---@field borderA number
 ---@field gap number?
+---@field growDirection SpotlightsAuraGrowDirection?
 
 --- A duration bar with independent pixel dimensions.
 ---
@@ -290,6 +291,7 @@
 ---@field font string
 ---@field fontSize number
 ---@field gap number in pixels between multiple icons
+---@field growDirection SpotlightsAuraGrowDirection which way pooled icons flow from the first
 
 --- A coloured block, optionally with a cooldown swipe and remaining duration across it.
 ---
@@ -465,6 +467,21 @@
 ---@field SetAuraGroupMaxFrameCount fun(self: SpotlightsAuraContainer, groupKey: string, maxFrameCount: number)
 ---@field SetAuraGroupLayout fun(self: SpotlightsAuraContainer, groupKey: string, layoutOptions: table)
 ---@field SetAuraSlotCandidateFilters fun(self: SpotlightsAuraContainer, slotKey: string, candidateFilters: table) asserts on an unknown slot key
+---@field SetFlowLayoutAxis fun(self: SpotlightsAuraContainer, layoutAxis: number) asserts on a value outside AnchorUtil.FlowLayoutAxis
+---@field SetFlowLayoutAnchorPoint fun(self: SpotlightsAuraContainer, anchorPoint: AnchorPoint)
+---@field SetFlowLayoutGrowthDirection fun(self: SpotlightsAuraContainer, horizontal: number, vertical: number) asserts on values outside AnchorUtil.FlowDirection
+
+--- One grow direction spelled out for both paths that place pooled icons: the container's flow layout,
+--- and the preview's item-to-item chain. See `GROW_LAYOUTS` in `Auras.lua`.
+---@class SpotlightsAuraGrowLayout
+---@field axis number an AnchorUtil.FlowLayoutAxis value
+---@field anchorPoint AnchorPoint the container corner every element is anchored to
+---@field horizontal number an AnchorUtil.FlowDirection value
+---@field vertical number an AnchorUtil.FlowDirection value
+---@field chainPoint AnchorPoint
+---@field chainRelativePoint AnchorPoint
+---@field chainX number the sign the gap carries horizontally
+---@field chainY number the sign the gap carries vertically
 
 --- The drawable parts of one display, whichever kind it is.
 ---
