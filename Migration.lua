@@ -28,6 +28,9 @@ local function DefaultLayout()
 		-- layout (like `allowGaps`) because it is a grid behaviour the Roster tab surfaces.
 		clearOnLeave = false,
 
+		-- Off by default: a grid that fills itself unasked is a surprise even when it fills correctly.
+		autoAddPartyDamagers = false,
+
 		-- Damage alone, because those are the players anyone spotlights.
 		--
 		-- **All three keys are written**, and a deselected role is stored `false` rather than removed:

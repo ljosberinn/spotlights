@@ -11,7 +11,7 @@ local _, Private = ...
 
 local UNROSTERED_WIDTH = 250
 
---- Both captions here are sentences rather than nouns, and the kit's 130 default would lose half of one.
+--- Every caption here is a sentence rather than a noun, and the kit's 130 default would lose half of one.
 local CHECKBOX_LABEL_WIDTH = 280
 
 --- Tighter than the kit's control rhythm, so a heading, a list and the buttons under it read as one pane.
@@ -93,6 +93,25 @@ end
 ---@param value boolean
 local function SetClearOnLeave(value)
 	SetLayoutField("clearOnLeave", value)
+end
+
+---@return boolean
+local function GetAutoAddPartyDamagers()
+	local layout = Layout()
+
+	return layout and layout.autoAddPartyDamagers or false
+end
+
+--- Ticks or unticks the party auto-add, and acts on the grid at once, so a tick fills the grid already on
+--- screen rather than waiting for the next roster event.
+---@param value boolean
+local function SetAutoAddPartyDamagers(value)
+	SetLayoutField("autoAddPartyDamagers", value)
+
+	Private.Registry.EnforceAutoAddPartyDamagers()
+
+	-- The tab: slot rows appear on the left and their players leave the right list.
+	Private.Options.Refresh()
 end
 
 ---@param role string
@@ -469,7 +488,7 @@ local function BuildRoster(page)
 	local heading = Private.Controls.HeadingHeight
 	local row = Private.Controls.RowHeight
 
-	local slotsHeight = math.max(page:GetHeight() - heading - row * 5 - PANE_GAP * 6, MIN_LIST_HEIGHT)
+	local slotsHeight = math.max(page:GetHeight() - heading - row * 6 - PANE_GAP * 7, MIN_LIST_HEIGHT)
 
 	--- What the presets block took on this pass, written by the column below before it lays the list out.
 	local reserved = 0
@@ -499,9 +518,11 @@ local function BuildRoster(page)
 			CHECKBOX_LABEL_WIDTH),
 		Private.Controls.Checkbox(page, L.ClearOnLeave, GetClearOnLeave, SetClearOnLeave, nil, true,
 			CHECKBOX_LABEL_WIDTH),
+		Private.Controls.Checkbox(page, L.AutoAddPartyDamagers, GetAutoAddPartyDamagers,
+			SetAutoAddPartyDamagers, nil, true, CHECKBOX_LABEL_WIDTH),
 
-		-- In the label column the two checkboxes above already establish, so it reads as the third of three
-		-- settings; the column is wide enough that the dropdown still shows two role names at once.
+		-- In the label column the checkboxes above already establish, so it reads as the last of the block;
+		-- the column is wide enough that the dropdown still shows two role names at once.
 		Private.Controls.MultiselectDropdown(page, L.AutoRemoveRoles, ROLE_CHOICES, GetRoleRemoved,
 			SetRoleRemoved, CHECKBOX_LABEL_WIDTH),
 	}, PANE_GAP)
