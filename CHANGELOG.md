@@ -57,3 +57,4 @@ v1.1.0
 
 - the Sense Power prompt has a second button, Ignore until Reload, which silences it for the rest of the session
 - custom auras are their own category now, available to every specialization, and no longer appear in Cooldowns, Defensives or Sense Power
+- icons of a category tracking several auras at once have a Grow Direction, so they can flow left, right, up or down from where they are anchored instead of always running right off the frame
