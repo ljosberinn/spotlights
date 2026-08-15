@@ -73,13 +73,10 @@ Colors the entire health bar. Careful about using multiple since they conflict.
 - tab shows role icons and class color
 - the Unrostered list can now be narrowed to chosen roles, and the dropdown that narrows it is now captioned
 - roles can now be set to be removed from the grid automatically, keeping tanks or healers out of every preset and every add
+- added option to Add all DPS automatically while in a Party
+- added favourites: remembers a player and automatically re-adds to a spotlight the moment they rejoin a group/raid you're in
 
 ### Augmentation-specific
 
 - added Shifting Sands as dedicatedly trackable and customizable aura
 - Sense Power prompts can now be ignored until reload
-
-# Unreviewed
-
-- added Add all DPS automatically while in a Party, which spotlights every party damage dealer as they turn up, once each, so removing one by hand keeps them out
-- added favourites: star a player on the Roster tab or from their right-click menu and they are spotlighted in every party and raid they turn up in, listed and cleared with /spotlights favorites
