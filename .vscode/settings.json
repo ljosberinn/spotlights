@@ -254,7 +254,16 @@
     "ReadyCheck_Confirm",
     "ReadyCheck_Start",
     "DEFAULT_READY_CHECK_STAY_TIME",
-    "ReadyCheck_Finish"
+    "ReadyCheck_Finish",
+    "LEFT_BUTTON_STRING",
+    "RIGHT_BUTTON_STRING",
+    "MIDDLE_BUTTON_STRING",
+    "SecureButton_GetButtonSuffix",
+    "CLICK_BINDINGS_BINDING_TEXT_FORMAT",
+    "CLICK_BINDING_TARGET_UNIT",
+    "CLICK_BINDING_OPEN_MENU",
+    "SecureButton_GetModifierPrefix",
+    "UNKNOWN"
   ],
   "Lua.workspace.ignoreDir": ["Libs"]
 }
