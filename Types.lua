@@ -66,7 +66,6 @@
 ---@field SetTabSelectedCallback fun(self: SpotlightsTabSystemFrame, callback: fun(tabID: integer, isUserAction: boolean?): boolean?)
 ---@field SetTab fun(self: SpotlightsTabSystemFrame, tabID: integer, isUserAction: boolean?) runs the selection callback
 ---@field SetTabVisuallySelected fun(self: SpotlightsTabSystemFrame, tabID: integer) paints the selection without running the callback
----@field SetTabEnabled fun(self: SpotlightsTabSystemFrame, tabID: integer, enabled: boolean, errorReason: string?) greys the label and refuses the click, with the reason in the tooltip
 ---@field SetTabShown fun(self: SpotlightsTabSystemFrame, tabID: integer, isShown: boolean) takes the tab out of the strip entirely, the rest closing up over it
 
 --- The reworked options window.

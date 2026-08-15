@@ -247,7 +247,6 @@ L.Settings.SensePower = "Sense Power"
 L.Settings.Cooldowns = "Cooldowns"
 L.Settings.Defensives = "Defensives"
 L.Settings.CustomAuras = "Custom Auras"
-L.Settings.AuraAugmentationOnly = "Prescience, Shifting Sands, and Sense Power are available only to Augmentation Evokers."
 
 -- The Auras tab's second sub-tab, and the tooltip on a category tab's enable dot.
 L.Settings.AuraTracked = "Tracked"
