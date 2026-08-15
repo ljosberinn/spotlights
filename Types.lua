@@ -431,8 +431,7 @@
 ---@field clearOnLeave boolean wipe every configured slot when the kind of group changes
 ---@field unrosteredRoles table<string, boolean> which roles the Unrostered list offers, keyed by the tokens `UnitGroupRolesAssigned` answers with. A display filter on that list only: nothing here decides who may be spotlighted
 ---@field autoRemoveRoles table<string, boolean> which roles are kept out of the grid, keyed the same way. Destructive, unlike `unrosteredRoles`: a slot whose player plays one of these is taken out and stays out
----@field autoAddPartyMembers boolean append group members playing one of `autoAddRoles` to the grid, once each. Party only, and a member taken back out by hand stays out for the rest of that group
----@field autoAddRoles table<string, boolean> which roles the auto-add appends, keyed the same way. Additive only: deselecting a role takes nobody back out
+---@field autoAddPartyDamagers boolean append every party damage dealer to the grid, once each. Party only, and a member taken back out by hand stays out for the rest of that group
 
 --- A header's child button. Every region is declared by our template and every method is the
 --- mixin's; nothing here comes from Blizzard but SecureUnitButtonTemplate's OnClick.
