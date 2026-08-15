@@ -244,9 +244,9 @@ L.Settings.PresetImportErrorPayload = "the decoded data is not a slot list"
 L.Settings.Prescience = "Prescience"
 L.Settings.ShiftingSands = "Shifting Sands"
 L.Settings.SensePower = "Sense Power"
-L.Settings.Cooldowns = "Cooldowns & Custom Auras"
+L.Settings.Cooldowns = "Cooldowns"
 L.Settings.Defensives = "Defensives"
-L.Settings.AuraAugmentationOnly = "Prescience, Shifting Sands, and Sense Power are available only to Augmentation Evokers."
+L.Settings.CustomAuras = "Custom Auras"
 
 -- The Auras tab's second sub-tab, and the tooltip on a category tab's enable dot.
 L.Settings.AuraTracked = "Tracked"
@@ -289,6 +289,7 @@ L.Settings.AuraOffsetY = "Offset Y"
 L.Settings.AuraShowIcon = "Inline Icon"
 L.Settings.AuraIconSide = "Icon Side"
 L.Settings.AuraGap = "Gap"
+L.Settings.AuraGrowDirection = "Grow Direction"
 L.Settings.AuraIconLeft = "Left Of The Bar"
 L.Settings.AuraIconRight = "Right Of The Bar"
 
@@ -370,12 +371,9 @@ L.Settings.AuraNoSpellMatches = "No spells match your search."
 L.Settings.AurasRebuildHelp =
 "Some settings may need a reload after application. You will get prompted to do so when you finished customizing."
 
-L.Settings.AuraCustomCooldowns = "Custom Auras"
-
 -- Says what will silently not work: a spell added successfully and then never seen reads as a bug.
-L.Settings.AuraCustomCooldownsNote =
+L.Settings.AuraCustomNote =
 "These must be BUFFS that appear on players, so trinket effects work. Debuffs and casts cannot be tracked here, and adding one will do nothing at all."
-L.Settings.AuraCustomDefensivesNote = "Add defensive spell IDs that are not in the shipped list."
 
 L.Settings.AuraCustomAdd = "Add"
 L.Settings.AuraCustomSpellID = "Spell ID"
@@ -406,6 +404,7 @@ L.Auras.SensePowerMissing =
 "Spotlights cannot tell whether Sense Power is active unless it is on one of your action bars.\n\nOnly the cooldowns you have enabled can be tracked, which leaves out some summons. For complete tracking, Sense Power must be active, so put it on a bar if you wish to turn it on."
 L.Auras.SensePowerInactive =
 "Sense Power is not active.\n\nOnly the cooldowns you have enabled can be tracked, which leaves out some summons. For complete tracking, please activate Sense Power."
+L.Auras.SensePowerIgnore = "Ignore until Reload"
 
 L.ContextMenu = {}
 

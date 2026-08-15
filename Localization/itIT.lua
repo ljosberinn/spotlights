@@ -184,9 +184,9 @@ L.Settings.PresetImportErrorPrefix = "la stringa non è una preimpostazione di S
 L.Settings.PresetImportErrorPayload = "i dati decodificati non sono un elenco di slot"
 L.Settings.Prescience = "Prescienza"
 L.Settings.ShiftingSands = "Sabbie Mutevoli"
-L.Settings.Cooldowns = "Ricariche e aure personalizzate"
+L.Settings.Cooldowns = "Ricariche"
 L.Settings.Defensives = "Difese"
-L.Settings.AuraAugmentationOnly = "Prescienza, Sabbie Mutevoli e Potere Sensoriale sono disponibili solo per gli Evocatori Augmentation."
+L.Settings.CustomAuras = "Aure personalizzate"
 L.Settings.AuraTracked = "Monitorate"
 L.Settings.AuraFeatureToggle = "Monitora %s"
 L.Settings.SensePower = "Potere Sensoriale"
@@ -216,6 +216,7 @@ L.Settings.AuraShowIcon = "Icona in linea"
 L.Settings.AuraIconSide = "Lato icona"
 L.Settings.AuraIconLeft = "A sinistra della barra"
 L.Settings.AuraGap = "Spazio"
+L.Settings.AuraGrowDirection = "Direzione di crescita"
 L.Settings.AuraIconRight = "A destra della barra"
 L.Settings.AuraIconTop = "Sopra la barra"
 L.Settings.AuraIconBottom = "Sotto la barra"
@@ -261,11 +262,8 @@ L.Settings.AuraNoTrackedSpells = "%s sorveglia una singola aura, quindi qui non 
 L.Settings.AuraNoSpellMatches = "Nessuna magia corrisponde alla tua ricerca."
 L.Settings.AurasRebuildHelp =
 "Alcune impostazioni potrebbero richiedere un ricaricamento dopo l'applicazione. Ti verrà richiesto di farlo quando avrai finito di personalizzare."
-L.Settings.AuraCustomCooldowns = "Aure personalizzate"
-L.Settings.AuraCustomCooldownsNote =
+L.Settings.AuraCustomNote =
 "Devono essere BENEFICI che appaiono sui giocatori, così gli effetti dei gingilli funzionano. Malefici e lanci non possono essere tracciati qui, e aggiungerne uno non farà assolutamente nulla."
-L.Settings.AuraCustomDefensivesNote =
-"Aggiungi gli ID degli incantesimi difensivi che non sono nell'elenco incluso."
 L.Settings.AuraCustomAdd = "Aggiungi"
 L.Settings.AuraCustomSpellID = "ID incantesimo"
 L.Settings.ReloadPrompt =
@@ -288,6 +286,7 @@ L.Auras.SensePowerMissing =
 "Spotlights non può stabilire se Percepire potere è attivo a meno che non sia su una delle tue barre delle azioni.\n\nSolo i recuperi che hai abilitato possono essere tracciati, il che esclude alcune evocazioni. Per un tracciamento completo, Percepire potere deve essere attivo, quindi mettilo su una barra se vuoi attivarlo."
 L.Auras.SensePowerInactive =
 "Percepire potere non è attivo.\n\nSolo i recuperi che hai abilitato possono essere tracciati, il che esclude alcune evocazioni. Per un tracciamento completo, attiva Percepire potere."
+L.Auras.SensePowerIgnore = "Ignora fino al ricaricamento"
 
 L.ContextMenu.Title = "Spotlights"
 L.ContextMenu.Add = "Metti in evidenza questo giocatore"

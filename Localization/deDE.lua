@@ -185,9 +185,9 @@ L.Settings.PresetImportErrorPrefix = "die Zeichenfolge ist keine Spotlights-Vorl
 L.Settings.PresetImportErrorPayload = "die decodierten Daten sind keine Platzliste"
 L.Settings.Prescience = "Voraussicht"
 L.Settings.ShiftingSands = "Verändernde Sande"
-L.Settings.Cooldowns = "Abklingzeiten & benutzerdefinierte Auren"
+L.Settings.Cooldowns = "Abklingzeiten"
 L.Settings.Defensives = "Defensive"
-L.Settings.AuraAugmentationOnly = "Voraussicht, Verändernde Sande und Macht erspüren sind nur für Rufer der Verstärkung verfügbar."
+L.Settings.CustomAuras = "Benutzerdefinierte Auren"
 L.Settings.AuraTracked = "Überwacht"
 L.Settings.AuraFeatureToggle = "%s überwachen"
 L.Settings.SensePower = "Macht erspüren"
@@ -217,6 +217,7 @@ L.Settings.AuraShowIcon = "Eingebettetes Symbol"
 L.Settings.AuraIconSide = "Symbolseite"
 L.Settings.AuraIconLeft = "Links vom Balken"
 L.Settings.AuraGap = "Abstand"
+L.Settings.AuraGrowDirection = "Wachstumsrichtung"
 L.Settings.AuraIconRight = "Rechts vom Balken"
 L.Settings.AuraIconTop = "Über dem Balken"
 L.Settings.AuraIconBottom = "Unter dem Balken"
@@ -263,11 +264,8 @@ L.Settings.AuraNoTrackedSpells =
 L.Settings.AuraNoSpellMatches = "Keine Zauber entsprechen deiner Suche."
 L.Settings.AurasRebuildHelp =
 "Einige Einstellungen benötigen nach der Anwendung möglicherweise ein Neuladen. Du wirst dazu aufgefordert, sobald du mit dem Anpassen fertig bist."
-L.Settings.AuraCustomCooldowns = "Benutzerdefinierte Auren"
-L.Settings.AuraCustomCooldownsNote =
+L.Settings.AuraCustomNote =
 "Dies müssen STÄRKUNGSZAUBER sein, die auf Spielern erscheinen, Schmuckstück-Effekte funktionieren beispielsweise. Schwächungszauber und Zauber können hier nicht verfolgt werden, und das Hinzufügen bewirkt überhaupt nichts."
-L.Settings.AuraCustomDefensivesNote =
-"Defensive Zauber-IDs hinzufügen, die nicht in der mitgelieferten Liste enthalten sind."
 L.Settings.AuraCustomAdd = "Hinzufügen"
 L.Settings.AuraCustomSpellID = "Zauber-ID"
 L.Settings.ReloadPrompt =
@@ -290,6 +288,7 @@ L.Auras.SensePowerMissing =
 "Spotlights kann nicht erkennen, ob Macht spüren aktiv ist, es sei denn, es befindet sich auf einer deiner Aktionsleisten.\n\nNur die von dir aktivierten Abklingzeiten können verfolgt werden, wodurch einige Beschwörungen ausgelassen werden. Für eine vollständige Verfolgung muss Macht spüren aktiv sein, lege es also auf eine Leiste, wenn du es einschalten möchtest."
 L.Auras.SensePowerInactive =
 "Macht spüren ist nicht aktiv.\n\nNur die von dir aktivierten Abklingzeiten können verfolgt werden, wodurch einige Beschwörungen ausgelassen werden. Für eine vollständige Verfolgung aktiviere bitte Macht spüren."
+L.Auras.SensePowerIgnore = "Bis Neuladen ignorieren"
 
 L.ContextMenu.Title = "Spotlights"
 L.ContextMenu.Add = "Diesen Spieler hervorheben"

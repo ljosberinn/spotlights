@@ -254,7 +254,18 @@
     "ReadyCheck_Confirm",
     "ReadyCheck_Start",
     "DEFAULT_READY_CHECK_STAY_TIME",
-    "ReadyCheck_Finish"
+    "ReadyCheck_Finish",
+    "MergeTable",
+    "INVSLOT_OFFHAND",
+    "INVSLOT_RANGED",
+    "assertsafe",
+    "INVSLOT_MAINHAND",
+    "SECONDS_PER_MIN",
+    "SECONDS_PER_HOUR",
+    "SECONDS_PER_DAY",
+    "CreateTableEnumerator",
+    "Round",
+    "GetValueOrCallFunction"
   ],
   "Lua.workspace.ignoreDir": ["Libs"]
 }

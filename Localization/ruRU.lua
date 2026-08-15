@@ -183,9 +183,9 @@ L.Settings.PresetImportErrorPrefix = "строка не является шаб�
 L.Settings.PresetImportErrorPayload = "декодированные данные не являются списком мест"
 L.Settings.Prescience = "Предвидение"
 L.Settings.ShiftingSands = "Изменчивые пески"
-L.Settings.Cooldowns = "Перезарядки и свои ауры"
+L.Settings.Cooldowns = "Перезарядки"
 L.Settings.Defensives = "Защита"
-L.Settings.AuraAugmentationOnly = "Предвидение и Чувство силы доступны только Эвокерам специализации Усиление."
+L.Settings.CustomAuras = "Свои ауры"
 L.Settings.AuraTracked = "Отслеживание"
 L.Settings.AuraFeatureToggle = "Отслеживать %s"
 L.Settings.SensePower = "Чувство силы"
@@ -215,6 +215,7 @@ L.Settings.AuraShowIcon = "Встроенный значок"
 L.Settings.AuraIconSide = "Сторона значка"
 L.Settings.AuraIconLeft = "Слева от полосы"
 L.Settings.AuraGap = "Интервал"
+L.Settings.AuraGrowDirection = "Направление роста"
 L.Settings.AuraIconRight = "Справа от полосы"
 L.Settings.AuraIconTop = "Над полосой"
 L.Settings.AuraIconBottom = "Под полосой"
@@ -260,11 +261,8 @@ L.Settings.AuraNoTrackedSpells = "%s отслеживает один конкр�
 L.Settings.AuraNoSpellMatches = "Нет заклинаний, соответствующих запросу."
 L.Settings.AurasRebuildHelp =
 "Некоторым настройкам может потребоваться перезагрузка после применения. Вам предложат сделать это, когда вы закончите настройку."
-L.Settings.AuraCustomCooldowns = "Свои ауры"
-L.Settings.AuraCustomCooldownsNote =
+L.Settings.AuraCustomNote =
 "Это должны быть УСИЛЕНИЯ, появляющиеся на игроках, чтобы работали эффекты аксессуаров. Ослабления и произнесения здесь отслеживать нельзя, и добавление такого не даст никакого эффекта."
-L.Settings.AuraCustomDefensivesNote =
-"Добавьте ID защитных заклинаний, которых нет в поставляемом списке."
 L.Settings.AuraCustomAdd = "Добавить"
 L.Settings.AuraCustomSpellID = "ID заклинания"
 L.Settings.ReloadPrompt =
@@ -287,6 +285,7 @@ L.Auras.SensePowerMissing =
 "Spotlights не может определить, активно ли Чувство силы, если оно не находится на одной из ваших панелей команд.\n\nМогут отслеживаться только включённые вами перезарядки, что исключает некоторые призывы. Для полного отслеживания Чувство силы должно быть активно, поэтому поместите его на панель, если хотите включить."
 L.Auras.SensePowerInactive =
 "Чувство силы не активно.\n\nМогут отслеживаться только включённые вами перезарядки, что исключает некоторые призывы. Для полного отслеживания активируйте Чувство силы."
+L.Auras.SensePowerIgnore = "Не напоминать до перезагрузки"
 
 L.ContextMenu.Title = "Spotlights"
 L.ContextMenu.Add = "Выделить этого игрока"

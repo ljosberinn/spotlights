@@ -30,6 +30,7 @@ local ANY_FILTER = AuraUtil.CreateFilterString(AuraUtil.AuraFilters.Helpful)
 ---@field filter string the aura filter string its slot parses with
 ---@field Candidates fun(): table<integer, true> every spell its slot may show, `spellID` included
 ---@field multiple boolean
+---@field shared boolean? set on a feature in both specialisation sets, whose displays a swap must keep
 
 --- Which pass a changed setting needs: a re-anchor on the next frame, or a replacement container once
 --- the value stops moving.
@@ -220,24 +221,23 @@ local function Config()
 	return Private.DB and Private.DB.auras
 end
 
---- One spell pool: a shipped catalogue grouped by class, sparse overrides over it, and the user's own
---- IDs beside it.
+--- One spell pool: a shipped catalogue grouped by class with sparse overrides over it, *or* the user's
+--- own IDs. A pool is one or the other, which is what the nilable keys say.
 ---
 --- Cooldowns and defensives differ only in what a catalogue entry *means*, so that lives in
 --- `DefaultEnabled` and every operation below is written once. They keep separate saved tables and
 --- separate features; this is shared behaviour, not a merged pool.
 ---@class SpotlightsAuraPool
 ---@field catalog table<integer, table<integer, boolean>> the shipped spells, grouped by class
----@field overridesKey string the `SpotlightsAurasConfig` field holding deviations from the catalogue
----@field customKey string the `SpotlightsAurasConfig` field holding the user's own spell IDs
----@field DefaultEnabled fun(shipped: boolean): boolean what a catalogue entry says about its default
+---@field overridesKey string? the `SpotlightsAurasConfig` field holding deviations from the catalogue
+---@field customKey string? the `SpotlightsAurasConfig` field holding the user's own spell IDs
+---@field DefaultEnabled? fun(shipped: boolean): boolean what a catalogue entry says about its default
 
 ---@type table<string, SpotlightsAuraPool>
 local POOLS = {
 	cooldown = {
 		catalog = COOLDOWNS,
 		overridesKey = "cooldowns",
-		customKey = "custom",
 		DefaultEnabled = function()
 			return true
 		end,
@@ -246,15 +246,20 @@ local POOLS = {
 	defensive = {
 		catalog = DEFENSIVES,
 		overridesKey = "defensives",
-		customKey = "defensiveCustom",
 		DefaultEnabled = function(shipped)
 			return shipped
 		end,
 	},
+
+	--- No catalogue, so no overrides and no default rule: every entry is one the user typed in.
+	customAura = {
+		catalog = {},
+		customKey = "customSpells",
+	},
 }
 
---- The one place either table is reached by key. The nil case is the window before the migration and
---- `Repair` have run, which a slash command during login reaches.
+--- The one place either table is reached by key. The nil cases are a pool without that half, and the
+--- window before the migration and `Repair` have run, which a slash command during login reaches.
 ---@param pool SpotlightsAuraPool
 ---@return table<integer, boolean>? overrides, table<integer, boolean>? custom
 local function PoolTables(pool)
@@ -264,7 +269,8 @@ local function PoolTables(pool)
 		return nil, nil
 	end
 
-	return auras[pool.overridesKey], auras[pool.customKey]
+	return pool.overridesKey and auras[pool.overridesKey] or nil,
+		pool.customKey and auras[pool.customKey] or nil
 end
 
 --- Whether the pool ships this spell, and switched on or off if so.
@@ -272,6 +278,10 @@ end
 ---@param spellID integer
 ---@return boolean? default nil when the spell is not in the catalogue at all
 local function ShippedDefault(pool, spellID)
+	if not pool.DefaultEnabled then
+		return nil
+	end
+
 	for _, spells in pairs(pool.catalog) do
 		local shipped = spells[spellID]
 
@@ -298,17 +308,20 @@ end
 local function PoolCandidates(pool, candidates)
 	candidates = candidates or {}
 	local overrides, custom = PoolTables(pool)
+	local DefaultEnabled = pool.DefaultEnabled
 
-	for _, spells in pairs(pool.catalog) do
-		for spellID, shipped in pairs(spells) do
-			local enabled = overrides and overrides[spellID]
+	if DefaultEnabled then
+		for _, spells in pairs(pool.catalog) do
+			for spellID, shipped in pairs(spells) do
+				local enabled = overrides and overrides[spellID]
 
-			if enabled == nil then
-				enabled = pool.DefaultEnabled(shipped)
-			end
+				if enabled == nil then
+					enabled = DefaultEnabled(shipped)
+				end
 
-			if enabled then
-				candidates[spellID] = true
+				if enabled then
+					candidates[spellID] = true
+				end
 			end
 		end
 	end
@@ -368,17 +381,19 @@ end
 local function SetPoolEnabled(pool, spellID, enabled, custom)
 	local overrides, entries = PoolTables(pool)
 
-	if not overrides or not entries then
-		return false
-	end
-
+	-- One table per branch, because a pool has only the half it is about: requiring both refused every
+	-- write to a custom-only pool.
 	if custom then
-		if entries[spellID] == nil then
+		if not entries or entries[spellID] == nil then
 			return false
 		end
 
 		entries[spellID] = enabled
 	else
+		if not overrides then
+			return false
+		end
+
 		local default = ShippedDefault(pool, spellID)
 
 		if default == nil then
@@ -509,6 +524,11 @@ local function DefensiveCandidates()
 	return PoolCandidates(POOLS.defensive)
 end
 
+---@return table<integer, true>
+local function CustomAuraCandidates()
+	return PoolCandidates(POOLS.customAura)
+end
+
 ---@param candidates table<integer, true>
 ---@return integer[]
 local function CandidateIDs(candidates)
@@ -522,6 +542,18 @@ local function CandidateIDs(candidates)
 
 	return spellIDs
 end
+
+--- The one feature every specialisation has, so the **same table** is in both sets below rather than a
+--- copy in each: `SetFeatureMode` compares identity to decide what a swap keeps.
+---@type SpotlightsAuraFeature
+local CUSTOM_AURAS_FEATURE = {
+	key = "customAuras",
+	spellID = 0,
+	filter = ANY_FILTER,
+	Candidates = CustomAuraCandidates,
+	multiple = true,
+	shared = true,
+}
 
 --- Prescience is one spell from one caster, while Sense Power shares its slot with every major
 --- cooldown the spotlighted player might have, cast by them rather than by us -- so a feature is no
@@ -549,8 +581,10 @@ local EVOKER_FEATURES = {
 		Candidates = SensePowerCandidates,
 		multiple = false
 	},
+	CUSTOM_AURAS_FEATURE,
 }
 
+---@type SpotlightsAuraFeature[]
 local NON_EVOKER_FEATURES = {
 	{
 		key = "cooldownAuras",
@@ -566,6 +600,7 @@ local NON_EVOKER_FEATURES = {
 		Candidates = DefensiveCandidates,
 		multiple = true,
 	},
+	CUSTOM_AURAS_FEATURE,
 }
 
 local FEATURES = NON_EVOKER_FEATURES
@@ -618,14 +653,20 @@ local function SetFeatureMode()
 			return
 		end
 
-		for _, featureBuilt in pairs(built) do
-			for _, record in pairs(featureBuilt) do
-				record.anchor:Hide()
-				record.container:Hide()
+		-- A feature in both sets is valid either side of the swap, so discarding its containers would
+		-- abandon frames only to build the same thing back.
+		for featureKey, featureBuilt in pairs(built) do
+			local feature = FeatureByKey(featureKey)
+
+			if not feature or not feature.shared then
+				for _, record in pairs(featureBuilt) do
+					record.anchor:Hide()
+					record.container:Hide()
+				end
+
+				built[featureKey] = nil
 			end
 		end
-
-		table.wipe(built)
 	end)
 
 	Private.Events.Request(DeferralKey.Auras)
@@ -1275,12 +1316,14 @@ local BAR_INVALIDATION = Classification(ANCHOR_INVALIDATION, BORDER_INVALIDATION
 	iconSide = "rebuild",
 })
 
---- An icon's own half is its dimensions and the spacing between pooled copies: the art is the button's.
---- `gap` is the group's flow-layout spacing, which `ApplyGroupLayout` writes to a live container.
+--- An icon's own half is its dimensions and how pooled copies are laid out beside it: the art is the
+--- button's. `gap` is the group's flow-layout spacing and `growDirection` the container's own flow
+--- layout; both reach a live container through a setter, so neither owes a rebuild.
 local ICON_INVALIDATION = Classification(ANCHOR_INVALIDATION, BORDER_INVALIDATION, DURATION_INVALIDATION, {
 	width = "live",
 	height = "live",
 	gap = "live",
+	growDirection = "live",
 })
 
 --- A square's own half is the block's colour, which is a texture under the button. `size` is the
@@ -1514,6 +1557,81 @@ local function ApplyAnchor(anchor, parent, display, config, size, featureEnabled
 	anchor:SetShown(featureEnabled and config.enabled)
 end
 
+--- What a stored grow direction means to the container's flow layout, and to the preview's own chain.
+---
+--- `anchorPoint` is the *opposite* corner to the direction, because the flow layout anchors every
+--- element to that one point on the container and walks the cursor away from it: growing left means
+--- starting at the right edge. The vertical directions also switch the layout axis, since a flow that
+--- runs down is a column rather than a wrapped row.
+---
+--- The `chain` half is the preview's, which hangs item off item rather than off a container, so it needs
+--- the two points and the sign the gap carries between them.
+---@type table<SpotlightsAuraGrowDirection, SpotlightsAuraGrowLayout>
+local GROW_LAYOUTS = {
+	[Private.Enum.AuraGrowDirection.Right] = {
+		axis = AnchorUtil.FlowLayoutAxis.Horizontal,
+		anchorPoint = "TOPLEFT",
+		horizontal = AnchorUtil.FlowDirection.Right,
+		vertical = AnchorUtil.FlowDirection.Down,
+		chainPoint = "TOPLEFT",
+		chainRelativePoint = "TOPRIGHT",
+		chainX = 1,
+		chainY = 0,
+	},
+	[Private.Enum.AuraGrowDirection.Left] = {
+		axis = AnchorUtil.FlowLayoutAxis.Horizontal,
+		anchorPoint = "TOPRIGHT",
+		horizontal = AnchorUtil.FlowDirection.Left,
+		vertical = AnchorUtil.FlowDirection.Down,
+		chainPoint = "TOPRIGHT",
+		chainRelativePoint = "TOPLEFT",
+		chainX = -1,
+		chainY = 0,
+	},
+	[Private.Enum.AuraGrowDirection.Down] = {
+		axis = AnchorUtil.FlowLayoutAxis.Vertical,
+		anchorPoint = "TOPLEFT",
+		horizontal = AnchorUtil.FlowDirection.Right,
+		vertical = AnchorUtil.FlowDirection.Down,
+		chainPoint = "TOPLEFT",
+		chainRelativePoint = "BOTTOMLEFT",
+		chainX = 0,
+		chainY = -1,
+	},
+	[Private.Enum.AuraGrowDirection.Up] = {
+		axis = AnchorUtil.FlowLayoutAxis.Vertical,
+		anchorPoint = "BOTTOMLEFT",
+		horizontal = AnchorUtil.FlowDirection.Right,
+		vertical = AnchorUtil.FlowDirection.Up,
+		chainPoint = "BOTTOMLEFT",
+		chainRelativePoint = "TOPLEFT",
+		chainX = 0,
+		chainY = 1,
+	},
+}
+
+--- Validated like a saved anchor point: the container's setters assert on a direction they do not know,
+--- and that would take the whole aura pass with it. Right is the fallback because it is what every
+--- display drew before the setting existed.
+---@param growDirection SpotlightsAuraGrowDirection?
+---@return SpotlightsAuraGrowLayout
+local function GrowLayout(growDirection)
+	return GROW_LAYOUTS[growDirection] or GROW_LAYOUTS[Private.Enum.AuraGrowDirection.Right]
+end
+
+--- Points a pooled display's container at the direction its icons are to flow in. Container-level rather
+--- than per group, unlike the spacing beside it -- one container holds one group here, so the two are the
+--- same reach.
+---@param container SpotlightsAuraContainer
+---@param growDirection SpotlightsAuraGrowDirection?
+local function ApplyContainerFlow(container, growDirection)
+	local grow = GrowLayout(growDirection)
+
+	container:SetFlowLayoutAxis(grow.axis)
+	container:SetFlowLayoutAnchorPoint(grow.anchorPoint)
+	container:SetFlowLayoutGrowthDirection(grow.horizontal, grow.vertical)
+end
+
 --- Builds one display on one spotlight: an anchor of ours, a container inside it, and the slot.
 ---
 --- **Every irreversible decision in this addon is made here.** The button the container hands back is
@@ -1573,6 +1691,8 @@ local function AttachContainer(child, feature, display, config, anchor)
 	end
 
 	if feature.multiple then
+		ApplyContainerFlow(container, config.growDirection)
+
 		container:AddAuraGroup(feature.key, feature.filter, {
 			candidateFilters = { includeSpellIDs = feature.Candidates() },
 			maxFrameCount = #candidateIDs,
@@ -1742,18 +1862,37 @@ local function ForEachDisplay(child, callback)
 	end
 end
 
---- `gap` is the group's flow-layout spacing rather than a property of the protected aura button, so the
---- container setter marks layout dirty and the next aura pass applies it -- no rebuild.
+--- Every live container of one pooled display. Both settings below reach a container rather than the
+--- protected aura button under it, so each marks layout dirty and the next aura pass applies it -- no
+--- rebuild either way.
+---@param featureKey SpotlightsAuraFeatureKey
+---@param displayKey SpotlightsAuraDisplayKey
+---@param callback fun(container: SpotlightsAuraContainer)
+local function ForEachPooledContainer(featureKey, displayKey, callback)
+	Private.SlotHeader.ForEachChild(function(child)
+		ForEachDisplay(child, function(record, feature, display)
+			if feature.key == featureKey and display.key == displayKey and feature.multiple then
+				callback(record.container)
+			end
+		end)
+	end)
+end
+
 ---@param featureKey SpotlightsAuraFeatureKey
 ---@param displayKey SpotlightsAuraDisplayKey
 ---@param gap number
 local function ApplyGroupLayout(featureKey, displayKey, gap)
-	Private.SlotHeader.ForEachChild(function(child)
-		ForEachDisplay(child, function(record, feature, display)
-			if feature.key == featureKey and display.key == displayKey and feature.multiple then
-				record.container:SetAuraGroupLayout(featureKey, { elementSpacing = gap })
-			end
-		end)
+	ForEachPooledContainer(featureKey, displayKey, function(container)
+		container:SetAuraGroupLayout(featureKey, { elementSpacing = gap })
+	end)
+end
+
+---@param featureKey SpotlightsAuraFeatureKey
+---@param displayKey SpotlightsAuraDisplayKey
+---@param growDirection SpotlightsAuraGrowDirection?
+local function ApplyGrowDirection(featureKey, displayKey, growDirection)
+	ForEachPooledContainer(featureKey, displayKey, function(container)
+		ApplyContainerFlow(container, growDirection)
 	end)
 end
 
@@ -1927,8 +2066,9 @@ end
 --- longer reaches is hidden. That is what carries a Tracked-pane toggle into the preview immediately.
 ---
 --- Items after the first are chained rather than centred around the configured point, because that is
---- what the live container does -- `CustomAuraContainerLayoutDefaults` starts a group at the container's
---- top-left and grows right. Centring put a two-icon preview half a display left of the real ones.
+--- what the live container does -- it starts a group at one corner and flows away from it, which
+--- `GROW_LAYOUTS` states for both paths. Centring put a two-icon preview half a display left of the real
+--- ones.
 ---@param previews SpotlightsAuraPreview[]
 function Private.Auras.StylePreviews(previews)
 	local auras = Config()
@@ -1976,8 +2116,12 @@ function Private.Auras.StylePreviews(previews)
 				local anchoredTo = previous[feature.key]
 
 				if anchoredTo then
+					local grow = GrowLayout(config.growDirection)
+					local gap = config.gap or 0
+
 					preview.anchor:ClearAllPoints()
-					PixelUtil.SetPoint(preview.anchor, "TOPLEFT", anchoredTo, "TOPRIGHT", config.gap or 0, 0)
+					PixelUtil.SetPoint(preview.anchor, grow.chainPoint, anchoredTo, grow.chainRelativePoint,
+						gap * grow.chainX, gap * grow.chainY)
 				end
 
 				previous[feature.key] = preview.anchor
@@ -2058,6 +2202,10 @@ local SENSE_POWER_CAST = 361021
 local SENSE_POWER_KEY = "sensePower"
 local SENSE_POWER_POPUP = "SPOTLIGHTS_SENSE_POWER"
 
+--- Set by the prompt's second button, and cleared by nothing: a reload or a relog is the whole of its
+--- lifetime, which is what the button says.
+local sensePowerIgnored = false
+
 --- How long after a loading screen to look. Action bar contents and specialisation both arrive some
 --- frames after the screen lifts and neither has an event meaning "and now they are correct", so a
 --- shorter guess prompts against a bar the client has not filled in yet.
@@ -2093,9 +2241,15 @@ local function PromptSensePower(text)
 	StaticPopupDialogs[SENSE_POWER_POPUP] = {
 		text = text,
 		button1 = OKAY,
+		button2 = Private.L.Auras.SensePowerIgnore,
 		timeout = 0,
 		whileDead = true,
 		hideOnEscape = true,
+		-- The legacy click path sends button 2 to `OnCancel` and never looks at `OnButton2`, which needs
+		-- `selectCallbackByIndex` no other prompt in the addon sets.
+		OnCancel = function()
+			sensePowerIgnored = true
+		end,
 		preferredIndex = 3,
 	}
 
@@ -2112,6 +2266,12 @@ end
 --- mechanism being tested is that the two *differ*: hardcoding the active one would make an art change
 --- read as "permanently switched off".
 local function CheckSensePower()
+	-- Ahead of every other gate, and here rather than in `PromptSensePower`, so a check already scheduled
+	-- by `C_Timer.After` when the button was clicked finds the flag set and does no action bar scan.
+	if sensePowerIgnored then
+		return
+	end
+
 	-- Group-gated at the one point every path passes through: the specialisation-change event and the
 	-- display toggle in `SetSetting` reach here directly, so a respec or switch-on outside a group would
 	-- prompt about displays that have no spotlight to draw on.
@@ -2237,8 +2397,12 @@ function Private.Auras.SetSetting(featureKey, displayKey, field, value)
 	local feature = FeatureByKey(featureKey)
 	local display = DisplayByKey(displayKey)
 
-	if field == "gap" and feature and feature.multiple then
-		ApplyGroupLayout(featureKey, displayKey, value or 0)
+	if feature and feature.multiple then
+		if field == "gap" then
+			ApplyGroupLayout(featureKey, displayKey, value or 0)
+		elseif field == "growDirection" then
+			ApplyGrowDirection(featureKey, displayKey, value)
+		end
 	end
 
 	-- The fallback is about a caller inventing a key: rebuilding a display that does not exist finds and
@@ -2445,35 +2609,16 @@ function Private.Auras.Defensives()
 end
 
 ---@param spellID integer
----@param custom boolean? whether `spellID` is a user-added entry rather than a shipped one
 ---@return boolean
-function Private.Auras.IsCooldownEnabled(spellID, custom)
-	return IsPoolEnabled(POOLS.cooldown, spellID, custom)
+function Private.Auras.IsCooldownEnabled(spellID)
+	return IsPoolEnabled(POOLS.cooldown, spellID)
 end
 
 ---@param spellID integer
 ---@param enabled boolean
----@param custom boolean? whether `spellID` is a user-added entry rather than a shipped one
 ---@return boolean applied
-function Private.Auras.SetCooldownEnabled(spellID, enabled, custom)
-	return SetPoolEnabled(POOLS.cooldown, spellID, enabled, custom)
-end
-
----@return integer[]
-function Private.Auras.CustomCooldowns()
-	return CustomPoolSpells(POOLS.cooldown)
-end
-
----@param spellID integer
----@return boolean added false when it is already in the list
-function Private.Auras.AddCustomCooldown(spellID)
-	return AddCustomPoolSpell(POOLS.cooldown, spellID)
-end
-
----@param spellID integer
----@return boolean removed
-function Private.Auras.RemoveCustomCooldown(spellID)
-	return RemoveCustomPoolSpell(POOLS.cooldown, spellID)
+function Private.Auras.SetCooldownEnabled(spellID, enabled)
+	return SetPoolEnabled(POOLS.cooldown, spellID, enabled)
 end
 
 ---@return boolean applied
@@ -2482,40 +2627,51 @@ function Private.Auras.ResetCooldowns()
 end
 
 ---@param spellID integer
----@param custom boolean? whether `spellID` is a user-added entry rather than a shipped one
 ---@return boolean
-function Private.Auras.IsDefensiveEnabled(spellID, custom)
-	return IsPoolEnabled(POOLS.defensive, spellID, custom)
+function Private.Auras.IsDefensiveEnabled(spellID)
+	return IsPoolEnabled(POOLS.defensive, spellID)
 end
 
 ---@param spellID integer
 ---@param enabled boolean
----@param custom boolean? whether `spellID` is a user-added entry rather than a shipped one
 ---@return boolean applied
-function Private.Auras.SetDefensiveEnabled(spellID, enabled, custom)
-	return SetPoolEnabled(POOLS.defensive, spellID, enabled, custom)
-end
-
----@return integer[]
-function Private.Auras.CustomDefensives()
-	return CustomPoolSpells(POOLS.defensive)
-end
-
----@param spellID integer
----@return boolean added false when it is already in the list
-function Private.Auras.AddCustomDefensive(spellID)
-	return AddCustomPoolSpell(POOLS.defensive, spellID)
-end
-
----@param spellID integer
----@return boolean removed
-function Private.Auras.RemoveCustomDefensive(spellID)
-	return RemoveCustomPoolSpell(POOLS.defensive, spellID)
+function Private.Auras.SetDefensiveEnabled(spellID, enabled)
+	return SetPoolEnabled(POOLS.defensive, spellID, enabled)
 end
 
 ---@return boolean applied
 function Private.Auras.ResetDefensives()
 	return ResetPool(POOLS.defensive)
+end
+
+---@param spellID integer
+---@return boolean
+function Private.Auras.IsCustomAuraEnabled(spellID)
+	return IsPoolEnabled(POOLS.customAura, spellID, true)
+end
+
+---@param spellID integer
+---@param enabled boolean
+---@return boolean applied
+function Private.Auras.SetCustomAuraEnabled(spellID, enabled)
+	return SetPoolEnabled(POOLS.customAura, spellID, enabled, true)
+end
+
+---@return integer[]
+function Private.Auras.CustomAuraSpells()
+	return CustomPoolSpells(POOLS.customAura)
+end
+
+---@param spellID integer
+---@return boolean added false when it is already in the list
+function Private.Auras.AddCustomAura(spellID)
+	return AddCustomPoolSpell(POOLS.customAura, spellID)
+end
+
+---@param spellID integer
+---@return boolean removed
+function Private.Auras.RemoveCustomAura(spellID)
+	return RemoveCustomPoolSpell(POOLS.customAura, spellID)
 end
 
 --- Whether the user should be offered a reload, because frames have been abandoned or are about to be.

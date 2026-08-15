@@ -183,9 +183,9 @@ L.Settings.PresetImportErrorPrefix = "la cadena no es un preajuste de Spotlights
 L.Settings.PresetImportErrorPayload = "los datos decodificados no son una lista de posiciones"
 L.Settings.Prescience = "Presciencia"
 L.Settings.ShiftingSands = "Arenas cambiantes"
-L.Settings.Cooldowns = "Reutilizaciones y auras personalizadas"
+L.Settings.Cooldowns = "Reutilizaciones"
 L.Settings.Defensives = "Defensivos"
-L.Settings.AuraAugmentationOnly = "Presciencia, Arenas cambiantes y Detectar poder solo están disponibles para Evocadores de Aumento."
+L.Settings.CustomAuras = "Auras personalizadas"
 L.Settings.AuraTracked = "Seguimiento"
 L.Settings.AuraFeatureToggle = "Seguir %s"
 L.Settings.SensePower = "Detectar poder"
@@ -215,6 +215,7 @@ L.Settings.AuraShowIcon = "Icono en línea"
 L.Settings.AuraIconSide = "Lado del icono"
 L.Settings.AuraIconLeft = "A la izquierda de la barra"
 L.Settings.AuraGap = "Separación"
+L.Settings.AuraGrowDirection = "Dirección de crecimiento"
 L.Settings.AuraIconRight = "A la derecha de la barra"
 L.Settings.AuraIconTop = "Encima de la barra"
 L.Settings.AuraIconBottom = "Debajo de la barra"
@@ -260,11 +261,8 @@ L.Settings.AuraNoTrackedSpells = "%s vigila un aura concreta, así que aquí no 
 L.Settings.AuraNoSpellMatches = "Ningún hechizo coincide con tu búsqueda."
 L.Settings.AurasRebuildHelp =
 "Algunos ajustes pueden requerir una recarga tras aplicarse. Se te pedirá que lo hagas cuando termines de personalizar."
-L.Settings.AuraCustomCooldowns = "Auras personalizadas"
-L.Settings.AuraCustomCooldownsNote =
+L.Settings.AuraCustomNote =
 "Estas deben ser BENEFICIOS que aparezcan en los jugadores, para que funcionen los efectos de abalorios. Los perjuicios y los lanzamientos no se pueden rastrear aquí, y añadir uno no hará absolutamente nada."
-L.Settings.AuraCustomDefensivesNote =
-"Añade IDs de hechizos defensivos que no estén en la lista incluida."
 L.Settings.AuraCustomAdd = "Añadir"
 L.Settings.AuraCustomSpellID = "ID de hechizo"
 L.Settings.ReloadPrompt =
@@ -287,6 +285,7 @@ L.Auras.SensePowerMissing =
 "Spotlights no puede saber si Percibir poder está activo a menos que esté en una de tus barras de acción.\n\nSolo se pueden rastrear las reutilizaciones que hayas activado, lo que deja fuera algunas invocaciones. Para un rastreo completo, Percibir poder debe estar activo, así que ponlo en una barra si deseas activarlo."
 L.Auras.SensePowerInactive =
 "Percibir poder no está activo.\n\nSolo se pueden rastrear las reutilizaciones que hayas activado, lo que deja fuera algunas invocaciones. Para un rastreo completo, activa Percibir poder."
+L.Auras.SensePowerIgnore = "Ignorar hasta recargar"
 
 L.ContextMenu.Title = "Spotlights"
 L.ContextMenu.Add = "Destacar a este jugador"
