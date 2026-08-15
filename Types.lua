@@ -589,3 +589,312 @@
 ---@field name string
 ---@field descriptionKey string key into L.SlashCommands, resolved lazily at print time
 ---@field handler fun(args: string)
+
+--- Globals the addon reaches for that the API annotations do not declare, typed so every use site is
+--- checked instead of resolving to `unknown`. The set mirrors `Lua.diagnostics.globals` in
+--- `.vscode/settings.json`, so a name added to one belongs in the other.
+---
+--- Every declaration assigns `nil`: this is a meta file, the annotation above each name *is* the
+--- declaration, and an empty table would be reported as a class missing its fields.
+
+-- Saved variables
+
+---@type table? absent on a fresh install, and otherwise whatever shape the installed version last wrote
+SpotlightsSaved = nil
+
+-- Global strings
+
+---@type string
+ACCEPT = ""
+
+---@type string
+CANCEL = ""
+
+---@type string
+CLICK_BINDING_OPEN_MENU = ""
+
+---@type string
+CLICK_BINDING_TARGET_UNIT = ""
+
+---@type string
+CLICK_BINDINGS_BINDING_TEXT_FORMAT = ""
+
+---@type string
+DAMAGER = ""
+
+---@type string
+HEALER = ""
+
+---@type string
+LEFT_BUTTON_STRING = ""
+
+---@type string
+MIDDLE_BUTTON_STRING = ""
+
+---@type string
+NONE = ""
+
+---@type string
+OKAY = ""
+
+---@type string
+QUESTION_MARK_ICON = ""
+
+---@type string
+RIGHT_BUTTON_STRING = ""
+
+---@type string
+SEARCH = ""
+
+---@type string
+TANK = ""
+
+---@type string
+UNKNOWN = ""
+
+-- Colours
+
+---@type colorRGBA
+BLACK_FONT_COLOR = nil
+
+---@type colorRGBA
+HIGHLIGHT_FONT_COLOR = nil
+
+---@type colorRGBA
+NORMAL_FONT_COLOR = nil
+
+--- Keyed by class filename (`WARRIOR`), not by localised class name.
+---@type table<string, colorRGBA>
+RAID_CLASS_COLORS = nil
+
+-- Constant tables
+
+--- Keyed by the dialog name passed to `StaticPopup_Show`; the value is a dialog definition.
+---@type table<string, table>
+StaticPopupDialogs = nil
+
+--- Frame *names*, not frames: a name in this list closes on Escape.
+---@type string[]
+UISpecialFrames = nil
+
+--- Keyed by the uppercase command token; the handler takes the rest of the line.
+---@type table<string, fun(args: string, editBox: EditBox)>
+SlashCmdList = nil
+
+---@class AuraContainerSortDirection
+---@field Normal number
+---@field Reverse number
+
+---@type AuraContainerSortDirection
+AuraContainerSortDirection = nil
+
+---@class AuraContainerSortMethod
+---@field Default number
+---@field BigDefensive number
+---@field UnitFrameDebuff number
+---@field ImportantOnly number
+---@field Expiration number
+---@field ExpirationOnly number
+---@field Name number
+---@field NameOnly number
+---@field AuraInstanceIDOnly number
+
+---@type AuraContainerSortMethod
+AuraContainerSortMethod = nil
+
+---@class TextureKitConstants
+---@field SetVisibility boolean
+---@field DoNotSetVisibility boolean
+---@field UseAtlasSize boolean
+---@field IgnoreAtlasSize boolean
+---@field AddressModeClamp number
+---@field AddressModeWrap number
+---@field AddressModeAllowAssetToDetermine number
+
+---@type TextureKitConstants
+TextureKitConstants = nil
+
+-- Frames the default UI creates
+
+---@class AddonCompartmentFrame : Frame
+---@field RegisterAddon fun(self: AddonCompartmentFrame, addonData: table)
+
+---@type AddonCompartmentFrame
+AddonCompartmentFrame = nil
+
+---@class ChatFrame : Frame
+---@field AddMessage fun(self: ChatFrame, text: string, r: number?, g: number?, b: number?, messageID: number?)
+
+---@type ChatFrame
+DEFAULT_CHAT_FRAME = nil
+
+---@class ColorPickerFrame : Frame
+---@field SetupColorPickerAndShow fun(self: ColorPickerFrame, info: table)
+---@field GetColorRGB fun(self: ColorPickerFrame): number, number, number
+---@field GetColorAlpha fun(self: ColorPickerFrame): number
+
+---@type ColorPickerFrame
+ColorPickerFrame = nil
+
+-- Namespaces and mixins, carrying the members the addon uses
+
+---@class AnchorUtilFlowDirection
+---@field Left number
+---@field Right number
+---@field Up number
+---@field Down number
+
+---@class AnchorUtilFlowLayoutAxis
+---@field Horizontal number
+---@field Vertical number
+
+---@class AnchorUtil
+---@field FlowDirection AnchorUtilFlowDirection
+---@field FlowLayoutAxis AnchorUtilFlowLayoutAxis
+
+---@type AnchorUtil
+AnchorUtil = nil
+
+---@class CVarCallbackRegistry : CallbackRegistryMixin
+---@field GetCVarValue fun(self: CVarCallbackRegistry, cvar: string): string
+---@field GetCVarValueBool fun(self: CVarCallbackRegistry, cvar: string): boolean
+---@field GetCVarNumberOrDefault fun(self: CVarCallbackRegistry, cvar: string): number
+---@field SetCVarCachable fun(self: CVarCallbackRegistry, cvar: string)
+
+---@type CVarCallbackRegistry
+CVarCallbackRegistry = nil
+
+---@class EventUtil
+---@field ContinueOnAddOnLoaded fun(addOnName: string, callback: fun())
+
+---@type EventUtil
+EventUtil = nil
+
+---@class Menu
+---@field ModifyMenu fun(tag: string, callback: fun(owner: any, rootDescription: table, contextData: table?))
+
+---@type Menu
+Menu = nil
+
+---@class MinimalSliderWithSteppersMixinEvent
+---@field OnValueChanged string
+
+---@class MinimalSliderWithSteppersMixinLabel
+---@field Left number
+---@field Right number
+---@field Top number
+---@field Min number
+---@field Max number
+
+---@class MinimalSliderWithSteppersMixin
+---@field Event MinimalSliderWithSteppersMixinEvent
+---@field Label MinimalSliderWithSteppersMixinLabel
+
+---@type MinimalSliderWithSteppersMixin
+MinimalSliderWithSteppersMixin = nil
+
+--- `minPixels` defaults to 1 on all four: the point of these over the frame methods is that a value is
+--- snapped to a whole physical pixel rather than to a UI unit.
+---@class PixelUtil
+---@field SetPoint fun(region: Region, point: AnchorPoint, relativeTo: Region, relativePoint: AnchorPoint, offsetX: number?, offsetY: number?, minOffsetXPixels: number?, minOffsetYPixels: number?)
+---@field SetSize fun(region: Region, width: number, height: number, minWidthPixels: number?, minHeightPixels: number?)
+---@field SetWidth fun(region: Region, width: number, minPixels: number?)
+---@field SetHeight fun(region: Region, height: number, minPixels: number?)
+
+---@type PixelUtil
+PixelUtil = nil
+
+---@class PlayerUtil
+---@field GetCurrentSpecID fun(): integer?
+
+---@type PlayerUtil
+PlayerUtil = nil
+
+---@class ScrollUtil
+---@field InitScrollFrameWithScrollBar fun(scrollFrame: ScrollFrame, scrollBar: Frame)
+
+---@type ScrollUtil
+ScrollUtil = nil
+
+--- Mixed into a Lua-created frame, whose `OnLoad` then builds the tab pool -- see `SpotlightsTabSystemFrame`.
+---@class TabSystemMixin
+---@field OnLoad fun(self: SpotlightsTabSystemFrame)
+
+---@type TabSystemMixin
+TabSystemMixin = nil
+
+---@class TabSystemOwnerMixin
+---@field OnLoad fun(self: SpotlightsOptionsFrame)
+
+---@type TabSystemOwnerMixin
+TabSystemOwnerMixin = nil
+
+-- Functions
+
+---@type fun(value: number, min: number, max: number): number
+Clamp = nil
+
+--- Aliases `CreateSecureFramePool`.
+---@type fun(frameType: string, parent: Frame?, template: string?, resetFunc: fun(pool: table, frame: Frame)?, forbidden: boolean?, postCreate: fun(frame: Frame)?, capacity: number?): table
+CreateFramePool = nil
+
+--- Takes no arguments, so it can be handed to `OnLeave` directly.
+---@type fun()
+GameTooltip_Hide = nil
+
+---@type fun(tooltip: GameTooltip, text: string, overrideColor: colorRGBA?, wrap: boolean?)
+GameTooltip_SetTitle = nil
+
+---@type fun(modifiers: number): string
+GetStringFromModifiers = nil
+
+--- Safe on any value, and the only legal way to ask whether one is secret.
+---@type fun(value: any): boolean
+issecretvalue = nil
+
+---@type fun(major: string, silent: boolean?): any, number?
+LibStub = nil
+
+--- The held modifiers as the client's own bitfield, which is what `C_ClickBindings` accepts.
+---@type fun(): number
+MakeModifiers = nil
+
+--- Errors under lockdown -- see `SecureHandlers.lua`.
+---@type fun(frame: Frame, state: string, values: string)
+RegisterStateDriver = nil
+
+---@type fun()
+ReloadUI = nil
+
+--- Answers the suffix a click binding takes, which is not always the button that was pressed.
+---@type fun(button: string): string
+SecureButton_GetButtonSuffix = nil
+
+--- The held modifiers in the fixed `alt-ctrl-shift-` order the secure lookup expects.
+---@type fun(frame: Frame?): string
+SecureButton_GetModifierPrefix = nil
+
+--- The texture has to exist before this can point it at an atlas.
+---@type fun(region: Texture, asset: string, autoSize: boolean?, addressModeU: number?, addressModeV: number?)
+SetTextureWithAddressModeOptions = nil
+
+--- Reuses the dialog already on screen for the same `which` rather than stacking a second one.
+---@type fun(which: string, text_arg1: any?, text_arg2: any?, data: any?, insertedFrame: Frame?, customOnHideScript: fun()?): Frame?
+StaticPopup_Show = nil
+
+--- An `EditBoxOnTextChanged` handler that keeps the accept button disabled while the box is empty.
+---@type fun(editBox: EditBox)
+StaticPopup_StandardNonEmptyTextHandler = nil
+
+--- Wired by the unit frame template's `OnEnter`, which is what puts the unit in the tooltip. Referenced
+--- from XML only, so the LSP never sees a call site.
+---@type fun(self: Button)
+UnitFrame_OnEnter = nil
+
+--- The `OnLeave` half of the pair above, likewise XML-only.
+---@type fun(self: Button)
+UnitFrame_OnLeave = nil
+
+--- The result is secret whenever the curve is, so nothing may branch on it.
+---@type fun(unit: string, usePredicted: boolean?, curve: any?): any
+UnitHealthPercent = nil
