@@ -290,6 +290,7 @@ L.Settings.AuraOffsetY = "Offset Y"
 L.Settings.AuraShowIcon = "Inline Icon"
 L.Settings.AuraIconSide = "Icon Side"
 L.Settings.AuraGap = "Gap"
+L.Settings.AuraGrowDirection = "Grow Direction"
 L.Settings.AuraIconLeft = "Left Of The Bar"
 L.Settings.AuraIconRight = "Right Of The Bar"
 
