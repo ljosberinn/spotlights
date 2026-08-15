@@ -44,6 +44,7 @@ L.Settings.TabAppearance = "Apariencia"
 L.Settings.TabGrid = "Rejilla"
 L.Settings.TabAuras = "Auras"
 L.Settings.TabRoster = "Lista"
+L.Settings.TabClickCasts = "Lanzamiento por clic"
 L.Settings.TabImportExport = "Importar / Exportar"
 L.Settings.ShowMinimapButton = "Mostrar botón del minimapa"
 L.Settings.ClickToOpenSettings = "Haz clic para abrir los ajustes"
@@ -267,6 +268,23 @@ L.Settings.AuraCustomDefensivesNote =
 "Añade IDs de hechizos defensivos que no estén en la lista incluida."
 L.Settings.AuraCustomAdd = "Añadir"
 L.Settings.AuraCustomSpellID = "ID de hechizo"
+L.Settings.ClickCastIntro =
+"Estas asignaciones solo lanzan hechizos en los marcos de Spotlights y no cambian nada más en la interfaz. Introduce un ID de hechizo, pulsa Asignar y después pulsa el botón del ratón que quieras usar. Haz clic en una asignación para moverla a otro botón."
+L.Settings.ClickCastNone = "Aún no hay asignaciones de clic."
+L.Settings.ClickCastBind = "Asignar"
+L.Settings.ClickCastCapture =
+"Pulsa el botón del ratón, con los modificadores que quieras, que debe lanzar %s en un destacado.\n\nEscape cancela."
+
+L.Settings.ClickCastOverridePrompt =
+"Tienes %s asignado a %s. Confirma que deseas anular este comportamiento solo para Spotlights."
+L.Settings.ClickCastOverrideConfirm = "Anular"
+L.Settings.ClickCastDormantPrompt =
+"Tienes %s asignado a %s en las Asignaciones de clic del juego. Seguirá funcionando en los marcos de Spotlights y esta asignación no se activará hasta que la elimines. ¿Guardar de todos modos?"
+L.Settings.ClickCastSaveAnyway = "Guardar"
+
+L.Settings.ClickCastOverrides = "Anula %s en los marcos de Spotlights"
+L.Settings.ClickCastDormant = "Inactiva: %s está asignado a este clic en las Asignaciones de clic del juego"
+
 L.Settings.ReloadPrompt =
 "Algunos ajustes de auras reemplazaron sus visualizaciones en lugar de cambiarlas, y las originales permanecen en memoria hasta que recargues.\n\n¿Recargar ahora?"
 L.Settings.ReloadNow = "Recargar ahora"

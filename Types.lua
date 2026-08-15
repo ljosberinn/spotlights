@@ -33,6 +33,7 @@
 ---@field FillOrder SpotlightsFillOrder
 ---@field NameStyle SpotlightsNameStyle
 ---@field Auras SpotlightsAuras
+---@field ClickCasts SpotlightsClickCasts
 ---@field SlashCommands SpotlightsSlashCommands
 ---@field DB SpotlightsDB? nil until ADDON_LOADED has run the migration
 
@@ -115,10 +116,31 @@
 ---@field name string
 ---@field slots SpotlightsSlot[]
 
+--- What `C_ClickBindings.GetBindingType` answers, as one of `Enum.ClickBindingType`. Aliased here because
+--- the generated API annotations declare the enum's *values* without declaring a type to hold one.
+---@alias ClickBindingType integer
+
+--- One Spotlights-only click binding.
+---
+--- Two projections of the same click are stored because neither derives from the other. `prefix` is what
+--- the secure lookup reads, built by `SecureButton_GetModifierPrefix` in the fixed `alt-ctrl-shift-` order;
+--- `modifiers` is the client's own bitfield, which has no decoder and is the only thing
+--- `C_ClickBindings.GetBindingType` will accept. Both are captured from the same click, so they cannot
+--- disagree about which keys were held.
+---
+--- `button` is the button that was **pressed**, not the suffix the binding ends up on -- see
+--- `ClickCasts.lua`.
+---@class SpotlightsClickCast
+---@field button string a `SecureButton_GetButtonSuffix` button name, e.g. `LeftButton` or `Button4`
+---@field prefix string
+---@field modifiers number
+---@field spellID integer stored as the base ID; a talent override is resolved by `CastSpellByID` itself
+
 ---@class SpotlightsDB
 ---@field version integer
 ---@field slots SpotlightsSlot[]
 ---@field presets SpotlightsPresets
+---@field clickCasts SpotlightsClickCast[]
 ---@field layout SpotlightsLayoutConfig
 ---@field position SpotlightsPositionConfig
 ---@field appearance SpotlightsAppearanceConfig
@@ -428,6 +450,7 @@
 ---@field spotlightsNameLayer Frame? the frame the name is drawn in, so `nameStrata` has something to raise
 ---@field spotlightsHovered boolean? ours, from the hooked OnEnter/OnLeave — never a secret
 ---@field spotlightsAuras table<string, table<string, SpotlightsAuraDisplay>>? feature key -> display key -> display, built lazily
+---@field spotlightsClickCasts table<string, string>? the click-cast attributes this child currently holds, so a removed binding can be cleared from the name it actually took
 ---@field OnEvent fun(self: SpotlightsUnitFrame, event: string)
 ---@field OnUnitAttributeChanged fun(self: SpotlightsUnitFrame, value: string?)
 ---@field UpdateAll fun(self: SpotlightsUnitFrame)

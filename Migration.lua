@@ -5,7 +5,7 @@ local _, Private = ...
 Private.Migration = {}
 
 --- Bump this and add the matching step whenever the shape of SpotlightsSaved changes.
-Private.Migration.CurrentVersion = 4
+Private.Migration.CurrentVersion = 5
 
 --- A function rather than a shared table: handing the same table to two callers would alias one user's
 --- settings onto another's.
@@ -435,6 +435,9 @@ local steps = {
 	[4] = function(db)
 		db.presets = db.presets or {}
 	end,
+	[5] = function(db)
+		db.clickCasts = db.clickCasts or {}
+	end,
 }
 
 --- Fills in every field `defaults` has and `target` lacks, returning `target` patched or `defaults`
@@ -470,7 +473,7 @@ end
 --- current but damaged. A nil where a number is expected becomes arithmetic on nil deep in the layout
 --- maths.
 ---@param db SpotlightsDB
----@param key "layout" | "appearance" | "auras" | "minimap" | "presets"
+---@param key "layout" | "appearance" | "auras" | "minimap" | "presets" | "clickCasts"
 ---@param build fun(): table
 local function RepairBlock(db, key, build)
 	db[key] = Filled(db[key], build())
@@ -544,6 +547,12 @@ local function Repair(db)
 	RepairBlock(db, "presets", function()
 		return {}
 	end)
+
+	-- A list the user built, so empty defaults for `presets`' reason. What is *in* it is validated where it
+	-- is read: `ClickCasts.ApplyChild` refuses a button the secure templates give no usable suffix.
+	RepairBlock(db, "clickCasts", function()
+		return {}
+	end)
 end
 
 ---@return SpotlightsDB
@@ -557,6 +566,7 @@ local function CreateDefault()
 		auras = DefaultAuras(),
 		minimap = { hide = false },
 		presets = {},
+		clickCasts = {},
 	}
 end
 

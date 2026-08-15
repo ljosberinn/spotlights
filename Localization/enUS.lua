@@ -54,6 +54,7 @@ L.Settings.TabAppearance = "Appearance"
 L.Settings.TabGrid = "Grid"
 L.Settings.TabAuras = "Auras"
 L.Settings.TabRoster = "Roster"
+L.Settings.TabClickCasts = "Click Casting"
 L.Settings.TabImportExport = "Import / Export"
 L.Settings.ShowMinimapButton = "Show Minimap Button"
 L.Settings.ClickToOpenSettings = "Click To Open Settings"
@@ -379,6 +380,27 @@ L.Settings.AuraCustomDefensivesNote = "Add defensive spell IDs that are not in t
 
 L.Settings.AuraCustomAdd = "Add"
 L.Settings.AuraCustomSpellID = "Spell ID"
+
+-- Says the isolation out loud in the first sentence, because "click casting" is a feature several addons
+-- offer over every frame in the interface and this one deliberately does not.
+L.Settings.ClickCastIntro =
+"These bindings cast on Spotlights frames only, and change nothing anywhere else in the interface. Enter a spell ID, press Bind, then press the mouse button you want it on. Click a binding to move it to another button."
+L.Settings.ClickCastNone = "No click bindings yet."
+L.Settings.ClickCastBind = "Bind"
+L.Settings.ClickCastCapture = "Press the mouse button, with any modifiers, that should cast %s on a spotlight.\n\nEscape cancels."
+
+-- The two prompts differ in more than wording: the first is an override the user is making, the second is
+-- one the game is refusing them, and a binding that says it replaced something it did not is worse than no
+-- prompt at all.
+L.Settings.ClickCastOverridePrompt =
+"You have %s bound to %s. Please confirm you wish to override this behaviour for Spotlights only."
+L.Settings.ClickCastOverrideConfirm = "Override"
+L.Settings.ClickCastDormantPrompt =
+"You have %s bound to %s in the game's own Click Bindings. It will keep working on Spotlights frames, and this binding will not fire until you remove it. Save it anyway?"
+L.Settings.ClickCastSaveAnyway = "Save"
+
+L.Settings.ClickCastOverrides = "Overrides %s on Spotlights frames"
+L.Settings.ClickCastDormant = "Inactive: %s is bound to this click in the game's Click Bindings"
 
 L.Settings.ReloadPrompt =
 "Some aura settings replaced their displays rather than changing them, and the originals stay in memory until you reload.\n\nReload now?"

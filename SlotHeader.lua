@@ -131,6 +131,9 @@ function Private.SlotHeader.InitChild(child)
 	child:SetAttribute("*type1", "target")
 	child:SetAttribute("*type2", "togglemenu")
 
+	-- After the wildcards, which a binding on an unmodified button deliberately shadows.
+	Private.ClickCasts.ApplyChild(child)
+
 	-- No UnregisterAllEvents needed: ours arrives with none, where a CompactUnitFrame_OnLoad frame arrived
 	-- with 21 global registrations putting our tainted Lua into dispatches Blizzard's own frames share.
 	child:SetScript("OnEvent", child.OnEvent)

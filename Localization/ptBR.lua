@@ -45,6 +45,7 @@ L.Settings.TabAppearance = "Aparência"
 L.Settings.TabGrid = "Grade"
 L.Settings.TabAuras = "Auras"
 L.Settings.TabRoster = "Lista"
+L.Settings.TabClickCasts = "Conjuração por clique"
 L.Settings.TabImportExport = "Importar / Exportar"
 L.Settings.ShowMinimapButton = "Mostrar botão do minimapa"
 L.Settings.ClickToOpenSettings = "Clique para abrir as configurações"
@@ -268,6 +269,23 @@ L.Settings.AuraCustomDefensivesNote =
 "Adicione IDs de feitiços defensivos que não estejam na lista incluída."
 L.Settings.AuraCustomAdd = "Adicionar"
 L.Settings.AuraCustomSpellID = "ID de magia"
+L.Settings.ClickCastIntro =
+"Estas associações só conjuram nos quadros do Spotlights e não mudam mais nada na interface. Informe um ID de magia, clique em Associar e depois pressione o botão do mouse desejado. Clique em uma associação para movê-la para outro botão."
+L.Settings.ClickCastNone = "Nenhuma associação de clique ainda."
+L.Settings.ClickCastBind = "Associar"
+L.Settings.ClickCastCapture =
+"Pressione o botão do mouse, com os modificadores que quiser, que deve conjurar %s em um destaque.\n\nEsc cancela."
+
+L.Settings.ClickCastOverridePrompt =
+"Você tem %s associado a %s. Confirme que deseja substituir esse comportamento apenas no Spotlights."
+L.Settings.ClickCastOverrideConfirm = "Substituir"
+L.Settings.ClickCastDormantPrompt =
+"Você tem %s associado a %s nas Associações de Clique do jogo. Elas continuarão funcionando nos quadros do Spotlights, e esta associação não será acionada até que você a remova. Salvar mesmo assim?"
+L.Settings.ClickCastSaveAnyway = "Salvar"
+
+L.Settings.ClickCastOverrides = "Substitui %s nos quadros do Spotlights"
+L.Settings.ClickCastDormant = "Inativa: %s está associado a este clique nas Associações de Clique do jogo"
+
 L.Settings.ReloadPrompt =
 "Algumas configurações de aura substituíram suas exibições em vez de alterá-las, e as originais permanecem na memória até você recarregar.\n\nRecarregar agora?"
 L.Settings.ReloadNow = "Recarregar agora"

@@ -43,6 +43,7 @@ L.Settings.TabAppearance = "外觀"
 L.Settings.TabGrid = "網格"
 L.Settings.TabAuras = "光環"
 L.Settings.TabRoster = "名單"
+L.Settings.TabClickCasts = "點擊施法"
 L.Settings.TabImportExport = "匯入 / 匯出"
 L.Settings.ShowMinimapButton = "顯示小地圖按鈕"
 L.Settings.ClickToOpenSettings = "點擊以開啟設定"
@@ -259,6 +260,21 @@ L.Settings.AuraCustomCooldownsNote = "這些必須是出現在玩家身上的增
 L.Settings.AuraCustomDefensivesNote = "新增不在內建清單中的防禦技能法術 ID。"
 L.Settings.AuraCustomAdd = "新增"
 L.Settings.AuraCustomSpellID = "法術 ID"
+L.Settings.ClickCastIntro =
+"這些綁定只在 Spotlights 框體上施法，不會改變介面中的其他任何部分。輸入法術 ID，點擊綁定，然後按下你想使用的滑鼠按鍵。點擊已有綁定可將其改到其他按鍵。"
+L.Settings.ClickCastNone = "尚無點擊綁定。"
+L.Settings.ClickCastBind = "綁定"
+L.Settings.ClickCastCapture = "請按下用於在框體上施放 %s 的滑鼠按鍵，可搭配任意組合鍵。\n\n按 Esc 取消。"
+
+L.Settings.ClickCastOverridePrompt = "你已將 %s 綁定到 %s。請確認你希望僅在 Spotlights 中覆蓋該行為。"
+L.Settings.ClickCastOverrideConfirm = "覆蓋"
+L.Settings.ClickCastDormantPrompt =
+"你在遊戲自帶的點擊綁定中將 %s 綁定到了 %s。它在 Spotlights 框體上仍會生效，在你移除它之前此綁定不會觸發。仍要儲存嗎？"
+L.Settings.ClickCastSaveAnyway = "儲存"
+
+L.Settings.ClickCastOverrides = "在 Spotlights 框體上覆蓋 %s"
+L.Settings.ClickCastDormant = "未生效：遊戲的點擊綁定已將 %s 綁定到此點擊"
+
 L.Settings.ReloadPrompt = "部分光環設定替換了其顯示，而非修改它們，原有的顯示會保留在記憶體中，直到你重載。\n\n現在重載？"
 L.Settings.ReloadNow = "現在重載"
 L.Settings.ReloadLater = "稍後"

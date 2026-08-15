@@ -56,3 +56,5 @@ v1.1.0
 # Unreviewed
 
 - the Sense Power prompt has a second button, Ignore until Reload, which silences it for the rest of the session
+- added Click Casting: click bindings that cast a spell on Spotlights frames and nowhere else, made by entering a spell ID and pressing the mouse button you want it on
+- the options panel is wider, so the new tab fits beside the existing six

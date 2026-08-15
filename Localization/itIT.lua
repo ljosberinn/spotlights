@@ -45,6 +45,7 @@ L.Settings.TabAppearance = "Aspetto"
 L.Settings.TabGrid = "Griglia"
 L.Settings.TabAuras = "Aure"
 L.Settings.TabRoster = "Roster"
+L.Settings.TabClickCasts = "Lancio con clic"
 L.Settings.TabImportExport = "Importa / Esporta"
 L.Settings.ShowMinimapButton = "Mostra il pulsante della minimappa"
 L.Settings.ClickToOpenSettings = "Clicca per aprire le impostazioni"
@@ -268,6 +269,23 @@ L.Settings.AuraCustomDefensivesNote =
 "Aggiungi gli ID degli incantesimi difensivi che non sono nell'elenco incluso."
 L.Settings.AuraCustomAdd = "Aggiungi"
 L.Settings.AuraCustomSpellID = "ID incantesimo"
+L.Settings.ClickCastIntro =
+"Queste associazioni lanciano incantesimi solo sui riquadri di Spotlights e non cambiano nient'altro nell'interfaccia. Inserisci un ID incantesimo, premi Associa e poi premi il pulsante del mouse desiderato. Clicca su un'associazione per spostarla su un altro pulsante."
+L.Settings.ClickCastNone = "Nessuna associazione di clic."
+L.Settings.ClickCastBind = "Associa"
+L.Settings.ClickCastCapture =
+"Premi il pulsante del mouse, con i modificatori desiderati, che deve lanciare %s su un riquadro.\n\nEsc annulla."
+
+L.Settings.ClickCastOverridePrompt =
+"Hai %s associato a %s. Conferma di voler sovrascrivere questo comportamento solo per Spotlights."
+L.Settings.ClickCastOverrideConfirm = "Sovrascrivi"
+L.Settings.ClickCastDormantPrompt =
+"Hai %s associato a %s nelle Associazioni Clic del gioco. Continuerà a funzionare sui riquadri di Spotlights e questa associazione non si attiverà finché non la rimuovi. Salvare comunque?"
+L.Settings.ClickCastSaveAnyway = "Salva"
+
+L.Settings.ClickCastOverrides = "Sovrascrive %s sui riquadri di Spotlights"
+L.Settings.ClickCastDormant = "Inattiva: %s è associato a questo clic nelle Associazioni Clic del gioco"
+
 L.Settings.ReloadPrompt =
 "Alcune impostazioni delle aure hanno sostituito le loro visualizzazioni anziché modificarle, e le originali restano in memoria finché non ricarichi.\n\nRicaricare ora?"
 L.Settings.ReloadNow = "Ricarica ora"
