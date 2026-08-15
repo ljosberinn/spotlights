@@ -47,17 +47,13 @@ v1.1.0
 - aura appearance sections whose display is switched off now start collapsed
 - the Auras tab preview frame now wears your own class color instead of a fabricated one
 - added Fill Direction to Status Bars
+- custom auras are their own category now, available to every specialization, and no longer appear in Cooldowns, Defensives or Sense Power
+- icons of a category tracking several auras at once have a Grow Direction
+- aura categories another specialization owns are hidden from the category strip instead of shown greyed out
+- added Click Casting: click bindings that cast a spell on Spotlights frames only
 
 ### Augmentation-specific
 
 - added Shifting Sands as dedicatedly trackable and customizable aura
 - aura preview now has a second preview the moment you enable more than one display kind for an aura (e.g. Status Bar and Text for Prescience), so you can see them at the same time
-
-# Unreviewed
-
-- the Sense Power prompt has a second button, Ignore until Reload, which silences it for the rest of the session
-- custom auras are their own category now, available to every specialization, and no longer appear in Cooldowns, Defensives or Sense Power
-- icons of a category tracking several auras at once have a Grow Direction, so they can flow left, right, up or down from where they are anchored instead of always running right off the frame
-- aura categories another specialization owns are hidden from the category strip instead of shown greyed out
-- added Click Casting: click bindings that cast a spell on Spotlights frames and nowhere else, made by entering a spell ID and pressing the mouse button you want it on
-- the options panel is wider, so the new tab fits beside the existing six
+- Sense Power prompts can now be ignored until reload
