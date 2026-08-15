@@ -139,15 +139,15 @@ end
 ---@type table<string, boolean>
 local autoAdded = {}
 
---- Appends every party damage dealer who is not in the grid, once each.
+--- Appends every party member playing one of the added roles who is not in the grid, once each.
 ---
 --- **On arrival, not on every pass**, which is the whole difference from `AutoRemoveRoles`: a removal sweep
 --- that keeps removing leaves the Remove button meaningful, while an addition sweep that keeps adding makes
 --- it a button that undoes itself. So `autoAdded` records who has been offered, and someone taken back out
---- by hand is not offered again.
+--- by hand is not offered again. Deselecting a role therefore takes nobody back out either.
 ---
---- Party only. A raid's damage dealers are fifteen to twenty people, which is not a grid anyone wants built
---- for them, and presets exist for raids. The player is never added because the party scan walks
+--- Party only. A raid is fifteen to thirty people, which is not a grid anyone wants built for them, and
+--- presets exist for raids. The player is never added because the party scan walks
 --- `GetNumSubgroupMembers`, which excludes index 0.
 ---
 --- A member with no role assigned is never added, on `AutoRemoveRoles`' grounds: absent information is not
@@ -158,11 +158,15 @@ local autoAdded = {}
 --- party would otherwise schedule four deferral passes and four geometry requests instead of the one
 --- `Apply` runs around this.
 ---@return boolean added
-local function AutoAddPartyDamagers()
+local function AutoAddPartyRoles()
 	local slots = Slots()
 	local layout = Private.Layout.GetConfig()
 
-	if not slots or not layout or not layout.autoAddPartyDamagers or GroupKind() ~= "party" then
+	if not slots or not layout or not layout.autoAddPartyMembers or not layout.autoAddRoles then
+		return false
+	end
+
+	if GroupKind() ~= "party" then
 		return false
 	end
 
@@ -183,16 +187,20 @@ local function AutoAddPartyDamagers()
 		end
 	end
 
+	local addedRoles = layout.autoAddRoles
 	local removedRoles = layout.autoRemoveRoles
 	local added = false
 
 	for i = 1, #roster do
 		local member = roster[i]
 
-		if not autoAdded[member.guid] and Private.Roster.GetRole(member.guid) == "DAMAGER" then
-			-- Skipped outright when the role is also set to be auto-removed, rather than added and swept back
+		if not autoAdded[member.guid] then
+			local role = Private.Roster.GetRole(member.guid)
+
+			-- A role set to be both added and removed is skipped outright, rather than added and swept back
 			-- out: the pairing would churn the slot list on every roster event.
-			if not (removedRoles and removedRoles.DAMAGER) and not FindOccupant(member.guid, member.name) then
+			if role and addedRoles[role] and not (removedRoles and removedRoles[role])
+				and not FindOccupant(member.guid, member.name) then
 				slots[#slots + 1] = { kind = "player", guid = member.guid, name = member.name }
 				autoAdded[member.guid] = true
 
@@ -219,7 +227,7 @@ end
 --- is why the slash commands say so and `/spotlights list` reads the model.
 local function Apply()
 	AutoRemoveRoles()
-	AutoAddPartyDamagers()
+	AutoAddPartyRoles()
 
 	Private.Events.Request(DeferralKey.Build)
 	Private.Events.Request(DeferralKey.Registry)
@@ -773,18 +781,19 @@ end
 --- screen rather than at the next roster event.
 ---
 --- Turning it off forgets who has been offered, so ticking it again fills from scratch rather than
---- remembering a party the user has since stopped caring about.
+--- remembering a party the user has since stopped caring about. Changing the roles does not: someone
+--- removed by hand under a role that is still selected has to stay out.
 ---@return boolean added
-function Private.Registry.EnforceAutoAddPartyDamagers()
+function Private.Registry.EnforceAutoAddPartyRoles()
 	local layout = Private.Layout.GetConfig()
 
-	if not layout or not layout.autoAddPartyDamagers then
+	if not layout or not layout.autoAddPartyMembers then
 		table.wipe(autoAdded)
 
 		return false
 	end
 
-	if not AutoAddPartyDamagers() then
+	if not AutoAddPartyRoles() then
 		return false
 	end
 
@@ -802,7 +811,7 @@ end)
 -- a damage dealer switching to healing keeps their slot until the next membership change, and a party
 -- whose role check lands after its members do is never filled.
 Private.Events.RegisterEvent("PLAYER_ROLES_ASSIGNED", function()
-	if AutoRemoveRoles() or AutoAddPartyDamagers() then
+	if AutoRemoveRoles() or AutoAddPartyRoles() then
 		Apply()
 	end
 end)

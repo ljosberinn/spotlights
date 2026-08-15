@@ -81,4 +81,4 @@ Colors the entire health bar. Careful about using multiple since they conflict.
 
 # Unreviewed
 
-- added Add all DPS automatically while in a Party, which spotlights every party damage dealer as they turn up, once each, so removing one by hand keeps them out
+- added Automatically Add Group Members While In A Party, which spotlights each party member of a chosen role as they turn up, once each, so removing one by hand keeps them out

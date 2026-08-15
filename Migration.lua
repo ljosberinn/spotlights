@@ -29,7 +29,14 @@ local function DefaultLayout()
 		clearOnLeave = false,
 
 		-- Off by default: a grid that fills itself unasked is a surprise even when it fills correctly.
-		autoAddPartyDamagers = false,
+		autoAddPartyMembers = false,
+
+		-- Damage alone, as below, and reachable only through the toggle above. All three keys written.
+		autoAddRoles = {
+			TANK = false,
+			HEALER = false,
+			DAMAGER = true,
+		},
 
 		-- Damage alone, because those are the players anyone spotlights.
 		--

@@ -96,21 +96,49 @@ local function SetClearOnLeave(value)
 end
 
 ---@return boolean
-local function GetAutoAddPartyDamagers()
+local function GetAutoAddPartyMembers()
 	local layout = Layout()
 
-	return layout and layout.autoAddPartyDamagers or false
+	return layout and layout.autoAddPartyMembers or false
 end
 
 --- Ticks or unticks the party auto-add, and acts on the grid at once, so a tick fills the grid already on
 --- screen rather than waiting for the next roster event.
 ---@param value boolean
-local function SetAutoAddPartyDamagers(value)
-	SetLayoutField("autoAddPartyDamagers", value)
+local function SetAutoAddPartyMembers(value)
+	SetLayoutField("autoAddPartyMembers", value)
 
-	Private.Registry.EnforceAutoAddPartyDamagers()
+	Private.Registry.EnforceAutoAddPartyRoles()
 
 	-- The tab: slot rows appear on the left and their players leave the right list.
+	Private.Options.Refresh()
+end
+
+---@param role string
+---@return boolean
+local function GetRoleAutoAdded(role)
+	local layout = Layout()
+	local roles = layout and layout.autoAddRoles
+
+	return roles ~= nil and roles[role] == true
+end
+
+--- Ticks or unticks a role in the set the party auto-add appends, and fills the grid at once as the
+--- toggle above does. Deselecting one appends nobody and removes nobody, so it only shows on the next
+--- arrival.
+---@param role string
+---@param added boolean
+local function SetRoleAutoAdded(role, added)
+	local layout = Layout()
+
+	if not layout or not layout.autoAddRoles then
+		return
+	end
+
+	layout.autoAddRoles[role] = added
+
+	Private.Registry.EnforceAutoAddPartyRoles()
+
 	Private.Options.Refresh()
 end
 
@@ -488,7 +516,7 @@ local function BuildRoster(page)
 	local heading = Private.Controls.HeadingHeight
 	local row = Private.Controls.RowHeight
 
-	local slotsHeight = math.max(page:GetHeight() - heading - row * 6 - PANE_GAP * 7, MIN_LIST_HEIGHT)
+	local slotsHeight = math.max(page:GetHeight() - heading - row * 7 - PANE_GAP * 8, MIN_LIST_HEIGHT)
 
 	--- What the presets block took on this pass, written by the column below before it lays the list out.
 	local reserved = 0
@@ -518,11 +546,15 @@ local function BuildRoster(page)
 			CHECKBOX_LABEL_WIDTH),
 		Private.Controls.Checkbox(page, L.ClearOnLeave, GetClearOnLeave, SetClearOnLeave, nil, true,
 			CHECKBOX_LABEL_WIDTH),
-		Private.Controls.Checkbox(page, L.AutoAddPartyDamagers, GetAutoAddPartyDamagers,
-			SetAutoAddPartyDamagers, nil, true, CHECKBOX_LABEL_WIDTH),
+		Private.Controls.Checkbox(page, L.AutoAddPartyMembers, GetAutoAddPartyMembers,
+			SetAutoAddPartyMembers, nil, true, CHECKBOX_LABEL_WIDTH),
 
-		-- In the label column the checkboxes above already establish, so it reads as the last of the block;
-		-- the column is wide enough that the dropdown still shows two role names at once.
+		-- In the label column the checkboxes above already establish, so the two read as the last of the
+		-- block; the column is wide enough that a dropdown still shows two role names at once.
+		--
+		-- Directly under the toggle it qualifies, and before the removal set, which the add sweep defers to.
+		Private.Controls.MultiselectDropdown(page, L.AutoAddRoles, ROLE_CHOICES, GetRoleAutoAdded,
+			SetRoleAutoAdded, CHECKBOX_LABEL_WIDTH),
 		Private.Controls.MultiselectDropdown(page, L.AutoRemoveRoles, ROLE_CHOICES, GetRoleRemoved,
 			SetRoleRemoved, CHECKBOX_LABEL_WIDTH),
 	}, PANE_GAP)

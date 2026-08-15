@@ -186,9 +186,10 @@ L.Settings.FillOrderCaption = "%s · wraps every %d · grows %s, %s"
 
 L.Settings.AllowGaps = "Render Empty Cells"
 L.Settings.ClearOnLeave = "Clear Roster When Leaving The Group"
--- "DPS" rather than the `DAMAGER` global's "Damage", because this is a sentence of ours and not a role
--- label in a list.
-L.Settings.AutoAddPartyDamagers = "Add all DPS automatically while in a Party"
+L.Settings.AutoAddPartyMembers = "Automatically Add Group Members While In A Party"
+-- Paired with the removal caption below, and read under the toggle above rather than on its own: this
+-- picks which roles that toggle adds, and does nothing while it is off.
+L.Settings.AutoAddRoles = "Automatically Add These Roles"
 -- Says what it does to the grid rather than to the list, because it is destructive: these roles are taken
 -- out and kept out, not hidden.
 L.Settings.AutoRemoveRoles = "Automatically Remove These Roles"
