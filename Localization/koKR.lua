@@ -43,6 +43,7 @@ L.Settings.TabAppearance = "모양"
 L.Settings.TabGrid = "격자"
 L.Settings.TabAuras = "오라"
 L.Settings.TabRoster = "명단"
+L.Settings.TabClickCasts = "클릭 시전"
 L.Settings.TabImportExport = "가져오기 / 내보내기"
 L.Settings.ShowMinimapButton = "미니맵 버튼 표시"
 L.Settings.ClickToOpenSettings = "클릭하여 설정 열기"
@@ -259,6 +260,23 @@ L.Settings.AuraCustomNote =
 "이것들은 플레이어에게 나타나는 강화 효과여야 하며, 그래야 장신구 효과가 작동합니다. 약화 효과와 시전은 여기서 추적할 수 없고, 추가해도 아무 효과가 없습니다."
 L.Settings.AuraCustomAdd = "추가"
 L.Settings.AuraCustomSpellID = "주문 ID"
+L.Settings.ClickCastIntro =
+"이 설정은 Spotlights 프레임에서만 시전되며 인터페이스의 다른 부분은 바꾸지 않습니다. 주문 ID를 입력하고 지정을 누른 뒤 원하는 마우스 버튼을 누르세요. 지정된 항목을 클릭하면 다른 버튼으로 옮길 수 있습니다."
+L.Settings.ClickCastNone = "아직 클릭 지정이 없습니다."
+L.Settings.ClickCastBind = "지정"
+L.Settings.ClickCastCapture =
+"강조 프레임에서 %s을(를) 시전할 마우스 버튼을 조합키와 함께 누르세요.\n\nEsc로 취소합니다."
+
+L.Settings.ClickCastOverridePrompt =
+"%s이(가) %s에 지정되어 있습니다. Spotlights에서만 이 동작을 덮어쓸지 확인해 주세요."
+L.Settings.ClickCastOverrideConfirm = "덮어쓰기"
+L.Settings.ClickCastDormantPrompt =
+"게임의 클릭 지정에서 %s이(가) %s에 지정되어 있습니다. Spotlights 프레임에서도 계속 작동하며, 그 지정을 제거하기 전까지 이 지정은 발동하지 않습니다. 그래도 저장할까요?"
+L.Settings.ClickCastSaveAnyway = "저장"
+
+L.Settings.ClickCastOverrides = "Spotlights 프레임에서 %s을(를) 덮어씁니다"
+L.Settings.ClickCastDormant = "비활성: 게임의 클릭 지정에서 %s이(가) 이 클릭에 지정되어 있습니다"
+
 L.Settings.ReloadPrompt = "일부 오라 설정은 표시를 변경하는 대신 교체했으며, 원본은 다시 불러오기 전까지 메모리에 남아 있습니다.\n\n지금 다시 불러오시겠습니까?"
 L.Settings.ReloadNow = "지금 다시 불러오기"
 L.Settings.ReloadLater = "나중에"

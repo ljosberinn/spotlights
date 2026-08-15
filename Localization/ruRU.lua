@@ -44,6 +44,7 @@ L.Settings.TabAppearance = "Внешний вид"
 L.Settings.TabGrid = "Сетка"
 L.Settings.TabAuras = "Ауры"
 L.Settings.TabRoster = "Состав"
+L.Settings.TabClickCasts = "Применение по щелчку"
 L.Settings.TabImportExport = "Импорт / Экспорт"
 L.Settings.ShowMinimapButton = "Показывать кнопку миникарты"
 L.Settings.ClickToOpenSettings = "Нажмите, чтобы открыть настройки"
@@ -265,6 +266,23 @@ L.Settings.AuraCustomNote =
 "Это должны быть УСИЛЕНИЯ, появляющиеся на игроках, чтобы работали эффекты аксессуаров. Ослабления и произнесения здесь отслеживать нельзя, и добавление такого не даст никакого эффекта."
 L.Settings.AuraCustomAdd = "Добавить"
 L.Settings.AuraCustomSpellID = "ID заклинания"
+L.Settings.ClickCastIntro =
+"Эти привязки применяют заклинания только на рамках Spotlights и ничего не меняют в остальном интерфейсе. Введите ID заклинания, нажмите «Привязать», затем нажмите нужную кнопку мыши. Щёлкните по привязке, чтобы перенести её на другую кнопку."
+L.Settings.ClickCastNone = "Привязок щелчков пока нет."
+L.Settings.ClickCastBind = "Привязать"
+L.Settings.ClickCastCapture =
+"Нажмите кнопку мыши с нужными модификаторами, которая должна применять %s на рамке.\n\nEsc — отмена."
+
+L.Settings.ClickCastOverridePrompt =
+"У вас %s привязано к %s. Подтвердите, что хотите переопределить это поведение только для Spotlights."
+L.Settings.ClickCastOverrideConfirm = "Переопределить"
+L.Settings.ClickCastDormantPrompt =
+"У вас %s привязано к %s в игровых привязках щелчков. Оно продолжит работать на рамках Spotlights, и эта привязка не сработает, пока вы её не удалите. Всё равно сохранить?"
+L.Settings.ClickCastSaveAnyway = "Сохранить"
+
+L.Settings.ClickCastOverrides = "Переопределяет %s на рамках Spotlights"
+L.Settings.ClickCastDormant = "Неактивна: %s привязано к этому щелчку в игровых привязках щелчков"
+
 L.Settings.ReloadPrompt =
 "Некоторые настройки аур заменили свои отображения, а не изменили их, и оригиналы остаются в памяти, пока вы не перезагрузите.\n\nПерезагрузить сейчас?"
 L.Settings.ReloadNow = "Перезагрузить"

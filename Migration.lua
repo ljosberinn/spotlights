@@ -486,7 +486,7 @@ end
 --- current but damaged. A nil where a number is expected becomes arithmetic on nil deep in the layout
 --- maths.
 ---@param db SpotlightsDB
----@param key "layout" | "appearance" | "auras" | "minimap" | "presets"
+---@param key "layout" | "appearance" | "auras" | "minimap" | "presets" | "clickCasts"
 ---@param build fun(): table
 local function RepairBlock(db, key, build)
 	db[key] = Filled(db[key], build())
@@ -560,6 +560,12 @@ local function Repair(db)
 	RepairBlock(db, "presets", function()
 		return {}
 	end)
+
+	-- A list the user built, so empty defaults for `presets`' reason. What is *in* it is validated where it
+	-- is read: `ClickCasts.ApplyChild` refuses a button the secure templates give no usable suffix.
+	RepairBlock(db, "clickCasts", function()
+		return {}
+	end)
 end
 
 ---@return SpotlightsDB
@@ -573,6 +579,7 @@ local function CreateDefault()
 		auras = DefaultAuras(),
 		minimap = { hide = false },
 		presets = {},
+		clickCasts = {},
 	}
 end
 

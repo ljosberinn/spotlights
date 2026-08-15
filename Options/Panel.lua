@@ -7,10 +7,11 @@ Private.Options = {}
 --- The window the layout kit lives in: a fixed content rectangle handed to one node per tab, plus the
 --- window management -- `UISpecialFrames`, the combat close, the reload offer, lazy tab building.
 
---- 780 leaves 710 right of the portrait, and the layout frame puts a pixel between each pair of tabs:
---- 6 * 117 + 5 * 1 = 707, so six tabs fit without clipping the panel's right edge. The height is simply
---- what fits the tallest tab.
-local PANEL_WIDTH = 780
+--- 895 leaves 825 right of the portrait, and the layout frame puts a pixel between each pair of tabs:
+--- 7 * 117 + 6 * 1 = 825, so seven tabs fit without clipping the panel's right edge. Sized against the
+--- *cap* rather than the labels, because a tab is only as wide as its own text and the longest translation
+--- of one is not this file's business. The height is simply what fits the tallest tab.
+local PANEL_WIDTH = 895
 local PANEL_HEIGHT = 610
 local MAX_TAB_WIDTH = 117
 
@@ -51,6 +52,7 @@ local TAB_KEYS = {
 	"grid",
 	"auras",
 	"roster",
+	"clickCasts",
 	"importExport",
 }
 
@@ -193,6 +195,7 @@ local function Get()
 		L.TabGrid,
 		L.TabAuras,
 		L.TabRoster,
+		L.TabClickCasts,
 		L.TabImportExport,
 	}
 

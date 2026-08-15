@@ -265,7 +265,16 @@
     "SECONDS_PER_DAY",
     "CreateTableEnumerator",
     "Round",
-    "GetValueOrCallFunction"
+    "GetValueOrCallFunction",
+    "LEFT_BUTTON_STRING",
+    "RIGHT_BUTTON_STRING",
+    "MIDDLE_BUTTON_STRING",
+    "SecureButton_GetButtonSuffix",
+    "CLICK_BINDINGS_BINDING_TEXT_FORMAT",
+    "CLICK_BINDING_TARGET_UNIT",
+    "CLICK_BINDING_OPEN_MENU",
+    "SecureButton_GetModifierPrefix",
+    "UNKNOWN"
   ],
   "Lua.workspace.ignoreDir": ["Libs"]
 }

@@ -40,6 +40,7 @@ Preview.lua
 AuraPreview.lua
 DragAssign.lua
 ContextMenu.lua
+ClickCasts.lua
 
 Options\Node.lua
 Options\Controls.lua
@@ -57,6 +58,7 @@ Options\RosterList.lua
 Options\Roster.lua
 Options\Profile.lua
 Options\RosterPresets.lua
+Options\ClickCasts.lua
 Options\ImportExport.lua
 
 SpotlightsUnitFrameMixin.lua

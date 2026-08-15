@@ -43,6 +43,7 @@ L.Settings.TabAppearance = "外观"
 L.Settings.TabGrid = "网格"
 L.Settings.TabAuras = "光环"
 L.Settings.TabRoster = "名单"
+L.Settings.TabClickCasts = "点击施法"
 L.Settings.TabImportExport = "导入 / 导出"
 L.Settings.ShowMinimapButton = "显示小地图按钮"
 L.Settings.ClickToOpenSettings = "点击打开设置"
@@ -258,6 +259,21 @@ L.Settings.AurasRebuildHelp = "部分设置在应用后可能需要重载。你�
 L.Settings.AuraCustomNote = "这些必须是出现在玩家身上的增益，因此饰品效果可用。减益和施法无法在此追踪，添加也不会有任何作用。"
 L.Settings.AuraCustomAdd = "添加"
 L.Settings.AuraCustomSpellID = "法术 ID"
+L.Settings.ClickCastIntro =
+"这些绑定只在 Spotlights 框体上施法，不会改变界面中的其他任何部分。输入法术 ID，点击绑定，然后按下你想使用的鼠标按键。点击已有绑定可将其改到其他按键。"
+L.Settings.ClickCastNone = "尚无点击绑定。"
+L.Settings.ClickCastBind = "绑定"
+L.Settings.ClickCastCapture = "请按下用于在框体上施放 %s 的鼠标按键，可搭配任意组合键。\n\n按 Esc 取消。"
+
+L.Settings.ClickCastOverridePrompt = "你已将 %s 绑定到 %s。请确认你希望仅在 Spotlights 中覆盖该行为。"
+L.Settings.ClickCastOverrideConfirm = "覆盖"
+L.Settings.ClickCastDormantPrompt =
+"你在游戏自带的点击绑定中将 %s 绑定到了 %s。它在 Spotlights 框体上仍会生效，在你移除它之前此绑定不会触发。仍要保存吗？"
+L.Settings.ClickCastSaveAnyway = "保存"
+
+L.Settings.ClickCastOverrides = "在 Spotlights 框体上覆盖 %s"
+L.Settings.ClickCastDormant = "未生效：游戏的点击绑定已将 %s 绑定到此点击"
+
 L.Settings.ReloadPrompt = "部分光环设置替换了其显示，而非修改它们，原有的显示会保留在内存中，直到你重载。\n\n现在重载？"
 L.Settings.ReloadNow = "现在重载"
 L.Settings.ReloadLater = "稍后"

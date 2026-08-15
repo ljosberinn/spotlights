@@ -46,6 +46,7 @@ L.Settings.TabAppearance = "Aussehen"
 L.Settings.TabGrid = "Raster"
 L.Settings.TabAuras = "Auren"
 L.Settings.TabRoster = "Gruppe"
+L.Settings.TabClickCasts = "Klick-Zaubern"
 L.Settings.TabImportExport = "Import / Export"
 L.Settings.ShowMinimapButton = "Minimap-Schaltfläche anzeigen"
 L.Settings.ClickToOpenSettings = "Klicken, um die Einstellungen zu öffnen"
@@ -268,6 +269,23 @@ L.Settings.AuraCustomNote =
 "Dies müssen STÄRKUNGSZAUBER sein, die auf Spielern erscheinen, Schmuckstück-Effekte funktionieren beispielsweise. Schwächungszauber und Zauber können hier nicht verfolgt werden, und das Hinzufügen bewirkt überhaupt nichts."
 L.Settings.AuraCustomAdd = "Hinzufügen"
 L.Settings.AuraCustomSpellID = "Zauber-ID"
+L.Settings.ClickCastIntro =
+"Diese Belegungen wirken ausschließlich auf Spotlights-Rahmen und ändern sonst nichts an der Benutzeroberfläche. Gib eine Zauber-ID ein, drücke Belegen und dann die gewünschte Maustaste. Klicke auf eine Belegung, um sie auf eine andere Taste zu legen."
+L.Settings.ClickCastNone = "Noch keine Klickbelegungen."
+L.Settings.ClickCastBind = "Belegen"
+L.Settings.ClickCastCapture =
+"Drücke die Maustaste – mit beliebigen Zusatztasten –, die %s auf einer Hervorhebung wirken soll.\n\nEsc bricht ab."
+
+L.Settings.ClickCastOverridePrompt =
+"Du hast %s auf %s gelegt. Bitte bestätige, dass du dieses Verhalten nur für Spotlights überschreiben möchtest."
+L.Settings.ClickCastOverrideConfirm = "Überschreiben"
+L.Settings.ClickCastDormantPrompt =
+"Du hast %s in den spieleigenen Klickbelegungen auf %s gelegt. Es funktioniert weiterhin auf Spotlights-Rahmen, und diese Belegung wird erst ausgelöst, wenn du sie entfernst. Trotzdem speichern?"
+L.Settings.ClickCastSaveAnyway = "Speichern"
+
+L.Settings.ClickCastOverrides = "Überschreibt %s auf Spotlights-Rahmen"
+L.Settings.ClickCastDormant = "Inaktiv: %s ist in den Klickbelegungen des Spiels auf diesen Klick gelegt"
+
 L.Settings.ReloadPrompt =
 "Einige Aura-Einstellungen haben ihre Anzeigen ersetzt statt sie zu ändern, und die Originale bleiben im Speicher, bis du neu lädst.\n\nJetzt neu laden?"
 L.Settings.ReloadNow = "Jetzt neu laden"

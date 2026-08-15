@@ -13,7 +13,7 @@ Private.AuraTracked = {}
 --- without knowing that two categories share one pool, two have no spells at all, and one is the user's
 --- own list with no classes to rail.
 
---- 196 of the content rectangle's 748.
+--- 196 of the content rectangle's 863.
 local RAIL_WIDTH = 196
 
 --- Shorter than a control row: fourteen rows at the kit's 26 read as a ladder rather than a list.

@@ -44,6 +44,7 @@ L.Settings.TabAppearance = "Apparence"
 L.Settings.TabGrid = "Grille"
 L.Settings.TabAuras = "Auras"
 L.Settings.TabRoster = "Groupe"
+L.Settings.TabClickCasts = "Incantation par clic"
 L.Settings.TabImportExport = "Import / Export"
 L.Settings.ShowMinimapButton = "Afficher le bouton de la minicarte"
 L.Settings.ClickToOpenSettings = "Cliquer pour ouvrir les options"
@@ -263,6 +264,23 @@ L.Settings.AurasRebuildHelp = "Certains réglages peuvent nécessiter un recharg
 L.Settings.AuraCustomNote = "Il doit s'agir d'AMÉLIORATIONS qui apparaissent sur les joueurs, afin que les effets de bijou fonctionnent. Les affaiblissements et les incantations ne peuvent pas être suivis ici, et en ajouter un ne fera absolument rien."
 L.Settings.AuraCustomAdd = "Ajouter"
 L.Settings.AuraCustomSpellID = "ID de sort"
+L.Settings.ClickCastIntro =
+"Ces raccourcis n'incantent que sur les cadres Spotlights et ne changent rien d'autre dans l'interface. Saisissez un ID de sort, cliquez sur Assigner, puis appuyez sur le bouton de souris voulu. Cliquez sur un raccourci pour le déplacer vers un autre bouton."
+L.Settings.ClickCastNone = "Aucun raccourci de clic pour l'instant."
+L.Settings.ClickCastBind = "Assigner"
+L.Settings.ClickCastCapture =
+"Appuyez sur le bouton de souris, avec les modificateurs voulus, qui doit incanter %s sur un cadre.\n\nÉchap annule."
+
+L.Settings.ClickCastOverridePrompt =
+"Vous avez %s assigné à %s. Veuillez confirmer que vous souhaitez remplacer ce comportement uniquement pour Spotlights."
+L.Settings.ClickCastOverrideConfirm = "Remplacer"
+L.Settings.ClickCastDormantPrompt =
+"Vous avez %s assigné à %s dans les Raccourcis de clic du jeu. Cela continuera de fonctionner sur les cadres Spotlights, et ce raccourci ne se déclenchera pas tant que vous ne l'aurez pas retiré. Enregistrer quand même ?"
+L.Settings.ClickCastSaveAnyway = "Enregistrer"
+
+L.Settings.ClickCastOverrides = "Remplace %s sur les cadres Spotlights"
+L.Settings.ClickCastDormant = "Inactif : %s est assigné à ce clic dans les Raccourcis de clic du jeu"
+
 L.Settings.ReloadPrompt = "Certains réglages d'auras ont remplacé leurs affichages au lieu de les modifier, et les originaux restent en mémoire jusqu'à ce que vous rechargiez.\n\nRecharger maintenant ?"
 L.Settings.ReloadNow = "Recharger maintenant"
 L.Settings.ReloadLater = "Plus tard"
