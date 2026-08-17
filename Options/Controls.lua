@@ -1076,7 +1076,6 @@ end
 --- since nothing has laid it out yet, so `Layout` restates it every pass.
 ---@class SpotlightsTextAreaNode : SpotlightsNode
 ---@field SetText fun(self: SpotlightsTextAreaNode, text: string)
----@field Highlight fun(self: SpotlightsTextAreaNode) focuses the box and selects everything, for a Copy button
 ---@param parent Frame
 ---@param height number
 ---@param get fun(): string
@@ -1114,7 +1113,8 @@ function Private.Controls.TextArea(parent, height, get, set)
 			end
 		end)
 
-		-- Selected as soon as it is focused, not only through the Copy button beside it.
+		-- Selecting on focus is the whole copy path: `CopyToClipboard` is protected, so a Copy button
+		-- can only ever have selected the text the user then has to press Ctrl-C over anyway.
 		editBox:SetScript("OnEditFocusGained", function(self)
 			self:HighlightText()
 		end)
@@ -1123,11 +1123,6 @@ function Private.Controls.TextArea(parent, height, get, set)
 	function row:SetText(text)
 		expected = text
 		editBox:SetText(text)
-	end
-
-	function row:Highlight()
-		editBox:SetFocus()
-		editBox:HighlightText()
 	end
 
 	function row:Refresh()

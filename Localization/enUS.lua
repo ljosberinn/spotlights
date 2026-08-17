@@ -72,7 +72,8 @@ L.Settings.ImportErrorDecode = "the string could not be decoded"
 L.Settings.ImportErrorPayload = "the decoded data is not a settings table"
 -- The one import failure the user can act on, so it says what to do rather than only what went wrong.
 L.Settings.ImportErrorVersion = "the profile comes from a newer version of Spotlights, so update the addon first"
-L.Settings.Copy = "Copy"
+-- Stands in for the Copy button an addon cannot have: `CopyToClipboard` is protected.
+L.Settings.CopyHint = "Click the box above, then press Ctrl-C to copy."
 
 L.Settings.Recenter = "Return To Center"
 

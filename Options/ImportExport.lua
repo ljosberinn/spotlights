@@ -4,7 +4,8 @@ local _, Private = ...
 --- The Import/Export tab: two in-place boxes rather than the pair of `StaticPopup`s a button opens. The
 --- codec itself lives in `Options/Profile.lua`, which the Roster tab's presets share.
 
---- Two boxes, two headings, two buttons and their gaps still leave room over at 160 in the 610px window.
+--- Two boxes, two headings, a caption, a button and their gaps still leave room over at 160 in the 610px
+--- window.
 local EXPORT_HEIGHT = 160
 local IMPORT_HEIGHT = 160
 
@@ -69,14 +70,9 @@ end
 local function BuildImportExport(page)
 	local L = Private.L.Settings
 
-	---@type SpotlightsTextAreaNode
-	local exportBox
+	local exportBox = Private.Controls.TextArea(page, EXPORT_HEIGHT, Private.Profile.ExportString)
 
-	---@type SpotlightsTextAreaNode
-	local importBox
-
-	exportBox = Private.Controls.TextArea(page, EXPORT_HEIGHT, Private.Profile.ExportString)
-	importBox = Private.Controls.TextArea(page, IMPORT_HEIGHT, function()
+	local importBox = Private.Controls.TextArea(page, IMPORT_HEIGHT, function()
 		return pending
 	end, function(value)
 		pending = value
@@ -85,9 +81,7 @@ local function BuildImportExport(page)
 	return Private.Node.Column(page, {
 		Private.Controls.SubHeading(page, L.Export),
 		exportBox,
-		Private.Controls.ActionButton(page, L.Copy, function()
-			exportBox:Highlight()
-		end),
+		Private.Controls.Caption(page, L.CopyHint),
 
 		Private.Controls.SubHeading(page, L.Import),
 		importBox,

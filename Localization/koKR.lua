@@ -56,7 +56,6 @@ L.Settings.ImportErrorPrefix = "이 문자열은 Spotlights 프로필이 아닙�
 L.Settings.ImportErrorDecode = "문자열을 디코딩할 수 없습니다"
 L.Settings.ImportErrorPayload = "디코딩된 데이터가 설정 테이블이 아닙니다"
 L.Settings.ImportErrorVersion = "프로필이 더 최신 버전의 Spotlights에서 왔습니다. 애드온을 먼저 업데이트하세요"
-L.Settings.Copy = "복사"
 L.Settings.Recenter = "중앙으로 되돌리기"
 L.Settings.PlacementHeading = "배치"
 L.Settings.InterfaceHeading = "인터페이스"

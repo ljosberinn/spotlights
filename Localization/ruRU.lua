@@ -57,7 +57,6 @@ L.Settings.ImportErrorPrefix = "строка не является профил�
 L.Settings.ImportErrorDecode = "не удалось декодировать строку"
 L.Settings.ImportErrorPayload = "декодированные данные не являются таблицей настроек"
 L.Settings.ImportErrorVersion = "профиль создан в более новой версии Spotlights, сначала обновите аддон"
-L.Settings.Copy = "Копировать"
 L.Settings.Recenter = "Вернуть в центр"
 L.Settings.PlacementHeading = "Размещение"
 L.Settings.InterfaceHeading = "Интерфейс"
