@@ -82,6 +82,21 @@ local function SpellDisplay(spellID)
 		C_Spell.GetSpellTexture(spellID) or QUESTION_MARK_ICON
 end
 
+--- Whether the character has the spell at all. Naming a spell is not evidence an ID is the intended one --
+--- every ID names something -- so this is what the preview cannot say by itself.
+---
+--- Both banks and overrides, unlike the client's own list (`Blizzard_ClickBindingUI.lua:632-638`), because
+--- this only warns: a pet ability or a talent-replaced base ID is a binding that works, and warning about
+--- one costs more than staying quiet about the few IDs a character can cast without owning.
+---@param spellID integer
+---@return boolean
+local function Known(spellID)
+	local includeOverrides = true
+
+	return C_SpellBook.IsSpellKnownOrInSpellBook(spellID, Enum.SpellBookSpellBank.Player, includeOverrides)
+		or C_SpellBook.IsSpellKnownOrInSpellBook(spellID, Enum.SpellBookSpellBank.Pet, includeOverrides)
+end
+
 --- Takes the overlay down and forgets what it was waiting for. Both halves, always: an overlay left up with
 --- nothing pending swallows every click on the tab.
 local function Disarm()
@@ -529,10 +544,19 @@ local function BuildAddRow(page)
 	icon:SetPoint("LEFT", bind, "RIGHT", PREVIEW_GAP, 0)
 	icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
 
+	-- At the row's trailing edge and emptied rather than hidden when there is nothing to warn about, so the
+	-- name beside the icon gets the width back instead of ending short of a blank region.
+	local warning = node:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+
+	warning:SetPoint("RIGHT", node, "RIGHT", 0, 0)
+	warning:SetJustifyH("RIGHT")
+	warning:SetWordWrap(false)
+	warning:SetTextColor(ORANGE_FONT_COLOR:GetRGB())
+
 	local preview = node:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
 
 	preview:SetPoint("LEFT", icon, "RIGHT", TEXT_GAP, 0)
-	preview:SetPoint("RIGHT", node, "RIGHT", 0, 0)
+	preview:SetPoint("RIGHT", warning, "LEFT", -PREVIEW_GAP, 0)
 	preview:SetJustifyH("LEFT")
 	preview:SetWordWrap(false)
 
@@ -554,6 +578,8 @@ local function BuildAddRow(page)
 			preview:SetText(label)
 			icon:SetTexture(texture)
 		end
+
+		warning:SetText(found and spellID and not Known(spellID) and L.ClickCastUnknown or "")
 	end
 
 	box:SetScript("OnTextChanged", function()

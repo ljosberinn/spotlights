@@ -401,6 +401,10 @@ L.Settings.ClickCastDormantPrompt =
 "You have %s bound to %s in the game's own Click Bindings. It will keep working on Spotlights frames, and this binding will not fire until you remove it. Save it anyway?"
 L.Settings.ClickCastSaveAnyway = "Save"
 
+-- A warning rather than a refusal: every ID names something, so an ID the character cannot cast is the one
+-- kind of typo the preview alone cannot show.
+L.Settings.ClickCastUnknown = "Not in your spellbook: the ID may be wrong"
+
 L.Settings.ClickCastOverrides = "Overrides %s on Spotlights frames"
 L.Settings.ClickCastDormant = "Inactive: %s is bound to this click in the game's Click Bindings"
 
