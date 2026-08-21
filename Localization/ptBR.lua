@@ -269,11 +269,11 @@ L.Settings.AuraCustomNote =
 L.Settings.AuraCustomAdd = "Adicionar"
 L.Settings.AuraCustomSpellID = "ID de magia"
 L.Settings.ClickCastIntro =
-"Estas associações só conjuram nos quadros do Spotlights e não mudam mais nada na interface. Informe um ID de magia, clique em Associar e depois pressione o botão do mouse desejado. Clique em uma associação para movê-la para outro botão."
+"Estas associações só conjuram nos quadros do Spotlights e não mudam mais nada na interface. Informe um ID de magia, clique em Associar e depois pressione o botão do mouse, a tecla ou a direção da roda desejada. Clique em uma associação para movê-la para outro lugar."
 L.Settings.ClickCastNone = "Nenhuma associação de clique ainda."
 L.Settings.ClickCastBind = "Associar"
 L.Settings.ClickCastCapture =
-"Pressione o botão do mouse, com os modificadores que quiser, que deve conjurar %s em um destaque.\n\nEsc cancela."
+"Pressione o botão do mouse, a tecla ou a direção da roda, com os modificadores que quiser, que deve conjurar %s em um destaque.\n\nEsc cancela."
 
 L.Settings.ClickCastOverridePrompt =
 "Você tem %s associado a %s. Confirme que deseja substituir esse comportamento apenas no Spotlights."

@@ -120,20 +120,22 @@
 --- the generated API annotations declare the enum's *values* without declaring a type to hold one.
 ---@alias ClickBindingType integer
 
---- One Spotlights-only click binding.
+--- One Spotlights-only binding, in one of two shapes. A `key` row carries the chord and nothing else; a
+--- mouse row carries `button`, `prefix` and `modifiers`. The two dispatch through entirely different secure
+--- paths -- see `ClickCasts.lua`.
 ---
---- Two projections of the same click are stored because neither derives from the other. `prefix` is what
---- the secure lookup reads, built by `SecureButton_GetModifierPrefix` in the fixed `alt-ctrl-shift-` order;
---- `modifiers` is the client's own bitfield, which has no decoder and is the only thing
+--- A mouse row stores two projections of the same click because neither derives from the other. `prefix` is
+--- what the secure lookup reads, built by `SecureButton_GetModifierPrefix` in the fixed `alt-ctrl-shift-`
+--- order; `modifiers` is the client's own bitfield, which has no decoder and is the only thing
 --- `C_ClickBindings.GetBindingType` will accept. Both are captured from the same click, so they cannot
 --- disagree about which keys were held.
 ---
---- `button` is the button that was **pressed**, not the suffix the binding ends up on -- see
---- `ClickCasts.lua`.
+--- `button` is the button that was **pressed**, not the suffix the binding ends up on.
 ---@class SpotlightsClickCast
----@field button string a `SecureButton_GetButtonSuffix` button name, e.g. `LeftButton` or `Button4`
----@field prefix string
----@field modifiers number
+---@field key string? a binding chord as `CreateKeyChordStringUsingMetaKeyState` spells it, e.g. `SHIFT-F10` or `MOUSEWHEELUP`
+---@field button string? a `SecureButton_GetButtonSuffix` button name, e.g. `LeftButton` or `Button4`
+---@field prefix string?
+---@field modifiers number?
 ---@field spellID integer stored as the base ID; a talent override is resolved by `CastSpellByID` itself
 
 --- The players whose grid slot should be rebuilt in every group, keyed by GUID because a GUID survives
@@ -440,6 +442,11 @@
 ---@field autoRemoveRoles table<string, boolean> which roles are kept out of the grid, keyed the same way. Destructive, unlike `unrosteredRoles`: a slot whose player plays one of these is taken out and stays out
 ---@field autoAddPartyDamagers boolean append every party damage dealer to the grid, once each. Party only, and a member taken back out by hand stays out for the rest of that group
 
+--- The `SecureActionButtonTemplate` button a key click cast lands on, one per spotlight. A click target for
+--- override bindings and nothing else -- see `ClickCasts.EnsureKeyProxy` for why the child cannot be one.
+---@class SpotlightsClickCastProxy : Button
+---@field spotlightsClickCasts table<string, string>? as `SpotlightsUnitFrame`'s, for the key attributes written here rather than on the child
+
 --- A header's child button. Every region is declared by our template and every method is the
 --- mixin's; nothing here comes from Blizzard but SecureUnitButtonTemplate's OnClick.
 ---
@@ -460,6 +467,7 @@
 ---@field spotlightsHovered boolean? ours, from the hooked OnEnter/OnLeave — never a secret
 ---@field spotlightsAuras table<string, table<string, SpotlightsAuraDisplay>>? feature key -> display key -> display, built lazily
 ---@field spotlightsClickCasts table<string, string>? the click-cast attributes this child currently holds, so a removed binding can be cleared from the name it actually took
+---@field spotlightsKeyProxy SpotlightsClickCastProxy? the button a key binding's click lands on, so press can be had without firing every mouse click twice
 ---@field OnEvent fun(self: SpotlightsUnitFrame, event: string)
 ---@field OnUnitAttributeChanged fun(self: SpotlightsUnitFrame, value: string?)
 ---@field UpdateAll fun(self: SpotlightsUnitFrame)

@@ -387,10 +387,10 @@ L.Settings.AuraCustomSpellID = "Spell ID"
 -- Says the isolation out loud in the first sentence, because "click casting" is a feature several addons
 -- offer over every frame in the interface and this one deliberately does not.
 L.Settings.ClickCastIntro =
-"These bindings cast on Spotlights frames only, and change nothing anywhere else in the interface. Enter a spell ID, press Bind, then press the mouse button you want it on. Click a binding to move it to another button."
+"These bindings cast on Spotlights frames only, and change nothing anywhere else in the interface. Enter a spell ID, press Bind, then press the mouse button, key or scroll direction you want it on. Click a binding to move it elsewhere."
 L.Settings.ClickCastNone = "No click bindings yet."
 L.Settings.ClickCastBind = "Bind"
-L.Settings.ClickCastCapture = "Press the mouse button, with any modifiers, that should cast %s on a spotlight.\n\nEscape cancels."
+L.Settings.ClickCastCapture = "Press the mouse button, key or scroll direction, with any modifiers, that should cast %s on a spotlight.\n\nEscape cancels."
 
 -- The two prompts differ in more than wording: the first is an override the user is making, the second is
 -- one the game is refusing them, and a binding that says it replaced something it did not is worse than no
@@ -401,6 +401,14 @@ L.Settings.ClickCastOverrideConfirm = "Override"
 L.Settings.ClickCastDormantPrompt =
 "You have %s bound to %s in the game's own Click Bindings. It will keep working on Spotlights frames, and this binding will not fire until you remove it. Save it anyway?"
 L.Settings.ClickCastSaveAnyway = "Save"
+
+-- A key binding is an override, so unlike the two above it always wins -- these confirm what it takes away
+-- rather than warn that it may not fire. The second names the addon's command as the game does, which for a
+-- click binding is a raw frame name; ugly, but it still identifies the culprit.
+L.Settings.ClickCastKeyBoundPrompt =
+"You have %s bound to %s in your keybindings. While a spotlight is hovered, that key will cast this spell instead. Continue?"
+L.Settings.ClickCastKeyOverriddenPrompt =
+"Another addon has %s on %s. While a spotlight is hovered, that key will cast this spell instead. Continue?"
 
 -- A warning rather than a refusal: every ID names something, so an ID the character cannot cast is the one
 -- kind of typo the preview alone cannot show.

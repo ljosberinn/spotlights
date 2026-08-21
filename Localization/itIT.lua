@@ -269,11 +269,11 @@ L.Settings.AuraCustomNote =
 L.Settings.AuraCustomAdd = "Aggiungi"
 L.Settings.AuraCustomSpellID = "ID incantesimo"
 L.Settings.ClickCastIntro =
-"Queste associazioni lanciano incantesimi solo sui riquadri di Spotlights e non cambiano nient'altro nell'interfaccia. Inserisci un ID incantesimo, premi Associa e poi premi il pulsante del mouse desiderato. Clicca su un'associazione per spostarla su un altro pulsante."
+"Queste associazioni lanciano incantesimi solo sui riquadri di Spotlights e non cambiano nient'altro nell'interfaccia. Inserisci un ID incantesimo, premi Associa e poi premi il pulsante del mouse, il tasto o la direzione della rotellina desiderati. Clicca su un'associazione per spostarla altrove."
 L.Settings.ClickCastNone = "Nessuna associazione di clic."
 L.Settings.ClickCastBind = "Associa"
 L.Settings.ClickCastCapture =
-"Premi il pulsante del mouse, con i modificatori desiderati, che deve lanciare %s su un riquadro.\n\nEsc annulla."
+"Premi il pulsante del mouse, il tasto o la direzione della rotellina, con i modificatori desiderati, che deve lanciare %s su un riquadro.\n\nEsc annulla."
 
 L.Settings.ClickCastOverridePrompt =
 "Hai %s associato a %s. Conferma di voler sovrascrivere questo comportamento solo per Spotlights."

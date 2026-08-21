@@ -266,11 +266,11 @@ L.Settings.AuraCustomNote = "Il doit s'agir d'AMÉLIORATIONS qui apparaissent su
 L.Settings.AuraCustomAdd = "Ajouter"
 L.Settings.AuraCustomSpellID = "ID de sort"
 L.Settings.ClickCastIntro =
-"Ces raccourcis n'incantent que sur les cadres Spotlights et ne changent rien d'autre dans l'interface. Saisissez un ID de sort, cliquez sur Assigner, puis appuyez sur le bouton de souris voulu. Cliquez sur un raccourci pour le déplacer vers un autre bouton."
+"Ces raccourcis n'incantent que sur les cadres Spotlights et ne changent rien d'autre dans l'interface. Saisissez un ID de sort, cliquez sur Assigner, puis appuyez sur le bouton de souris, la touche ou la direction de molette voulue. Cliquez sur un raccourci pour le déplacer ailleurs."
 L.Settings.ClickCastNone = "Aucun raccourci de clic pour l'instant."
 L.Settings.ClickCastBind = "Assigner"
 L.Settings.ClickCastCapture =
-"Appuyez sur le bouton de souris, avec les modificateurs voulus, qui doit incanter %s sur un cadre.\n\nÉchap annule."
+"Appuyez sur le bouton de souris, la touche ou la direction de molette, avec les modificateurs voulus, qui doit incanter %s sur un cadre.\n\nÉchap annule."
 
 L.Settings.ClickCastOverridePrompt =
 "Vous avez %s assigné à %s. Veuillez confirmer que vous souhaitez remplacer ce comportement uniquement pour Spotlights."

@@ -261,10 +261,10 @@ L.Settings.AuraCustomNote = "这些必须是出现在玩家身上的增益，因
 L.Settings.AuraCustomAdd = "添加"
 L.Settings.AuraCustomSpellID = "法术 ID"
 L.Settings.ClickCastIntro =
-"这些绑定只在 Spotlights 框体上施法，不会改变界面中的其他任何部分。输入法术 ID，点击绑定，然后按下你想使用的鼠标按键。点击已有绑定可将其改到其他按键。"
+"这些绑定只在 Spotlights 框体上施法，不会改变界面中的其他任何部分。输入法术 ID，点击绑定，然后按下你想使用的鼠标按键、键盘按键或滚轮方向。点击已有绑定可将其改到别处。"
 L.Settings.ClickCastNone = "尚无点击绑定。"
 L.Settings.ClickCastBind = "绑定"
-L.Settings.ClickCastCapture = "请按下用于在框体上施放 %s 的鼠标按键，可搭配任意组合键。\n\n按 Esc 取消。"
+L.Settings.ClickCastCapture = "请按下用于在框体上施放 %s 的鼠标按键、键盘按键或滚轮方向，可搭配任意组合键。\n\n按 Esc 取消。"
 
 L.Settings.ClickCastOverridePrompt = "你已将 %s 绑定到 %s。请确认你希望仅在 Spotlights 中覆盖该行为。"
 L.Settings.ClickCastOverrideConfirm = "覆盖"
