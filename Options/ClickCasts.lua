@@ -8,10 +8,6 @@ local _, Private = ...
 --- the mouse has, every key the keyboard has and both wheel directions, against every modifier -- a list
 --- nobody wants to scroll; and the prompts below have to be about the combination that was actually pressed
 --- anyway, since only the client can say what it already spends that click or key on.
----
---- Which route a capture takes is decided by which script caught it: `OnClick` is a mouse button and
---- everything else is a chord. Nothing normalises between them, because they are stored and dispatched
---- differently all the way down -- see `ClickCasts.lua`.
 
 --- A row is two lines, the spell and what it is bound to, so it is taller than a control row and the icon
 --- is sized to both lines rather than either. The same numbers the Tracked pane's spell rows use, because
@@ -22,8 +18,8 @@ local ICON_SIZE = 24
 local TEXT_GAP = 6
 
 --- What the combination is drawn in, at the row's trailing edge, as the client's own click-binding list
---- draws it. Fixed rather than measured so every row's spell name ends in the same column, and wide enough
---- for a modified chord now that keys are bindable.
+--- draws it. Fixed rather than measured so every row's spell name ends in the same column; wide enough for
+--- a modified chord.
 local BINDING_WIDTH = 200
 
 local REMOVE_WIDTH = 20
@@ -199,13 +195,9 @@ local function ConfirmDormant(binding, replaces, label)
 	StaticPopup_Show(DORMANT_POPUP)
 end
 
---- A key binding is an *override* (`SetOverrideBindingClick` with priority), so it always wins: while a
---- spotlight is hovered the key stops doing whatever the user has it on. That makes this a confirmation
---- rather than the dormant case -- the row is never inert.
----
---- Two texts, because "your own keybind" and "another addon already overrides this" are different sentences.
---- Neither claims more than `GetBindingAction` can see: an addon that reads keys through its own `OnKeyDown`
---- registers no binding at all, and which of two addons' overrides wins is not queryable.
+--- A key binding is a priority override, so it always wins and the row is never dormant: this confirms what
+--- it takes away rather than warning that it may not fire. Two texts, because the user's own keybind and
+--- another addon's override are different sentences.
 ---@param binding SpotlightsClickCast
 ---@param replaces integer?
 ---@param label string
@@ -231,15 +223,12 @@ local function ConfirmKeyOverride(binding, replaces, label, overridden)
 	StaticPopup_Show(KEY_POPUP)
 end
 
---- What the keybinding system already spends a chord on, and what to call it.
+--- What the keybinding system already spends a chord on, and what to call it. Two passes because
+--- `checkOverride` answers with the override when there is one and the plain binding otherwise, which is
+--- what tells an addon's override from the user's own keybind. An addon reading keys through its own
+--- `OnKeyDown` registers no binding and is invisible here.
 ---
---- Both passes, because `checkOverride` answers with the override when there is one and the plain binding
---- otherwise, so the two together tell an addon's override from the user's own keybind. This is the same
---- conflict check the game's own keybinding UI runs before it rebinds a key
---- (`Blizzard_Keybindings.lua:127`), and `GetBindingName` is what names the binding it is about to steal.
----
---- `bindingContext` is left nil deliberately: the non-default contexts are the housing editor's, and a
---- spotlight is not hovered inside one.
+--- `bindingContext` is left nil: the other contexts are the housing editor's.
 ---@param key string
 ---@return string? label, boolean overridden
 local function KeyConflict(key)
@@ -258,16 +247,13 @@ local function KeyConflict(key)
 	return nil, false
 end
 
---- Turns the key or wheel direction the overlay caught into a binding.
----
---- The chord comes from `CreateKeyChordStringUsingMetaKeyState` rather than a hand-built prefix because it
---- is the string `SetBindingClick` and `GetBindingAction` are both handed: a modifier order the binding
---- system does not use binds nothing and detects nothing.
+--- Turns the key or wheel direction the overlay caught into a binding. The chord comes from
+--- `CreateKeyChordStringUsingMetaKeyState` because it is the string `SetBindingClick` and
+--- `GetBindingAction` are both handed: a modifier order the binding system does not use binds nothing and
+--- detects nothing.
 ---@param key string
 local function CapturedKey(key)
-	-- The bare modifiers, which are held rather than pressed, and `UNKNOWN`. `BUTTON1` and `BUTTON2` are in
-	-- that list too -- correct for a keybinding UI, wrong for us -- which is why this guards the key route
-	-- only, after `OnClick` has claimed every real button press.
+	-- Rejects `BUTTON1` and `BUTTON2` as well as the bare modifiers, so it can only guard the key route.
 	if IsKeyPressIgnoredForBinding(key) then
 		return
 	end
@@ -342,8 +328,7 @@ local function BuildOverlay(page)
 	frame:SetFrameLevel(page:GetFrameLevel() + OVERLAY_LEVEL)
 	frame:RegisterForClicks("AnyUp")
 
-	-- Once rather than per arming, unlike the keyboard: a hidden frame receives no wheel either way, and
-	-- nothing else on the tab scrolls with the overlay up.
+	-- Not toggled per arming like the keyboard: a hidden frame receives no wheel anyway.
 	frame:EnableMouseWheel(true)
 	frame:Hide()
 
@@ -377,8 +362,7 @@ local function BuildOverlay(page)
 	end)
 
 	frame:SetScript("OnKeyDown", function(_, key)
-		-- Escape is spent on cancelling rather than offered as a binding, and `IsKeyPressIgnoredForBinding`
-		-- does not reject it.
+		-- Spent on cancelling, and `IsKeyPressIgnoredForBinding` would not have rejected it.
 		if key == "ESCAPE" then
 			Disarm()
 
@@ -388,8 +372,7 @@ local function BuildOverlay(page)
 		CapturedKey(key)
 	end)
 
-	-- The wheel reaches the binding system as `MOUSEWHEELUP`/`MOUSEWHEELDOWN`, which are binding keys and
-	-- never button suffixes, so it rides the key route rather than the click one.
+	-- `MOUSEWHEELUP`/`MOUSEWHEELDOWN` are binding keys, never button suffixes, so the wheel is a chord.
 	frame:SetScript("OnMouseWheel", function(_, delta)
 		CapturedKey(delta > 0 and "MOUSEWHEELUP" or "MOUSEWHEELDOWN")
 	end)
@@ -517,8 +500,7 @@ end
 --- What a row's second line says about the client's own bindings, re-read on every pass rather than stored:
 --- a combination that was free when it was bound can be taken later, and nothing fires when it is.
 ---
---- Mouse rows only. `C_ClickBindings` is a mouse-only system, and a key row's own conflict is an override
---- our binding outranks, so there is no state a key row could be dormant in.
+--- Mouse rows only: `C_ClickBindings` knows nothing about keys, and a key row is never dormant.
 ---@param binding SpotlightsClickCast
 ---@return string text, boolean dormant
 local function Note(binding)

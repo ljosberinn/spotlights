@@ -574,8 +574,7 @@ local function Repair(db)
 	end)
 
 	-- A list the user built, so empty defaults for `presets`' reason. What is *in* it is validated where it
-	-- is read: `ClickCasts.ApplyChild` refuses a button the secure templates give no usable suffix, and
-	-- treats a row as a mouse one unless it carries a chord.
+	-- is read: `ClickCasts.ApplyChild` refuses a button the secure templates give no usable suffix.
 	RepairBlock(db, "clickCasts", function()
 		return {}
 	end)

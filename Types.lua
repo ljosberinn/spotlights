@@ -120,9 +120,9 @@
 --- the generated API annotations declare the enum's *values* without declaring a type to hold one.
 ---@alias ClickBindingType integer
 
---- One Spotlights-only binding, in one of two shapes. A `key` row carries the chord and nothing else; a
---- mouse row carries `button`, `prefix` and `modifiers`. The two dispatch through entirely different secure
---- paths -- see `ClickCasts.lua`.
+--- One Spotlights-only binding, in one of two shapes: a `key` row carries the chord alone, a mouse row
+--- carries `button`, `prefix` and `modifiers`. The two dispatch through different secure paths -- see
+--- `ClickCasts.lua`.
 ---
 --- A mouse row stores two projections of the same click because neither derives from the other. `prefix` is
 --- what the secure lookup reads, built by `SecureButton_GetModifierPrefix` in the fixed `alt-ctrl-shift-`
@@ -442,8 +442,8 @@
 ---@field autoRemoveRoles table<string, boolean> which roles are kept out of the grid, keyed the same way. Destructive, unlike `unrosteredRoles`: a slot whose player plays one of these is taken out and stays out
 ---@field autoAddPartyDamagers boolean append every party damage dealer to the grid, once each. Party only, and a member taken back out by hand stays out for the rest of that group
 
---- The `SecureActionButtonTemplate` button a key click cast lands on, one per spotlight. A click target for
---- override bindings and nothing else -- see `ClickCasts.EnsureKeyProxy` for why the child cannot be one.
+--- The button a key click cast lands on, one per spotlight -- see `ClickCasts.EnsureKeyProxy` for why the
+--- child cannot be one.
 ---@class SpotlightsClickCastProxy : Button
 ---@field spotlightsClickCasts table<string, string>? as `SpotlightsUnitFrame`'s, for the key attributes written here rather than on the child
 

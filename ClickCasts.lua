@@ -6,21 +6,19 @@ Private.ClickCasts = {}
 
 --- Click and key bindings that cast a spell on a spotlight and do nothing anywhere else.
 ---
---- **Two routes, one list.** A mouse binding is stored as the click the user *pressed* -- a button name plus
---- the game's own modifier bitfield -- and resolved to secure attributes at apply time rather than at bind
---- time. That indirection is the whole design: `SecureUnitButton_OnClick` rewrites an *interaction* click to
---- that interaction's default button before it reads `type` (`SecureTemplates.lua:863-865`), so which suffix
---- a binding has to occupy is the client's current answer rather than a fact about the button. Resolving
---- late means moving Target to another button in the game's own UI cannot leave a spotlight binding firing
---- from a button nobody chose.
+--- A mouse binding is stored as the click the user **pressed** -- a button name plus the game's own modifier
+--- bitfield -- and resolved to secure attributes at apply time rather than at bind time. That indirection
+--- is the whole design: `SecureUnitButton_OnClick` rewrites an *interaction* click to that interaction's
+--- default button before it reads `type` (`SecureTemplates.lua:863-865`), so which suffix a binding has to
+--- occupy is the client's current answer rather than a fact about the button. Resolving late means moving
+--- Target to another button in the game's own UI cannot leave a spotlight binding firing from a button
+--- nobody chose.
 ---
---- A key binding cannot use that route at all: past button five the hardware's driver emits a *keystroke*,
---- and a key press is not a click on a unit frame. So a key is stored as the binding chord and dispatched
---- through a per-spotlight proxy button that a hover-scoped override binding clicks -- see `EnsureKeyProxy`.
+--- A key press is not a click on a unit frame, so it cannot use that route at all. Keys are stored as a
+--- binding chord and dispatched through a per-spotlight proxy button -- see `EnsureKeyProxy`.
 ---
---- We write `type*` and `spell*` on our own children and their proxies, plus the two `spotlights*`
---- attributes the hover snippet reads. `unit` stays the header's, so no Spotlights code ever holds the unit
---- token -- see `SlotHeader.InitChild`.
+--- We write `type*` and `spell*` on our own children and their proxies. `unit` stays the header's, so no
+--- Spotlights code ever holds the unit token -- see `SlotHeader.InitChild`.
 
 local DeferralKey = Private.Enum.DeferralKey
 
@@ -37,8 +35,6 @@ for i = 4, 31 do
 	BUTTON_LABELS["Button" .. i] = _G["BUTTON_" .. i .. "_STRING"]
 end
 
---- Where a child tells the hover snippet which proxy to bind against, and which chords to bind. Read from
---- the restricted environment, so both have to be plain strings.
 local PROXY_ATTRIBUTE = "spotlightsKeyProxy"
 local KEYS_ATTRIBUTE = "spotlightsKeyBindings"
 
@@ -49,9 +45,8 @@ local function Bindings()
 	return db and db.clickCasts or {}
 end
 
---- The chord a row binds, or nil when it is a mouse row. The two families are told apart by this and
---- nothing else, and a stored row is validated where it is read rather than on load
---- (`Migration.lua:576-579`).
+--- The chord a row binds, or nil for a mouse row. Type-checked because stored rows are validated where they
+--- are read (`Migration.lua:576-579`).
 ---@param binding SpotlightsClickCast
 ---@return string?
 local function KeyOf(binding)
@@ -90,16 +85,10 @@ local function Attribute(binding)
 	return binding.prefix, SecureButton_GetButtonSuffix(button)
 end
 
---- The made-up button name a key binding's click arrives as. Outside the 31 the secure templates know, so
---- `SecureButton_GetButtonSuffix` answers `"-<name>"` (`SecureTemplates.lua:101-117`) -- which is exactly
---- the suffix the attribute is written under.
----
---- **The chord is folded into the name rather than left to the attribute prefix**, so `SHIFT-F10` and `F10`
---- are two independent buttons and neither depends on what `SecureButton_GetModifierPrefix` happens to
---- report when the click is delivered.
----
---- Punctuation is escaped rather than dropped, because `-` and `=` are both key names in their own right. A
---- chord is upper case throughout, so a lower-case escape cannot collide with anything inside one.
+--- The chord is folded into the button name rather than left to the attribute prefix, so `SHIFT-F10` and
+--- `F10` are independent of what `SecureButton_GetModifierPrefix` reports at delivery time. Punctuation is
+--- escaped rather than dropped because `-` and `=` are key names too; a chord is upper case, so the escape
+--- cannot collide inside one.
 ---@param key string
 ---@return string
 local function VirtualButton(key)
@@ -110,10 +99,7 @@ end
 
 --- Sorts mouse bindings by the button's own suffix and then by modifiers, so the list reads left, right,
 --- middle and then the extra buttons in number order instead of the alphabetical order the button *names*
---- would give.
----
---- Keys come after all of them, in chord order. Not interleaved: a key has no button suffix to sort on, so
---- any mixed order would be one the user could not read off the rows.
+--- would give. Keys sort after every one of them, in chord order: a key has no suffix to interleave on.
 ---@param left SpotlightsClickCast
 ---@param right SpotlightsClickCast
 ---@return boolean
@@ -139,25 +125,14 @@ local function Precedes(left, right)
 	return left.modifiers < right.modifiers
 end
 
---- The one addon-wide handler the hover snippets run against.
----
---- `SecureHandlerWrapScript` requires a frame `IsProtected` reports as *explicitly* protected
---- (`SecureHandlers.lua:622`), which the slot headers -- `SecureRaidGroupHeaderTemplate` -- are not.
+--- Its own frame because `SecureHandlerWrapScript` requires one that is *explicitly* protected
+--- (`SecureHandlers.lua:622`), which the slot headers are not.
 local handler = CreateFrame("Frame", nil, nil, "SecureHandlerBaseTemplate")
 
---- Sets the key bindings for the spotlight the cursor just entered.
----
---- **Hover-scoped, and set from inside the restricted environment.** An override binding is global, so one
---- set out of combat would cast on whichever slot the header last assigned. `SetBindingClick` is a
---- restricted-environment handle method over `SetOverrideBindingClick` (`RestrictedFrames.lua:545`), which
---- is the only reason a key click cast can be created mid-fight at all. The bindings are owned by the child,
---- so `ClearBindings` on the way out takes exactly ours.
----
---- Space is the field separator because it cannot appear in a chord: every punctuation key reports its
---- unshifted character and the space bar reports `SPACE`.
----
---- Returning nothing is deliberate -- `false` out of a wrapped `OnEnter` suppresses the handler it wraps
---- (`SecureHandlers.lua:296`), which here is the unit tooltip.
+--- Bound on hover because an override binding is global: one set out of combat would fire on whichever slot
+--- the header last assigned. Space separates the fields because it cannot appear in a chord, and returning
+--- nothing is required -- `false` out of a wrapped `OnEnter` suppresses the unit tooltip it wraps
+--- (`SecureHandlers.lua:296`).
 local ENTER_SNIPPET = string.format([[
 	local proxy = self:GetAttribute("%s")
 	local keys = self:GetAttribute("%s")
@@ -173,22 +148,13 @@ local LEAVE_SNIPPET = [[
 	self:ClearBindings()
 ]]
 
---- How many proxies exist, which is only ever read to name the next one. A proxy has to be named at all
---- because `SetBindingClick` takes a name (`RestrictedFrames.lua:545`), and it is numbered rather than
---- derived from the child's name so nothing depends on how `SecureGroupHeaders` spells that.
 local proxies = 0
 
---- The button a key binding's click lands on, one per spotlight, created on first apply. Out of combat
---- only, and idempotent.
+--- The button a key binding's click lands on, one per spotlight. Out of combat only, and idempotent.
 ---
 --- **It exists because press cannot be had on the child.** `SecureUnitButton_OnClick` calls
---- `OnActionButtonClick` directly (`SecureTemplates.lua:887`) and so never consults `useOnKeyDown`; the only
---- other lever is `RegisterForClicks`, where adding `AnyDown` would fire every real mouse click twice. One
---- free consequence: `SecureActionButton_OnClick` never touches `C_ClickBindings`, so a made-up button name
---- is never handed to a system that has no answer for one.
----
---- `useparent-unit` rather than a unit of its own, so `SecureButton_GetModifiedUnit` reads the header's
---- (`SecureTemplates.lua:128-131`) and no Spotlights code holds a unit token.
+--- `OnActionButtonClick` directly (`SecureTemplates.lua:887`) and so never consults `useOnKeyDown`, and the
+--- only other lever is `RegisterForClicks`, where adding `AnyDown` would fire every real mouse click twice.
 ---@param child SpotlightsUnitFrame
 ---@return SpotlightsClickCastProxy
 local function EnsureKeyProxy(child)
@@ -207,36 +173,30 @@ local function EnsureKeyProxy(child)
 		"SecureActionButtonTemplate"
 	) --[[@as SpotlightsClickCastProxy]]
 
-	-- A click target for bindings and nothing else, so it must never take a click meant for the spotlight
-	-- underneath it. The rect exists only because a frame without one is a warning waiting to happen.
+	-- It must never take a click meant for the spotlight underneath it.
 	proxy:SetSize(1, 1)
 	proxy:SetPoint("TOPLEFT", child, "TOPLEFT")
 	proxy:EnableMouse(false)
 
+	-- So `SecureButton_GetModifiedUnit` reads the header's unit and no Spotlights code holds the token.
 	proxy:SetAttribute("useparent-unit", true)
 
-	-- Hardcoded rather than following `ActionButtonUseKeyDown`: firing on press is the decision this proxy
-	-- exists to implement, not a preference. If parity with the game's setting is ever wanted the hook is
-	-- CVarCallbackRegistry.
 	proxy:SetAttribute("useOnKeyDown", true)
 
-	-- Both edges, because a mouse wheel binding has no release and which of the two a wheel click arrives as
-	-- is not documented. With `useOnKeyDown` set, the release is a no-op either way
-	-- (`SecureTemplates.lua:812-818`).
+	-- Both edges, because which one a wheel click arrives as is undocumented; `useOnKeyDown` makes the
+	-- release a no-op either way (`SecureTemplates.lua:812-818`).
 	proxy:RegisterForClicks("AnyDown", "AnyUp")
 
 	child.spotlightsKeyProxy = proxy
 	child:SetAttribute(PROXY_ATTRIBUTE, proxy:GetName())
 
 	-- Wrapped rather than inheriting `SecureHandlerEnterLeaveTemplate`, which declares its own OnEnter and
-	-- OnLeave: our template already declares both (`UnitFrame_OnEnter`/`UnitFrame_OnLeave`), and one would
-	-- silently win. `SecureHandlerWrapScript` keeps the wrapped handler and the tooltip with it.
+	-- OnLeave and would take the template's unit tooltip with it.
 	SecureHandlerWrapScript(child, "OnEnter", handler, ENTER_SNIPPET)
 	SecureHandlerWrapScript(child, "OnLeave", handler, LEAVE_SNIPPET)
 
-	-- A spotlight can be hidden while hovered -- an emptied slot, a state driver -- and no OnLeave fires for
-	-- a frame that goes away under the cursor. The header reassigns that slot's `unit` on its next update,
-	-- so a binding left live would cast on whoever occupies the slot next.
+	-- No OnLeave fires for a spotlight hidden under the cursor, and the header reassigns that slot's `unit`
+	-- on its next update.
 	SecureHandlerWrapScript(child, "OnHide", handler, LEAVE_SNIPPET)
 
 	return proxy
@@ -295,10 +255,9 @@ function Private.ClickCasts.ApplyChild(child)
 			local button = VirtualButton(key)
 			local typeName = "*type-" .. button
 
-			-- A wildcard prefix rather than a bare `type-<name>`: the wildcard form is unambiguously in the
-			-- modified-attribute lookup set (`SecureTemplates.lua:6-28`), so it resolves whatever
-			-- `SecureButton_GetModifierPrefix` reports at delivery time -- and the modifier is already
-			-- encoded in the suffix, so nothing is lost by ignoring it here.
+			-- A wildcard prefix rather than a bare `type-<name>`, since only the wildcard form is certainly
+			-- in the modified-attribute lookup set (`SecureTemplates.lua:6-28`) and the modifier is already
+			-- in the suffix.
 			if not keys[typeName] then
 				keys[typeName] = "spell"
 				keys["*spell-" .. button] = tostring(binding.spellID)
@@ -320,8 +279,6 @@ function Private.ClickCasts.ApplyChild(child)
 
 	Reconcile(child, clicks)
 	Reconcile(proxy, keys)
-
-	-- Nil rather than an empty string, so the hover snippet's one guard covers "no key bindings" too.
 	child:SetAttribute(KEYS_ATTRIBUTE, #chords > 0 and table.concat(chords, " ") or nil)
 end
 
@@ -355,8 +312,7 @@ function Private.ClickCasts.Get()
 	return Bindings()
 end
 
---- Whether a row is a key or wheel binding rather than a mouse one, for the panel: the two have different
---- conflicts and different things to say about them.
+--- Whether a row is a key binding, for the panel: the two routes have different conflicts.
 ---@param binding SpotlightsClickCast
 ---@return string? key
 function Private.ClickCasts.KeyOf(binding)
@@ -365,9 +321,8 @@ end
 
 --- What a binding reads as on screen: "Shift + Left Click", or just the button when nothing is held.
 ---
---- `CLICK_BINDINGS_BINDING_TEXT_FORMAT` and `GetStringFromModifiers` are the game's own, so a Spotlights
---- row and a row in the client's Click Bindings window spell the same combination the same way. A chord
---- goes through `GetBindingText` for the same reason, and it renders the wheel directions too.
+--- `CLICK_BINDINGS_BINDING_TEXT_FORMAT`, `GetStringFromModifiers` and `GetBindingText` are the game's own,
+--- so a Spotlights row and a row in the client's own windows spell the same combination the same way.
 ---@param binding SpotlightsClickCast
 ---@return string
 function Private.ClickCasts.Describe(binding)
@@ -442,10 +397,9 @@ end
 --- Stores a binding, replacing whichever one already claims the same chord, or the same button and modifier
 --- prefix.
 ---
---- A mouse row is keyed on the prefix rather than the modifier bitfield because the prefix is what the
---- secure lookup reads: a modifier the client counts and `SecureButton_GetModifierPrefix` does not would
---- otherwise store two rows that fire as one. A key row is keyed on the chord, which is both what the
---- override binding is set for and what the virtual button name is derived from.
+--- Keyed on the prefix rather than the modifier bitfield because the prefix is what the secure lookup
+--- reads: a modifier the client counts and `SecureButton_GetModifierPrefix` does not would otherwise store
+--- two rows that fire as one.
 ---@param binding SpotlightsClickCast
 ---@return boolean stored
 function Private.ClickCasts.Store(binding)

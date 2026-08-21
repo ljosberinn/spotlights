@@ -402,9 +402,8 @@ L.Settings.ClickCastDormantPrompt =
 "You have %s bound to %s in the game's own Click Bindings. It will keep working on Spotlights frames, and this binding will not fire until you remove it. Save it anyway?"
 L.Settings.ClickCastSaveAnyway = "Save"
 
--- A key binding is an override, so unlike the two above it always wins -- these confirm what it takes away
--- rather than warn that it may not fire. The second names the addon's command as the game does, which for a
--- click binding is a raw frame name; ugly, but it still identifies the culprit.
+-- A key binding is an override, so unlike the two above it always wins: these confirm what it takes away
+-- rather than warn that it may not fire.
 L.Settings.ClickCastKeyBoundPrompt =
 "You have %s bound to %s in your keybindings. While a spotlight is hovered, that key will cast this spell instead. Continue?"
 L.Settings.ClickCastKeyOverriddenPrompt =
