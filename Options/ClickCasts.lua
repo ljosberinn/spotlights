@@ -5,9 +5,9 @@ local _, Private = ...
 --- makes one -- type a spell ID, then press the combination you want it on.
 ---
 --- **A binding is captured, not picked from a list.** The combinations that can carry one are every button
---- the mouse has against every modifier, which is a list nobody wants to scroll; and the two prompts below
---- have to be about the combination that was actually pressed anyway, since only the client can say what it
---- already spends that click on.
+--- the mouse has, every key the keyboard has and both wheel directions, against every modifier -- a list
+--- nobody wants to scroll; and the prompts below have to be about the combination that was actually pressed
+--- anyway, since only the client can say what it already spends that click or key on.
 
 --- A row is two lines, the spell and what it is bound to, so it is taller than a control row and the icon
 --- is sized to both lines rather than either. The same numbers the Tracked pane's spell rows use, because
@@ -18,8 +18,9 @@ local ICON_SIZE = 24
 local TEXT_GAP = 6
 
 --- What the combination is drawn in, at the row's trailing edge, as the client's own click-binding list
---- draws it. Fixed rather than measured so every row's spell name ends in the same column.
-local BINDING_WIDTH = 170
+--- draws it. Fixed rather than measured so every row's spell name ends in the same column; wide enough for
+--- a modified chord.
+local BINDING_WIDTH = 200
 
 local REMOVE_WIDTH = 20
 local REMOVE_ICON_SIZE = 16
@@ -58,6 +59,7 @@ local OVERLAY_TEXT_INSET = 40
 --- `StaticPopup_Show` reuses the dialog rather than stacking a second identical one.
 local OVERRIDE_POPUP = "SPOTLIGHTS_CLICKCAST_OVERRIDE"
 local DORMANT_POPUP = "SPOTLIGHTS_CLICKCAST_DORMANT"
+local KEY_POPUP = "SPOTLIGHTS_CLICKCAST_KEY"
 
 --- What the overlay is waiting for: the spell to bind, and the row it replaces when this is a rebind.
 --- Transient, like the Tracked pane's search text -- a gesture in progress rather than a setting.
@@ -193,6 +195,89 @@ local function ConfirmDormant(binding, replaces, label)
 	StaticPopup_Show(DORMANT_POPUP)
 end
 
+--- A key binding is a priority override, so it always wins and the row is never dormant: this confirms what
+--- it takes away rather than warning that it may not fire. Two texts, because the user's own keybind and
+--- another addon's override are different sentences.
+---@param binding SpotlightsClickCast
+---@param replaces integer?
+---@param label string
+---@param overridden boolean the conflict is another addon's override rather than the user's own keybind
+local function ConfirmKeyOverride(binding, replaces, label, overridden)
+	local L = Private.L.Settings
+
+	StaticPopupDialogs[KEY_POPUP] = {
+		text = string.format(overridden and L.ClickCastKeyOverriddenPrompt or L.ClickCastKeyBoundPrompt,
+			label, Private.ClickCasts.Describe(binding)),
+		button1 = L.ClickCastOverrideConfirm,
+		button2 = CANCEL,
+		timeout = 0,
+		whileDead = true,
+		hideOnEscape = true,
+		preferredIndex = 3,
+
+		OnAccept = function()
+			Commit(binding, replaces)
+		end,
+	}
+
+	StaticPopup_Show(KEY_POPUP)
+end
+
+--- What the keybinding system already spends a chord on, and what to call it. Two passes because
+--- `checkOverride` answers with the override when there is one and the plain binding otherwise, which is
+--- what tells an addon's override from the user's own keybind. An addon reading keys through its own
+--- `OnKeyDown` registers no binding and is invisible here.
+---
+--- `bindingContext` is left nil: the other contexts are the housing editor's.
+---@param key string
+---@return string? label, boolean overridden
+local function KeyConflict(key)
+	local bound = GetBindingAction(key)
+	local checkOverride = true
+	local effective = GetBindingAction(key, checkOverride)
+
+	if effective ~= "" and effective ~= bound then
+		return GetBindingName(effective), true
+	end
+
+	if bound ~= "" then
+		return GetBindingName(bound), false
+	end
+
+	return nil, false
+end
+
+--- Turns the key or wheel direction the overlay caught into a binding. The chord comes from
+--- `CreateKeyChordStringUsingMetaKeyState` because it is the string `SetBindingClick` and
+--- `GetBindingAction` are both handed: a modifier order the binding system does not use binds nothing and
+--- detects nothing.
+---@param key string
+local function CapturedKey(key)
+	-- Rejects `BUTTON1` and `BUTTON2` as well as the bare modifiers, so it can only guard the key route.
+	if IsKeyPressIgnoredForBinding(key) then
+		return
+	end
+
+	local chord = CreateKeyChordStringUsingMetaKeyState(key)
+	local request = pending
+
+	Disarm()
+
+	if not request then
+		return
+	end
+
+	---@type SpotlightsClickCast
+	local binding = { key = chord, spellID = request.spellID }
+	local label, overridden = KeyConflict(chord)
+
+	if label then
+		ConfirmKeyOverride(binding, request.replaces, label, overridden)
+	else
+		Commit(binding, request.replaces)
+	end
+end
+
 --- Turns the click the overlay caught into a binding.
 ---
 --- The prefix comes from `SecureButton_GetModifierPrefix` and the bitfield from `MakeModifiers`, both read
@@ -242,6 +327,9 @@ local function BuildOverlay(page)
 	frame:SetAllPoints(page)
 	frame:SetFrameLevel(page:GetFrameLevel() + OVERLAY_LEVEL)
 	frame:RegisterForClicks("AnyUp")
+
+	-- Not toggled per arming like the keyboard: a hidden frame receives no wheel anyway.
+	frame:EnableMouseWheel(true)
 	frame:Hide()
 
 	local backdrop = frame:CreateTexture(nil, "BACKGROUND")
@@ -274,9 +362,19 @@ local function BuildOverlay(page)
 	end)
 
 	frame:SetScript("OnKeyDown", function(_, key)
+		-- Spent on cancelling, and `IsKeyPressIgnoredForBinding` would not have rejected it.
 		if key == "ESCAPE" then
 			Disarm()
+
+			return
 		end
+
+		CapturedKey(key)
+	end)
+
+	-- `MOUSEWHEELUP`/`MOUSEWHEELDOWN` are binding keys, never button suffixes, so the wheel is a chord.
+	frame:SetScript("OnMouseWheel", function(_, delta)
+		CapturedKey(delta > 0 and "MOUSEWHEELUP" or "MOUSEWHEELDOWN")
 	end)
 
 	frame:SetScript("OnClick", function(_, button)
@@ -401,10 +499,17 @@ end
 
 --- What a row's second line says about the client's own bindings, re-read on every pass rather than stored:
 --- a combination that was free when it was bound can be taken later, and nothing fires when it is.
+---
+--- Mouse rows only: `C_ClickBindings` knows nothing about keys, and a key row is never dormant.
 ---@param binding SpotlightsClickCast
 ---@return string text, boolean dormant
 local function Note(binding)
 	local L = Private.L.Settings
+
+	if Private.ClickCasts.KeyOf(binding) then
+		return tostring(binding.spellID), false
+	end
+
 	local bindingType, label = Private.ClickCasts.GameBinding(binding.button, binding.modifiers)
 
 	if bindingType == Enum.ClickBindingType.Interaction then

@@ -270,11 +270,11 @@ L.Settings.AuraCustomNote =
 L.Settings.AuraCustomAdd = "Agregar"
 L.Settings.AuraCustomSpellID = "ID de hechizo"
 L.Settings.ClickCastIntro =
-"Estas asignaciones solo lanzan hechizos en los marcos de Spotlights y no cambian nada más en la interfaz. Introduce un ID de hechizo, presiona Asignar y después presiona el botón del ratón que quieras usar. Haz clic en una asignación para moverla a otro botón."
+"Estas asignaciones solo lanzan hechizos en los marcos de Spotlights y no cambian nada más en la interfaz. Introduce un ID de hechizo, presiona Asignar y después presiona el botón del ratón, la tecla o la dirección de rueda que quieras usar. Haz clic en una asignación para moverla a otra."
 L.Settings.ClickCastNone = "Aún no hay asignaciones de clic."
 L.Settings.ClickCastBind = "Asignar"
 L.Settings.ClickCastCapture =
-"Presiona el botón del ratón, con los modificadores que quieras, que debe lanzar %s en un destacado.\n\nEscape cancela."
+"Presiona el botón del ratón, la tecla o la dirección de rueda, con los modificadores que quieras, que debe lanzar %s en un destacado.\n\nEscape cancela."
 
 L.Settings.ClickCastOverridePrompt =
 "Tienes %s asignado a %s. Confirma que deseas anular este comportamiento solo para Spotlights."
