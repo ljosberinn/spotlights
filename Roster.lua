@@ -19,6 +19,11 @@ local guidByName = {}
 ---@type table<string, string>
 local classByGuid = {}
 
+--- guid -> the raid index the member held at the last scan, absent outside a raid. Recorded because
+--- `UnitTokenFromGUID` does not answer for raid units -- see `TokenFor`.
+---@type table<string, integer>
+local raidIndexByGuid = {}
+
 local scanned = 0
 local skipped = 0
 
@@ -31,7 +36,8 @@ local skipped = 0
 ---@param guid string?
 ---@param class string?
 ---@param secret boolean? identity restricted upstream, where the caller composed the name
-local function Record(name, guid, class, secret)
+---@param raidIndex integer? the index this member was read at, raid scans only
+local function Record(name, guid, class, secret, raidIndex)
 	if secret or issecretvalue(name) or issecretvalue(guid) then
 		skipped = skipped + 1
 
@@ -44,6 +50,7 @@ local function Record(name, guid, class, secret)
 
 	nameByGuid[guid] = name
 	guidByName[name] = guid
+	raidIndexByGuid[guid] = raidIndex
 
 	-- Guarded separately: a secret class costs a colour, not a slot.
 	if not issecretvalue(class) and class then
@@ -89,6 +96,7 @@ function Private.Roster.Rebuild()
 	table.wipe(nameByGuid)
 	table.wipe(guidByName)
 	table.wipe(classByGuid)
+	table.wipe(raidIndexByGuid)
 
 	scanned = 0
 	skipped = 0
@@ -98,7 +106,7 @@ function Private.Roster.Rebuild()
 			-- Sixth return is `fileName`; the fifth is the localised class name and would key nothing.
 			local name, _, _, _, _, class = GetRaidRosterInfo(i)
 
-			Record(name, UnitGUID("raid" .. i), class)
+			Record(name, UnitGUID("raid" .. i), class, nil, i)
 		end
 
 		return
@@ -173,6 +181,33 @@ function Private.Roster.GetClass(guid)
 	return englishClass
 end
 
+--- The unit token for a GUID, by way of the raid index the scan recorded.
+---
+--- **`UnitTokenFromGUID` does not answer for raid units.** Measured across a twenty-man raid: every member
+--- but the player came back nil, while `UnitGroupRolesAssigned("raid" .. i)` answered for the same index.
+--- It does answer for `player` and `partyN`, which is why the party branch records no index and falls
+--- through to it.
+---
+--- The index is re-checked against the GUID rather than trusted, so one left over from a roster change we
+--- have not scanned yet resolves to nothing instead of to whoever now holds it. Guarded first, since a
+--- rated battleground is a raid and comparing a secret is itself an error.
+---@param guid string
+---@return string? token
+local function TokenFor(guid)
+	local index = raidIndexByGuid[guid]
+
+	if index then
+		local token = "raid" .. index
+		local occupant = UnitGUID(token)
+
+		if not issecretvalue(occupant) and occupant == guid then
+			return token
+		end
+	end
+
+	return UnitTokenFromGUID(guid)
+end
+
 --- The assigned role for a GUID, as `UnitGroupRolesAssigned` spells it, or nil.
 ---
 --- Not cached beside the class, and could not be: the role comes off a *unit*, so it only exists for
@@ -184,7 +219,7 @@ end
 ---@param guid string
 ---@return string? role
 function Private.Roster.GetRole(guid)
-	local token = UnitTokenFromGUID(guid)
+	local token = TokenFor(guid)
 	local role = token and UnitGroupRolesAssigned(token)
 
 	if not role or issecretvalue(role) or role == "NONE" then
@@ -218,7 +253,7 @@ end
 ---@param guid string
 ---@return string? token
 function Private.Roster.GetToken(guid)
-	return UnitTokenFromGUID(guid)
+	return TokenFor(guid)
 end
 
 --- Resolves free-typed input to the exact name the header will match against. Case-insensitive, and matches

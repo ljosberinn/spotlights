@@ -7,3 +7,9 @@ v1.1.2
 ## Bugfixes
 
 - binding a key that you already have a keybind on now asks for confirmation first
+
+# Unreviewed
+
+## Bugfixes
+
+- role icons, the unrostered role filter and the automatic role removal now work in a raid, where they previously did nothing for anyone but yourself
