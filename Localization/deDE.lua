@@ -271,11 +271,11 @@ L.Settings.AuraCustomNote =
 L.Settings.AuraCustomAdd = "Hinzufügen"
 L.Settings.AuraCustomSpellID = "Zauber-ID"
 L.Settings.ClickCastIntro =
-"Diese Belegungen wirken ausschließlich auf Spotlights-Rahmen und ändern sonst nichts an der Benutzeroberfläche. Gib eine Zauber-ID ein, drücke Belegen und dann die gewünschte Maustaste. Klicke auf eine Belegung, um sie auf eine andere Taste zu legen."
+"Diese Belegungen wirken ausschließlich auf Spotlights-Rahmen und ändern sonst nichts an der Benutzeroberfläche. Gib eine Zauber-ID ein, drücke Belegen und dann die gewünschte Maustaste, Taste oder Scrollrichtung. Klicke auf eine Belegung, um sie auf eine andere zu legen."
 L.Settings.ClickCastNone = "Noch keine Klickbelegungen."
 L.Settings.ClickCastBind = "Belegen"
 L.Settings.ClickCastCapture =
-"Drücke die Maustaste – mit beliebigen Zusatztasten –, die %s auf einer Hervorhebung wirken soll.\n\nEsc bricht ab."
+"Drücke die Maustaste, Taste oder Scrollrichtung – mit beliebigen Zusatztasten –, die %s auf einer Hervorhebung wirken soll.\n\nEsc bricht ab."
 
 L.Settings.ClickCastOverridePrompt =
 "Du hast %s auf %s gelegt. Bitte bestätige, dass du dieses Verhalten nur für Spotlights überschreiben möchtest."

@@ -4,9 +4,9 @@ local _, Private = ...
 ---@class SpotlightsClickCasts
 Private.ClickCasts = {}
 
---- Click bindings that cast a spell on a spotlight and do nothing anywhere else.
+--- Click and key bindings that cast a spell on a spotlight and do nothing anywhere else.
 ---
---- A binding is stored as the click the user **pressed** -- a button name plus the game's own modifier
+--- A mouse binding is stored as the click the user **pressed** -- a button name plus the game's own modifier
 --- bitfield -- and resolved to secure attributes at apply time rather than at bind time. That indirection
 --- is the whole design: `SecureUnitButton_OnClick` rewrites an *interaction* click to that interaction's
 --- default button before it reads `type` (`SecureTemplates.lua:863-865`), so which suffix a binding has to
@@ -14,7 +14,10 @@ Private.ClickCasts = {}
 --- Target to another button in the game's own UI cannot leave a spotlight binding firing from a button
 --- nobody chose.
 ---
---- We write `type*` and `spell*` and nothing else, on our own children. `unit` stays the header's, so no
+--- A key press is not a click on a unit frame, so it cannot use that route at all. Keys are stored as a
+--- binding chord and dispatched through a per-spotlight proxy button -- see `EnsureKeyProxy`.
+---
+--- We write `type*` and `spell*` on our own children and their proxies. `unit` stays the header's, so no
 --- Spotlights code ever holds the unit token -- see `SlotHeader.InitChild`.
 
 local DeferralKey = Private.Enum.DeferralKey
@@ -32,11 +35,28 @@ for i = 4, 31 do
 	BUTTON_LABELS["Button" .. i] = _G["BUTTON_" .. i .. "_STRING"]
 end
 
+local PROXY_ATTRIBUTE = "spotlightsKeyProxy"
+local KEYS_ATTRIBUTE = "spotlightsKeyBindings"
+
 ---@return SpotlightsClickCast[]
 local function Bindings()
 	local db = Private.DB
 
 	return db and db.clickCasts or {}
+end
+
+--- The chord a row binds, or nil for a mouse row. Type-checked because stored rows are validated where they
+--- are read (`Migration.lua:576-579`).
+---@param binding SpotlightsClickCast
+---@return string?
+local function KeyOf(binding)
+	local key = binding.key
+
+	if type(key) ~= "string" or key == "" then
+		return nil
+	end
+
+	return key
 end
 
 --- Whether a button suffix can carry a binding at all. `SecureButton_GetButtonSuffix` answers `""` for no
@@ -48,7 +68,7 @@ local function IsUsableSuffix(suffix)
 	return suffix ~= "" and string.sub(suffix, 1, 1) ~= "-"
 end
 
---- The attribute prefix and suffix a binding occupies **right now**.
+--- The attribute prefix and suffix a mouse binding occupies **right now**.
 ---
 --- The suffix follows the interaction rewrite rather than the pressed button, so a binding made while
 --- Target sits on right-click is read out of suffix 1 -- which is what a right-click resolves to for as
@@ -65,12 +85,36 @@ local function Attribute(binding)
 	return binding.prefix, SecureButton_GetButtonSuffix(button)
 end
 
---- Sorts by the button's own suffix and then by modifiers, so the list reads left, right, middle and then
---- the extra buttons in number order instead of the alphabetical order the button *names* would give.
+--- The chord is folded into the button name rather than left to the attribute prefix, so `SHIFT-F10` and
+--- `F10` are independent of what `SecureButton_GetModifierPrefix` reports at delivery time. Punctuation is
+--- escaped rather than dropped because `-` and `=` are key names too; a chord is upper case, so the escape
+--- cannot collide inside one.
+---@param key string
+---@return string
+local function VirtualButton(key)
+	return "spotlights" .. string.gsub(key, "%W", function(char)
+		return "x" .. string.byte(char)
+	end)
+end
+
+--- Sorts mouse bindings by the button's own suffix and then by modifiers, so the list reads left, right,
+--- middle and then the extra buttons in number order instead of the alphabetical order the button *names*
+--- would give. Keys sort after every one of them, in chord order: a key has no suffix to interleave on.
 ---@param left SpotlightsClickCast
 ---@param right SpotlightsClickCast
 ---@return boolean
 local function Precedes(left, right)
+	local leftKey = KeyOf(left)
+	local rightKey = KeyOf(right)
+
+	if (leftKey ~= nil) ~= (rightKey ~= nil) then
+		return rightKey ~= nil
+	end
+
+	if leftKey and rightKey then
+		return leftKey < rightKey
+	end
+
 	local leftButton = tonumber(SecureButton_GetButtonSuffix(left.button)) or 0
 	local rightButton = tonumber(SecureButton_GetButtonSuffix(right.button)) or 0
 
@@ -81,34 +125,93 @@ local function Precedes(left, right)
 	return left.modifiers < right.modifiers
 end
 
---- Applies every binding to one child, and clears the attributes a removed one left behind. Out of combat
---- only, and safe to re-run: it is the same pass on a fresh child and on a settings change.
----
---- The written set is kept on the child because a binding's attribute *name* moves when the game's own
---- interaction buttons move, so "what this child currently holds" cannot be recomputed from the database
---- alone.
----@param child SpotlightsUnitFrame
-function Private.ClickCasts.ApplyChild(child)
-	local bindings = Bindings()
+--- Its own frame because `SecureHandlerWrapScript` requires one that is *explicitly* protected
+--- (`SecureHandlers.lua:622`), which the slot headers are not.
+local handler = CreateFrame("Frame", nil, nil, "SecureHandlerBaseTemplate")
 
-	---@type table<string, string>
-	local attributes = {}
+--- Bound on hover because an override binding is global: one set out of combat would fire on whichever slot
+--- the header last assigned. Space separates the fields because it cannot appear in a chord, and returning
+--- nothing is required -- `false` out of a wrapped `OnEnter` suppresses the unit tooltip it wraps
+--- (`SecureHandlers.lua:296`).
+local ENTER_SNIPPET = string.format([[
+	local proxy = self:GetAttribute("%s")
+	local keys = self:GetAttribute("%s")
 
-	for i = 1, #bindings do
-		local binding = bindings[i]
-		local prefix, suffix = Attribute(binding)
-		local typeName = prefix .. "type" .. suffix
-
-		-- Two bindings can resolve onto one suffix -- pressing the button an interaction was moved onto
-		-- lands on that interaction's default -- and the earlier one in list order keeps it, so which of
-		-- the two fires does not depend on the order `pairs` happens to write them in.
-		if IsUsableSuffix(suffix) and not attributes[typeName] then
-			attributes[typeName] = "spell"
-			attributes[prefix .. "spell" .. suffix] = tostring(binding.spellID)
+	if proxy and keys then
+		for key, button in gmatch(keys, "(%%S+) (%%S+)") do
+			self:SetBindingClick(true, key, proxy, button)
 		end
 	end
+]], PROXY_ATTRIBUTE, KEYS_ATTRIBUTE)
 
-	local previous = child.spotlightsClickCasts
+local LEAVE_SNIPPET = [[
+	self:ClearBindings()
+]]
+
+local proxies = 0
+
+--- The button a key binding's click lands on, one per spotlight. Out of combat only, and idempotent.
+---
+--- **It exists because press cannot be had on the child.** `SecureUnitButton_OnClick` calls
+--- `OnActionButtonClick` directly (`SecureTemplates.lua:887`) and so never consults `useOnKeyDown`, and the
+--- only other lever is `RegisterForClicks`, where adding `AnyDown` would fire every real mouse click twice.
+---@param child SpotlightsUnitFrame
+---@return SpotlightsClickCastProxy
+local function EnsureKeyProxy(child)
+	local existing = child.spotlightsKeyProxy
+
+	if existing then
+		return existing
+	end
+
+	proxies = proxies + 1
+
+	local proxy = CreateFrame(
+		"Button",
+		"SpotlightsClickCastProxy" .. proxies,
+		child,
+		"SecureActionButtonTemplate"
+	) --[[@as SpotlightsClickCastProxy]]
+
+	-- It must never take a click meant for the spotlight underneath it.
+	proxy:SetSize(1, 1)
+	proxy:SetPoint("TOPLEFT", child, "TOPLEFT")
+	proxy:EnableMouse(false)
+
+	-- So `SecureButton_GetModifiedUnit` reads the header's unit and no Spotlights code holds the token.
+	proxy:SetAttribute("useparent-unit", true)
+
+	proxy:SetAttribute("useOnKeyDown", true)
+
+	-- Both edges, because which one a wheel click arrives as is undocumented; `useOnKeyDown` makes the
+	-- release a no-op either way (`SecureTemplates.lua:812-818`).
+	proxy:RegisterForClicks("AnyDown", "AnyUp")
+
+	child.spotlightsKeyProxy = proxy
+	child:SetAttribute(PROXY_ATTRIBUTE, proxy:GetName())
+
+	-- Wrapped rather than inheriting `SecureHandlerEnterLeaveTemplate`, which declares its own OnEnter and
+	-- OnLeave and would take the template's unit tooltip with it.
+	SecureHandlerWrapScript(child, "OnEnter", handler, ENTER_SNIPPET)
+	SecureHandlerWrapScript(child, "OnLeave", handler, LEAVE_SNIPPET)
+
+	-- No OnLeave fires for a spotlight hidden under the cursor, and the header reassigns that slot's `unit`
+	-- on its next update.
+	SecureHandlerWrapScript(child, "OnHide", handler, LEAVE_SNIPPET)
+
+	return proxy
+end
+
+--- Writes an attribute set onto a frame and clears what a previous pass left behind that this one does not
+--- want.
+---
+--- The written set is kept on the frame because a binding's attribute *name* moves when the game's own
+--- interaction buttons move, so "what this frame currently holds" cannot be recomputed from the database
+--- alone.
+---@param frame SpotlightsUnitFrame|SpotlightsClickCastProxy
+---@param attributes table<string, string>
+local function Reconcile(frame, attributes)
+	local previous = frame.spotlightsClickCasts
 
 	if previous then
 		for name in pairs(previous) do
@@ -116,16 +219,67 @@ function Private.ClickCasts.ApplyChild(child)
 				-- Nils rather than blanks, so an unmodified binding that is removed hands left-click back to
 				-- the `*type1` the template wrote: the wildcard is only shadowed while the specific
 				-- attribute exists (`SecureTemplates.lua:249-252`).
-				child:SetAttribute(name, nil)
+				frame:SetAttribute(name, nil)
 			end
 		end
 	end
 
 	for name, value in pairs(attributes) do
-		child:SetAttribute(name, value)
+		frame:SetAttribute(name, value)
 	end
 
-	child.spotlightsClickCasts = attributes
+	frame.spotlightsClickCasts = attributes
+end
+
+--- Applies every binding to one child, and clears the attributes a removed one left behind. Out of combat
+--- only, and safe to re-run: it is the same pass on a fresh child and on a settings change.
+---@param child SpotlightsUnitFrame
+function Private.ClickCasts.ApplyChild(child)
+	local proxy = EnsureKeyProxy(child)
+	local bindings = Bindings()
+
+	---@type table<string, string>
+	local clicks = {}
+
+	---@type table<string, string>
+	local keys = {}
+
+	---@type string[]
+	local chords = {}
+
+	for i = 1, #bindings do
+		local binding = bindings[i]
+		local key = KeyOf(binding)
+
+		if key then
+			local button = VirtualButton(key)
+			local typeName = "*type-" .. button
+
+			-- A wildcard prefix rather than a bare `type-<name>`, since only the wildcard form is certainly
+			-- in the modified-attribute lookup set (`SecureTemplates.lua:6-28`) and the modifier is already
+			-- in the suffix.
+			if not keys[typeName] then
+				keys[typeName] = "spell"
+				keys["*spell-" .. button] = tostring(binding.spellID)
+				chords[#chords + 1] = key .. " " .. button
+			end
+		else
+			local prefix, suffix = Attribute(binding)
+			local typeName = prefix .. "type" .. suffix
+
+			-- Two bindings can resolve onto one suffix -- pressing the button an interaction was moved onto
+			-- lands on that interaction's default -- and the earlier one in list order keeps it, so which of
+			-- the two fires does not depend on the order `pairs` happens to write them in.
+			if IsUsableSuffix(suffix) and not clicks[typeName] then
+				clicks[typeName] = "spell"
+				clicks[prefix .. "spell" .. suffix] = tostring(binding.spellID)
+			end
+		end
+	end
+
+	Reconcile(child, clicks)
+	Reconcile(proxy, keys)
+	child:SetAttribute(KEYS_ATTRIBUTE, #chords > 0 and table.concat(chords, " ") or nil)
 end
 
 --- Deferred because it is a protected call on every frame it touches. The panel refuses to open in combat,
@@ -158,13 +312,26 @@ function Private.ClickCasts.Get()
 	return Bindings()
 end
 
---- What a click reads as on screen: "Shift + Left Click", or just the button when nothing is held.
+--- Whether a row is a key binding, for the panel: the two routes have different conflicts.
+---@param binding SpotlightsClickCast
+---@return string? key
+function Private.ClickCasts.KeyOf(binding)
+	return KeyOf(binding)
+end
+
+--- What a binding reads as on screen: "Shift + Left Click", or just the button when nothing is held.
 ---
---- `CLICK_BINDINGS_BINDING_TEXT_FORMAT` and `GetStringFromModifiers` are the game's own, so a Spotlights
---- row and a row in the client's Click Bindings window spell the same combination the same way.
+--- `CLICK_BINDINGS_BINDING_TEXT_FORMAT`, `GetStringFromModifiers` and `GetBindingText` are the game's own,
+--- so a Spotlights row and a row in the client's own windows spell the same combination the same way.
 ---@param binding SpotlightsClickCast
 ---@return string
 function Private.ClickCasts.Describe(binding)
+	local key = KeyOf(binding)
+
+	if key then
+		return GetBindingText(key) or key
+	end
+
 	local button = BUTTON_LABELS[binding.button] or binding.button
 	local modifiers = GetStringFromModifiers(binding.modifiers)
 
@@ -227,7 +394,8 @@ function Private.ClickCasts.GameBinding(button, modifiers)
 	return bindingType, ProfileActionName(button, modifiers)
 end
 
---- Stores a binding, replacing whichever one already claims that button and modifier prefix.
+--- Stores a binding, replacing whichever one already claims the same chord, or the same button and modifier
+--- prefix.
 ---
 --- Keyed on the prefix rather than the modifier bitfield because the prefix is what the secure lookup
 --- reads: a modifier the client counts and `SecureButton_GetModifierPrefix` does not would otherwise store
@@ -236,8 +404,13 @@ end
 ---@return boolean stored
 function Private.ClickCasts.Store(binding)
 	local db = Private.DB
+	local key = KeyOf(binding)
 
-	if not db or not IsUsableSuffix(SecureButton_GetButtonSuffix(binding.button)) then
+	if not db then
+		return false
+	end
+
+	if not key and not IsUsableSuffix(SecureButton_GetButtonSuffix(binding.button)) then
 		return false
 	end
 
@@ -245,7 +418,16 @@ function Private.ClickCasts.Store(binding)
 	local index = #bindings + 1
 
 	for i = 1, #bindings do
-		if bindings[i].button == binding.button and bindings[i].prefix == binding.prefix then
+		local other = bindings[i]
+		local otherKey = KeyOf(other)
+
+		if key and otherKey == key then
+			index = i
+
+			break
+		end
+
+		if not key and not otherKey and other.button == binding.button and other.prefix == binding.prefix then
 			index = i
 
 			break

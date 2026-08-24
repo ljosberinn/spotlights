@@ -262,11 +262,11 @@ L.Settings.AuraCustomNote =
 L.Settings.AuraCustomAdd = "추가"
 L.Settings.AuraCustomSpellID = "주문 ID"
 L.Settings.ClickCastIntro =
-"이 설정은 Spotlights 프레임에서만 시전되며 인터페이스의 다른 부분은 바꾸지 않습니다. 주문 ID를 입력하고 지정을 누른 뒤 원하는 마우스 버튼을 누르세요. 지정된 항목을 클릭하면 다른 버튼으로 옮길 수 있습니다."
+"이 설정은 Spotlights 프레임에서만 시전되며 인터페이스의 다른 부분은 바꾸지 않습니다. 주문 ID를 입력하고 지정을 누른 뒤 원하는 마우스 버튼, 키 또는 휠 방향을 누르세요. 지정된 항목을 클릭하면 다른 버튼으로 옮길 수 있습니다."
 L.Settings.ClickCastNone = "아직 클릭 지정이 없습니다."
 L.Settings.ClickCastBind = "지정"
 L.Settings.ClickCastCapture =
-"강조 프레임에서 %s을(를) 시전할 마우스 버튼을 조합키와 함께 누르세요.\n\nEsc로 취소합니다."
+"강조 프레임에서 %s을(를) 시전할 마우스 버튼, 키 또는 휠 방향을 조합키와 함께 누르세요.\n\nEsc로 취소합니다."
 
 L.Settings.ClickCastOverridePrompt =
 "%s이(가) %s에 지정되어 있습니다. Spotlights에서만 이 동작을 덮어쓸지 확인해 주세요."
