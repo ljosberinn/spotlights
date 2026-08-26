@@ -69,6 +69,25 @@ local function DefaultPosition()
 	}
 end
 
+--- Where a database with no usable position starts: the grid's rectangle in the middle of the screen.
+---
+--- `CENTER, 0, 0` alone does not mean that. The offset names the **growth corner**, so on its own it hangs
+--- that corner off the screen centre and the rectangle off by half its size in each axis. The step from the
+--- rectangle's centre to that corner is what centres the rectangle, and is the same arithmetic
+--- `Container.Recenter` applies to the button.
+---@param count integer configured slots, since that is what the container is sized for
+---@param layout SpotlightsLayoutConfig
+---@return SpotlightsPositionConfig
+local function CenteredPosition(count, layout)
+	local position = DefaultPosition()
+	local growth = Private.Layout.AnchorPoint(layout)
+	local width, height = Private.Layout.ContainerSize(count, layout)
+
+	position.x, position.y = Private.Container.CornerDelta("CENTER", growth, width, height)
+
+	return position
+end
+
 --- How a spotlight looks.
 ---
 --- `barTexture` is a LibSharedMedia **key**, never a resolved path: what a key maps to depends on which
@@ -543,6 +562,9 @@ end
 ---
 --- Scale and strata are repaired field by field, because neither is part of that anchor: throwing away a
 --- good position over a field it could not have had would move the user's grid on first login.
+---
+--- **Runs after the layout block is repaired**, which is what makes `db.layout` safe to measure a centred
+--- replacement against: `CenteredPosition` does arithmetic on numbers a damaged layout may be missing.
 ---@param db SpotlightsDB
 local function RepairPosition(db)
 	local position = db.position
@@ -553,7 +575,7 @@ local function RepairPosition(db)
 		or type(position.y) ~= "number"
 		or not Private.Enum.AnchorPoints[position.point]
 	then
-		db.position = DefaultPosition()
+		db.position = CenteredPosition(db.slots and #db.slots or 0, db.layout)
 
 		return
 	end
@@ -595,7 +617,10 @@ local function Repair(db)
 	RepairBlock(db, "appearance", DefaultAppearance)
 	RepairNameStrata(db)
 	RepairBlock(db, "auras", DefaultAuras)
+
+	-- After the layout block, which a replacement position is measured against.
 	RepairPosition(db)
+
 	RepairBlock(db, "minimap", function()
 		return { hide = false }
 	end)
@@ -621,11 +646,17 @@ end
 
 ---@return SpotlightsDB
 local function CreateDefault()
+	local layout = DefaultLayout()
+
 	return {
 		version = Private.Migration.CurrentVersion,
 		slots = {},
-		layout = DefaultLayout(),
-		position = DefaultPosition(),
+		layout = layout,
+
+		-- Measured against the layout above rather than defaulted flat: a fresh grid has to land centred,
+		-- which `CENTER, 0, 0` on its own no longer means. This path never reaches `Repair`.
+		position = CenteredPosition(0, layout),
+
 		appearance = DefaultAppearance(),
 		auras = DefaultAuras(),
 		minimap = { hide = false },
