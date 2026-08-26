@@ -38,15 +38,11 @@ end
 --- Recentres the grid, as `/spotlights recenter` does. Silent in combat rather than printing what the slash
 --- command prints: combat closes the panel, so this is reachable only in the frame or two before that runs.
 local function Recenter()
-	local position = Position()
-
-	if not position or InCombatLockdown() then
+	if InCombatLockdown() then
 		return
 	end
 
-	position.point, position.x, position.y = "CENTER", 0, 0
-
-	Private.Container.Request()
+	Private.Container.Recenter()
 end
 
 ---@return number

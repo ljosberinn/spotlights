@@ -98,9 +98,20 @@ local function GetGrowX()
 	return layout and layout.growX
 end
 
+--- Not `SetLayoutField` alone: the flip moves the corner the saved position measures, and
+--- `Container.Rebase` walks the position with it so slot 1 stays where it is.
 ---@param value GrowX
 local function SetGrowX(value)
+	local layout = Layout()
+
+	if not layout then
+		return
+	end
+
+	local previous = Private.Layout.AnchorPoint(layout)
+
 	SetLayoutField("growX", value)
+	Private.Container.Rebase(previous)
 end
 
 ---@return GrowY?
@@ -110,9 +121,19 @@ local function GetGrowY()
 	return layout and layout.growY
 end
 
+--- `SetGrowX`'s counterpart, and rebased for the same reason.
 ---@param value GrowY
 local function SetGrowY(value)
+	local layout = Layout()
+
+	if not layout then
+		return
+	end
+
+	local previous = Private.Layout.AnchorPoint(layout)
+
 	SetLayoutField("growY", value)
+	Private.Container.Rebase(previous)
 end
 
 ---@return number

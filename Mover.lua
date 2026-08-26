@@ -250,8 +250,6 @@ Private.SlashCommands.Register("recenter", "Recenter", function()
 		return
 	end
 
-	position.point, position.x, position.y = "CENTER", 0, 0
-
-	Private.Container.Request()
+	Private.Container.Recenter()
 	Private.Utils.Print(Private.L.Mover.Reset)
 end)

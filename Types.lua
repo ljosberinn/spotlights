@@ -391,8 +391,10 @@
 --- Where the grid sits, how big it is drawn and what it stacks against. A corner-relative anchor,
 --- never raw coordinates.
 ---
---- `point` is the frame point on the container *and* the point on UIParent it anchors to, so the
---- offset is measured from the same corner of both -- which survives a resolution change. `x` and
+--- `point` is the point on UIParent the offset is measured from, picked from the screen region the
+--- grid was dropped in so that it survives a resolution change. What it measures *to* is the corner
+--- the grid grows from (`Layout.AnchorPoint`) and never a corner of the rectangle, because that is
+--- the one point `container:SetSize` leaves alone when a slot count adds a row or column. `x` and
 --- `y` always mean right and up, and are in the **container's own units**: at scale 1 those are
 --- UIParent units, and at any other scale a stored offset is what the grid moves by at that scale,
 --- so scaling reads as the whole grid growing about its anchor rather than sliding across the

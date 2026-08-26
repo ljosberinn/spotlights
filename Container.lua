@@ -142,7 +142,44 @@ local function ScreenSize()
 	return UIParent:GetWidth() * ratio, UIParent:GetHeight() * ratio
 end
 
---- Turns the container's current rectangle into a corner-relative point and offset.
+--- A point's position on each axis as a fraction of the rectangle: 0 is the left or bottom edge, 1 the
+--- right or top, 0.5 the centre. Covers all nine points, because a saved position may name any of them.
+---@param point AnchorPoint
+---@return number horizontal, number vertical
+local function Factors(point)
+	local horizontal = point:find("LEFT") and 0 or point:find("RIGHT") and 1 or 0.5
+	local vertical = point:find("BOTTOM") and 0 or point:find("TOP") and 1 or 0.5
+
+	return horizontal, vertical
+end
+
+--- How far corner `to` sits from corner `from` on a rectangle of the given size.
+---
+--- Exported for the version 7 migration step, which cannot be re-run to correct a divergence and so must
+--- not carry a copy of this arithmetic.
+---@param from AnchorPoint
+---@param to AnchorPoint
+---@param width number
+---@param height number
+---@return number x, number y
+function Private.Container.CornerDelta(from, to, width, height)
+	local fromH, fromV = Factors(from)
+	local toH, toV = Factors(to)
+
+	return (toH - fromH) * width, (toV - fromV) * height
+end
+
+--- The corner the grid grows from, or nil before the database has loaded. Every saved offset measures this
+--- corner rather than one of the rectangle's, which is what keeps the grid still when a slot count adds a
+--- column and `Layout.ApplyContainer` resizes the container around it.
+---@return AnchorPoint?
+local function GrowthPoint()
+	local config = Private.Layout.GetConfig()
+
+	return config and Private.Layout.AnchorPoint(config)
+end
+
+--- Turns the container's current growth corner into a corner-relative point and offset.
 ---
 --- The screen is split into vertical halves and horizontal thirds; the offset is measured from the corner
 --- of whichever region holds the grid's centre, so a grid dropped near the top right stays there at another
@@ -152,9 +189,11 @@ local function CalcPoint()
 	local frame = Private.Container.Get()
 	local screenWidth, screenHeight = ScreenSize()
 	local centerX, centerY = frame:GetCenter()
+	local growth = GrowthPoint()
 
-	-- Nil before the frame has both a size and an anchor; the stored position is still valid.
-	if not centerX or not centerY then
+	-- Nil before the frame has both a size and an anchor, or before the database has loaded; the stored
+	-- position is still valid.
+	if not centerX or not centerY or not growth then
 		local saved = Private.Container.GetPosition()
 
 		if saved then
@@ -164,28 +203,30 @@ local function CalcPoint()
 		return "CENTER", 0, 0
 	end
 
-	local vertical, y
+	local growthH, growthV = Factors(growth)
+	local growthX = frame:GetLeft() + growthH * frame:GetWidth()
+	local growthY = frame:GetBottom() + growthV * frame:GetHeight()
 
-	if centerY >= screenHeight / 2 then
-		vertical = "TOP"
-		y = frame:GetTop() - screenHeight
-	else
-		vertical = "BOTTOM"
-		y = frame:GetBottom()
-	end
+	local vertical = centerY >= screenHeight / 2 and "TOP" or "BOTTOM"
+	local horizontal = ""
 
 	if centerX >= screenWidth * 2 / 3 then
-		return (vertical .. "RIGHT") --[[@as AnchorPoint]], frame:GetRight() - screenWidth, y
+		horizontal = "RIGHT"
+	elseif centerX <= screenWidth / 3 then
+		horizontal = "LEFT"
 	end
 
-	if centerX <= screenWidth / 3 then
-		return (vertical .. "LEFT") --[[@as AnchorPoint]], frame:GetLeft(), y
-	end
+	local point = (vertical .. horizontal) --[[@as AnchorPoint]]
+	local regionH, regionV = Factors(point)
 
-	return vertical --[[@as AnchorPoint]], centerX - screenWidth / 2, y
+	return point, growthX - regionH * screenWidth, growthY - regionV * screenHeight
 end
 
 --- Nudges a point/offset pair until the container's rectangle lies wholly on screen.
+---
+--- Two-point deliberately: `point` names the UIParent corner the offset is measured from, while the frame
+--- hangs by its growth corner -- the one point `SetSize` leaves where it is, so a slot count that adds a
+--- column cannot move the grid.
 ---
 --- Works in deltas, which keeps it independent of which corner `point` names: a SetPoint offset means right
 --- and up no matter what it is measured from. A container larger than the screen cannot satisfy both edges,
@@ -196,9 +237,10 @@ end
 ---@return AnchorPoint point, number x, number y
 local function Clamp(point, x, y)
 	local frame = Private.Container.Get()
+	local growth = GrowthPoint() or point
 
 	frame:ClearAllPoints()
-	PixelUtil.SetPoint(frame, point, UIParent, point, x, y)
+	PixelUtil.SetPoint(frame, growth, UIParent, point, x, y)
 
 	local left, bottom = frame:GetLeft(), frame:GetBottom()
 	local right, top = frame:GetRight(), frame:GetTop()
@@ -228,26 +270,31 @@ local function Clamp(point, x, y)
 
 	x, y = x + dx, y + dy
 
-	PixelUtil.SetPoint(frame, point, UIParent, point, x, y)
+	PixelUtil.SetPoint(frame, growth, UIParent, point, x, y)
 
 	return point, x, y
 end
 
 --- Moves the container to an absolute screen position, clamped, and persists the result. Takes a
---- bottom-left corner because that is what cursor tracking produces; `Clamp` and `CalcPoint` turn it back
---- into the corner-relative form the database stores.
+--- bottom-left corner because that is what cursor tracking produces, and walks it across the rectangle to
+--- the growth corner, which is what `Clamp` anchors by; `CalcPoint` then turns it back into the
+--- corner-relative form the database stores.
 ---
 --- Out of combat only: `SetPoint` on this frame is protected from the first header onwards.
 ---@param left number
 ---@param bottom number
 function Private.Container.MoveTo(left, bottom)
 	local position = Private.Container.GetPosition()
+	local growth = GrowthPoint()
 
-	if not position or InCombatLockdown() then
+	if not position or not growth or InCombatLockdown() then
 		return
 	end
 
-	Clamp("BOTTOMLEFT", left, bottom)
+	local width, height = Private.Container.Get():GetSize()
+	local growthH, growthV = Factors(growth)
+
+	Clamp("BOTTOMLEFT", left + growthH * width, bottom + growthV * height)
 
 	position.point, position.x, position.y = CalcPoint()
 end
@@ -287,6 +334,54 @@ Private.Events.RegisterHandler(DeferralKey.Position, ApplyPosition)
 --- Requests a re-clamp and re-apply.
 function Private.Container.Request()
 	Private.Events.Request(DeferralKey.Position)
+end
+
+--- Puts the grid back in the middle of the screen.
+---
+--- Not `CENTER, 0, 0`, which now means the *growth corner* at the screen centre and leaves the rectangle
+--- hanging off it by half its size in each axis. Offsetting by where that corner sits relative to the
+--- rectangle's own centre is what centres the rectangle instead.
+---
+--- Combat is the callers' to refuse, since each reports it differently; the write itself is plain table
+--- work and the apply defers on its own.
+function Private.Container.Recenter()
+	local position = Private.Container.GetPosition()
+	local growth = GrowthPoint()
+
+	if not position or not growth then
+		return
+	end
+
+	local width, height = Private.Container.Get():GetSize()
+
+	position.point = "CENTER"
+	position.x, position.y = Private.Container.CornerDelta("CENTER", growth, width, height)
+
+	Private.Container.Request()
+end
+
+--- Moves the saved offset onto the growth corner a layout change has just produced, keeping **slot 1**
+--- where it is: slot 1 is anchored at zero offset from the container's growth corner, so flipping a growth
+--- direction walks that corner to the opposite side of slot 1's own rectangle.
+---
+--- Frame size and not container size for that reason -- what is being held still is one spotlight, not the
+--- grid's bounding box, so a reversed grid unfolds from the frame the user was looking at.
+---
+--- Takes the growth point read *before* the layout field was written, and must run before the passes
+--- `Layout.Request` queued for the next frame.
+---@param previous AnchorPoint
+function Private.Container.Rebase(previous)
+	local position = Private.Container.GetPosition()
+	local config = Private.Layout.GetConfig()
+
+	if not position or not config then
+		return
+	end
+
+	local growth = Private.Layout.AnchorPoint(config)
+	local x, y = Private.Container.CornerDelta(previous, growth, config.frameWidth, config.frameHeight)
+
+	position.x, position.y = position.x + x, position.y + y
 end
 
 -- Both change what "on screen" means without moving the frame, so a position legal a moment ago may not be

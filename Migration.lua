@@ -5,7 +5,7 @@ local _, Private = ...
 Private.Migration = {}
 
 --- Bump this and add the matching step whenever the shape of SpotlightsSaved changes.
-Private.Migration.CurrentVersion = 6
+Private.Migration.CurrentVersion = 7
 
 --- A function rather than a shared table: handing the same table to two callers would alias one user's
 --- settings onto another's.
@@ -456,6 +456,45 @@ local steps = {
 	end,
 	[6] = function(db)
 		db.favorites = db.favorites or {}
+	end,
+	[7] = function(db)
+		-- Every position in the wild measures a corner of the container's *rectangle*, which `SetSize` moves
+		-- whenever a slot count adds a row or column. They now measure the corner the grid grows from, so
+		-- without this step every grid moves once on upgrade.
+		local position, layout = db.position, db.layout
+
+		if type(position) ~= "table" or type(layout) ~= "table" then
+			return
+		end
+
+		if type(position.x) ~= "number" or type(position.y) ~= "number" then
+			return
+		end
+
+		if not Private.Enum.AnchorPoints[position.point] then
+			return
+		end
+
+		-- Steps run before `Repair`, so a field the corner arithmetic reads may still be missing: a nil
+		-- number errors outright, and a nil grow direction resolves to the *opposite* corner of the one
+		-- `Repair` is about to default it to. Neither leaves a position worth correcting.
+		if
+			type(layout.stride) ~= "number"
+			or type(layout.frameWidth) ~= "number"
+			or type(layout.frameHeight) ~= "number"
+			or type(layout.spacingX) ~= "number"
+			or type(layout.spacingY) ~= "number"
+			or layout.growX == nil
+			or layout.growY == nil
+		then
+			return
+		end
+
+		local width, height = Private.Layout.ContainerSize(db.slots and #db.slots or 0, layout)
+		local growth = Private.Layout.AnchorPoint(layout)
+		local x, y = Private.Container.CornerDelta(position.point, growth, width, height)
+
+		position.x, position.y = position.x + x, position.y + y
 	end,
 }
 
