@@ -8,3 +8,4 @@ v1.1.2
 
 - binding a key that you already have a keybind on now asks for confirmation first
 - role icons should now reliably work
+- Sense Power icons should no longer change mid-window

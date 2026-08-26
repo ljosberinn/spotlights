@@ -1696,7 +1696,7 @@ local function AttachContainer(child, feature, display, config, anchor)
 		container:AddAuraGroup(feature.key, feature.filter, {
 			candidateFilters = { includeSpellIDs = feature.Candidates() },
 			maxFrameCount = #candidateIDs,
-			sortMethod = AuraContainerSortMethod.ExpirationOnly,
+			sortMethod = AuraContainerSortMethod.AuraInstanceIDOnly,
 			sortDirection = AuraContainerSortDirection.Reverse,
 			layout = { elementSpacing = config.gap or 0 },
 			initializeFrame = function(button)
@@ -1706,7 +1706,7 @@ local function AttachContainer(child, feature, display, config, anchor)
 	else
 		container:AddAuraSlot(feature.key, feature.filter, {
 			candidateFilters = { includeSpellIDs = feature.Candidates() },
-			sortMethod = AuraContainerSortMethod.ExpirationOnly,
+			sortMethod = AuraContainerSortMethod.AuraInstanceIDOnly,
 			sortDirection = AuraContainerSortDirection.Reverse,
 			initializeFrame = function(button)
 				InitializeFrame(button, feature.spellID)
