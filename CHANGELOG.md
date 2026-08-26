@@ -7,3 +7,4 @@ v1.1.2
 ## Bugfixes
 
 - binding a key that you already have a keybind on now asks for confirmation first
+- role icons should now reliably work
