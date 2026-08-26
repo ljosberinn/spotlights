@@ -143,12 +143,30 @@ function Private.Profile.ImportString(text)
 	-- Nil-guarded defensively only: `Private.DB` is assigned in `EventUtil.ContinueOnAddOnLoaded`
 	-- (`Init.lua`), before any panel exists.
 	local current = Private.DB
+	local restored = {}
 
 	for key, Local in pairs(NOT_EXPORTED) do
-		payload[key] = Local(current)
+		restored[key] = Local(current)
+		payload[key] = restored[key]
 	end
 
+	--- Installed by the loop above and taken straight back out, because the run must not *see* it: it is this
+	--- account's own live table and a step mutates whatever it is handed. Version 7 rebases `position` in
+	--- place, so a payload from before it would shift the real position a second time, and the write-back
+	--- below could not undo that -- it puts back the same reference. `slots` cannot be withheld the same way;
+	--- see its warning above.
+	payload.position = nil
+
 	local migrated = Private.Migration.Run(payload)
+
+	--- Put back over the migrated table because these keys are defined as coming from the *current*
+	--- database, which is already at `CurrentVersion`: no step run for an older payload's version has any
+	--- business touching them. A key that resolved to nil never entered `restored`, so a first-ever import
+	--- keeps the `position` and `minimap` the run just installed instead of losing them.
+	for key, value in pairs(restored) do
+		migrated[key] = value
+	end
+
 	Private.DB = migrated
 	SpotlightsSaved = migrated
 
