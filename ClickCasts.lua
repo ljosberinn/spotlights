@@ -282,8 +282,8 @@ function Private.ClickCasts.ApplyChild(child)
 	child:SetAttribute(KEYS_ATTRIBUTE, #chords > 0 and table.concat(chords, " ") or nil)
 end
 
---- Deferred because it is a protected call on every frame it touches. The panel refuses to open in combat,
---- but an import and a zone change do not.
+--- Deferred because it is a protected call on every frame it touches. An import and a zone change both
+--- reach it mid-fight.
 local function Apply()
 	if Private.Events.DeferIfInCombat(DeferralKey.ClickCasts) then
 		return

@@ -104,10 +104,10 @@ end
 --- every child frame, so an aura display covered it and no draw-layer change could rescue it. A layer of
 --- our own is a sibling of those child frames, which is what makes `nameStrata` expressible at all.
 ---
---- **Out of combat only on a live spotlight.** The layer is parented to a secure unit button, so
---- `SetAllPoints` and `SetFrameLevel` on it are protected calls. A preview frame is not exempt for being
---- ours -- its template protects one created out of combat too -- but `Private.Preview.CreateFrame` calls
---- this on a frame it has just built, so the two are never out of step.
+--- **Protection travels up the parent chain, not down.** The layer is a child of a secure unit button and
+--- inherits none of its protection, so `SetAllPoints` and `SetFrameLevel` here land under lockdown, on a
+--- live spotlight as on a preview. Being ours is not what exempts a preview: its template protects one
+--- created out of combat like any other frame.
 ---@param frame SpotlightsUnitFrame
 ---@return Frame
 function Private.NameStyle.EnsureLayer(frame)
@@ -142,8 +142,8 @@ end
 --- have inherited -- one raised once and then set back to inherit has to come back down. Read off the
 --- frame rather than the position block, so the answer is also right for a preview.
 ---
---- **A protected call on a live spotlight.** Callers on that path go through the deferral queue; the
---- preview path may call it outright.
+--- Writes the name layer rather than the frame, so it lands under lockdown on either path -- see
+--- `EnsureLayer`.
 ---@param frame SpotlightsUnitFrame
 ---@param appearance SpotlightsAppearanceConfig
 function Private.NameStyle.ApplyStrata(frame, appearance)
@@ -158,8 +158,9 @@ function Private.NameStyle.ApplyStrata(frame, appearance)
 	layer:SetFrameStrata(Private.Enum.FrameStrata[strata] and strata or frame:GetFrameStrata())
 end
 
---- Deferred rather than run inline because it is a protected call on every frame it touches. The panel
---- refuses to open in combat, but a slash command and an import do not.
+--- Held for combat rather than run inline: `INHERIT` resolves against the strata the Position pass writes,
+--- and that pass defers, so a layer set mid-fight would take the strata the grid is leaving. A slash
+--- command and an import both reach it there.
 local function ApplyNameStrata()
 	if Private.Events.DeferIfInCombat(Private.Enum.DeferralKey.NameStrata) then
 		return

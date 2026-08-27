@@ -77,7 +77,6 @@ local function ApplySize(frame)
 end
 
 Private.Events.RegisterHandler(DeferralKey.PreviewPane, function()
-	-- Cleared before the call, so a pane that defers again is not swallowed by this pass.
 	for frame in pairs(pendingSize) do
 		pendingSize[frame] = nil
 
