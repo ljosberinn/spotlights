@@ -41,6 +41,7 @@ L.Registry.ListHeader = "%d slot(s), %d roster name(s) readable, %d secret"
 L.Registry.ListPlayer = "  %d. %s |cff808080%s|r"
 L.Registry.ListBlank = "  %d. |cff808080(spacer)|r"
 L.Registry.Absent = "not in group"
+L.Registry.BlankedOffline = "%s blanked - offline, as configured"
 L.Layout = {}
 
 L.Layout.NotLoaded = "saved settings have not loaded yet"
@@ -492,4 +493,3 @@ L.Mover.CombatRefused = "cannot move the grid in combat"
 L.Mover.Reset = "grid returned to the screen center"
 L.Registry.Unresolved = "no guid yet"
 L.Registry.ClearedOnLeave = "group changed - roster cleared, as configured"
-L.Registry.BlankedOffline = "%s blanked - offline, as configured"

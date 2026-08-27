@@ -62,7 +62,6 @@ local function UpdateTicker()
 	end
 end
 
---- Stamps or clears one player.
 ---@param guid string
 ---@param connected boolean
 ---@return boolean changed
@@ -165,9 +164,5 @@ Private.Events.RegisterEvent("GROUP_ROSTER_UPDATE", function()
 end)
 
 Private.Events.RegisterEvent("PLAYER_LOGIN", function()
-	-- Rebuilt here rather than relied on: this file loads before `Registry.lua`, whose own login listener
-	-- does the same one line before it applies, so nothing has scanned the group yet and the scan below
-	-- would find nobody to stamp. Plain table work, and idempotent.
-	Private.Roster.Rebuild()
 	Settle(Scan())
 end)

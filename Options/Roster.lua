@@ -145,9 +145,9 @@ end
 --- Picks how long a spotlighted player may be offline before their slot becomes a spacer, and acts on the
 --- grid at once, so a shorter delay takes effect on what is already on screen.
 ---
---- No `Private.Options.Refresh()`: unlike the role dropdowns this moves nobody between the two panes -- a
---- blanked slot is still a slot, and its player was never in the Unrostered list to come back to. The row's
---- label changes, which the tab's own repaint covers.
+--- No `Private.Options.Refresh()` here, unlike the role dropdowns: the sweep is a request, so a refresh on
+--- this line would run a frame before the blank it is meant to show. The handler refreshes after its own
+--- `Apply` instead.
 ---@param value number
 local function SetOfflineBlankDelay(value)
 	SetLayoutField("offlineBlankDelay", value)

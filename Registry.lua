@@ -340,6 +340,13 @@ local function BlankOffline()
 					names[#names + 1] = slot.name or guid
 
 					slots[i] = { kind = "blank" }
+
+					-- Marked as already offered, or a reconnect appends them at the *end* of the grid: their
+					-- slot is a spacer now, so `FindOccupant` no longer sees them and the offline veto has
+					-- gone inert. Neither set can be relied on to hold them already -- both sweeps skip
+					-- someone they did not themselves place, and neither survives a reload.
+					autoAdded[guid] = true
+					favoritesHandled[guid] = true
 				end
 			end
 		end
@@ -871,6 +878,10 @@ Private.Events.RegisterHandler(DeferralKey.Registry, Refresh)
 --- `Apply` only when something changed, which is what stops the pass re-arming itself: it requests `Build`
 --- and `Registry`, and an unconditional call from the queue this handler is itself drained from would
 --- schedule work every frame.
+---
+--- The panel is refreshed on that same condition, because nothing else will: the Roster tab's own repaint
+--- is a throttle bound to two roster events, and a threshold elapsing is neither -- so the Spotlighted list
+--- would go on naming a player whose slot is already a spacer.
 Private.Events.RegisterHandler(DeferralKey.Offline, function()
 	if Private.Events.DeferIfInCombat(DeferralKey.Offline) then
 		return
@@ -878,6 +889,7 @@ Private.Events.RegisterHandler(DeferralKey.Offline, function()
 
 	if BlankOffline() then
 		Apply()
+		Private.Options.Refresh()
 	end
 end)
 
@@ -1014,12 +1026,8 @@ end)
 -- every reload, none of which is anyone leaving anything.
 Private.Events.RegisterEvent("PLAYER_ENTERING_WORLD", Apply)
 
-Private.Events.RegisterEvent("PLAYER_LOGIN", function()
-	-- Unconditional, because it is plain table work and runs even under lockdown: that makes a build
-	-- blocked by a mid-combat reload one pass on `PLAYER_REGEN_ENABLED` rather than a scan then a build.
-	Private.Roster.Rebuild()
-	Apply()
-end)
+-- The roster is scanned by `Roster.lua`'s own login listener, which registers first.
+Private.Events.RegisterEvent("PLAYER_LOGIN", Apply)
 
 --- Reports a mutation, and says so when the frames will lag the model: the model is always current, only
 --- the headers wait for combat to end.
