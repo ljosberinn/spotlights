@@ -265,6 +265,7 @@ L.Settings.ClickCastNone = "아직 클릭 지정이 없습니다."
 L.Settings.ClickCastBind = "지정"
 L.Settings.ClickCastCapture =
 "강조 프레임에서 %s을(를) 시전할 마우스 버튼, 키 또는 휠 방향을 조합키와 함께 누르세요.\n\nEsc로 취소합니다."
+L.Settings.ClickCastCombatRefused = "click bindings cannot be captured in combat"
 
 L.Settings.ClickCastOverridePrompt =
 "%s이(가) %s에 지정되어 있습니다. Spotlights에서만 이 동작을 덮어쓸지 확인해 주세요."

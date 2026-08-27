@@ -110,9 +110,19 @@ local function Disarm()
 end
 
 --- Arms the capture overlay for a spell, replacing a row when this is a rebind rather than a new binding.
+---
+--- Refused in combat rather than deferred, unlike the rest of the panel: the gesture *is* the input, and a
+--- key caught once the fight is over is not the one the user meant to press. `SetPropagateKeyboardInput`,
+--- which the overlay takes on `OnShow`, is restricted under lockdown outright.
 ---@param spellID integer
 ---@param replaces integer?
 local function Arm(spellID, replaces)
+	if InCombatLockdown() then
+		Private.Utils.Print(Private.L.Settings.ClickCastCombatRefused)
+
+		return
+	end
+
 	if not overlay then
 		return
 	end

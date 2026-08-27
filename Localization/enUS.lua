@@ -389,6 +389,7 @@ L.Settings.ClickCastIntro =
 L.Settings.ClickCastNone = "No click bindings yet."
 L.Settings.ClickCastBind = "Bind"
 L.Settings.ClickCastCapture = "Press the mouse button, key or scroll direction, with any modifiers, that should cast %s on a spotlight.\n\nEscape cancels."
+L.Settings.ClickCastCombatRefused = "click bindings cannot be captured in combat"
 
 -- The two prompts differ in more than wording: the first is an override the user is making, the second is
 -- one the game is refusing them, and a binding that says it replaced something it did not is worse than no

@@ -263,6 +263,7 @@ L.Settings.ClickCastIntro =
 L.Settings.ClickCastNone = "尚无点击绑定。"
 L.Settings.ClickCastBind = "绑定"
 L.Settings.ClickCastCapture = "请按下用于在框体上施放 %s 的鼠标按键、键盘按键或滚轮方向，可搭配任意组合键。\n\n按 Esc 取消。"
+L.Settings.ClickCastCombatRefused = "click bindings cannot be captured in combat"
 
 L.Settings.ClickCastOverridePrompt = "你已将 %s 绑定到 %s。请确认你希望仅在 Spotlights 中覆盖该行为。"
 L.Settings.ClickCastOverrideConfirm = "覆盖"

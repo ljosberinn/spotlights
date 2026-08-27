@@ -274,6 +274,7 @@ L.Settings.ClickCastNone = "Noch keine Klickbelegungen."
 L.Settings.ClickCastBind = "Belegen"
 L.Settings.ClickCastCapture =
 "Drücke die Maustaste, Taste oder Scrollrichtung – mit beliebigen Zusatztasten –, die %s auf einer Hervorhebung wirken soll.\n\nEsc bricht ab."
+L.Settings.ClickCastCombatRefused = "click bindings cannot be captured in combat"
 
 L.Settings.ClickCastOverridePrompt =
 "Du hast %s auf %s gelegt. Bitte bestätige, dass du dieses Verhalten nur für Spotlights überschreiben möchtest."

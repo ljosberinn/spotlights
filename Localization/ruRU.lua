@@ -271,6 +271,7 @@ L.Settings.ClickCastNone = "Привязок щелчков пока нет."
 L.Settings.ClickCastBind = "Привязать"
 L.Settings.ClickCastCapture =
 "Нажмите кнопку мыши, клавишу или направление прокрутки с нужными модификаторами, которые должны применять %s на рамке.\n\nEsc — отмена."
+L.Settings.ClickCastCombatRefused = "click bindings cannot be captured in combat"
 
 L.Settings.ClickCastOverridePrompt =
 "У вас %s привязано к %s. Подтвердите, что хотите переопределить это поведение только для Spotlights."

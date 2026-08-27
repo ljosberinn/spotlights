@@ -272,6 +272,7 @@ L.Settings.ClickCastNone = "Nenhuma associação de clique ainda."
 L.Settings.ClickCastBind = "Associar"
 L.Settings.ClickCastCapture =
 "Pressione o botão do mouse, a tecla ou a direção da roda, com os modificadores que quiser, que deve conjurar %s em um destaque.\n\nEsc cancela."
+L.Settings.ClickCastCombatRefused = "click bindings cannot be captured in combat"
 
 L.Settings.ClickCastOverridePrompt =
 "Você tem %s associado a %s. Confirme que deseja substituir esse comportamento apenas no Spotlights."

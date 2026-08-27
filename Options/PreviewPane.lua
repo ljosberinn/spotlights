@@ -49,12 +49,16 @@ local pendingSize = {}
 
 --- Sizes a mini frame to the configured spotlight size, shrunk to fit the stage.
 ---
---- Out of combat only, and the one part of `Refresh` that is: the mini frame comes from the secure
---- template, so a pane built before the pull holds a protected frame and both calls block. The config is
---- re-read on the way out rather than captured, so a deferred pane lands on the size it ends combat with.
+--- The one part of `Refresh` combat can refuse: the secure template protects a frame it builds out of
+--- combat, and both calls block against that one. Tested per frame rather than on lockdown alone, because a
+--- pane first opened *during* a pull holds an unprotected frame -- and since nothing else ever sizes this
+--- one, deferring it would draw an empty stage under a caption stating a size.
+---
+--- The config is re-read on the way out rather than captured, so a deferred pane lands on the size it ends
+--- combat with.
 ---@param frame SpotlightsUnitFrame
 local function ApplySize(frame)
-	if Private.Events.DeferIfInCombat(DeferralKey.PreviewPane) then
+	if frame:IsProtected() and Private.Events.DeferIfInCombat(DeferralKey.PreviewPane) then
 		pendingSize[frame] = true
 
 		return
