@@ -336,14 +336,10 @@ function Private.Container.Request()
 	Private.Events.Request(DeferralKey.Position)
 end
 
---- Puts the grid back in the middle of the screen.
+--- Puts the grid's rectangle back in the middle of the screen. Not `CENTER, 0, 0`, which names the growth
+--- corner and would leave the rectangle hanging off the centre by half its size in each axis.
 ---
---- Not `CENTER, 0, 0`, which now means the *growth corner* at the screen centre and leaves the rectangle
---- hanging off it by half its size in each axis. Offsetting by where that corner sits relative to the
---- rectangle's own centre is what centres the rectangle instead.
----
---- Combat is the callers' to refuse, since each reports it differently; the write itself is plain table
---- work and the apply defers on its own.
+--- Combat is the callers' to refuse, since each reports it differently and nothing here is a protected call.
 function Private.Container.Recenter()
 	local position = Private.Container.GetPosition()
 	local growth = GrowthPoint()
@@ -360,15 +356,12 @@ function Private.Container.Recenter()
 	Private.Container.Request()
 end
 
---- Moves the saved offset onto the growth corner a layout change has just produced, keeping **slot 1**
---- where it is: slot 1 is anchored at zero offset from the container's growth corner, so flipping a growth
---- direction walks that corner to the opposite side of slot 1's own rectangle.
+--- Moves the saved offset onto the growth corner a layout change has just produced, holding **slot 1**
+--- still: it sits at zero offset from that corner, which is why the offset moves by a frame's size and not
+--- the container's.
 ---
---- Frame size and not container size for that reason -- what is being held still is one spotlight, not the
---- grid's bounding box, so a reversed grid unfolds from the frame the user was looking at.
----
---- Takes the growth point read *before* the layout field was written, and must run before the passes
---- `Layout.Request` queued for the next frame.
+--- `previous` is the growth point read *before* the layout was written, and the result has to land before
+--- the passes that write queued.
 ---@param previous AnchorPoint
 function Private.Container.Rebase(previous)
 	local position = Private.Container.GetPosition()

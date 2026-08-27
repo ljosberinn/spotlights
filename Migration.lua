@@ -494,19 +494,14 @@ local steps = {
 			return
 		end
 
-		-- Steps run before `Repair`, so a field the corner arithmetic reads may still be missing: a nil
-		-- number errors outright, and a nil grow direction resolves to the *opposite* corner of the one
-		-- `Repair` is about to default it to. Neither leaves a position worth correcting.
-		if
-			type(layout.stride) ~= "number"
-			or type(layout.frameWidth) ~= "number"
-			or type(layout.frameHeight) ~= "number"
-			or type(layout.spacingX) ~= "number"
-			or type(layout.spacingY) ~= "number"
-			or layout.growX == nil
-			or layout.growY == nil
-		then
-			return
+		-- Steps run before `Repair`, so `layout` may still be missing a field the corner arithmetic reads.
+		-- Filled on `Repair`'s own rule -- a nil takes the shipped default -- so what this measures and what
+		-- the grid is then drawn with cannot disagree. Bailing instead would strand that position in
+		-- rectangle-corner terms for good, since `version` is stamped either way and the step never reruns.
+		for field, value in pairs(DefaultLayout()) do
+			if layout[field] == nil then
+				layout[field] = value
+			end
 		end
 
 		local width, height = Private.Layout.ContainerSize(db.slots and #db.slots or 0, layout)
@@ -562,9 +557,6 @@ end
 ---
 --- Scale and strata are repaired field by field, because neither is part of that anchor: throwing away a
 --- good position over a field it could not have had would move the user's grid on first login.
----
---- **Runs after the layout block is repaired**, which is what makes `db.layout` safe to measure a centred
---- replacement against: `CenteredPosition` does arithmetic on numbers a damaged layout may be missing.
 ---@param db SpotlightsDB
 local function RepairPosition(db)
 	local position = db.position
@@ -618,7 +610,7 @@ local function Repair(db)
 	RepairNameStrata(db)
 	RepairBlock(db, "auras", DefaultAuras)
 
-	-- After the layout block, which a replacement position is measured against.
+	-- After the layout block: `CenteredPosition` measures a replacement against numbers it fills in.
 	RepairPosition(db)
 
 	RepairBlock(db, "minimap", function()

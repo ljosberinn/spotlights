@@ -121,7 +121,6 @@ local function GetGrowY()
 	return layout and layout.growY
 end
 
---- `SetGrowX`'s counterpart, and rebased for the same reason.
 ---@param value GrowY
 local function SetGrowY(value)
 	local layout = Layout()

@@ -152,15 +152,13 @@ function Private.Profile.ImportString(text)
 
 	for key, Local in pairs(NOT_EXPORTED) do
 		restored[key] = Local(current)
-		payload[key] = restored[key]
-	end
 
-	--- Installed by the loop above and taken straight back out, because the run must not *see* it: it is this
-	--- account's own live table and a step mutates whatever it is handed. Version 7 rebases `position` in
-	--- place, so a payload from before it would shift the real position a second time, and the write-back
-	--- below could not undo that -- it puts back the same reference. `slots` cannot be withheld the same way;
-	--- see its warning above.
-	payload.position = nil
+		--- `position` alone is withheld from the run: it is this account's live table and version 7 rebases it
+		--- in place, which the write-back below cannot undo -- it puts back the same reference.
+		if key ~= "position" then
+			payload[key] = restored[key]
+		end
+	end
 
 	local migrated = Private.Migration.Run(payload)
 
