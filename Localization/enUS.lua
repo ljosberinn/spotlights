@@ -190,6 +190,16 @@ L.Settings.AutoAddPartyRoles = "Automatically Add These Roles In A Party"
 -- Says what it does to the grid rather than to the list, because it is destructive: these roles are taken
 -- out and kept out, not hidden.
 L.Settings.AutoRemoveRoles = "Automatically Remove These Roles"
+-- Says what happens to the cell, because "blank" alone reads as "remove" and the whole point of the
+-- setting is that the cell survives. The combat clause is not a caveat -- it is what stops a disconnect
+-- during a pull from costing a slot.
+L.Settings.OfflineBlankDelay = "Blank Offline Players After"
+L.Settings.OfflineBlankDelayTooltip =
+"The slot becomes an empty spacer and keeps its place in the grid; the player is not re-added when they reconnect. Applied when you leave combat."
+-- The two ends of the delay list. The four waits between them are printed by the client's own duration
+-- strings, so only these are ours to spell.
+L.Settings.OfflineBlankNever = "Never"
+L.Settings.OfflineBlankInstantly = "Instantly"
 
 -- Read as a pair, each naming the people in its own list. Not "group members" on the right, since anyone
 -- already spotlighted is left out of it.
@@ -482,3 +492,4 @@ L.Mover.CombatRefused = "cannot move the grid in combat"
 L.Mover.Reset = "grid returned to the screen center"
 L.Registry.Unresolved = "no guid yet"
 L.Registry.ClearedOnLeave = "group changed - roster cleared, as configured"
+L.Registry.BlankedOffline = "%s blanked - offline, as configured"
