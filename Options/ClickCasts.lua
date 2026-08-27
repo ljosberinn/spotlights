@@ -355,8 +355,16 @@ local function BuildOverlay(page)
 	text:SetWordWrap(true)
 
 	frame:SetScript("OnShow", function(self)
-		local spellID = pending and pending.spellID
-		local name = spellID and SpellDisplay(spellID) or ""
+		--- Hiding the panel leaves this frame's own shown flag set, so re-opening it puts the overlay back up
+		--- over a capture `OnHide` has already forgotten. Taken down rather than drawn empty, which would
+		--- swallow every click on the tab -- and it is what keeps `Arm`'s combat refusal the only way in.
+		if not pending then
+			self:Hide()
+
+			return
+		end
+
+		local name = SpellDisplay(pending.spellID)
 
 		text:SetText(string.format(Private.L.Settings.ClickCastCapture, name))
 
@@ -366,7 +374,12 @@ local function BuildOverlay(page)
 
 	frame:SetScript("OnHide", function(self)
 		self:EnableKeyboard(false)
-		self:SetPropagateKeyboardInput(true)
+
+		-- Restricted under lockdown, and the flag only reaches a shown frame the keyboard is enabled on --
+		-- `OnShow` sets it again, and cannot run before combat ends now that `Arm` refuses.
+		if not InCombatLockdown() then
+			self:SetPropagateKeyboardInput(true)
+		end
 
 		pending = nil
 	end)

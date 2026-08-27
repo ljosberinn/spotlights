@@ -15,3 +15,4 @@ v1.1.2
 - the grid no longer shifts sideways when adding a spotlight starts a new row or column, and flipping a grow direction now reverses the grid around the first spotlight instead of moving it
 - the settings window now opens in combat and stays open when a pull starts, with anything it cannot apply mid-fight landing as soon as combat ends
 - click-cast bindings still cannot be captured in combat, and pressing Bind now says so
+- closing the settings window part-way through capturing a click binding no longer leaves the capture overlay covering the Click Casting tab when it is re-opened
