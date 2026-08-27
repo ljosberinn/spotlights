@@ -236,7 +236,7 @@ local favoritesHandled = {}
 --- criterion it is for `AutoAddPartyRoles`, so absent information excludes nobody.
 ---
 --- Being offline is a third veto while the blank sweep is armed, on the churn grounds again, and it takes
---- effect before the handled mark -- so a favourite who reconnects is offered afresh.
+--- effect before the handled mark -- which is why `BlankOffline` marks the guids it blanks.
 ---
 --- Appends directly rather than through `AssignByGuid`, which applies once per member.
 ---@return boolean added
@@ -343,8 +343,9 @@ local function BlankOffline()
 
 					-- Marked as already offered, or a reconnect appends them at the *end* of the grid: their
 					-- slot is a spacer now, so `FindOccupant` no longer sees them and the offline veto has
-					-- gone inert. Neither set can be relied on to hold them already -- both sweeps skip
-					-- someone they did not themselves place, and neither survives a reload.
+					-- gone inert. Neither set can be assumed to hold them -- `AutoAddPartyRoles` marks only
+					-- what it placed itself, `Favorites` vetoes on offline before it reaches its own mark,
+					-- and neither survives a reload.
 					autoAdded[guid] = true
 					favoritesHandled[guid] = true
 				end
