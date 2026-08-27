@@ -105,7 +105,9 @@ end
 --- our own is a sibling of those child frames, which is what makes `nameStrata` expressible at all.
 ---
 --- **Out of combat only on a live spotlight.** The layer is parented to a secure unit button, so
---- `SetAllPoints` and `SetFrameLevel` on it are protected calls. Preview frames are ours.
+--- `SetAllPoints` and `SetFrameLevel` on it are protected calls. A preview frame is not exempt for being
+--- ours -- its template protects one created out of combat too -- but `Private.Preview.CreateFrame` calls
+--- this on a frame it has just built, so the two are never out of step.
 ---@param frame SpotlightsUnitFrame
 ---@return Frame
 function Private.NameStyle.EnsureLayer(frame)

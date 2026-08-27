@@ -13,9 +13,10 @@ Private.Preview = {}
 --- Created by us and never touched by a secure header, so **no secret value is involved anywhere in this
 --- file** -- a preview shows a made-up health fraction through `SetValue`.
 ---
---- Parented to the mover overlay (load-bearing; see `Private.Mover.GetOverlay`), the only frame both
---- unprotected and aligned to the grid, so previews inherit positioning, unprotected status and their
---- lifetime from it. Built from the real template, so what you position is what you get.
+--- Parented to the mover overlay (load-bearing; see `Private.Mover.GetOverlay`), which is aligned to the
+--- grid without being the container, so previews inherit positioning and their lifetime from it. Built from
+--- the real template, so what you position is what you get -- and so a preview created out of combat is
+--- protected in its own right, and protects the overlay it hangs in.
 
 local shown = false
 
@@ -67,7 +68,7 @@ function Private.Preview.CreateFrame(parent)
 	frame.tempMaxHealthLoss:Hide()
 
 	-- The same layer a live spotlight puts its name in, so a name stacks over an aura display the same way.
-	-- Nothing here is protected, so no deferral is owed.
+	-- No deferral is owed: the frame is a moment old, so it is protected only where we are out of combat.
 	Private.NameStyle.EnsureLayer(frame)
 
 	return frame

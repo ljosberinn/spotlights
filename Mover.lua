@@ -162,14 +162,15 @@ function Private.Mover.IsUnlocked()
 	return unlocked
 end
 
---- The overlay, for `Private.Preview` to parent its frames to: the only frame in the addon both
---- unprotected and aligned to the grid's rectangle.
+--- The overlay, for `Private.Preview` to parent its frames to: aligned to the grid's rectangle, and a
+--- separate object from the container.
 ---
---- - The **container** would make a preview protected, so the hide that has to work as combat starts would
----   block, leaving fictional raid members on screen for the fight.
---- - **UIParent** keeps it unprotected but forces its position to be recomputed on every drag frame.
+--- Not an unprotected frame, whatever it is at creation -- protection travels *up* the parent chain, so a
+--- preview built out of combat protects this overlay with it, which is why `Apply` defers. The
+--- **container** would instead put previews under its secure visibility driver, and **UIParent** would
+--- force their position to be recomputed on every drag frame.
 ---
---- Parented here, previews inherit positioning from `Sync`, unprotected status, and their whole lifetime.
+--- Parented here, previews inherit positioning from `Sync` and their whole lifetime.
 ---@return Frame
 function Private.Mover.GetOverlay()
 	return Get()
