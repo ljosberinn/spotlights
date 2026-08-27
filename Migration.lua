@@ -29,7 +29,8 @@ local function DefaultLayout()
 		clearOnLeave = false,
 
 		-- Damage alone, matching `unrosteredRoles`' default below. An empty selection means the sweep is
-		-- off, so this table doubles as the on/off switch. All three keys written, for its reason.
+		-- off, so this table doubles as the on/off switch. All three keys written, for the reason given
+		-- below.
 		autoAddPartyRoles = {
 			TANK = false,
 			HEALER = false,

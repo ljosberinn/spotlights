@@ -166,7 +166,7 @@ local function AutoAddPartyRoles()
 	-- Decided once here rather than inside the loop below, which only needs to know the member's own role.
 	local on = roles ~= nil and (roles.TANK or roles.HEALER or roles.DAMAGER)
 
-	if not slots or not on or GroupKind() ~= "party" then
+	if not slots or not layout or not roles or not on or GroupKind() ~= "party" then
 		return false
 	end
 
@@ -194,8 +194,6 @@ local function AutoAddPartyRoles()
 		local member = roster[i]
 		local role = Private.Roster.GetRole(member.guid)
 
-		-- A nil role never matches a selected one, so absent information is never evidence -- unlike
-		-- `removedRoles` below, which is a veto and would otherwise have nothing to veto.
 		if not autoAdded[member.guid] and role and roles[role] then
 			-- Skipped outright when the role is also set to be auto-removed, rather than added and swept back
 			-- out: the pairing would churn the slot list on every roster event.
