@@ -35,10 +35,12 @@ local function StrataChoices()
 	return choices
 end
 
---- Recentres the grid, as `/spotlights recenter` does. Silent in combat rather than printing what the slash
---- command prints: combat closes the panel, so this is reachable only in the frame or two before that runs.
+--- Recentres the grid, as `/spotlights recenter` does, refusal in combat included. Says so rather than
+--- returning silently: a setting that lands late is one thing, a button that does nothing reads as broken.
 local function Recenter()
 	if InCombatLockdown() then
+		Private.Utils.Print(Private.L.Mover.CombatRefused)
+
 		return
 	end
 

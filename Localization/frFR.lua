@@ -38,8 +38,6 @@ L.Registry.ClearedOnLeave = "groupe changé – liste effacée, comme configuré
 L.Layout.NotLoaded = "les réglages sauvegardés ne sont pas encore chargés"
 
 L.Settings.Title = "Spotlights"
-L.Settings.CombatRefused = "les réglages ne peuvent pas être ouverts en combat"
-L.Settings.ClosedByCombat = "réglages fermés : entrée en combat"
 L.Settings.TabGeneral = "Général"
 L.Settings.TabAppearance = "Apparence"
 L.Settings.TabGrid = "Grille"

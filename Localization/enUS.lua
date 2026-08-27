@@ -47,8 +47,6 @@ L.Layout.NotLoaded = "saved settings have not loaded yet"
 L.Settings = {}
 
 L.Settings.Title = "Spotlights"
-L.Settings.CombatRefused = "settings cannot be opened in combat"
-L.Settings.ClosedByCombat = "settings closed: entering combat"
 
 L.Settings.TabGeneral = "General"
 L.Settings.TabAppearance = "Appearance"

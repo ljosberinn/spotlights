@@ -38,8 +38,6 @@ L.Registry.ClearedOnLeave = "группа изменилась — состав 
 L.Layout.NotLoaded = "сохранённые настройки ещё не загружены"
 
 L.Settings.Title = "Spotlights"
-L.Settings.CombatRefused = "настройки нельзя открыть в бою"
-L.Settings.ClosedByCombat = "настройки закрыты: вход в бой"
 L.Settings.TabGeneral = "Общие"
 L.Settings.TabAppearance = "Внешний вид"
 L.Settings.TabGrid = "Сетка"

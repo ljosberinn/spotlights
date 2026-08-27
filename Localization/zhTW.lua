@@ -37,8 +37,6 @@ L.Registry.ClearedOnLeave = "隊伍已變更——依設定清空名單"
 L.Layout.NotLoaded = "已儲存的設定尚未載入"
 
 L.Settings.Title = "Spotlights"
-L.Settings.CombatRefused = "戰鬥中無法開啟設定"
-L.Settings.ClosedByCombat = "設定已關閉：進入戰鬥"
 L.Settings.TabGeneral = "一般"
 L.Settings.TabAppearance = "外觀"
 L.Settings.TabGrid = "網格"

@@ -37,8 +37,6 @@ L.Registry.ClearedOnLeave = "그룹이 바뀜 - 설정에 따라 명단이 초�
 L.Layout.NotLoaded = "저장된 설정이 아직 불러와지지 않았습니다"
 
 L.Settings.Title = "Spotlights"
-L.Settings.CombatRefused = "전투 중에는 설정을 열 수 없습니다"
-L.Settings.ClosedByCombat = "설정 닫힘: 전투 시작"
 L.Settings.TabGeneral = "일반"
 L.Settings.TabAppearance = "모양"
 L.Settings.TabGrid = "격자"

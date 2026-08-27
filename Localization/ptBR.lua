@@ -39,8 +39,6 @@ L.Registry.ClearedOnLeave = "o grupo mudou - lista limpa, conforme configurado"
 L.Layout.NotLoaded = "as configurações salvas ainda não foram carregadas"
 
 L.Settings.Title = "Spotlights"
-L.Settings.CombatRefused = "as configurações não podem ser abertas em combate"
-L.Settings.ClosedByCombat = "configurações fechadas: entrando em combate"
 L.Settings.TabGeneral = "Geral"
 L.Settings.TabAppearance = "Aparência"
 L.Settings.TabGrid = "Grade"

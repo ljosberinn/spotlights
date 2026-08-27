@@ -40,8 +40,6 @@ L.Registry.ClearedOnLeave = "Gruppe gewechselt – Liste wie konfiguriert geleer
 L.Layout.NotLoaded = "gespeicherte Einstellungen wurden noch nicht geladen"
 
 L.Settings.Title = "Spotlights"
-L.Settings.CombatRefused = "Einstellungen können im Kampf nicht geöffnet werden"
-L.Settings.ClosedByCombat = "Einstellungen geschlossen: Kampf beginnt"
 L.Settings.TabGeneral = "Allgemein"
 L.Settings.TabAppearance = "Aussehen"
 L.Settings.TabGrid = "Raster"

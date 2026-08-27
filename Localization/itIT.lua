@@ -39,8 +39,6 @@ L.Registry.ClearedOnLeave = "gruppo cambiato - roster azzerato, come configurato
 L.Layout.NotLoaded = "le impostazioni salvate non sono ancora state caricate"
 
 L.Settings.Title = "Spotlights"
-L.Settings.CombatRefused = "le impostazioni non possono essere aperte in combattimento"
-L.Settings.ClosedByCombat = "impostazioni chiuse: inizio del combattimento"
 L.Settings.TabGeneral = "Generale"
 L.Settings.TabAppearance = "Aspetto"
 L.Settings.TabGrid = "Griglia"

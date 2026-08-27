@@ -4,6 +4,8 @@ local _, Private = ...
 ---@class SpotlightsMover
 Private.Mover = {}
 
+local DeferralKey = Private.Enum.DeferralKey
+
 ---@type Frame?
 local overlay
 
@@ -179,7 +181,15 @@ end
 --- while unlocked must leave the mover as it was, and locking the mover while the tab is open must leave
 --- previews up. Previews follow either reason -- out of a group there is otherwise nothing on screen to
 --- drag or to style against.
+---
+--- Out of combat only: the previews parented into the overlay protect it, so the Show, the Hide and every
+--- write `Sync` makes are protected calls. Deferred rather than refused, because both setters are reachable
+--- from the options panel, which stays open through a pull.
 local function Apply()
+	if Private.Events.DeferIfInCombat(DeferralKey.Mover) then
+		return
+	end
+
 	local wanted = unlocked or previewingAuras
 
 	Private.Preview.SetShown(wanted)
@@ -195,6 +205,10 @@ local function Apply()
 	Get():Show()
 	Private.Mover.Sync()
 end
+
+--- Re-runs the whole apply, which is also what puts `Private.Container.SetPreviewing` back on the state
+--- driver it refuses to touch under lockdown.
+Private.Events.RegisterHandler(DeferralKey.Mover, Apply)
 
 --- Shows or hides the drag handle. Previewing is tied to the mover rather than the options panel, which
 --- would leave `/spotlights mover` useless out of a group and show fictional players to anyone who opened
@@ -220,6 +234,10 @@ Private.Events.RegisterEvent("PLAYER_REGEN_DISABLED", function()
 	if unlocked then
 		Private.Mover.SetUnlocked(false)
 		Private.Utils.Print(Private.L.Mover.LockedByCombat)
+
+		-- The panel no longer closes on the pull, so the unlock checkbox has to be told the mover locked
+		-- itself behind its back.
+		Private.Options.Refresh()
 	end
 end)
 

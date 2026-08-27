@@ -61,8 +61,10 @@ Private.Enum.DeferralKey = {
 	Layout = "layout",
 	Position = "position",
 	NameStrata = "nameStrata",
+	Mover = "mover",
 	Auras = "auras",
 	ClickCasts = "clickCasts",
+	PreviewPane = "previewPane",
 }
 
 --- Drain order, and why the queue is a set not a list. Config leads, because Build and Refresh read the
@@ -70,10 +72,11 @@ Private.Enum.DeferralKey = {
 ---
 --- Position is last of the geometry passes because clamping needs the container's *final* size, which
 --- Layout decides. NameStrata follows it because a name layer set to inherit takes the strata Position just
---- wrote.
+--- wrote, and Mover follows both because its overlay is squared onto the container's finished rectangle.
 ---
---- Auras and ClickCasts are last outright but under no ordering constraint -- nothing either reads or
---- writes crosses this queue. They are here so a pass blocked by combat resumes with everything else.
+--- Auras, ClickCasts and PreviewPane are last outright but under no ordering constraint -- nothing any of
+--- them reads or writes crosses this queue. They are here so a pass blocked by combat resumes with
+--- everything else.
 Private.Enum.DeferralOrder = {
 	Private.Enum.DeferralKey.Config,
 	Private.Enum.DeferralKey.Build,
@@ -82,8 +85,10 @@ Private.Enum.DeferralOrder = {
 	Private.Enum.DeferralKey.Layout,
 	Private.Enum.DeferralKey.Position,
 	Private.Enum.DeferralKey.NameStrata,
+	Private.Enum.DeferralKey.Mover,
 	Private.Enum.DeferralKey.Auras,
 	Private.Enum.DeferralKey.ClickCasts,
+	Private.Enum.DeferralKey.PreviewPane,
 }
 
 --- A set, so a stored position can be validated before SetPoint, which errors outright on an unrecognised

@@ -4,6 +4,8 @@ local _, Private = ...
 ---@class SpotlightsPreviewPane
 Private.PreviewPane = {}
 
+local DeferralKey = Private.Enum.DeferralKey
+
 --- The Appearance tab's preview pane: one inert spotlight, scaled to fit, over a caption. It exists because
 --- outside a raid nothing on screen wears those settings, and the grid previews need the mover unlocked.
 ---
@@ -40,6 +42,44 @@ local function Fit(config)
 	return math.min(1, (Private.PreviewPane.Width - STAGE_INSET * 2) / config.frameWidth,
 		STAGE_HEIGHT / config.frameHeight)
 end
+
+--- Mini frames whose size write was refused under lockdown, re-applied together when combat ends.
+---@type table<SpotlightsUnitFrame, boolean>
+local pendingSize = {}
+
+--- Sizes a mini frame to the configured spotlight size, shrunk to fit the stage.
+---
+--- Out of combat only, and the one part of `Refresh` that is: the mini frame comes from the secure
+--- template, so a pane built before the pull holds a protected frame and both calls block. The config is
+--- re-read on the way out rather than captured, so a deferred pane lands on the size it ends combat with.
+---@param frame SpotlightsUnitFrame
+local function ApplySize(frame)
+	if Private.Events.DeferIfInCombat(DeferralKey.PreviewPane) then
+		pendingSize[frame] = true
+
+		return
+	end
+
+	local config = Private.Layout.GetConfig()
+
+	if not config then
+		return
+	end
+
+	--- Scale first: `PixelUtil` snaps a size against the frame's *effective* scale, so sizing before
+	--- scaling snaps against the scale being replaced.
+	frame:SetScale(Fit(config))
+	PixelUtil.SetSize(frame, config.frameWidth, config.frameHeight)
+end
+
+Private.Events.RegisterHandler(DeferralKey.PreviewPane, function()
+	-- Cleared before the call, so a pane that defers again is not swallowed by this pass.
+	for frame in pairs(pendingSize) do
+		pendingSize[frame] = nil
+
+		ApplySize(frame)
+	end
+end)
 
 --- The default caption: the size the frame really is, plus the percentage that keeps it honest once the
 --- frame no longer fits.
@@ -90,17 +130,9 @@ function Private.PreviewPane.Build(page, options)
 	frame:SetPoint("CENTER", stage, "CENTER", 0, 0)
 
 	function stage:Refresh()
-		local config = Private.Layout.GetConfig()
-
-		if config then
-			--- From `Refresh` rather than `Layout`, so a write to either size field repaints the pane without
-			--- a layout pass -- the fit is decided against two constants.
-			---
-			--- Scale first: `PixelUtil` snaps a size against the frame's *effective* scale, so sizing before
-			--- scaling snaps against the scale being replaced.
-			frame:SetScale(Fit(config))
-			PixelUtil.SetSize(frame, config.frameWidth, config.frameHeight)
-		end
+		--- From `Refresh` rather than `Layout`, so a write to either size field repaints the pane without a
+		--- layout pass -- the fit is decided against two constants.
+		ApplySize(frame)
 
 		Private.Preview.Fill(frame, DUMMY_INDEX, nil, nil, class)
 	end
