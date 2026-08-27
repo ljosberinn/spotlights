@@ -28,6 +28,7 @@
 ---@field SlotHeader SpotlightsSlotHeader
 ---@field Migration SpotlightsMigration
 ---@field Roster SpotlightsRoster
+---@field Offline SpotlightsOffline
 ---@field Favorites SpotlightsFavorites
 ---@field Registry SpotlightsRegistry
 ---@field Layout SpotlightsLayout
@@ -440,6 +441,7 @@
 ---@field frameHeight number
 ---@field allowGaps boolean
 ---@field clearOnLeave boolean wipe every configured slot when the kind of group changes
+---@field offlineBlankDelay number seconds a spotlighted player may be offline before their slot becomes a blank spacer, or `Enum.OfflineBlankNever`. Destructive like `autoRemoveRoles`, but keeps the cell: the slot is blanked in place rather than removed
 ---@field unrosteredRoles table<string, boolean> which roles the Unrostered list offers, keyed by the tokens `UnitGroupRolesAssigned` answers with. A display filter on that list, and the one gate the favourites sweep reads: a favourite whose role the list does not offer is not added. `autoAddPartyRoles` still ignores it
 ---@field autoRemoveRoles table<string, boolean> which roles are kept out of the grid, keyed the same way. Destructive, unlike `unrosteredRoles`: a slot whose player plays one of these is taken out and stays out
 ---@field autoAddPartyRoles table<string, boolean> which roles are appended to the grid, keyed the same way; empty means off. Party only, once each, and a member taken back out by hand stays out for the rest of that group

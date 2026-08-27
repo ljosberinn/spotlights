@@ -28,6 +28,9 @@ local function DefaultLayout()
 		-- layout (like `allowGaps`) because it is a grid behaviour the Roster tab surfaces.
 		clearOnLeave = false,
 
+		-- Never by default, on `clearOnLeave`'s grounds: this discards a slot the user arranged.
+		offlineBlankDelay = Private.Enum.OfflineBlankNever,
+
 		-- Damage alone, matching `unrosteredRoles`' default below. An empty selection means the sweep is
 		-- off, so this table doubles as the on/off switch. All three keys written, for the reason given
 		-- below.
@@ -620,6 +623,18 @@ local function RepairNameStrata(db)
 	end
 end
 
+--- Validates the one layout field a field-by-field fill cannot repair, on `RepairNameStrata`'s grounds: a
+--- nil is not the failure mode, a number an edited SavedVariables put there is, and it would become a live
+--- threshold. Runs after `RepairBlock` has guaranteed the block is a table.
+---@param db SpotlightsDB
+local function RepairOfflineBlankDelay(db)
+	local layout = db.layout
+
+	if not Private.Enum.OfflineBlankDelaySet[layout.offlineBlankDelay] then
+		layout.offlineBlankDelay = DefaultLayout().offlineBlankDelay
+	end
+end
+
 --- Every repair, in one call. Adding a settings block means adding it here as well as to `CreateDefault`
 --- and a migration step: three places, answering what a new database contains, what an old one gains and
 --- what a damaged one gets back. Collapsing them would mean a migration that silently repairs, which is
@@ -627,6 +642,7 @@ end
 ---@param db SpotlightsDB
 local function Repair(db)
 	RepairBlock(db, "layout", DefaultLayout)
+	RepairOfflineBlankDelay(db)
 	RepairBlock(db, "appearance", DefaultAppearance)
 	RepairNameStrata(db)
 	RepairBlock(db, "auras", DefaultAuras)

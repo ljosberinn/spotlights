@@ -32,6 +32,7 @@ Auras.lua
 SlotHeader.lua
 Migration.lua
 Roster.lua
+Offline.lua
 Layout.lua
 Registry.lua
 Favorites.lua
