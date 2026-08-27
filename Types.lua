@@ -440,9 +440,9 @@
 ---@field frameHeight number
 ---@field allowGaps boolean
 ---@field clearOnLeave boolean wipe every configured slot when the kind of group changes
----@field unrosteredRoles table<string, boolean> which roles the Unrostered list offers, keyed by the tokens `UnitGroupRolesAssigned` answers with. A display filter on that list, and the one gate the favourites sweep reads: a favourite whose role the list does not offer is not added. `autoAddPartyDamagers` still ignores it
+---@field unrosteredRoles table<string, boolean> which roles the Unrostered list offers, keyed by the tokens `UnitGroupRolesAssigned` answers with. A display filter on that list, and the one gate the favourites sweep reads: a favourite whose role the list does not offer is not added. `autoAddPartyRoles` still ignores it
 ---@field autoRemoveRoles table<string, boolean> which roles are kept out of the grid, keyed the same way. Destructive, unlike `unrosteredRoles`: a slot whose player plays one of these is taken out and stays out
----@field autoAddPartyDamagers boolean append every party damage dealer to the grid, once each. Party only, and a member taken back out by hand stays out for the rest of that group
+---@field autoAddPartyRoles table<string, boolean> which roles are appended to the grid, keyed the same way; empty means off. Party only, once each, and a member taken back out by hand stays out for the rest of that group
 
 --- The button a key click cast lands on, one per spotlight -- see `ClickCasts.EnsureKeyProxy` for why the
 --- child cannot be one.

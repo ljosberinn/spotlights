@@ -18,3 +18,4 @@ v1.1.2
 - closing the settings window part-way through capturing a click binding no longer leaves the capture overlay covering the Click Casting tab when it is re-opened
 - the minimap button and /spotlights now open the settings window in combat again after the Appearance or Auras tab has been visited
 - switching tabs in the settings window during combat no longer throws a blocked-action error
+- "Add all DPS automatically while in a Party" is now a role picker like Auto-Remove's, so tanks and healers can be auto-added too; fresh installs now ship with Damage ticked and the sweep on by default

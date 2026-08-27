@@ -102,20 +102,31 @@ local function SetClearOnLeave(value)
 	SetLayoutField("clearOnLeave", value)
 end
 
+---@param role string
 ---@return boolean
-local function GetAutoAddPartyDamagers()
+local function GetRoleAutoAdded(role)
 	local layout = Layout()
+	local roles = layout and layout.autoAddPartyRoles
 
-	return layout and layout.autoAddPartyDamagers or false
+	return roles ~= nil and roles[role] == true
 end
 
---- Ticks or unticks the party auto-add, and acts on the grid at once, so a tick fills the grid already on
---- screen rather than waiting for the next roster event.
----@param value boolean
-local function SetAutoAddPartyDamagers(value)
-	SetLayoutField("autoAddPartyDamagers", value)
+--- Ticks or unticks a role in the party auto-add selection, and acts on the grid at once, so a tick fills
+--- the grid already on screen rather than waiting for the next roster event.
+---
+--- Not through `SetLayoutField`, this mutates a table inside the block.
+---@param role string
+---@param added boolean
+local function SetRoleAutoAdded(role, added)
+	local layout = Layout()
 
-	Private.Registry.EnforceAutoAddPartyDamagers()
+	if not layout or not layout.autoAddPartyRoles then
+		return
+	end
+
+	layout.autoAddPartyRoles[role] = added
+
+	Private.Registry.EnforceAutoAddPartyRoles()
 
 	-- The tab: slot rows appear on the left and their players leave the right list.
 	Private.Options.Refresh()
@@ -564,11 +575,11 @@ local function BuildRoster(page)
 			CHECKBOX_LABEL_WIDTH),
 		Private.Controls.Checkbox(page, L.ClearOnLeave, GetClearOnLeave, SetClearOnLeave, nil, true,
 			CHECKBOX_LABEL_WIDTH),
-		Private.Controls.Checkbox(page, L.AutoAddPartyDamagers, GetAutoAddPartyDamagers,
-			SetAutoAddPartyDamagers, nil, true, CHECKBOX_LABEL_WIDTH),
 
-		-- In the label column the checkboxes above already establish, so it reads as the last of the block;
-		-- the column is wide enough that the dropdown still shows two role names at once.
+		-- In the label column the checkboxes above establish, so the pair reads as the last of the block;
+		-- the column is wide enough that either dropdown still shows two role names at once.
+		Private.Controls.MultiselectDropdown(page, L.AutoAddPartyRoles, ROLE_CHOICES, GetRoleAutoAdded,
+			SetRoleAutoAdded, CHECKBOX_LABEL_WIDTH),
 		Private.Controls.MultiselectDropdown(page, L.AutoRemoveRoles, ROLE_CHOICES, GetRoleRemoved,
 			SetRoleRemoved, CHECKBOX_LABEL_WIDTH),
 	}, PANE_GAP)

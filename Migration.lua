@@ -5,7 +5,7 @@ local _, Private = ...
 Private.Migration = {}
 
 --- Bump this and add the matching step whenever the shape of SpotlightsSaved changes.
-Private.Migration.CurrentVersion = 7
+Private.Migration.CurrentVersion = 8
 
 --- A function rather than a shared table: handing the same table to two callers would alias one user's
 --- settings onto another's.
@@ -28,8 +28,13 @@ local function DefaultLayout()
 		-- layout (like `allowGaps`) because it is a grid behaviour the Roster tab surfaces.
 		clearOnLeave = false,
 
-		-- Off by default: a grid that fills itself unasked is a surprise even when it fills correctly.
-		autoAddPartyDamagers = false,
+		-- Damage alone, matching `unrosteredRoles`' default below. An empty selection means the sweep is
+		-- off, so this table doubles as the on/off switch. All three keys written, for its reason.
+		autoAddPartyRoles = {
+			TANK = false,
+			HEALER = false,
+			DAMAGER = true,
+		},
 
 		-- Damage alone, because those are the players anyone spotlights.
 		--
@@ -509,6 +514,21 @@ local steps = {
 		local x, y = Private.Container.CornerDelta(position.point, growth, width, height)
 
 		position.x, position.y = position.x + x, position.y + y
+	end,
+	[8] = function(db)
+		local layout = db.layout
+
+		if not layout then
+			return
+		end
+
+		-- Written in both directions: leaving only the enabled case set would leave the disabled case
+		-- with no table for `Filled` to find, and every user who had the checkbox off would come back
+		-- with `DAMAGER` on at their next `Repair`.
+		local on = layout.autoAddPartyDamagers == true
+
+		layout.autoAddPartyRoles = { TANK = false, HEALER = false, DAMAGER = on }
+		layout.autoAddPartyDamagers = nil
 	end,
 }
 
