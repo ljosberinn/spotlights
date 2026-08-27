@@ -188,6 +188,7 @@ local function AutoAddPartyRoles()
 	end
 
 	local removedRoles = layout.autoRemoveRoles
+	local blankOffline = layout.offlineBlankDelay ~= Private.Enum.OfflineBlankNever
 	local added = false
 
 	for i = 1, #roster do
@@ -195,9 +196,14 @@ local function AutoAddPartyRoles()
 		local role = Private.Roster.GetRole(member.guid)
 
 		if not autoAdded[member.guid] and role and roles[role] then
-			-- Skipped outright when the role is also set to be auto-removed, rather than added and swept back
-			-- out: the pairing would churn the slot list on every roster event.
-			if not (removedRoles and removedRoles[role]) and not FindOccupant(member.guid, member.name) then
+			-- Skipped outright when the role is also set to be auto-removed, or when the blank sweep is armed
+			-- and they are already offline, rather than added and swept back out: either pairing would churn
+			-- the slot list on every roster event.
+			if
+				not (removedRoles and removedRoles[role])
+				and not (blankOffline and Private.Offline.SecondsOffline(member.guid))
+				and not FindOccupant(member.guid, member.name)
+			then
 				slots[#slots + 1] = { kind = "player", guid = member.guid, name = member.name }
 				autoAdded[member.guid] = true
 
@@ -229,6 +235,9 @@ local favoritesHandled = {}
 --- **A nil role blocks neither**, matching `Roster.Offers`: role is a veto here rather than the selection
 --- criterion it is for `AutoAddPartyRoles`, so absent information excludes nobody.
 ---
+--- Being offline is a third veto while the blank sweep is armed, on the churn grounds again, and it takes
+--- effect before the handled mark -- so a favourite who reconnects is offered afresh.
+---
 --- Appends directly rather than through `AssignByGuid`, which applies once per member.
 ---@return boolean added
 local function Favorites()
@@ -257,6 +266,7 @@ local function Favorites()
 	end
 
 	local removedRoles = layout.autoRemoveRoles
+	local blankOffline = layout.offlineBlankDelay ~= Private.Enum.OfflineBlankNever
 	local added = false
 
 	for i = 1, #roster do
@@ -269,6 +279,7 @@ local function Favorites()
 			if
 				Private.Roster.Offers(layout.unrosteredRoles, role)
 				and not (role and removedRoles and removedRoles[role])
+				and not (blankOffline and Private.Offline.SecondsOffline(guid))
 			then
 				-- Refreshed while we have the roster's own spelling, so a rename or a realm transfer since the
 				-- star does not leave the slash command listing a name nobody answers to.
@@ -289,6 +300,58 @@ local function Favorites()
 	end
 
 	return added
+end
+
+--- Turns every slot whose player has been offline past the configured delay into a spacer.
+---
+--- **Blanked in place, not removed.** The cell holds its position and nothing after it moves: a grid that
+--- reflows itself because someone's router died is worse than the dead cell it fixes. Which is why this
+--- walks forwards, unlike `AutoRemoveRoles` -- nothing shifts.
+---
+--- The GUID falls back to a name lookup for `SlotRole`'s reason: a slot configured while its player was
+--- away would otherwise read as never-offline for one more event after they turn up.
+---
+--- Announced on `ClearOnLeave`'s grounds, and coalesced into one line -- every name expires on the same
+--- tick, so a raid-wide disconnect would otherwise be a line each.
+---@return boolean blanked
+local function BlankOffline()
+	local slots = Slots()
+	local layout = Private.Layout.GetConfig()
+	local delay = layout and layout.offlineBlankDelay
+
+	if not slots or not delay or delay == Private.Enum.OfflineBlankNever then
+		return false
+	end
+
+	---@type string[]?
+	local names
+
+	for i = 1, #slots do
+		local slot = slots[i]
+
+		if slot.kind == "player" then
+			local guid = slot.guid or (slot.name and Private.Roster.GetGuid(slot.name))
+
+			if guid then
+				local elapsed = Private.Offline.SecondsOffline(guid)
+
+				if elapsed and elapsed >= delay then
+					names = names or {}
+					names[#names + 1] = slot.name or guid
+
+					slots[i] = { kind = "blank" }
+				end
+			end
+		end
+	end
+
+	if not names then
+		return false
+	end
+
+	Private.Utils.Printf(Private.L.Registry.BlankedOffline, table.concat(names, ", "))
+
+	return true
 end
 
 --- Schedules the model onto the headers. Both keys, always: `Build` creates or grows the pool, `Refresh`
@@ -801,6 +864,23 @@ end
 Private.Events.RegisterHandler(DeferralKey.Build, Build)
 Private.Events.RegisterHandler(DeferralKey.Registry, Refresh)
 
+--- **`BlankOffline` is not in `Apply`'s funnel**, unlike the other three sweeps: its combat guard has to be
+--- able to hold it back, since blanking during a pull destroys a slot a reconnect before the end of the
+--- fight would have made unnecessary. Deferred, `PLAYER_REGEN_ENABLED` re-reads the stamp instead.
+---
+--- `Apply` only when something changed, which is what stops the pass re-arming itself: it requests `Build`
+--- and `Registry`, and an unconditional call from the queue this handler is itself drained from would
+--- schedule work every frame.
+Private.Events.RegisterHandler(DeferralKey.Offline, function()
+	if Private.Events.DeferIfInCombat(DeferralKey.Offline) then
+		return
+	end
+
+	if BlankOffline() then
+		Apply()
+	end
+end)
+
 --- **A remembered edge rather than a live test of `GroupKind`**, which is what makes the setting safe: a
 --- bare "not in a group, so clear" would fire on the `PLAYER_ENTERING_WORLD` below and wipe the user's
 --- entire configuration on every login, reload and reconnect.
@@ -882,6 +962,16 @@ function Private.Registry.EnforceAutoAddPartyRoles()
 	Apply()
 
 	return true
+end
+
+--- Runs the offline sweep for a caller that just changed the setting, so picking a shorter delay acts on
+--- the grid already on screen rather than at the next tick.
+---
+--- **Requests rather than sweeping inline**, unlike its three siblings: the combat guard lives in the
+--- handler, and a synchronous call here would blank during a pull.
+function Private.Registry.EnforceBlankOffline()
+	Private.Offline.Reevaluate()
+	Private.Events.Request(DeferralKey.Offline)
 end
 
 --- Runs the favourites sweep for a caller that just changed what it reads, so a star fills the grid on
