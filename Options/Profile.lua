@@ -145,6 +145,11 @@ function Private.Profile.ImportString(text)
 	local current = Private.DB
 	local restored = {}
 
+	--- The growth corner as it stands *before* the import. `layout` is exported while `position` is kept, so
+	--- a string carrying the opposite `growX` moves that corner out from under an offset that measures it --
+	--- the same swap the Grid tab's setters rebase for.
+	local previous = current and current.layout and Private.Layout.AnchorPoint(current.layout)
+
 	for key, Local in pairs(NOT_EXPORTED) do
 		restored[key] = Local(current)
 		payload[key] = restored[key]
@@ -169,6 +174,11 @@ function Private.Profile.ImportString(text)
 
 	Private.DB = migrated
 	SpotlightsSaved = migrated
+
+	-- After the assignment, which is where `Rebase` reads the imported layout's growth corner from.
+	if previous then
+		Private.Container.Rebase(previous)
+	end
 
 	return true
 end
