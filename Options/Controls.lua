@@ -107,10 +107,26 @@ local function HideLabelTooltip(self)
 	end
 end
 
+--- A control's own description, shown whether or not its label is clipped -- unlike `ShowLabelTooltip`,
+--- which is a recovery aid rather than an explanation. Title over description in the two colours
+--- `Settings.InitTooltip` uses (`Blizzard_Settings.lua:288-297`).
+---@param self FontString
+---@param description string
+local function ShowDescriptionTooltip(self, description)
+	GameTooltip:SetOwner(self --[[@as Frame]], "ANCHOR_RIGHT")
+	GameTooltip:SetText(self:GetText(), HIGHLIGHT_FONT_COLOR.r, HIGHLIGHT_FONT_COLOR.g,
+		HIGHLIGHT_FONT_COLOR.b, 1, true)
+	GameTooltip:AddLine(description, NORMAL_FONT_COLOR.r, NORMAL_FONT_COLOR.g, NORMAL_FONT_COLOR.b, true)
+	GameTooltip:Show()
+end
+
+--- **A label sets no size**, so the hoverable region is the text itself rather than the label column: a
+--- `tooltip` is discoverable only by hovering the words. Already true of the truncation tooltip.
 ---@param parent Frame
 ---@param text string
+---@param tooltip string? a description, shown whether or not the label is truncated
 ---@return FontString
-local function CreateLabel(parent, text)
+local function CreateLabel(parent, text, tooltip)
 	local label = parent:CreateFontString(nil, "ARTWORK", "GameFontNormal")
 
 	label:SetPoint("LEFT", parent, "LEFT", 0, 0)
@@ -123,7 +139,14 @@ local function CreateLabel(parent, text)
 	-- open in combat would be blocked.
 	label:EnableMouseMotion(true)
 
-	label:SetScript("OnEnter", ShowLabelTooltip)
+	if tooltip then
+		label:SetScript("OnEnter", function(self)
+			ShowDescriptionTooltip(self, tooltip)
+		end)
+	else
+		label:SetScript("OnEnter", ShowLabelTooltip)
+	end
+
 	label:SetScript("OnLeave", HideLabelTooltip)
 
 	return label
@@ -372,11 +395,12 @@ end
 ---@param set fun(value: any)
 ---@param labelWidth number?
 ---@param placeholder string? what the button reads while `get` returns nil
+---@param tooltip string? a description shown on the label, for a setting whose caption cannot say enough
 ---@return SpotlightsNode
-function Private.Controls.Dropdown(parent, label, choices, get, set, labelWidth, placeholder)
+function Private.Controls.Dropdown(parent, label, choices, get, set, labelWidth, placeholder, tooltip)
 	local row = CreateRow(parent)
 
-	local caption = label and CreateLabel(row, label) or nil
+	local caption = label and CreateLabel(row, label, tooltip) or nil
 	local dropdown = CreateFrame("DropdownButton", nil, row, "WowStyle1DropdownTemplate")
 
 	-- The generator re-runs every time the menu opens, so the checked state is derived from the database at

@@ -64,6 +64,8 @@
     "RIGHT_BUTTON_STRING",
     "ScrollUtil",
     "SEARCH",
+    "SecondsFormatter",
+    "SecondsFormatterMixin",
     "SecureButton_GetButtonSuffix",
     "SecureButton_GetModifierPrefix",
     "SecureHandlerWrapScript",

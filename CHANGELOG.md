@@ -19,3 +19,4 @@ v1.1.2
 - the minimap button and /spotlights now open the settings window in combat again after the Appearance or Auras tab has been visited
 - switching tabs in the settings window during combat no longer throws a blocked-action error
 - "Add all DPS automatically while in a Party" is now a role picker like Auto-Remove's, so tanks and healers can be auto-added too; fresh installs now ship with Damage ticked and the sweep on by default
+- a new "Blank Offline Players After" setting turns a disconnected spotlight's cell into an empty spacer after never, instantly, 30 seconds, 1, 3 or 5 minutes, keeping its place in the grid so nothing after it moves, and waiting until you leave combat

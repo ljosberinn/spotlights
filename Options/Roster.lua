@@ -52,6 +52,13 @@ local ROLE_CHOICES = {
 	{ value = "DAMAGER", label = DAMAGER },
 }
 
+--- Prints a delay as the client itself spells it, so the four waits need no translation.
+--- `Abbreviation.None` is the unabbreviated form; `SecondsToTime` is deprecated in this mixin's favour
+--- (`Blizzard_SharedXML/TimeUtil.lua:363`).
+local DELAY_FORMATTER = CreateFromMixins(SecondsFormatterMixin)
+
+DELAY_FORMATTER:Init(0, SecondsFormatter.Abbreviation.None, false, false)
+
 ---@return SpotlightsLayoutConfig?
 local function Layout()
 	return Private.Layout.GetConfig()
@@ -100,6 +107,51 @@ end
 ---@param value boolean
 local function SetClearOnLeave(value)
 	SetLayoutField("clearOnLeave", value)
+end
+
+--- The six delays, labelled. Built per call rather than at load, since the localisation table is filled
+--- after this file runs and only the two ends of the list are ours to name.
+---@return { value: any, label: string }[]
+local function OfflineBlankChoices()
+	local L = Private.L.Settings
+	local delays = Private.Enum.OfflineBlankDelays
+	local choices = {}
+
+	for i = 1, #delays do
+		local delay = delays[i]
+		local label
+
+		if delay == Private.Enum.OfflineBlankNever then
+			label = L.OfflineBlankNever
+		elseif delay == 0 then
+			label = L.OfflineBlankInstantly
+		else
+			label = DELAY_FORMATTER:Format(delay)
+		end
+
+		choices[i] = { value = delay, label = label }
+	end
+
+	return choices
+end
+
+---@return number?
+local function GetOfflineBlankDelay()
+	local layout = Layout()
+
+	return layout and layout.offlineBlankDelay
+end
+
+--- Picks how long a spotlighted player may be offline before their slot becomes a spacer, and acts on the
+--- grid at once, so a shorter delay takes effect on what is already on screen.
+---
+--- No `Private.Options.Refresh()`: unlike the role dropdowns this moves nobody between the two panes -- a
+--- blanked slot is still a slot, and its player was never in the Unrostered list to come back to. The row's
+--- label changes, which the tab's own repaint covers.
+---@param value number
+local function SetOfflineBlankDelay(value)
+	SetLayoutField("offlineBlankDelay", value)
+	Private.Registry.EnforceBlankOffline()
 end
 
 ---@param role string
@@ -545,7 +597,7 @@ local function BuildRoster(page)
 	local heading = Private.Controls.HeadingHeight
 	local row = Private.Controls.RowHeight
 
-	local slotsHeight = math.max(page:GetHeight() - heading - row * 6 - PANE_GAP * 7, MIN_LIST_HEIGHT)
+	local slotsHeight = math.max(page:GetHeight() - heading - row * 7 - PANE_GAP * 8, MIN_LIST_HEIGHT)
 
 	--- What the presets block took on this pass, written by the column below before it lays the list out.
 	local reserved = 0
@@ -576,12 +628,14 @@ local function BuildRoster(page)
 		Private.Controls.Checkbox(page, L.ClearOnLeave, GetClearOnLeave, SetClearOnLeave, nil, true,
 			CHECKBOX_LABEL_WIDTH),
 
-		-- In the label column the checkboxes above establish, so the pair reads as the last of the block;
-		-- the column is wide enough that either dropdown still shows two role names at once.
+		-- All three in the label column the checkboxes above establish, so the run reads as the tail of the
+		-- block; the column is wide enough that a role dropdown still shows two names at once.
 		Private.Controls.MultiselectDropdown(page, L.AutoAddPartyRoles, ROLE_CHOICES, GetRoleAutoAdded,
 			SetRoleAutoAdded, CHECKBOX_LABEL_WIDTH),
 		Private.Controls.MultiselectDropdown(page, L.AutoRemoveRoles, ROLE_CHOICES, GetRoleRemoved,
 			SetRoleRemoved, CHECKBOX_LABEL_WIDTH),
+		Private.Controls.Dropdown(page, L.OfflineBlankDelay, OfflineBlankChoices, GetOfflineBlankDelay,
+			SetOfflineBlankDelay, CHECKBOX_LABEL_WIDTH, nil, L.OfflineBlankDelayTooltip),
 	}, PANE_GAP)
 
 	--- Captioned above rather than labelled beside: the label column takes 130 plus a 6 gap off this
