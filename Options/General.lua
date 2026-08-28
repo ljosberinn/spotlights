@@ -142,8 +142,12 @@ local function SetSpecsEnabled(specIDs, selected)
 
 	for i = 1, #specIDs do
 		-- `nil` rather than `false`: the block is a denylist, and `false` would claim a shape the field
-		-- does not have.
-		disabledSpecs[specIDs[i]] = selected and nil or true
+		-- does not have. Spelled out rather than `selected and nil or true`, which is always `true`.
+		if selected then
+			disabledSpecs[specIDs[i]] = nil
+		else
+			disabledSpecs[specIDs[i]] = true
+		end
 	end
 
 	Private.LoadCondition.Reevaluate()
