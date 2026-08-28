@@ -85,6 +85,10 @@
 ---@field SetTabCallback fun(self: SpotlightsOptionsFrame, tabID: integer, callback: fun())
 ---@field SetTab fun(self: SpotlightsOptionsFrame, tabID: integer, isUserAction: boolean?)
 
+--- One row of `NestedMultiselectDropdown`'s menu and the choices nested under it -- the exact shape
+--- `LoadCondition.SpecChoices` returns, so the control reads it with no translation layer in between.
+---@alias SpotlightsNestedChoiceGroup { classFile: string, className: string, r: number, g: number, b: number, specs: { specID: integer, name: string }[] }
+
 ---@class SpotlightsNameStyle
 ---@field ApplyLayout fun(fontString: FontString, appearance: SpotlightsAppearanceConfig)
 ---@field EnsureLayer fun(frame: SpotlightsUnitFrame): Frame

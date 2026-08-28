@@ -519,6 +519,141 @@ function Private.Controls.MultiselectDropdown(parent, label, choices, IsSelected
 	return row
 end
 
+--- A dropdown over a two-level hierarchy: one checkbox per group, each opening into a checkbox per item
+--- nested under it. A `CreateCheckbox` description is itself a submenu root, which is the whole mechanism --
+--- see `Blizzard_Communities/ClubFinder.lua:520-572` for the precedent this follows.
+---
+--- A group's own checkbox has no tri-state, because Blizzard's menus do not offer one: it reads checked only
+--- when every item beneath it is, and a click sets all of them the other way. `SetSelected` takes a **list**
+--- of values rather than one so that the group checkbox, each submenu's bulk buttons, and the root's own
+--- bulk buttons all funnel through the same function instead of three.
+---
+--- The button's own text has to come from `SelectionText`: `CollectSelectionData` walks the whole menu tree,
+--- so the default translator would concatenate every checked leaf onto the button -- up to 52 names for the
+--- spec picker this was built for. The callback must never return nil, since a nil answer falls back to that
+--- same concatenated default.
+---@param parent Frame
+---@param label string? omitted for a dropdown that spans its column, where a `Caption` or a heading above says what it picks
+---@param groups fun(): SpotlightsNestedChoiceGroup[]
+---@param IsSelected fun(value: any): boolean
+---@param SetSelected fun(values: any[], selected: boolean)
+---@param SelectionText fun(): string
+---@param labelWidth number?
+---@param tooltip string? a description shown on the label, for a setting whose caption cannot say enough
+---@return SpotlightsNode
+function Private.Controls.NestedMultiselectDropdown(parent, label, groups, IsSelected, SetSelected, SelectionText,
+	labelWidth, tooltip)
+	local row = CreateRow(parent)
+
+	local caption = label and CreateLabel(row, label, tooltip) or nil
+	local dropdown = CreateFrame("DropdownButton", nil, row, "WowStyle1DropdownTemplate")
+
+	dropdown:SetSelectionText(function()
+		return SelectionText()
+	end)
+
+	dropdown:SetupMenu(function(_, rootDescription)
+		local current = groups()
+
+		---@type any[]
+		local everyValue = {}
+
+		for i = 1, #current do
+			local specs = current[i].specs
+
+			for j = 1, #specs do
+				everyValue[#everyValue + 1] = specs[j].specID
+			end
+		end
+
+		rootDescription:CreateButton(CHECK_ALL, function()
+			SetSelected(everyValue, true)
+
+			return MenuResponse.Refresh
+		end)
+
+		rootDescription:CreateButton(UNCHECK_ALL, function()
+			SetSelected(everyValue, false)
+
+			return MenuResponse.Refresh
+		end)
+
+		for i = 1, #current do
+			local group = current[i]
+
+			---@type any[]
+			local groupValues = {}
+
+			for j = 1, #group.specs do
+				groupValues[j] = group.specs[j].specID
+			end
+
+			local function GroupSelected()
+				for j = 1, #groupValues do
+					if not IsSelected(groupValues[j]) then
+						return false
+					end
+				end
+
+				return true
+			end
+
+			local text = CreateColor(group.r, group.g, group.b):WrapTextInColorCode(group.className)
+			local submenu = rootDescription:CreateCheckbox(text, GroupSelected, function()
+				SetSelected(groupValues, not GroupSelected())
+			end)
+
+			submenu:CreateButton(CHECK_ALL, function()
+				SetSelected(groupValues, true)
+
+				return MenuResponse.Refresh
+			end)
+
+			submenu:CreateButton(UNCHECK_ALL, function()
+				SetSelected(groupValues, false)
+
+				return MenuResponse.Refresh
+			end)
+
+			for j = 1, #group.specs do
+				local spec = group.specs[j]
+
+				submenu:CreateCheckbox(spec.name, function()
+					return IsSelected(spec.specID)
+				end, function()
+					SetSelected({ spec.specID }, not IsSelected(spec.specID))
+				end)
+			end
+		end
+	end)
+
+	-- Regenerating the menu, for `Dropdown:Refresh`'s reason, but **not while it is open**: a
+	-- multiselect's setter refreshes the tab on every tick and the tick leaves the list down. The click
+	-- already re-derives the text (`Blizzard_Menu/DropdownButton.lua:290-299`), so regenerating on top
+	-- would reinitialise the open list under the cursor for nothing.
+	function row:Refresh()
+		if dropdown:IsMenuOpen() then
+			return
+		end
+
+		dropdown:GenerateMenu()
+	end
+
+	function row:Layout(width)
+		self:SetWidth(width)
+
+		local column, control = Divide(self, width, labelWidth, caption)
+
+		dropdown:ClearAllPoints()
+		dropdown:SetPoint("LEFT", self, "LEFT", column, 0)
+		dropdown:SetWidth(control)
+
+		return ROW_HEIGHT
+	end
+
+	return row
+end
+
 --- The choices for a media picker, rebuilt per call from whatever LibSharedMedia currently knows. Not
 --- cached: another addon can register media after a tab is built.
 ---
