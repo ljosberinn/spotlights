@@ -83,6 +83,18 @@ L.Settings.Scale = "Frame Scale"
 L.Settings.FrameStrata = "Frame Strata"
 L.Settings.SlashHint = "Type |cffffd100/spotlights|r for every command."
 
+L.Settings.LoadConditionHeading = "Load Condition"
+L.Settings.LoadCondition = "Enabled Specializations"
+-- Spells out the account-wide scope, since a per-character reader is the likeliest surprise: the block
+-- list is shared by every character on the account, not just the one it was set from.
+L.Settings.LoadConditionTooltip =
+"While your active specialization is unselected here, the grid is hidden and the roster is left alone; your configured slots are kept and return the moment you reselect it. This applies account-wide, not per character."
+L.Settings.LoadConditionCount = "%d of %d specializations"
+-- Shown in both minimap tooltips while inert. Says what happens rather than claiming the addon is
+-- unloaded or disabled, since it is neither.
+L.Settings.LoadConditionInert =
+"Spotlights is inert for this specialization: the grid is hidden and the roster is left alone, with your slots kept for when you switch back."
+
 --- Named for what the layer is rather than transliterated; the stored value never reaches the user.
 L.Settings.Strata = {
 	BACKGROUND = "Background",

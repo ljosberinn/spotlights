@@ -62,6 +62,13 @@ L.Settings.UnlockFrames = "解锁框架以便拖动"
 L.Settings.Scale = "框架缩放"
 L.Settings.FrameStrata = "框架层级"
 L.Settings.SlashHint = "输入 |cffffd100/spotlights|r 查看全部命令。"
+L.Settings.LoadConditionHeading = "Load Condition"
+L.Settings.LoadCondition = "Enabled Specializations"
+L.Settings.LoadConditionTooltip =
+"While your active specialization is unselected here, the grid is hidden and the roster is left alone; your configured slots are kept and return the moment you reselect it. This applies account-wide, not per character."
+L.Settings.LoadConditionCount = "%d of %d specializations"
+L.Settings.LoadConditionInert =
+"Spotlights is inert for this specialization: the grid is hidden and the roster is left alone, with your slots kept for when you switch back."
 L.Settings.Strata.BACKGROUND = "背景"
 L.Settings.Strata.LOW = "低"
 L.Settings.Strata.MEDIUM = "中"

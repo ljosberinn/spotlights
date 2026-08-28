@@ -64,6 +64,13 @@ L.Settings.UnlockFrames = "Desbloquear os quadros para arrastar"
 L.Settings.Scale = "Escala dos quadros"
 L.Settings.FrameStrata = "Nível dos quadros"
 L.Settings.SlashHint = "Digite |cffffd100/spotlights|r para ver todos os comandos."
+L.Settings.LoadConditionHeading = "Load Condition"
+L.Settings.LoadCondition = "Enabled Specializations"
+L.Settings.LoadConditionTooltip =
+"While your active specialization is unselected here, the grid is hidden and the roster is left alone; your configured slots are kept and return the moment you reselect it. This applies account-wide, not per character."
+L.Settings.LoadConditionCount = "%d of %d specializations"
+L.Settings.LoadConditionInert =
+"Spotlights is inert for this specialization: the grid is hidden and the roster is left alone, with your slots kept for when you switch back."
 L.Settings.Strata.BACKGROUND = "Plano de fundo"
 L.Settings.Strata.LOW = "Baixo"
 L.Settings.Strata.MEDIUM = "Médio"

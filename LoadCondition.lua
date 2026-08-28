@@ -44,6 +44,9 @@ function Private.LoadCondition.Reevaluate()
 	active = result
 
 	Private.Container.SetInert(not active)
+	-- Init.lua's data object exists only from ADDON_LOADED onward; this first runs at PLAYER_LOGIN, which
+	-- always follows, so it is safe to call unconditionally.
+	Private.Minimap.SetInert(not active)
 end
 
 --- Whether Spotlights should be doing anything right now. Reads the cache Reevaluate maintains, so the

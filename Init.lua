@@ -93,7 +93,9 @@ EventUtil.ContinueOnAddOnLoaded(addonName, function()
 	do
 		local iconTexture = C_AddOns.GetAddOnMetadata(addonName, "IconTexture")
 
-		LibStub("LibDBIcon-1.0"):Register(addonName, LibStub("LibDataBroker-1.1"):NewDataObject(addonName, {
+		-- Kept rather than passed straight into Register, so SetInert below has something to write the
+		-- inert tint onto.
+		local dataObject = LibStub("LibDataBroker-1.1"):NewDataObject(addonName, {
 			type = "launcher",
 			text = addonName,
 			icon = iconTexture,
@@ -111,8 +113,29 @@ EventUtil.ContinueOnAddOnLoaded(addonName, function()
 				tooltip:AddLine(addonName)
 				tooltip:AddLine(Private.L.Settings.ClickToOpenSettings, 1, 1, 1)
 				tooltip:AddLine(Private.L.Settings.RightClickToOpenRoster, 1, 1, 1)
+
+				if not Private.LoadCondition.IsActive() then
+					tooltip:AddLine(Private.L.Settings.LoadConditionInert, 1, 1, 1)
+				end
 			end,
-		}), db.minimap)
+		})
+
+		LibStub("LibDBIcon-1.0"):Register(addonName, dataObject, db.minimap)
+
+		---@class SpotlightsMinimap
+		Private.Minimap = {}
+
+		--- The one place the minimap icon's tint changes, called from LoadCondition's single publish site.
+		--- Writes all three channels every time: LibDBIcon's per-key handler reads the other two back off
+		--- the texture, so setting only one would leave the rest at whatever they last were.
+		---@param inert boolean
+		function Private.Minimap.SetInert(inert)
+			if inert then
+				dataObject.iconR, dataObject.iconG, dataObject.iconB = RED_FONT_COLOR:GetRGB()
+			else
+				dataObject.iconR, dataObject.iconG, dataObject.iconB = 1, 1, 1
+			end
+		end
 
 		AddonCompartmentFrame:RegisterAddon({
 			text = addonName,
@@ -120,9 +143,16 @@ EventUtil.ContinueOnAddOnLoaded(addonName, function()
 			func = function()
 				Private.Options.SetShown()
 			end,
+			-- No tint here: AddonCompartmentFrame's initializer only calls SetTexture/SetAtlas on this
+			-- icon, so the inert state can only be surfaced through the tooltip line below.
 			funcOnEnter = function(button)
 				GameTooltip:SetOwner(button, "ANCHOR_LEFT")
 				GameTooltip:AddLine(Private.L.Settings.ClickToOpenSettings)
+
+				if not Private.LoadCondition.IsActive() then
+					GameTooltip:AddLine(Private.L.Settings.LoadConditionInert)
+				end
+
 				GameTooltip:Show()
 			end,
 			funcOnLeave = function()

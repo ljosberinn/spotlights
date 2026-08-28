@@ -65,6 +65,13 @@ L.Settings.UnlockFrames = "Desbloquear los marcos para arrastrarlos"
 L.Settings.Scale = "Escala de los marcos"
 L.Settings.FrameStrata = "Nivel de los marcos"
 L.Settings.SlashHint = "Escribe |cffffd100/spotlights|r para ver todos los comandos."
+L.Settings.LoadConditionHeading = "Load Condition"
+L.Settings.LoadCondition = "Enabled Specializations"
+L.Settings.LoadConditionTooltip =
+"While your active specialization is unselected here, the grid is hidden and the roster is left alone; your configured slots are kept and return the moment you reselect it. This applies account-wide, not per character."
+L.Settings.LoadConditionCount = "%d of %d specializations"
+L.Settings.LoadConditionInert =
+"Spotlights is inert for this specialization: the grid is hidden and the roster is left alone, with your slots kept for when you switch back."
 L.Settings.Strata.BACKGROUND = "Fondo"
 L.Settings.Strata.LOW = "Bajo"
 L.Settings.Strata.MEDIUM = "Medio"
