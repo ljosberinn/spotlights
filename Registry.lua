@@ -362,6 +362,25 @@ local function BlankOffline()
 	return true
 end
 
+--- Runs the three role sweeps in one call, gated so none of them touches `slots` while inert. Removal
+--- first, so it cannot interleave with either addition; favourites before the party sweep, so a named
+--- person takes the lower slot -- moved here from `Apply`, which used to run all three unconditionally.
+---
+--- Three separate locals rather than `or` between the calls: `or` short-circuits, and would skip whichever
+--- sweep follows one that already reported a change.
+---@return boolean changed
+local function RunSweeps()
+	if not Private.LoadCondition.IsActive() then
+		return false
+	end
+
+	local removed = AutoRemoveRoles()
+	local starred = Favorites()
+	local added = AutoAddPartyRoles()
+
+	return removed or starred or added
+end
+
 --- Schedules the model onto the headers. Both keys, always: `Build` creates or grows the pool, `Refresh`
 --- applies the model to it, and `DeferralOrder` guarantees that sequence within one pass.
 ---
@@ -370,16 +389,10 @@ end
 --- plain table write and always legal; the guard belongs in `Build` and `Refresh`, where the restricted
 --- calls are.
 ---
---- The role removal and the two additions run here because every mutation in this file ends here, and none
---- of them calls back into `Apply`, so no recursion follows. Removal first, so it cannot interleave with
---- either; favourites before the party sweep, so a named person takes the lower slot.
----
 --- The cost of deferring is that the model and the frames can disagree for the length of a pull, which
 --- is why the slash commands say so and `/spotlights list` reads the model.
 local function Apply()
-	AutoRemoveRoles()
-	Favorites()
-	AutoAddPartyRoles()
+	RunSweeps()
 
 	Private.Events.Request(DeferralKey.Build)
 	Private.Events.Request(DeferralKey.Registry)
@@ -883,12 +896,17 @@ Private.Events.RegisterHandler(DeferralKey.Registry, Refresh)
 --- The panel is refreshed on that same condition, because nothing else will: the Roster tab's own repaint
 --- is a throttle bound to two roster events, and a threshold elapsing is neither -- so the Spotlighted list
 --- would go on naming a player whose slot is already a spacer.
+---
+--- **The call is gated, not `BlankOffline` itself.** `Offline.lua` keeps stamping from `UNIT_CONNECTION`
+--- while inert, so the first check after re-enabling can find players already past the threshold and blank
+--- them all in one pass. That looks like a bug but is intended -- it is the same catch-up the login scan
+--- performs.
 Private.Events.RegisterHandler(DeferralKey.Offline, function()
 	if Private.Events.DeferIfInCombat(DeferralKey.Offline) then
 		return
 	end
 
-	if BlankOffline() then
+	if Private.LoadCondition.IsActive() and BlankOffline() then
 		Apply()
 		Private.Options.Refresh()
 	end
@@ -930,6 +948,13 @@ local function ClearOnLeave()
 	local slots = Slots()
 
 	if not layout or not layout.clearOnLeave or not slots or #slots == 0 then
+		return false
+	end
+
+	-- Only the wipe is gated, not `lastGroupKind` or the two table.wipes above: leaving those running is what
+	-- keeps the edge accurate, so re-enabling mid-session does not read a stale kind as a change happening now
+	-- and fire a phantom clear.
+	if not Private.LoadCondition.IsActive() then
 		return false
 	end
 
@@ -1018,7 +1043,7 @@ end)
 -- a damage dealer switching to healing keeps their slot until the next membership change, and a party
 -- whose role check lands after its members do is never filled.
 Private.Events.RegisterEvent("PLAYER_ROLES_ASSIGNED", function()
-	if AutoRemoveRoles() or Favorites() or AutoAddPartyRoles() then
+	if RunSweeps() then
 		Apply()
 	end
 end)
