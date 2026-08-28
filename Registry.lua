@@ -364,7 +364,7 @@ end
 
 --- Runs the three role sweeps in one call, gated so none of them touches `slots` while inert. Removal
 --- first, so it cannot interleave with either addition; favourites before the party sweep, so a named
---- person takes the lower slot -- moved here from `Apply`, which used to run all three unconditionally.
+--- person takes the lower slot.
 ---
 --- Three separate locals rather than `or` between the calls: `or` short-circuits, and would skip whichever
 --- sweep follows one that already reported a change.
@@ -1007,6 +1007,9 @@ end
 ---
 --- **Requests rather than sweeping inline**, unlike its three siblings: the combat guard lives in the
 --- handler, and a synchronous call here would blank during a pull.
+---
+--- Unlike its siblings, this can silently do nothing while inert: it only requests the sweep, and the
+--- handler it reaches is gated, where the other three sweep synchronously and bypass the gate entirely.
 function Private.Registry.EnforceBlankOffline()
 	Private.Offline.Reevaluate()
 	Private.Events.Request(DeferralKey.Offline)
