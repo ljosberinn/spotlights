@@ -27,6 +27,7 @@ Localization\enUS.lua
 Localization\[TextLocale].lua [AllowLoadTextLocale deDE, frFR, zhCN, esES, esMX, koKR, ruRU, itIT, ptBR, zhTW]
 
 FrameConfig.lua
+LoadCondition.lua
 Container.lua
 Auras.lua
 SlotHeader.lua
