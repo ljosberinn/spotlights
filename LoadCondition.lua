@@ -32,8 +32,9 @@ local function Evaluate()
 	return not db.loadCondition.disabledSpecs[specID]
 end
 
---- Re-evaluates and, only on a change, publishes it to `Container`. Kept to this one call site so every
---- consumer of the inert transition hooks here rather than risking a second copy that could drift apart.
+--- Re-evaluates and, only on a change, publishes it to `Container` and `Minimap`. Kept to this one call
+--- site so every consumer of the inert transition hooks here rather than risking a second copy that could
+--- drift apart.
 function Private.LoadCondition.Reevaluate()
 	local result = Evaluate()
 
@@ -64,33 +65,40 @@ end
 --- The picker's choices: every class with its specialisations, sorted by localised class name so the order
 --- does not reshuffle between sessions -- mirrors `Options/AuraSpells.lua`'s `BuiltinGroups`, including its
 --- fallback for a class `C_CreatureInfo.GetClassInfo` answers nil for.
----@return { classFile: string, className: string, r: number, g: number, b: number, specs: { specID: integer, name: string }[] }[]
+---@return SpotlightsNestedChoiceGroup[]
 function Private.LoadCondition.SpecChoices()
-	---@type { classFile: string, className: string, r: number, g: number, b: number, specs: { specID: integer, name: string }[] }[]
+	---@type SpotlightsNestedChoiceGroup[]
 	local choices = {}
+	local sex = UnitSex("player")
 
 	for _, classID in pairs(Constants.UICharacterClasses) do
 		local info = C_CreatureInfo.GetClassInfo(classID)
 		local color = info and RAID_CLASS_COLORS[info.classFile]
-		local numSpecs = C_SpecializationInfo.GetNumSpecializationsForClassID(classID)
+		local numSpecs = C_SpecializationInfo.GetNumSpecializationsForClassID(classID) or 0
 
-		---@type { specID: integer, name: string }[]
-		local specs = {}
+		-- A class that reports zero specs would advertise a group whose "every spec selected" test passes
+		-- over an empty list -- permanently checked, with nothing for a click to do.
+		if numSpecs > 0 then
+			---@type { specID: integer, name: string }[]
+			local specs = {}
 
-		for index = 1, numSpecs do
-			local specID, specName = GetSpecializationInfoForClassID(classID, index, UnitSex("player"))
+			for index = 1, numSpecs do
+				local specID, specName = GetSpecializationInfoForClassID(classID, index, sex)
 
-			specs[#specs + 1] = { specID = specID, name = specName }
+				if specID then
+					specs[#specs + 1] = { specID = specID, name = specName }
+				end
+			end
+
+			choices[#choices + 1] = {
+				classFile = info and info.classFile or tostring(classID),
+				className = info and info.className or tostring(classID),
+				r = color and color.r or 1,
+				g = color and color.g or 1,
+				b = color and color.b or 1,
+				specs = specs,
+			}
 		end
-
-		choices[#choices + 1] = {
-			classFile = info and info.classFile or tostring(classID),
-			className = info and info.className or tostring(classID),
-			r = color and color.r or 1,
-			g = color and color.g or 1,
-			b = color and color.b or 1,
-			specs = specs,
-		}
 	end
 
 	table.sort(choices, function(left, right)

@@ -157,7 +157,8 @@ local function LoadConditionSelectionText()
 	local db = Private.DB
 	local disabledSpecs = db and db.loadCondition.disabledSpecs
 
-	if not disabledSpecs or not next(disabledSpecs) then
+	-- Fails open on the same grounds as `IsSpecEnabled`: no database yet means nothing is denied.
+	if not disabledSpecs then
 		return ALL_SPECS
 	end
 
@@ -179,6 +180,12 @@ local function LoadConditionSelectionText()
 
 	if enabled == 0 then
 		return NONE
+	end
+
+	-- Keyed on the counts agreeing, not on whether `disabledSpecs` has any entry: a stale entry naming a
+	-- spec no longer live must not read as a partial disable.
+	if enabled == total then
+		return ALL_SPECS
 	end
 
 	return string.format(Private.L.Settings.LoadConditionCount, enabled, total)

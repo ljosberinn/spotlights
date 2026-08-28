@@ -37,7 +37,7 @@
 ---@field NameStyle SpotlightsNameStyle
 ---@field Auras SpotlightsAuras
 ---@field ClickCasts SpotlightsClickCasts
----@field Minimap SpotlightsMinimap
+---@field Minimap SpotlightsMinimap? nil until ADDON_LOADED has created it
 ---@field SlashCommands SpotlightsSlashCommands
 ---@field DB SpotlightsDB? nil until ADDON_LOADED has run the migration
 

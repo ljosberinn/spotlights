@@ -173,6 +173,10 @@ function Private.Profile.ImportString(text)
 	Private.DB = migrated
 	SpotlightsSaved = migrated
 
+	-- Re-evaluated live rather than left for the reload the rest of an import waits on: the denylist can
+	-- deny the spec being played right now.
+	Private.LoadCondition.Reevaluate()
+
 	-- After the assignment, which is where `Rebase` reads the imported layout's growth corner from.
 	if previous then
 		Private.Container.Rebase(previous)
