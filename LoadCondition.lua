@@ -32,9 +32,8 @@ local function Evaluate()
 	return not db.loadCondition.disabledSpecs[specID]
 end
 
---- Re-evaluates and, only on a change, publishes it to `Container`. Kept to this one call site so the
---- minimap tint -- a later, second consumer of the same transition -- has exactly one place to hook
---- instead of two that could drift apart.
+--- Re-evaluates and, only on a change, publishes it to `Container`. Kept to this one call site so every
+--- consumer of the inert transition hooks here rather than risking a second copy that could drift apart.
 function Private.LoadCondition.Reevaluate()
 	local result = Evaluate()
 
@@ -44,8 +43,6 @@ function Private.LoadCondition.Reevaluate()
 
 	active = result
 
-	-- Task 3 lands Private.Container.SetInert immediately after this commit; until then this call errors,
-	-- the agreed cost of not writing a defensive existence check that would outlive its reason.
 	Private.Container.SetInert(not active)
 end
 
