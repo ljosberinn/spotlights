@@ -14,11 +14,53 @@ local container
 ---@type number?
 local anchoredScale
 
---- Named because `SetPreviewing` swaps it out and has to put back exactly this string.
+--- What `Condition` below returns when neither `previewing` nor `inert` is set.
 ---
 --- Bare `[group]` is `[group:party]`, true in a party *and* in a raid -- the same set the headers render
 --- for. Solo is excluded deliberately: no header resolves a kind outside a group.
 local VISIBILITY_CONDITION = "[group] show; hide"
+
+--- Whether a preview or the unlocked mover currently wants the container shown regardless of `[group]`
+--- or the load condition. See `SetPreviewing`.
+---@type boolean
+local previewing = false
+
+--- Whether the load condition currently denies the player's spec. See `SetInert`.
+---@type boolean
+local inert = false
+
+--- The driver condition for the current combination of `previewing` and `inert`.
+---@return string
+local function Condition()
+	if previewing then
+		return "show"
+	end
+
+	if inert then
+		return "hide"
+	end
+
+	return VISIBILITY_CONDITION
+end
+
+--- Publishes `Condition()` to the driver, deferring under combat lockdown. The one place `SetPreviewing`
+--- and `SetInert` both funnel through, so a re-register triggered by either input always reflects the
+--- other's current flag instead of overwriting it with a value read before that input's own write.
+local function ApplyVisibility()
+	-- Never creates the container: a load-condition pass at login must not be what conjures the frame for
+	-- a user with no slots. Nothing to hide before there is a frame to hide it on.
+	if not container then
+		return
+	end
+
+	if Private.Events.DeferIfInCombat(DeferralKey.Visibility) then
+		return
+	end
+
+	RegisterStateDriver(container, "visibility", Condition())
+end
+
+Private.Events.RegisterHandler(DeferralKey.Visibility, ApplyVisibility)
 
 --- The anchor frame every slot header hangs off. Created unprotected -- but it does **not stay** that way,
 --- and code that mutates it must not assume otherwise.
@@ -44,34 +86,47 @@ function Private.Container.Get()
 	container:SetClampedToScreen(true)
 
 	-- WARNING: never call Show or Hide on this frame; the next driver evaluation would override it. To hide
-	-- it for other reasons, compose the condition or unregister the driver for the duration.
+	-- it for other reasons, flip `previewing` or `inert` and go through ApplyVisibility -- see SetPreviewing
+	-- and SetInert.
+	--
+	-- Registered with Condition() rather than the bare VISIBILITY_CONDITION, since ApplyVisibility never
+	-- creates the container (see below) -- a container first created while inert must be born hidden, not
+	-- flash the default condition until something else happens to call ApplyVisibility.
 	--
 	-- The driver performs the show from inside the restricted environment, so each header's OnShow -- which
 	-- *is* SecureGroupHeader_Update -- runs untainted, and joining a group mid-combat populates the frames
 	-- immediately. It also collapses every header's roster scan while ungrouped, since
 	-- SecureGroupHeader_OnEvent early-outs when the header is not visible.
-	RegisterStateDriver(container, "visibility", VISIBILITY_CONDITION)
+	RegisterStateDriver(container, "visibility", Condition())
 
 	return container
 end
 
 --- Takes the container's visibility over for the duration of a preview, and gives it back.
 ---
---- The driver's *condition* is what changes, since `Show()` would be overridden by the next evaluation
---- (see `Get`). Re-registering replaces the previous registration rather than stacking, so restoring the
---- original string needs no cleanup.
+--- Only writes the flag; `ApplyVisibility` composes it with `inert` into the driver's condition and owns
+--- the combat guard (`RegisterStateDriver` errors under lockdown, `SecureHandlers.lua:435`) -- previously
+--- this function's own out-of-combat early return, now shared with `SetInert` since a second input
+--- composing into the same string means neither can afford to skip recording its half.
+---@param value boolean
+function Private.Container.SetPreviewing(value)
+	previewing = value
+
+	ApplyVisibility()
+end
+
+--- Takes the container's visibility over for the load condition, and gives it back. Same shape as
+--- `SetPreviewing`, and `previewing` wins when both are set: configuring a spec to be played later must
+--- not look like it is broken.
 ---
---- Out of combat only: `RegisterStateDriver` errors under lockdown (`SecureHandlers.lua:435`). Both callers
---- are already out-of-combat paths, but that is not a property that survives a third caller.
----@param previewing boolean
-function Private.Container.SetPreviewing(previewing)
-	if InCombatLockdown() then
-		return
-	end
+--- Re-enabling needs no rebuild: hiding the container hides the headers, `SecureGroupHeader_OnEvent`
+--- early-outs while hidden, and showing it fires `OnShow` -- `SecureGroupHeader_Update` -- which
+--- repopulates from inside the restricted environment.
+---@param value boolean
+function Private.Container.SetInert(value)
+	inert = value
 
-	local frame = Private.Container.Get()
-
-	RegisterStateDriver(frame, "visibility", previewing and "show" or VISIBILITY_CONDITION)
+	ApplyVisibility()
 end
 
 --- The saved position, or nil before the database has loaded.

@@ -65,6 +65,7 @@ Private.Enum.DeferralKey = {
 	Mover = "mover",
 	Auras = "auras",
 	ClickCasts = "clickCasts",
+	Visibility = "visibility",
 }
 
 --- Drain order, and why the queue is a set not a list. Config leads, because Build and Refresh read the
@@ -77,8 +78,9 @@ Private.Enum.DeferralKey = {
 --- Layout decides. NameStrata follows it because a name layer set to inherit takes the strata Position just
 --- wrote, and Mover follows both because its overlay is squared onto the container's finished rectangle.
 ---
---- Auras and ClickCasts are last outright but under no ordering constraint -- nothing either of them reads
---- or writes crosses this queue. They are here so a pass blocked by combat resumes with everything else.
+--- Auras, ClickCasts and Visibility are last outright but under no ordering constraint -- nothing any of
+--- them reads or writes crosses this queue. They are here so a pass blocked by combat resumes with
+--- everything else.
 Private.Enum.DeferralOrder = {
 	Private.Enum.DeferralKey.Config,
 	Private.Enum.DeferralKey.Offline,
@@ -91,6 +93,7 @@ Private.Enum.DeferralOrder = {
 	Private.Enum.DeferralKey.Mover,
 	Private.Enum.DeferralKey.Auras,
 	Private.Enum.DeferralKey.ClickCasts,
+	Private.Enum.DeferralKey.Visibility,
 }
 
 --- A set, so a stored position can be validated before SetPoint, which errors outright on an unrecognised
