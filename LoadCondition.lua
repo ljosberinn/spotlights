@@ -110,8 +110,4 @@ end
 
 Private.Events.RegisterEvent("PLAYER_LOGIN", Private.LoadCondition.Reevaluate)
 Private.Events.RegisterEvent("PLAYER_ENTERING_WORLD", Private.LoadCondition.Reevaluate)
-
--- Not PLAYER_SPECIALIZATION_CHANGED: that one carries a unit and fires for every group member's spec
--- change, and Private.Events.RegisterEvent registers with RegisterEvent rather than RegisterUnitEvent, so
--- there is no unit filter available here to narrow it back down to the player.
 Private.Events.RegisterEvent("ACTIVE_PLAYER_SPECIALIZATION_CHANGED", Private.LoadCondition.Reevaluate)
