@@ -5,7 +5,7 @@ local _, Private = ...
 Private.Migration = {}
 
 --- Bump this and add the matching step whenever the shape of SpotlightsSaved changes.
-Private.Migration.CurrentVersion = 8
+Private.Migration.CurrentVersion = 9
 
 --- A function rather than a shared table: handing the same table to two callers would alias one user's
 --- settings onto another's.
@@ -534,6 +534,9 @@ local steps = {
 		layout.autoAddPartyRoles = { TANK = false, HEALER = false, DAMAGER = on }
 		layout.autoAddPartyDamagers = nil
 	end,
+	[9] = function(db)
+		db.loadCondition = db.loadCondition or { disabledSpecs = {} }
+	end,
 }
 
 --- Fills in every field `defaults` has and `target` lacks, returning `target` patched or `defaults`
@@ -569,7 +572,7 @@ end
 --- current but damaged. A nil where a number is expected becomes arithmetic on nil deep in the layout
 --- maths.
 ---@param db SpotlightsDB
----@param key "layout" | "appearance" | "auras" | "minimap" | "presets" | "favorites" | "clickCasts"
+---@param key "layout" | "appearance" | "auras" | "minimap" | "presets" | "favorites" | "clickCasts" | "loadCondition"
 ---@param build fun(): table
 local function RepairBlock(db, key, build)
 	db[key] = Filled(db[key], build())
@@ -671,6 +674,14 @@ local function Repair(db)
 	RepairBlock(db, "clickCasts", function()
 		return {}
 	end)
+
+	-- Empty defaults, but for the opposite of `presets`' reason: this is a denylist, so an empty table is
+	-- the correct steady state rather than a damaged block, and a spec a future patch adds is absent from
+	-- it and so stays enabled. `Filled` recursing into `disabledSpecs` means a `loadCondition` missing only
+	-- that inner table gets it back empty without the outer block being replaced.
+	RepairBlock(db, "loadCondition", function()
+		return { disabledSpecs = {} }
+	end)
 end
 
 ---@return SpotlightsDB
@@ -692,6 +703,7 @@ local function CreateDefault()
 		presets = {},
 		favorites = {},
 		clickCasts = {},
+		loadCondition = { disabledSpecs = {} },
 	}
 end
 

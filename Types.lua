@@ -30,6 +30,7 @@
 ---@field Roster SpotlightsRoster
 ---@field Offline SpotlightsOffline
 ---@field Favorites SpotlightsFavorites
+---@field LoadCondition SpotlightsLoadCondition
 ---@field Registry SpotlightsRegistry
 ---@field Layout SpotlightsLayout
 ---@field FillOrder SpotlightsFillOrder
@@ -155,9 +156,16 @@
 ---@field appearance SpotlightsAppearanceConfig
 ---@field auras SpotlightsAurasConfig
 ---@field minimap SpotlightsMinimapConfig
+---@field loadCondition SpotlightsLoadConditionConfig
 
 ---@class SpotlightsMinimapConfig
 ---@field hide boolean
+
+--- A denylist rather than an allowlist, so a spec Blizzard adds in a future patch is absent from it and
+--- stays enabled instead of silently loading disabled. Stored on `SpotlightsDB` rather than per-character
+--- data, so it is account-wide like the rest of `SpotlightsSaved`.
+---@class SpotlightsLoadConditionConfig
+---@field disabledSpecs table<integer, boolean>
 
 --- How a spotlight looks. Uniform across all of them; no per-slot overrides.
 ---
