@@ -100,7 +100,7 @@ local function ShowLabelTooltip(self)
 end
 
 --- Owner-checked, because by the time the cursor leaves, something else may have taken the tooltip.
----@param self FontString
+---@param self Region
 local function HideLabelTooltip(self)
 	if GameTooltip:GetOwner() == self then
 		GameTooltip:Hide()
@@ -110,11 +110,15 @@ end
 --- A control's own description, shown whether or not its label is clipped -- unlike `ShowLabelTooltip`,
 --- which is a recovery aid rather than an explanation. Title over description in the two colours
 --- `Settings.InitTooltip` uses (`Blizzard_Settings.lua:288-297`).
----@param self FontString
+---
+--- The title is passed rather than read off the owner, so a control whose own widget carries the tooltip
+--- says the same thing there as under its label.
+---@param self Region
+---@param title string
 ---@param description string
-local function ShowDescriptionTooltip(self, description)
+local function ShowDescriptionTooltip(self, title, description)
 	GameTooltip:SetOwner(self --[[@as Frame]], "ANCHOR_RIGHT")
-	GameTooltip:SetText(self:GetText(), HIGHLIGHT_FONT_COLOR.r, HIGHLIGHT_FONT_COLOR.g,
+	GameTooltip:SetText(title, HIGHLIGHT_FONT_COLOR.r, HIGHLIGHT_FONT_COLOR.g,
 		HIGHLIGHT_FONT_COLOR.b, 1, true)
 	GameTooltip:AddLine(description, NORMAL_FONT_COLOR.r, NORMAL_FONT_COLOR.g, NORMAL_FONT_COLOR.b, true)
 	GameTooltip:Show()
@@ -141,7 +145,7 @@ local function CreateLabel(parent, text, tooltip)
 
 	if tooltip then
 		label:SetScript("OnEnter", function(self)
-			ShowDescriptionTooltip(self, tooltip)
+			ShowDescriptionTooltip(self, self:GetText(), tooltip)
 		end)
 	else
 		label:SetScript("OnEnter", ShowLabelTooltip)
@@ -186,16 +190,32 @@ end
 ---@param enabled (fun(): boolean)? absent means always enabled
 ---@param full boolean?
 ---@param labelWidth number?
+---@param tooltip string? a description, for a setting whose caption cannot say enough
 ---@return SpotlightsNode
-function Private.Controls.Checkbox(parent, label, get, set, enabled, full, labelWidth)
+function Private.Controls.Checkbox(parent, label, get, set, enabled, full, labelWidth, tooltip)
 	local row = CreateRow(parent)
 
 	row.span = full or nil
 
-	local caption = CreateLabel(row, label)
+	local caption = CreateLabel(row, label, tooltip)
 	local check = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
 
 	check:SetSize(ROW_HEIGHT, ROW_HEIGHT)
+
+	-- The box carries the description as well as the caption: a checkbox is aimed at rather than read, so
+	-- the words are not where the cursor goes. Free to take both scripts -- `UICheckButtonTemplate` sets
+	-- none of its own (`CheckButtonTemplates.xml:50-64`).
+	if tooltip then
+		-- A dimmed box is exactly when the description is worth reading, and a `Button` drops its motion
+		-- scripts while disabled unless told otherwise.
+		check:SetMotionScriptsWhileDisabled(true)
+
+		check:SetScript("OnEnter", function(self)
+			ShowDescriptionTooltip(self, label, tooltip)
+		end)
+
+		check:SetScript("OnLeave", HideLabelTooltip)
+	end
 
 	check:SetScript("OnClick", function(self)
 		set(self:GetChecked() and true or false)
