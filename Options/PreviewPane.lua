@@ -4,8 +4,6 @@ local _, Private = ...
 ---@class SpotlightsPreviewPane
 Private.PreviewPane = {}
 
-local DeferralKey = Private.Enum.DeferralKey
-
 --- The Appearance tab's preview pane: one inert spotlight, scaled to fit, over a caption. It exists because
 --- outside a raid nothing on screen wears those settings, and the grid previews need the mover unlocked.
 ---
@@ -43,27 +41,13 @@ local function Fit(config)
 		STAGE_HEIGHT / config.frameHeight)
 end
 
---- Mini frames whose size write was refused under lockdown, re-applied together when combat ends.
----@type table<SpotlightsUnitFrame, boolean>
-local pendingSize = {}
-
 --- Sizes a mini frame to the configured spotlight size, shrunk to fit the stage.
 ---
---- The one part of `Refresh` combat can refuse: the secure template protects a frame it builds out of
---- combat, and both calls block against that one. Tested per frame rather than on lockdown alone, because a
---- pane first opened *during* a pull holds an unprotected frame -- and since nothing else ever sizes this
---- one, deferring it would draw an empty stage under a caption stating a size.
----
---- The config is re-read on the way out rather than captured, so a deferred pane lands on the size it ends
---- combat with.
+--- Unguarded, and the pane holds no other protected call either: the mini frame comes off
+--- `SpotlightsUnitFrameBaseTemplate` (see `Private.Preview.CreateFrame`), so nothing here is protected and
+--- nothing here has to wait for the fight to end.
 ---@param frame SpotlightsUnitFrame
 local function ApplySize(frame)
-	if frame:IsProtected() and Private.Events.DeferIfInCombat(DeferralKey.PreviewPane) then
-		pendingSize[frame] = true
-
-		return
-	end
-
 	local config = Private.Layout.GetConfig()
 
 	if not config then
@@ -75,14 +59,6 @@ local function ApplySize(frame)
 	frame:SetScale(Fit(config))
 	PixelUtil.SetSize(frame, config.frameWidth, config.frameHeight)
 end
-
-Private.Events.RegisterHandler(DeferralKey.PreviewPane, function()
-	for frame in pairs(pendingSize) do
-		pendingSize[frame] = nil
-
-		ApplySize(frame)
-	end
-end)
 
 --- The default caption: the size the frame really is, plus the percentage that keeps it honest once the
 --- frame no longer fits.

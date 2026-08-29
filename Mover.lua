@@ -165,8 +165,8 @@ end
 --- The overlay, for `Private.Preview` to parent its frames to: aligned to the grid's rectangle, and a
 --- separate object from the container.
 ---
---- Not an unprotected frame, whatever it is at creation -- protection travels *up* the parent chain, so a
---- preview built out of combat protects this overlay with it, which is why `Apply` defers. The
+--- Stays unprotected, and that is a property of what hangs in it: protection travels *up* the parent
+--- chain, so this holds only while every preview comes off `SpotlightsUnitFrameBaseTemplate`. The
 --- **container** would instead put previews under its secure visibility driver, and **UIParent** would
 --- force their position to be recomputed on every drag frame.
 ---
@@ -183,9 +183,10 @@ end
 --- previews up. Previews follow either reason -- out of a group there is otherwise nothing on screen to
 --- drag or to style against.
 ---
---- Out of combat only: the previews parented into the overlay protect it, so the Show, the Hide and every
---- write `Sync` makes are protected calls. Deferred rather than refused, because both setters are reachable
---- from the options panel, which stays open through a pull.
+--- Out of combat only, for `Private.Preview.SetShown`: it hands the container's visibility to and from a
+--- secure state driver, and `RegisterStateDriver` errors under lockdown. The overlay's own writes are not
+--- the reason -- see `GetOverlay`. Deferred rather than refused, because both setters are reachable from
+--- the options panel, which stays open through a pull.
 local function Apply()
 	if Private.Events.DeferIfInCombat(DeferralKey.Mover) then
 		return

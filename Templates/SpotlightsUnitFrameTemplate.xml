@@ -5,15 +5,19 @@
 	     BasePrivateAuraBehaviorMixin are deliberately not inherited either. See
 	     docs/notes/UnitFrameTemplate.md.
 
+	     Everything a spotlight *looks* like lives here, and nothing secure does. The split is
+	     load-bearing: `SecureFrameTemplate` is `protected="true"`, and protection travels up the parent
+	     chain, so a frame built from the secure template out of combat protects whatever it is parented
+	     into: for `Private.Preview` that is the mover overlay and the options window itself. A preview is
+	     inert and needs none of the secure half, so it takes this template and leaves both unprotected.
+
 	     Script attributes take a *global* function name, which is why nothing of ours appears here:
-	     the only global this addon defines is the mixin table. SecureUnitButtonTemplate supplies
-	     OnClick -> SecureUnitButton_OnClick, which is what makes the *type1/*type2 attributes in
-	     SlotHeader.InitChild work.
+	     the only global this addon defines is the mixin table.
 
 	     No frameStrata, deliberately: one declared here is set once per frame at creation and never
 	     revisited. The strata is the container's now (position.strata), inherited down through the slot
 	     header, so changing the setting restacks the spotlights already on screen. -->
-	<Button name="SpotlightsUnitFrameTemplate" inherits="SecureUnitButtonTemplate" mixin="SpotlightsUnitFrameMixin" virtual="true">
+	<Button name="SpotlightsUnitFrameBaseTemplate" mixin="SpotlightsUnitFrameMixin" virtual="true">
 		<Layers>
 			<Layer level="BACKGROUND">
 				<!-- White by design: UpdateHealthColor tints it to a fifth of the class colour. -->
@@ -77,10 +81,16 @@
 		</Frames>
 		<Scripts>
 			<!-- Mainline/UnitFrame.lua:380-387. Both read `self.unit`, which the attribute mirror owns,
-			     and declaring them here does not disturb the OnClick inherited from
+			     and declaring them here does not disturb the OnClick the live template inherits from
 			     SecureUnitButtonTemplate. -->
 			<OnEnter function="UnitFrame_OnEnter"/>
 			<OnLeave function="UnitFrame_OnLeave"/>
 		</Scripts>
 	</Button>
+
+	<!-- The template a slot header instantiates. SecureUnitButtonTemplate is SecureFrameTemplate plus
+	     OnClick -> SecureUnitButton_OnClick (SecureTemplates.xml:20-25), which is what makes the
+	     *type1/*type2 attributes in SlotHeader.InitChild work; the two parents declare no script in
+	     common. -->
+	<Button name="SpotlightsUnitFrameTemplate" inherits="SpotlightsUnitFrameBaseTemplate, SecureUnitButtonTemplate" virtual="true"/>
 </Ui>

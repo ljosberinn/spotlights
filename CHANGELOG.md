@@ -16,3 +16,4 @@ v1.1.2
 - the settings window now opens in combat and stays open when a pull starts, with anything it cannot apply mid-fight landing as soon as combat ends
 - click-cast bindings still cannot be captured in combat, and pressing Bind now says so
 - closing the settings window part-way through capturing a click binding no longer leaves the capture overlay covering the Click Casting tab when it is re-opened
+- the minimap button and /spotlights now open the settings window in combat again after the Appearance or Auras tab has been visited

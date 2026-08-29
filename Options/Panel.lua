@@ -245,6 +245,11 @@ end
 ---
 --- Deliberately unguarded against combat, unlike every other entry point here: the window is a plain frame,
 --- and each of the restricted writes a control can reach defers on its own.
+---
+--- **Nothing protected may be parented into this window.** Protection travels up the parent chain, so one
+--- secure frame anywhere under a tab makes this very call blocked in combat, and only for the tainted
+--- callers -- Escape and the close button run from Blizzard's own path and would keep working. That is how
+--- the preview pane's mini spotlight went unnoticed; see `Private.Preview.CreateFrame`.
 ---@param shown boolean?
 function Private.Options.SetShown(shown)
 	local frame = Get()
