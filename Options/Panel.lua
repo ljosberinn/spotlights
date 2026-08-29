@@ -5,7 +5,7 @@ local addonName, Private = ...
 Private.Options = {}
 
 --- The window the layout kit lives in: a fixed content rectangle handed to one node per tab, plus the
---- window management -- `UISpecialFrames`, the combat close, the reload offer, lazy tab building.
+--- window management -- `UISpecialFrames`, the reload offer, lazy tab building.
 
 --- 895 leaves 825 right of the portrait, and the layout frame puts a pixel between each pair of tabs:
 --- 7 * 117 + 6 * 1 = 825, so seven tabs fit without clipping the panel's right edge. Sized against the
@@ -85,9 +85,9 @@ end
 --- texture or colour change strands a container and a button on every assigned spotlight for the session.
 --- A reload is the only thing that reclaims them.
 ---
---- On `OnHide` rather than from `SetShown`, because the panel also closes via `UISpecialFrames` and via the
---- `PLAYER_REGEN_DISABLED` handler. `Private.Auras` owns the "has anything been abandoned" question,
---- because the answer includes rebuilds still inside the debounce window.
+--- On `OnHide` rather than from `SetShown`, because the panel also closes via `UISpecialFrames`.
+--- `Private.Auras` owns the "has anything been abandoned" question, because the answer includes rebuilds
+--- still inside the debounce window.
 local function MaybePromptReload()
 	if not Private.Auras.NeedsReload() then
 		return
@@ -241,20 +241,21 @@ local function Get()
 	return panel
 end
 
---- Opens or closes the panel. Refuses to open in combat rather than opening masked, which is
---- indistinguishable from broken settings by looking at it.
+--- Opens or closes the panel.
+---
+--- Deliberately unguarded against combat, unlike every other entry point here: the window is a plain frame,
+--- and each of the restricted writes a control can reach defers on its own.
+---
+--- **Nothing protected may be parented into this window.** Protection travels up the parent chain, so one
+--- secure frame anywhere under a tab makes this very call blocked in combat, and only for the tainted
+--- callers -- Escape and the close button run from Blizzard's own path and would keep working. That is how
+--- the preview pane's mini spotlight went unnoticed; see `Private.Preview.CreateFrame`.
 ---@param shown boolean?
 function Private.Options.SetShown(shown)
 	local frame = Get()
 
 	if shown == nil then
 		shown = not frame:IsShown()
-	end
-
-	if shown and InCombatLockdown() then
-		Private.Utils.Print(Private.L.Settings.CombatRefused)
-
-		return
 	end
 
 	frame:SetShown(shown)
@@ -265,18 +266,10 @@ function Private.Options.SetShown(shown)
 end
 
 --- Opens the panel on a named tab, in one call rather than two, so a right-click on a closed panel does not
---- show the previously active tab and then switch off it.
----
---- The combat guard is here rather than left to `SetShown` so that a refused open leaves the remembered tab
---- alone too. `TAB_KEYS` stays the only key-to-index mapping in the addon.
+--- show the previously active tab and then switch off it. `TAB_KEYS` stays the only key-to-index mapping in
+--- the addon.
 ---@param key string
 function Private.Options.SelectTab(key)
-	if InCombatLockdown() then
-		Private.Utils.Print(Private.L.Settings.CombatRefused)
-
-		return
-	end
-
 	for i = 1, #TAB_KEYS do
 		if TAB_KEYS[i] == key then
 			activeTab = i
@@ -326,17 +319,6 @@ end
 function Private.Options.IsCursorOver()
 	return panel ~= nil and Private.Utils.IsCursorOver(panel)
 end
-
-Private.Events.RegisterEvent("PLAYER_REGEN_DISABLED", function()
-	-- A separate top-level frame that outlives its opener, so closing only the panel would leave a colour
-	-- wheel floating over the fight.
-	ColorPickerFrame:Hide()
-
-	if panel and panel:IsShown() then
-		panel:Hide()
-		Private.Utils.Print(Private.L.Settings.ClosedByCombat)
-	end
-end)
 
 Private.SlashCommands.Register("options", "Options", function()
 	Private.Options.SetShown()

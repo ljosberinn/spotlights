@@ -28,13 +28,16 @@
 ---@field SlotHeader SpotlightsSlotHeader
 ---@field Migration SpotlightsMigration
 ---@field Roster SpotlightsRoster
+---@field Offline SpotlightsOffline
 ---@field Favorites SpotlightsFavorites
+---@field LoadCondition SpotlightsLoadCondition
 ---@field Registry SpotlightsRegistry
 ---@field Layout SpotlightsLayout
 ---@field FillOrder SpotlightsFillOrder
 ---@field NameStyle SpotlightsNameStyle
 ---@field Auras SpotlightsAuras
 ---@field ClickCasts SpotlightsClickCasts
+---@field Minimap SpotlightsMinimap? nil until ADDON_LOADED has created it
 ---@field SlashCommands SpotlightsSlashCommands
 ---@field DB SpotlightsDB? nil until ADDON_LOADED has run the migration
 
@@ -82,6 +85,10 @@
 ---@field AddNamedTab fun(self: SpotlightsOptionsFrame, name: string, ...: Frame): integer
 ---@field SetTabCallback fun(self: SpotlightsOptionsFrame, tabID: integer, callback: fun())
 ---@field SetTab fun(self: SpotlightsOptionsFrame, tabID: integer, isUserAction: boolean?)
+
+--- One row of `NestedMultiselectDropdown`'s menu and the choices nested under it -- the exact shape
+--- `LoadCondition.SpecChoices` returns, so the control reads it with no translation layer in between.
+---@alias SpotlightsNestedChoiceGroup { classFile: string, className: string, r: number, g: number, b: number, specs: { specID: integer, name: string }[] }
 
 ---@class SpotlightsNameStyle
 ---@field ApplyLayout fun(fontString: FontString, appearance: SpotlightsAppearanceConfig)
@@ -154,9 +161,16 @@
 ---@field appearance SpotlightsAppearanceConfig
 ---@field auras SpotlightsAurasConfig
 ---@field minimap SpotlightsMinimapConfig
+---@field loadCondition SpotlightsLoadConditionConfig
 
 ---@class SpotlightsMinimapConfig
 ---@field hide boolean
+
+--- A denylist rather than an allowlist, so a spec Blizzard adds in a future patch is absent from it and
+--- stays enabled instead of silently loading disabled. Stored on `SpotlightsDB` rather than per-character
+--- data, so it is account-wide like the rest of `SpotlightsSaved`.
+---@class SpotlightsLoadConditionConfig
+---@field disabledSpecs table<integer, boolean>
 
 --- How a spotlight looks. Uniform across all of them; no per-slot overrides.
 ---
@@ -186,6 +200,7 @@
 ---@field healthBgColorA number
 ---@field nameEnabled boolean
 ---@field nameHoverOnly boolean
+---@field nicknamesEnabled boolean whether a name is resolved through NorthernSkyRaidTools before it is drawn
 ---@field nameStrata FrameStrata | "INHERIT" the strata the name layer takes, or that it takes its parent's
 ---@field nameUseClassColor boolean
 ---@field nameColorR number
@@ -391,8 +406,10 @@
 --- Where the grid sits, how big it is drawn and what it stacks against. A corner-relative anchor,
 --- never raw coordinates.
 ---
---- `point` is the frame point on the container *and* the point on UIParent it anchors to, so the
---- offset is measured from the same corner of both -- which survives a resolution change. `x` and
+--- `point` is the point on UIParent the offset is measured from, picked from the screen region the
+--- grid was dropped in so that it survives a resolution change. What it measures *to* is the corner
+--- the grid grows from (`Layout.AnchorPoint`) and never a corner of the rectangle, because that is
+--- the one point `container:SetSize` leaves alone when a slot count adds a row or column. `x` and
 --- `y` always mean right and up, and are in the **container's own units**: at scale 1 those are
 --- UIParent units, and at any other scale a stored offset is what the grid moves by at that scale,
 --- so scaling reads as the whole grid growing about its anchor rather than sliding across the
@@ -438,9 +455,10 @@
 ---@field frameHeight number
 ---@field allowGaps boolean
 ---@field clearOnLeave boolean wipe every configured slot when the kind of group changes
----@field unrosteredRoles table<string, boolean> which roles the Unrostered list offers, keyed by the tokens `UnitGroupRolesAssigned` answers with. A display filter on that list, and the one gate the favourites sweep reads: a favourite whose role the list does not offer is not added. `autoAddPartyDamagers` still ignores it
+---@field offlineBlankDelay number seconds a spotlighted player may be offline before their slot becomes a blank spacer, or `Enum.OfflineBlankNever`. Destructive like `autoRemoveRoles`, but keeps the cell: the slot is blanked in place rather than removed
+---@field unrosteredRoles table<string, boolean> which roles the Unrostered list offers, keyed by the tokens `UnitGroupRolesAssigned` answers with. A display filter on that list, and the one gate the favourites sweep reads: a favourite whose role the list does not offer is not added. `autoAddPartyRoles` still ignores it
 ---@field autoRemoveRoles table<string, boolean> which roles are kept out of the grid, keyed the same way. Destructive, unlike `unrosteredRoles`: a slot whose player plays one of these is taken out and stays out
----@field autoAddPartyDamagers boolean append every party damage dealer to the grid, once each. Party only, and a member taken back out by hand stays out for the rest of that group
+---@field autoAddPartyRoles table<string, boolean> which roles are appended to the grid, keyed the same way; empty means off. Party only, once each, and a member taken back out by hand stays out for the rest of that group
 
 --- The button a key click cast lands on, one per spotlight -- see `ClickCasts.EnsureKeyProxy` for why the
 --- child cannot be one.
@@ -874,6 +892,16 @@ LibStub = nil
 --- The held modifiers as the client's own bitfield, which is what `C_ClickBindings` accepts.
 ---@type fun(): number
 MakeModifiers = nil
+
+--- NorthernSkyRaidTools' public API, or nil when that addon is not installed. Only the two entry points
+--- this addon uses are declared. `GetName` takes a unit token or a name and returns the character name
+--- whenever a nickname does not apply, so it never answers nil for a non-nil argument.
+---@class NSAPI
+---@field GetName fun(self: NSAPI, unit: string, addonName: string, skipTransliteration: boolean?): string
+---@field RegisterCallback fun(owner: string, event: string, callback: fun(...)): any
+
+---@type NSAPI?
+NSAPI = nil
 
 --- Errors under lockdown -- see `SecureHandlers.lua`.
 ---@type fun(frame: Frame, state: string, values: string)

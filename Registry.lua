@@ -139,15 +139,15 @@ end
 ---@type table<string, boolean>
 local autoAdded = {}
 
---- Appends every party damage dealer who is not in the grid, once each.
+--- Appends every party member playing a selected role who is not in the grid, once each.
 ---
 --- **On arrival, not on every pass**, which is the whole difference from `AutoRemoveRoles`: a removal sweep
 --- that keeps removing leaves the Remove button meaningful, while an addition sweep that keeps adding makes
 --- it a button that undoes itself. So `autoAdded` records who has been offered, and someone taken back out
 --- by hand is not offered again.
 ---
---- Party only. A raid's damage dealers are fifteen to twenty people, which is not a grid anyone wants built
---- for them, and presets exist for raids. The player is never added because the party scan walks
+--- Party only. A raid's worth of any role is fifteen to twenty people, which is not a grid anyone wants
+--- built for them, and presets exist for raids. The player is never added because the party scan walks
 --- `GetNumSubgroupMembers`, which excludes index 0.
 ---
 --- A member with no role assigned is never added, on `AutoRemoveRoles`' grounds: absent information is not
@@ -158,11 +158,15 @@ local autoAdded = {}
 --- party would otherwise schedule four deferral passes and four geometry requests instead of the one
 --- `Apply` runs around this.
 ---@return boolean added
-local function AutoAddPartyDamagers()
+local function AutoAddPartyRoles()
 	local slots = Slots()
 	local layout = Private.Layout.GetConfig()
+	local roles = layout and layout.autoAddPartyRoles
 
-	if not slots or not layout or not layout.autoAddPartyDamagers or GroupKind() ~= "party" then
+	-- Decided once here rather than inside the loop below, which only needs to know the member's own role.
+	local on = roles ~= nil and (roles.TANK or roles.HEALER or roles.DAMAGER)
+
+	if not slots or not layout or not roles or not on or GroupKind() ~= "party" then
 		return false
 	end
 
@@ -184,15 +188,22 @@ local function AutoAddPartyDamagers()
 	end
 
 	local removedRoles = layout.autoRemoveRoles
+	local blankOffline = layout.offlineBlankDelay ~= Private.Enum.OfflineBlankNever
 	local added = false
 
 	for i = 1, #roster do
 		local member = roster[i]
+		local role = Private.Roster.GetRole(member.guid)
 
-		if not autoAdded[member.guid] and Private.Roster.GetRole(member.guid) == "DAMAGER" then
-			-- Skipped outright when the role is also set to be auto-removed, rather than added and swept back
-			-- out: the pairing would churn the slot list on every roster event.
-			if not (removedRoles and removedRoles.DAMAGER) and not FindOccupant(member.guid, member.name) then
+		if not autoAdded[member.guid] and role and roles[role] then
+			-- Skipped outright when the role is also set to be auto-removed, or when the blank sweep is armed
+			-- and they are already offline, rather than added and swept back out: either pairing would churn
+			-- the slot list on every roster event.
+			if
+				not (removedRoles and removedRoles[role])
+				and not (blankOffline and Private.Offline.SecondsOffline(member.guid))
+				and not FindOccupant(member.guid, member.name)
+			then
 				slots[#slots + 1] = { kind = "player", guid = member.guid, name = member.name }
 				autoAdded[member.guid] = true
 
@@ -206,23 +217,26 @@ end
 
 --- Who the favourites sweep has already offered, on `autoAdded`'s grounds and not persisted for its reasons.
 ---
---- **A second set rather than a shared one.** `EnforceAutoAddPartyDamagers` wipes `autoAdded` when its
---- checkbox is unticked, which must not re-offer every favourite the user has taken back out.
+--- **A second set rather than a shared one.** `EnforceAutoAddPartyRoles` wipes `autoAdded` when the
+--- selection is emptied, which must not re-offer every favourite the user has taken back out.
 ---@type table<string, boolean>
 local favoritesHandled = {}
 
 --- Appends every starred player in the group who is not in the grid, once each.
 ---
---- **Party and raid alike.** The count argument that keeps `AutoAddPartyDamagers` out of raids does not
+--- **Party and raid alike.** The count argument that keeps `AutoAddPartyRoles` out of raids does not
 --- apply to a named person, and solo the roster is empty.
 ---
 --- Two filters gate the add, and they are not symmetrical. `autoRemoveRoles` is a veto for
---- `AutoAddPartyDamagers`' reason -- adding and sweeping back out would churn the slot list on every roster
+--- `AutoAddPartyRoles`' reason -- adding and sweeping back out would churn the slot list on every roster
 --- event. `unrosteredRoles` gates too, so a favourite the Unrostered pane does not offer is not quietly
 --- added behind it; this is the one path that reads that filter as more than a display filter.
 ---
 --- **A nil role blocks neither**, matching `Roster.Offers`: role is a veto here rather than the selection
---- criterion it is for `AutoAddPartyDamagers`, so absent information excludes nobody.
+--- criterion it is for `AutoAddPartyRoles`, so absent information excludes nobody.
+---
+--- Being offline is a third veto while the blank sweep is armed, on the churn grounds again, and it takes
+--- effect before the handled mark -- which is why `BlankOffline` marks the guids it blanks.
 ---
 --- Appends directly rather than through `AssignByGuid`, which applies once per member.
 ---@return boolean added
@@ -252,6 +266,7 @@ local function Favorites()
 	end
 
 	local removedRoles = layout.autoRemoveRoles
+	local blankOffline = layout.offlineBlankDelay ~= Private.Enum.OfflineBlankNever
 	local added = false
 
 	for i = 1, #roster do
@@ -264,12 +279,13 @@ local function Favorites()
 			if
 				Private.Roster.Offers(layout.unrosteredRoles, role)
 				and not (role and removedRoles and removedRoles[role])
+				and not (blankOffline and Private.Offline.SecondsOffline(guid))
 			then
 				-- Refreshed while we have the roster's own spelling, so a rename or a realm transfer since the
 				-- star does not leave the slash command listing a name nobody answers to.
 				favorites[guid] = member.name
 
-				-- Marked whether or not we are the one who put them there, unlike `AutoAddPartyDamagers`: a
+				-- Marked whether or not we are the one who put them there, unlike `AutoAddPartyRoles`: a
 				-- favourite already in the grid has had what the star asks for, so taking them out by hand
 				-- has to stick, and a preset applied over them must not be re-polluted.
 				favoritesHandled[guid] = true
@@ -286,6 +302,85 @@ local function Favorites()
 	return added
 end
 
+--- Turns every slot whose player has been offline past the configured delay into a spacer.
+---
+--- **Blanked in place, not removed.** The cell holds its position and nothing after it moves: a grid that
+--- reflows itself because someone's router died is worse than the dead cell it fixes. Which is why this
+--- walks forwards, unlike `AutoRemoveRoles` -- nothing shifts.
+---
+--- The GUID falls back to a name lookup for `SlotRole`'s reason: a slot configured while its player was
+--- away would otherwise read as never-offline for one more event after they turn up.
+---
+--- Announced on `ClearOnLeave`'s grounds, and coalesced into one line -- every name expires on the same
+--- tick, so a raid-wide disconnect would otherwise be a line each.
+---@return boolean blanked
+local function BlankOffline()
+	local slots = Slots()
+	local layout = Private.Layout.GetConfig()
+	local delay = layout and layout.offlineBlankDelay
+
+	if not slots or not delay or delay == Private.Enum.OfflineBlankNever then
+		return false
+	end
+
+	---@type string[]?
+	local names
+
+	for i = 1, #slots do
+		local slot = slots[i]
+
+		if slot.kind == "player" then
+			local guid = slot.guid or (slot.name and Private.Roster.GetGuid(slot.name))
+
+			if guid then
+				local elapsed = Private.Offline.SecondsOffline(guid)
+
+				if elapsed and elapsed >= delay then
+					names = names or {}
+					names[#names + 1] = slot.name or guid
+
+					slots[i] = { kind = "blank" }
+
+					-- Marked as already offered, or a reconnect appends them at the *end* of the grid: their
+					-- slot is a spacer now, so `FindOccupant` no longer sees them and the offline veto has
+					-- gone inert. Neither set can be assumed to hold them -- `AutoAddPartyRoles` marks only
+					-- what it placed itself, `Favorites` vetoes on offline before it reaches its own mark,
+					-- and neither survives a reload.
+					autoAdded[guid] = true
+					favoritesHandled[guid] = true
+				end
+			end
+		end
+	end
+
+	if not names then
+		return false
+	end
+
+	Private.Utils.Printf(Private.L.Registry.BlankedOffline, table.concat(names, ", "))
+
+	return true
+end
+
+--- Runs the three role sweeps in one call, gated so none of them touches `slots` while inert. Removal
+--- first, so it cannot interleave with either addition; favourites before the party sweep, so a named
+--- person takes the lower slot.
+---
+--- Three separate locals rather than `or` between the calls: `or` short-circuits, and would skip whichever
+--- sweep follows one that already reported a change.
+---@return boolean changed
+local function RunSweeps()
+	if not Private.LoadCondition.IsActive() then
+		return false
+	end
+
+	local removed = AutoRemoveRoles()
+	local starred = Favorites()
+	local added = AutoAddPartyRoles()
+
+	return removed or starred or added
+end
+
 --- Schedules the model onto the headers. Both keys, always: `Build` creates or grows the pool, `Refresh`
 --- applies the model to it, and `DeferralOrder` guarantees that sequence within one pass.
 ---
@@ -294,16 +389,10 @@ end
 --- plain table write and always legal; the guard belongs in `Build` and `Refresh`, where the restricted
 --- calls are.
 ---
---- The role removal and the two additions run here because every mutation in this file ends here, and none
---- of them calls back into `Apply`, so no recursion follows. Removal first, so it cannot interleave with
---- either; favourites before the party sweep, so a named person takes the lower slot.
----
 --- The cost of deferring is that the model and the frames can disagree for the length of a pull, which
 --- is why the slash commands say so and `/spotlights list` reads the model.
 local function Apply()
-	AutoRemoveRoles()
-	Favorites()
-	AutoAddPartyDamagers()
+	RunSweeps()
 
 	Private.Events.Request(DeferralKey.Build)
 	Private.Events.Request(DeferralKey.Registry)
@@ -796,6 +885,33 @@ end
 Private.Events.RegisterHandler(DeferralKey.Build, Build)
 Private.Events.RegisterHandler(DeferralKey.Registry, Refresh)
 
+--- **`BlankOffline` is not in `Apply`'s funnel**, unlike the other three sweeps: its combat guard has to be
+--- able to hold it back, since blanking during a pull destroys a slot a reconnect before the end of the
+--- fight would have made unnecessary. Deferred, `PLAYER_REGEN_ENABLED` re-reads the stamp instead.
+---
+--- `Apply` only when something changed, which is what stops the pass re-arming itself: it requests `Build`
+--- and `Registry`, and an unconditional call from the queue this handler is itself drained from would
+--- schedule work every frame.
+---
+--- The panel is refreshed on that same condition, because nothing else will: the Roster tab's own repaint
+--- is a throttle bound to two roster events, and a threshold elapsing is neither -- so the Spotlighted list
+--- would go on naming a player whose slot is already a spacer.
+---
+--- **The call is gated, not `BlankOffline` itself.** `Offline.lua` keeps stamping from `UNIT_CONNECTION`
+--- while inert, so the first check after re-enabling can find players already past the threshold and blank
+--- them all in one pass. That looks like a bug but is intended -- it is the same catch-up the login scan
+--- performs.
+Private.Events.RegisterHandler(DeferralKey.Offline, function()
+	if Private.Events.DeferIfInCombat(DeferralKey.Offline) then
+		return
+	end
+
+	if Private.LoadCondition.IsActive() and BlankOffline() then
+		Apply()
+		Private.Options.Refresh()
+	end
+end)
+
 --- **A remembered edge rather than a live test of `GroupKind`**, which is what makes the setting safe: a
 --- bare "not in a group, so clear" would fire on the `PLAYER_ENTERING_WORLD` below and wipe the user's
 --- entire configuration on every login, reload and reconnect.
@@ -835,6 +951,13 @@ local function ClearOnLeave()
 		return false
 	end
 
+	-- Only the wipe is gated, not `lastGroupKind` or the two table.wipes above: leaving those running is what
+	-- keeps the edge accurate, so re-enabling mid-session does not read a stale kind as a change happening now
+	-- and fire a phantom clear.
+	if not Private.LoadCondition.IsActive() then
+		return false
+	end
+
 	table.wipe(slots)
 	Private.Utils.Print(Private.L.Registry.ClearedOnLeave)
 
@@ -857,19 +980,20 @@ end
 --- Runs the auto-add sweep for a caller that just changed the setting, so ticking it fills the grid on
 --- screen rather than at the next roster event.
 ---
---- Turning it off forgets who has been offered, so ticking it again fills from scratch rather than
+--- Emptying the selection forgets who has been offered, so re-ticking a role fills from scratch rather than
 --- remembering a party the user has since stopped caring about.
 ---@return boolean added
-function Private.Registry.EnforceAutoAddPartyDamagers()
+function Private.Registry.EnforceAutoAddPartyRoles()
 	local layout = Private.Layout.GetConfig()
+	local roles = layout and layout.autoAddPartyRoles
 
-	if not layout or not layout.autoAddPartyDamagers then
+	if not roles or not (roles.TANK or roles.HEALER or roles.DAMAGER) then
 		table.wipe(autoAdded)
 
 		return false
 	end
 
-	if not AutoAddPartyDamagers() then
+	if not AutoAddPartyRoles() then
 		return false
 	end
 
@@ -878,11 +1002,24 @@ function Private.Registry.EnforceAutoAddPartyDamagers()
 	return true
 end
 
+--- Runs the offline sweep for a caller that just changed the setting, so picking a shorter delay acts on
+--- the grid already on screen rather than at the next tick.
+---
+--- **Requests rather than sweeping inline**, unlike its three siblings: the combat guard lives in the
+--- handler, and a synchronous call here would blank during a pull.
+---
+--- Unlike its siblings, this can silently do nothing while inert: it only requests the sweep, and the
+--- handler it reaches is gated, where the other three sweep synchronously and bypass the gate entirely.
+function Private.Registry.EnforceBlankOffline()
+	Private.Offline.Reevaluate()
+	Private.Events.Request(DeferralKey.Offline)
+end
+
 --- Runs the favourites sweep for a caller that just changed what it reads, so a star fills the grid on
 --- screen rather than at the next roster event.
 ---
 --- `guid` is the favourite that changed, if one did: its handled entry goes, so starring, unstarring and
---- starring again offers them each time. Unlike `EnforceAutoAddPartyDamagers` this never wipes the whole
+--- starring again offers them each time. Unlike `EnforceAutoAddPartyRoles` this never wipes the whole
 --- set -- there is no switch here to turn off, only one player at a time.
 ---@param guid string?
 ---@return boolean added
@@ -909,7 +1046,7 @@ end)
 -- a damage dealer switching to healing keeps their slot until the next membership change, and a party
 -- whose role check lands after its members do is never filled.
 Private.Events.RegisterEvent("PLAYER_ROLES_ASSIGNED", function()
-	if AutoRemoveRoles() or Favorites() or AutoAddPartyDamagers() then
+	if RunSweeps() then
 		Apply()
 	end
 end)
@@ -918,12 +1055,8 @@ end)
 -- every reload, none of which is anyone leaving anything.
 Private.Events.RegisterEvent("PLAYER_ENTERING_WORLD", Apply)
 
-Private.Events.RegisterEvent("PLAYER_LOGIN", function()
-	-- Unconditional, because it is plain table work and runs even under lockdown: that makes a build
-	-- blocked by a mid-combat reload one pass on `PLAYER_REGEN_ENABLED` rather than a scan then a build.
-	Private.Roster.Rebuild()
-	Apply()
-end)
+-- The roster is scanned by `Roster.lua`'s own login listener, which registers first.
+Private.Events.RegisterEvent("PLAYER_LOGIN", Apply)
 
 --- Reports a mutation, and says so when the frames will lag the model: the model is always current, only
 --- the headers wait for combat to end.

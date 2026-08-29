@@ -41,14 +41,13 @@ L.Registry.ListHeader = "%d slot(s), %d roster name(s) readable, %d secret"
 L.Registry.ListPlayer = "  %d. %s |cff808080%s|r"
 L.Registry.ListBlank = "  %d. |cff808080(spacer)|r"
 L.Registry.Absent = "not in group"
+L.Registry.BlankedOffline = "%s blanked - offline, as configured"
 L.Layout = {}
 
 L.Layout.NotLoaded = "saved settings have not loaded yet"
 L.Settings = {}
 
 L.Settings.Title = "Spotlights"
-L.Settings.CombatRefused = "settings cannot be opened in combat"
-L.Settings.ClosedByCombat = "settings closed: entering combat"
 
 L.Settings.TabGeneral = "General"
 L.Settings.TabAppearance = "Appearance"
@@ -83,6 +82,18 @@ L.Settings.UnlockFrames = "Unlock Frames For Dragging"
 L.Settings.Scale = "Frame Scale"
 L.Settings.FrameStrata = "Frame Strata"
 L.Settings.SlashHint = "Type |cffffd100/spotlights|r for every command."
+
+L.Settings.LoadConditionHeading = "Load Condition"
+L.Settings.LoadCondition = "Enabled Specializations"
+-- Spells out the account-wide scope, since a per-character reader is the likeliest surprise: the block
+-- list is shared by every character on the account, not just the one it was set from.
+L.Settings.LoadConditionTooltip =
+"While your active specialization is unselected here, the grid is hidden and the roster is left alone; your configured slots are kept and return the moment you reselect it. This applies account-wide, not per character."
+L.Settings.LoadConditionCount = "%d of %d specializations"
+-- Shown in both minimap tooltips while inert. Says what happens rather than claiming the addon is
+-- unloaded or disabled, since it is neither.
+L.Settings.LoadConditionInert =
+"Spotlights is inert for this specialization: the grid is hidden and the roster is left alone, with your slots kept for when you switch back."
 
 --- Named for what the layer is rather than transliterated; the stored value never reaches the user.
 L.Settings.Strata = {
@@ -131,6 +142,8 @@ L.Settings.GroupBlock = "Block"
 L.Settings.NameHeading = "Name"
 L.Settings.ShowName = "Show Name"
 L.Settings.NameHoverOnly = "Show Name On Hover Only"
+L.Settings.ShowNicknames = "Show Nicknames"
+L.Settings.ShowNicknamesTooltip = "Uses NSRT Nicknames, if available"
 L.Settings.NameStrata = "Name Strata"
 
 -- Not a strata but the absence of one, and named for that rather than "Default", since every other entry
@@ -188,12 +201,20 @@ L.Settings.FillOrderCaption = "%s · wraps every %d · grows %s, %s"
 
 L.Settings.AllowGaps = "Render Empty Cells"
 L.Settings.ClearOnLeave = "Clear Roster When Leaving The Group"
--- "DPS" rather than the `DAMAGER` global's "Damage", because this is a sentence of ours and not a role
--- label in a list.
-L.Settings.AutoAddPartyDamagers = "Add all DPS automatically while in a Party"
+L.Settings.AutoAddPartyRoles = "Automatically Add These Roles In A Party"
 -- Says what it does to the grid rather than to the list, because it is destructive: these roles are taken
 -- out and kept out, not hidden.
 L.Settings.AutoRemoveRoles = "Automatically Remove These Roles"
+-- Says what happens to the cell, because "blank" alone reads as "remove" and the whole point of the
+-- setting is that the cell survives. The combat clause is not a caveat -- it is what stops a disconnect
+-- during a pull from costing a slot.
+L.Settings.OfflineBlankDelay = "Blank Offline Players After"
+L.Settings.OfflineBlankDelayTooltip =
+"The slot becomes an empty spacer and keeps its place in the grid; the player is not re-added when they reconnect. Applied when you leave combat."
+-- The two ends of the delay list. The four waits between them are printed by the client's own duration
+-- strings, so only these are ours to spell.
+L.Settings.OfflineBlankNever = "Never"
+L.Settings.OfflineBlankInstantly = "Instantly"
 
 -- Read as a pair, each naming the people in its own list. Not "group members" on the right, since anyone
 -- already spotlighted is left out of it.
@@ -391,6 +412,7 @@ L.Settings.ClickCastIntro =
 L.Settings.ClickCastNone = "No click bindings yet."
 L.Settings.ClickCastBind = "Bind"
 L.Settings.ClickCastCapture = "Press the mouse button, key or scroll direction, with any modifiers, that should cast %s on a spotlight.\n\nEscape cancels."
+L.Settings.ClickCastCombatRefused = "click bindings cannot be captured in combat"
 
 -- The two prompts differ in more than wording: the first is an override the user is making, the second is
 -- one the game is refusing them, and a binding that says it replaced something it did not is worse than no

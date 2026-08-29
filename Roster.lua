@@ -308,6 +308,11 @@ end
 
 Private.Events.RegisterEvent("GROUP_ROSTER_UPDATE", Private.Roster.Rebuild)
 
+-- Login is the one moment a group exists that no roster event has announced to us. Owned here rather than
+-- by a consumer, because this file loads before all of them and the bus dispatches in registration order,
+-- so every login listener downstream now reads a scanned roster.
+Private.Events.RegisterEvent("PLAYER_LOGIN", Private.Roster.Rebuild)
+
 --- How many members the last scan could read, and how many it skipped because their identity
 --- was secret. A nonzero skip count is the rated-PvP case.
 ---@return integer scanned, integer skipped

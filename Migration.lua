@@ -5,7 +5,7 @@ local _, Private = ...
 Private.Migration = {}
 
 --- Bump this and add the matching step whenever the shape of SpotlightsSaved changes.
-Private.Migration.CurrentVersion = 6
+Private.Migration.CurrentVersion = 9
 
 --- A function rather than a shared table: handing the same table to two callers would alias one user's
 --- settings onto another's.
@@ -28,8 +28,17 @@ local function DefaultLayout()
 		-- layout (like `allowGaps`) because it is a grid behaviour the Roster tab surfaces.
 		clearOnLeave = false,
 
-		-- Off by default: a grid that fills itself unasked is a surprise even when it fills correctly.
-		autoAddPartyDamagers = false,
+		-- Never by default, on `clearOnLeave`'s grounds: this discards a slot the user arranged.
+		offlineBlankDelay = Private.Enum.OfflineBlankNever,
+
+		-- Damage alone, matching `unrosteredRoles`' default below. An empty selection means the sweep is
+		-- off, so this table doubles as the on/off switch. All three keys written, for the reason given
+		-- below.
+		autoAddPartyRoles = {
+			TANK = false,
+			HEALER = false,
+			DAMAGER = true,
+		},
 
 		-- Damage alone, because those are the players anyone spotlights.
 		--
@@ -69,6 +78,25 @@ local function DefaultPosition()
 	}
 end
 
+--- Where a database with no usable position starts: the grid's rectangle in the middle of the screen.
+---
+--- `CENTER, 0, 0` alone does not mean that. The offset names the **growth corner**, so on its own it hangs
+--- that corner off the screen centre and the rectangle off by half its size in each axis. The step from the
+--- rectangle's centre to that corner is what centres the rectangle, and is the same arithmetic
+--- `Container.Recenter` applies to the button.
+---@param count integer configured slots, since that is what the container is sized for
+---@param layout SpotlightsLayoutConfig
+---@return SpotlightsPositionConfig
+local function CenteredPosition(count, layout)
+	local position = DefaultPosition()
+	local growth = Private.Layout.AnchorPoint(layout)
+	local width, height = Private.Layout.ContainerSize(count, layout)
+
+	position.x, position.y = Private.Container.CornerDelta("CENTER", growth, width, height)
+
+	return position
+end
+
 --- How a spotlight looks.
 ---
 --- `barTexture` is a LibSharedMedia **key**, never a resolved path: what a key maps to depends on which
@@ -99,6 +127,7 @@ local function DefaultAppearance()
 		healthBgColorA = 1,
 		nameEnabled = true,
 		nameHoverOnly = false,
+		nicknamesEnabled = false,
 
 		-- Not a strata but the absence of one: the name layer sets none of its own and inherits the
 		-- container's, which is how every spotlight has always drawn.
@@ -457,6 +486,58 @@ local steps = {
 	[6] = function(db)
 		db.favorites = db.favorites or {}
 	end,
+	[7] = function(db)
+		-- Every position in the wild measures a corner of the container's *rectangle*, which `SetSize` moves
+		-- whenever a slot count adds a row or column. They now measure the corner the grid grows from, so
+		-- without this step every grid moves once on upgrade.
+		local position, layout = db.position, db.layout
+
+		if type(position) ~= "table" or type(layout) ~= "table" then
+			return
+		end
+
+		if type(position.x) ~= "number" or type(position.y) ~= "number" then
+			return
+		end
+
+		if not Private.Enum.AnchorPoints[position.point] then
+			return
+		end
+
+		-- Steps run before `Repair`, so `layout` may still be missing a field the corner arithmetic reads.
+		-- Filled on `Repair`'s own rule -- a nil takes the shipped default -- so what this measures and what
+		-- the grid is then drawn with cannot disagree. Bailing instead would strand that position in
+		-- rectangle-corner terms for good, since `version` is stamped either way and the step never reruns.
+		for field, value in pairs(DefaultLayout()) do
+			if layout[field] == nil then
+				layout[field] = value
+			end
+		end
+
+		local width, height = Private.Layout.ContainerSize(db.slots and #db.slots or 0, layout)
+		local growth = Private.Layout.AnchorPoint(layout)
+		local x, y = Private.Container.CornerDelta(position.point, growth, width, height)
+
+		position.x, position.y = position.x + x, position.y + y
+	end,
+	[8] = function(db)
+		local layout = db.layout
+
+		if not layout then
+			return
+		end
+
+		-- Written in both directions: leaving only the enabled case set would leave the disabled case
+		-- with no table for `Filled` to find, and every user who had the checkbox off would come back
+		-- with `DAMAGER` on at their next `Repair`.
+		local on = layout.autoAddPartyDamagers == true
+
+		layout.autoAddPartyRoles = { TANK = false, HEALER = false, DAMAGER = on }
+		layout.autoAddPartyDamagers = nil
+	end,
+	[9] = function(db)
+		db.loadCondition = db.loadCondition or { disabledSpecs = {} }
+	end,
 }
 
 --- Fills in every field `defaults` has and `target` lacks, returning `target` patched or `defaults`
@@ -492,7 +573,7 @@ end
 --- current but damaged. A nil where a number is expected becomes arithmetic on nil deep in the layout
 --- maths.
 ---@param db SpotlightsDB
----@param key "layout" | "appearance" | "auras" | "minimap" | "presets" | "favorites" | "clickCasts"
+---@param key "layout" | "appearance" | "auras" | "minimap" | "presets" | "favorites" | "clickCasts" | "loadCondition"
 ---@param build fun(): table
 local function RepairBlock(db, key, build)
 	db[key] = Filled(db[key], build())
@@ -514,7 +595,7 @@ local function RepairPosition(db)
 		or type(position.y) ~= "number"
 		or not Private.Enum.AnchorPoints[position.point]
 	then
-		db.position = DefaultPosition()
+		db.position = CenteredPosition(db.slots and #db.slots or 0, db.layout)
 
 		return
 	end
@@ -546,6 +627,18 @@ local function RepairNameStrata(db)
 	end
 end
 
+--- Validates the one layout field a field-by-field fill cannot repair, on `RepairNameStrata`'s grounds: a
+--- nil is not the failure mode, a number an edited SavedVariables put there is, and it would become a live
+--- threshold. Runs after `RepairBlock` has guaranteed the block is a table.
+---@param db SpotlightsDB
+local function RepairOfflineBlankDelay(db)
+	local layout = db.layout
+
+	if not Private.Enum.OfflineBlankDelaySet[layout.offlineBlankDelay] then
+		layout.offlineBlankDelay = DefaultLayout().offlineBlankDelay
+	end
+end
+
 --- Every repair, in one call. Adding a settings block means adding it here as well as to `CreateDefault`
 --- and a migration step: three places, answering what a new database contains, what an old one gains and
 --- what a damaged one gets back. Collapsing them would mean a migration that silently repairs, which is
@@ -553,10 +646,14 @@ end
 ---@param db SpotlightsDB
 local function Repair(db)
 	RepairBlock(db, "layout", DefaultLayout)
+	RepairOfflineBlankDelay(db)
 	RepairBlock(db, "appearance", DefaultAppearance)
 	RepairNameStrata(db)
 	RepairBlock(db, "auras", DefaultAuras)
+
+	-- After the layout block: `CenteredPosition` measures a replacement against numbers it fills in.
 	RepairPosition(db)
+
 	RepairBlock(db, "minimap", function()
 		return { hide = false }
 	end)
@@ -578,21 +675,36 @@ local function Repair(db)
 	RepairBlock(db, "clickCasts", function()
 		return {}
 	end)
+
+	-- Empty defaults, but for the opposite of `presets`' reason: this is a denylist, so an empty table is
+	-- the correct steady state rather than a damaged block, and a spec a future patch adds is absent from
+	-- it and so stays enabled. `Filled` recursing into `disabledSpecs` means a `loadCondition` missing only
+	-- that inner table gets it back empty without the outer block being replaced.
+	RepairBlock(db, "loadCondition", function()
+		return { disabledSpecs = {} }
+	end)
 end
 
 ---@return SpotlightsDB
 local function CreateDefault()
+	local layout = DefaultLayout()
+
 	return {
 		version = Private.Migration.CurrentVersion,
 		slots = {},
-		layout = DefaultLayout(),
-		position = DefaultPosition(),
+		layout = layout,
+
+		-- Measured against the layout above rather than defaulted flat: a fresh grid has to land centred,
+		-- which `CENTER, 0, 0` on its own no longer means. This path never reaches `Repair`.
+		position = CenteredPosition(0, layout),
+
 		appearance = DefaultAppearance(),
 		auras = DefaultAuras(),
 		minimap = { hide = false },
 		presets = {},
 		favorites = {},
 		clickCasts = {},
+		loadCondition = { disabledSpecs = {} },
 	}
 end
 

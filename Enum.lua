@@ -55,35 +55,45 @@ Private.Enum.AuraGrowDirection = {
 ---@enum DeferralKey
 Private.Enum.DeferralKey = {
 	Config = "config",
+	Offline = "offline",
 	Build = "build",
 	Registry = "registry",
 	Geometry = "geometry",
 	Layout = "layout",
 	Position = "position",
 	NameStrata = "nameStrata",
+	Mover = "mover",
 	Auras = "auras",
 	ClickCasts = "clickCasts",
+	Visibility = "visibility",
 }
 
 --- Drain order, and why the queue is a set not a list. Config leads, because Build and Refresh read the
 --- option table it may have changed; geometry must never run against a roster the registry has not rebuilt.
 ---
+--- Offline follows Config and precedes Build, since it reads that same option table and mutates the slot
+--- list Build and Refresh then read.
+---
 --- Position is last of the geometry passes because clamping needs the container's *final* size, which
 --- Layout decides. NameStrata follows it because a name layer set to inherit takes the strata Position just
---- wrote.
+--- wrote, and Mover follows both because its overlay is squared onto the container's finished rectangle.
 ---
---- Auras and ClickCasts are last outright but under no ordering constraint -- nothing either reads or
---- writes crosses this queue. They are here so a pass blocked by combat resumes with everything else.
+--- Auras, ClickCasts and Visibility are last outright but under no ordering constraint -- nothing any of
+--- them reads or writes crosses this queue. They are here so a pass blocked by combat resumes with
+--- everything else.
 Private.Enum.DeferralOrder = {
 	Private.Enum.DeferralKey.Config,
+	Private.Enum.DeferralKey.Offline,
 	Private.Enum.DeferralKey.Build,
 	Private.Enum.DeferralKey.Registry,
 	Private.Enum.DeferralKey.Geometry,
 	Private.Enum.DeferralKey.Layout,
 	Private.Enum.DeferralKey.Position,
 	Private.Enum.DeferralKey.NameStrata,
+	Private.Enum.DeferralKey.Mover,
 	Private.Enum.DeferralKey.Auras,
 	Private.Enum.DeferralKey.ClickCasts,
+	Private.Enum.DeferralKey.Visibility,
 }
 
 --- A set, so a stored position can be validated before SetPoint, which errors outright on an unrecognised
@@ -144,6 +154,33 @@ Private.Enum.FrameStrata = {}
 
 for i = 1, #Private.Enum.FrameStrataOrder do
 	Private.Enum.FrameStrata[Private.Enum.FrameStrataOrder[i]] = true
+end
+
+--- What `layout.offlineBlankDelay` holds when an offline spotlight is never blanked. A value rather than a
+--- nil, which would be indistinguishable from a field that never arrived and re-filled every load.
+--- Negative so it can never be mistaken for a delay.
+Private.Enum.OfflineBlankNever = -1
+
+--- Seconds a spotlighted player may be offline before their slot is blanked, in the order the dropdown
+--- offers them: never, at once, then four waits.
+---@type number[]
+Private.Enum.OfflineBlankDelays = {
+	Private.Enum.OfflineBlankNever,
+	0,
+	30,
+	60,
+	180,
+	300,
+}
+
+--- The same values as a set, for validating a stored one: a number an edited SavedVariables put there
+--- would otherwise become a live threshold. Derived rather than hand-kept, since the list above *is* the
+--- value space.
+---@type table<number, boolean>
+Private.Enum.OfflineBlankDelaySet = {}
+
+for i = 1, #Private.Enum.OfflineBlankDelays do
+	Private.Enum.OfflineBlankDelaySet[Private.Enum.OfflineBlankDelays[i]] = true
 end
 
 --- A name no player can hold, used as the `nameList` for blank and retired slots. **Never leave `nameList`

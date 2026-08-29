@@ -100,17 +100,37 @@ local function ShowLabelTooltip(self)
 end
 
 --- Owner-checked, because by the time the cursor leaves, something else may have taken the tooltip.
----@param self FontString
+---@param self Region
 local function HideLabelTooltip(self)
 	if GameTooltip:GetOwner() == self then
 		GameTooltip:Hide()
 	end
 end
 
+--- A control's own description, shown whether or not its label is clipped -- unlike `ShowLabelTooltip`,
+--- which is a recovery aid rather than an explanation. Title over description in the two colours
+--- `Settings.InitTooltip` uses (`Blizzard_Settings.lua:288-297`).
+---
+--- The title is passed rather than read off the owner, so a control whose own widget carries the tooltip
+--- says the same thing there as under its label.
+---@param self Region
+---@param title string
+---@param description string
+local function ShowDescriptionTooltip(self, title, description)
+	GameTooltip:SetOwner(self --[[@as Frame]], "ANCHOR_RIGHT")
+	GameTooltip:SetText(title, HIGHLIGHT_FONT_COLOR.r, HIGHLIGHT_FONT_COLOR.g,
+		HIGHLIGHT_FONT_COLOR.b, 1, true)
+	GameTooltip:AddLine(description, NORMAL_FONT_COLOR.r, NORMAL_FONT_COLOR.g, NORMAL_FONT_COLOR.b, true)
+	GameTooltip:Show()
+end
+
+--- **A label sets no size**, so the hoverable region is the text itself rather than the label column: a
+--- `tooltip` is discoverable only by hovering the words. Already true of the truncation tooltip.
 ---@param parent Frame
 ---@param text string
+---@param tooltip string? a description, shown whether or not the label is truncated
 ---@return FontString
-local function CreateLabel(parent, text)
+local function CreateLabel(parent, text, tooltip)
 	local label = parent:CreateFontString(nil, "ARTWORK", "GameFontNormal")
 
 	label:SetPoint("LEFT", parent, "LEFT", 0, 0)
@@ -118,12 +138,19 @@ local function CreateLabel(parent, text)
 	label:SetWordWrap(false)
 	label:SetText(text)
 
-	-- Motion only, and propagated, so a row that grows a hover of its own later still hears the cursor.
-	-- This is Blizzard's own `TruncatedTooltipFontStringTemplate` (`SharedUIPanelTemplates.xml`).
+	-- Motion only, as in Blizzard's own `TruncatedTooltipFontStringTemplate` (`SharedUIPanelTemplates.xml`).
+	-- Propagation stays off: `SetPropagateMouseMotion` is protected, so a label built while the panel is
+	-- open in combat would be blocked.
 	label:EnableMouseMotion(true)
-	label:SetPropagateMouseMotion(true)
 
-	label:SetScript("OnEnter", ShowLabelTooltip)
+	if tooltip then
+		label:SetScript("OnEnter", function(self)
+			ShowDescriptionTooltip(self, self:GetText(), tooltip)
+		end)
+	else
+		label:SetScript("OnEnter", ShowLabelTooltip)
+	end
+
 	label:SetScript("OnLeave", HideLabelTooltip)
 
 	return label
@@ -163,16 +190,32 @@ end
 ---@param enabled (fun(): boolean)? absent means always enabled
 ---@param full boolean?
 ---@param labelWidth number?
+---@param tooltip string? a description, for a setting whose caption cannot say enough
 ---@return SpotlightsNode
-function Private.Controls.Checkbox(parent, label, get, set, enabled, full, labelWidth)
+function Private.Controls.Checkbox(parent, label, get, set, enabled, full, labelWidth, tooltip)
 	local row = CreateRow(parent)
 
 	row.span = full or nil
 
-	local caption = CreateLabel(row, label)
+	local caption = CreateLabel(row, label, tooltip)
 	local check = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
 
 	check:SetSize(ROW_HEIGHT, ROW_HEIGHT)
+
+	-- The box carries the description as well as the caption: a checkbox is aimed at rather than read, so
+	-- the words are not where the cursor goes. Free to take both scripts -- `UICheckButtonTemplate` sets
+	-- none of its own (`CheckButtonTemplates.xml:50-64`).
+	if tooltip then
+		-- A dimmed box is exactly when the description is worth reading, and a `Button` drops its motion
+		-- scripts while disabled unless told otherwise.
+		check:SetMotionScriptsWhileDisabled(true)
+
+		check:SetScript("OnEnter", function(self)
+			ShowDescriptionTooltip(self, label, tooltip)
+		end)
+
+		check:SetScript("OnLeave", HideLabelTooltip)
+	end
 
 	check:SetScript("OnClick", function(self)
 		set(self:GetChecked() and true or false)
@@ -372,11 +415,12 @@ end
 ---@param set fun(value: any)
 ---@param labelWidth number?
 ---@param placeholder string? what the button reads while `get` returns nil
+---@param tooltip string? a description shown on the label, for a setting whose caption cannot say enough
 ---@return SpotlightsNode
-function Private.Controls.Dropdown(parent, label, choices, get, set, labelWidth, placeholder)
+function Private.Controls.Dropdown(parent, label, choices, get, set, labelWidth, placeholder, tooltip)
 	local row = CreateRow(parent)
 
-	local caption = label and CreateLabel(row, label) or nil
+	local caption = label and CreateLabel(row, label, tooltip) or nil
 	local dropdown = CreateFrame("DropdownButton", nil, row, "WowStyle1DropdownTemplate")
 
 	-- The generator re-runs every time the menu opens, so the checked state is derived from the database at
@@ -465,6 +509,141 @@ function Private.Controls.MultiselectDropdown(parent, label, choices, IsSelected
 			end, function()
 				SetSelected(choice.value, not IsSelected(choice.value))
 			end)
+		end
+	end)
+
+	-- Regenerating the menu, for `Dropdown:Refresh`'s reason, but **not while it is open**: a
+	-- multiselect's setter refreshes the tab on every tick and the tick leaves the list down. The click
+	-- already re-derives the text (`Blizzard_Menu/DropdownButton.lua:290-299`), so regenerating on top
+	-- would reinitialise the open list under the cursor for nothing.
+	function row:Refresh()
+		if dropdown:IsMenuOpen() then
+			return
+		end
+
+		dropdown:GenerateMenu()
+	end
+
+	function row:Layout(width)
+		self:SetWidth(width)
+
+		local column, control = Divide(self, width, labelWidth, caption)
+
+		dropdown:ClearAllPoints()
+		dropdown:SetPoint("LEFT", self, "LEFT", column, 0)
+		dropdown:SetWidth(control)
+
+		return ROW_HEIGHT
+	end
+
+	return row
+end
+
+--- A dropdown over a two-level hierarchy: one checkbox per group, each opening into a checkbox per item
+--- nested under it. A `CreateCheckbox` description is itself a submenu root, which is the whole mechanism --
+--- see `Blizzard_Communities/ClubFinder.lua:520-572` for the precedent this follows.
+---
+--- A group's own checkbox has no tri-state, because Blizzard's menus do not offer one: it reads checked only
+--- when every item beneath it is, and a click sets all of them the other way. `SetSelected` takes a **list**
+--- of values rather than one so that the group checkbox, each submenu's bulk buttons, and the root's own
+--- bulk buttons all funnel through the same function instead of three.
+---
+--- The button's own text has to come from `SelectionText`: `CollectSelectionData` walks the whole menu tree,
+--- so the default translator would concatenate every checked leaf onto the button -- up to 52 names for the
+--- spec picker this was built for. The callback must never return nil, since a nil answer falls back to that
+--- same concatenated default.
+---@param parent Frame
+---@param label string? omitted for a dropdown that spans its column, where a `Caption` or a heading above says what it picks
+---@param groups fun(): SpotlightsNestedChoiceGroup[]
+---@param IsSelected fun(value: any): boolean
+---@param SetSelected fun(values: any[], selected: boolean)
+---@param SelectionText fun(): string
+---@param labelWidth number?
+---@param tooltip string? a description shown on the label, for a setting whose caption cannot say enough
+---@return SpotlightsNode
+function Private.Controls.NestedMultiselectDropdown(parent, label, groups, IsSelected, SetSelected, SelectionText,
+	labelWidth, tooltip)
+	local row = CreateRow(parent)
+
+	local caption = label and CreateLabel(row, label, tooltip) or nil
+	local dropdown = CreateFrame("DropdownButton", nil, row, "WowStyle1DropdownTemplate")
+
+	dropdown:SetSelectionText(function()
+		return SelectionText()
+	end)
+
+	dropdown:SetupMenu(function(_, rootDescription)
+		local current = groups()
+
+		---@type any[]
+		local everyValue = {}
+
+		for i = 1, #current do
+			local specs = current[i].specs
+
+			for j = 1, #specs do
+				everyValue[#everyValue + 1] = specs[j].specID
+			end
+		end
+
+		rootDescription:CreateButton(CHECK_ALL, function()
+			SetSelected(everyValue, true)
+
+			return MenuResponse.Refresh
+		end)
+
+		rootDescription:CreateButton(UNCHECK_ALL, function()
+			SetSelected(everyValue, false)
+
+			return MenuResponse.Refresh
+		end)
+
+		for i = 1, #current do
+			local group = current[i]
+
+			---@type any[]
+			local groupValues = {}
+
+			for j = 1, #group.specs do
+				groupValues[j] = group.specs[j].specID
+			end
+
+			local function GroupSelected()
+				for j = 1, #groupValues do
+					if not IsSelected(groupValues[j]) then
+						return false
+					end
+				end
+
+				return true
+			end
+
+			local text = CreateColor(group.r, group.g, group.b):WrapTextInColorCode(group.className)
+			local submenu = rootDescription:CreateCheckbox(text, GroupSelected, function()
+				SetSelected(groupValues, not GroupSelected())
+			end)
+
+			submenu:CreateButton(CHECK_ALL, function()
+				SetSelected(groupValues, true)
+
+				return MenuResponse.Refresh
+			end)
+
+			submenu:CreateButton(UNCHECK_ALL, function()
+				SetSelected(groupValues, false)
+
+				return MenuResponse.Refresh
+			end)
+
+			for j = 1, #group.specs do
+				local spec = group.specs[j]
+
+				submenu:CreateCheckbox(spec.name, function()
+					return IsSelected(spec.specID)
+				end, function()
+					SetSelected({ spec.specID }, not IsSelected(spec.specID))
+				end)
+			end
 		end
 	end)
 
@@ -910,7 +1089,6 @@ function Private.Controls.Caption(parent, text)
 	caption:SetWordWrap(false)
 
 	caption:EnableMouseMotion(true)
-	caption:SetPropagateMouseMotion(true)
 
 	caption:SetScript("OnEnter", ShowLabelTooltip)
 	caption:SetScript("OnLeave", HideLabelTooltip)

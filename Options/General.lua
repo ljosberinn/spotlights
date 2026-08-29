@@ -35,18 +35,16 @@ local function StrataChoices()
 	return choices
 end
 
---- Recentres the grid, as `/spotlights recenter` does. Silent in combat rather than printing what the slash
---- command prints: combat closes the panel, so this is reachable only in the frame or two before that runs.
+--- Recentres the grid, as `/spotlights recenter` does, refusal in combat included. Says so rather than
+--- returning silently: a setting that lands late is one thing, a button that does nothing reads as broken.
 local function Recenter()
-	local position = Position()
+	if InCombatLockdown() then
+		Private.Utils.Print(Private.L.Mover.CombatRefused)
 
-	if not position or InCombatLockdown() then
 		return
 	end
 
-	position.point, position.x, position.y = "CENTER", 0, 0
-
-	Private.Container.Request()
+	Private.Container.Recenter()
 end
 
 ---@return number
@@ -119,6 +117,84 @@ local function SetMinimapShown(value)
 	end
 end
 
+---@param specID integer
+---@return boolean
+local function IsSpecEnabled(specID)
+	local db = Private.DB
+
+	-- Fails open on the same grounds as `LoadCondition.Evaluate`: no database yet means nothing has been
+	-- denied yet.
+	return not db or not db.loadCondition.disabledSpecs[specID]
+end
+
+--- Ticks or unticks every spec in `specIDs` at once, which is what lets a class row, a submenu's bulk
+--- buttons and the root's bulk buttons all go through one setter.
+---@param specIDs integer[]
+---@param selected boolean
+local function SetSpecsEnabled(specIDs, selected)
+	local db = Private.DB
+
+	if not db then
+		return
+	end
+
+	local disabledSpecs = db.loadCondition.disabledSpecs
+
+	for i = 1, #specIDs do
+		-- `nil` rather than `false`: the block is a denylist, and `false` would claim a shape the field
+		-- does not have. Spelled out rather than `selected and nil or true`, which is always `true`.
+		if selected then
+			disabledSpecs[specIDs[i]] = nil
+		else
+			disabledSpecs[specIDs[i]] = true
+		end
+	end
+
+	Private.LoadCondition.Reevaluate()
+	Private.Options.Refresh()
+end
+
+--- What the closed dropdown reads: the two names for its ends, and a localised count between them --
+--- never the list of spec names `CollectSelectionData`'s default translator would produce.
+---@return string
+local function LoadConditionSelectionText()
+	local db = Private.DB
+	local disabledSpecs = db and db.loadCondition.disabledSpecs
+
+	-- Fails open on the same grounds as `IsSpecEnabled`: no database yet means nothing is denied.
+	if not disabledSpecs then
+		return ALL_SPECS
+	end
+
+	local groups = Private.LoadCondition.SpecChoices()
+	local total = 0
+	local enabled = 0
+
+	for i = 1, #groups do
+		local specs = groups[i].specs
+
+		for j = 1, #specs do
+			total = total + 1
+
+			if not disabledSpecs[specs[j].specID] then
+				enabled = enabled + 1
+			end
+		end
+	end
+
+	if enabled == 0 then
+		return NONE
+	end
+
+	-- Keyed on the counts agreeing, not on whether `disabledSpecs` has any entry: a stale entry naming a
+	-- spec no longer live must not read as a partial disable.
+	if enabled == total then
+		return ALL_SPECS
+	end
+
+	return string.format(Private.L.Settings.LoadConditionCount, enabled, total)
+end
+
 ---@param page Frame
 ---@return SpotlightsNode
 local function BuildGeneral(page)
@@ -146,7 +222,14 @@ local function BuildGeneral(page)
 		Private.Controls.Paragraph(page, L.SlashHint),
 	}, 1, COLUMN_LABEL_WIDTH)
 
-	return Private.Node.Split(page, placement, interface)
+	local loadCondition = Private.Node.Grid(page, {
+		Private.Controls.SubHeading(page, L.LoadConditionHeading),
+
+		Private.Controls.NestedMultiselectDropdown(page, L.LoadCondition, Private.LoadCondition.SpecChoices,
+			IsSpecEnabled, SetSpecsEnabled, LoadConditionSelectionText, nil, L.LoadConditionTooltip),
+	}, 1, COLUMN_LABEL_WIDTH)
+
+	return Private.Node.Split(page, placement, Private.Node.Column(page, { interface, loadCondition }))
 end
 
 Private.Options.Builders.general = BuildGeneral

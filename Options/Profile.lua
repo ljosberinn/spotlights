@@ -143,14 +143,44 @@ function Private.Profile.ImportString(text)
 	-- Nil-guarded defensively only: `Private.DB` is assigned in `EventUtil.ContinueOnAddOnLoaded`
 	-- (`Init.lua`), before any panel exists.
 	local current = Private.DB
+	local restored = {}
+
+	--- The growth corner as it stands *before* the import. `layout` is exported while `position` is kept, so
+	--- a string carrying the opposite `growX` moves that corner out from under an offset that measures it --
+	--- the same swap the Grid tab's setters rebase for.
+	local previous = current and current.layout and Private.Layout.AnchorPoint(current.layout)
 
 	for key, Local in pairs(NOT_EXPORTED) do
-		payload[key] = Local(current)
+		restored[key] = Local(current)
+
+		--- `position` alone is withheld from the run: it is this account's live table and version 7 rebases it
+		--- in place, which the write-back below cannot undo -- it puts back the same reference.
+		if key ~= "position" then
+			payload[key] = restored[key]
+		end
 	end
 
 	local migrated = Private.Migration.Run(payload)
+
+	--- Put back over the migrated table because these keys are defined as coming from the *current*
+	--- database, which is already at `CurrentVersion`: no step run for an older payload's version has any
+	--- business touching them. A key that resolved to nil never entered `restored`, so a first-ever import
+	--- keeps the `position` and `minimap` the run just installed instead of losing them.
+	for key, value in pairs(restored) do
+		migrated[key] = value
+	end
+
 	Private.DB = migrated
 	SpotlightsSaved = migrated
+
+	-- Re-evaluated live rather than left for the reload the rest of an import waits on: the denylist can
+	-- deny the spec being played right now.
+	Private.LoadCondition.Reevaluate()
+
+	-- After the assignment, which is where `Rebase` reads the imported layout's growth corner from.
+	if previous then
+		Private.Container.Rebase(previous)
+	end
 
 	return true
 end

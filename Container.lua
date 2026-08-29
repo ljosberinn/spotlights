@@ -14,11 +14,53 @@ local container
 ---@type number?
 local anchoredScale
 
---- Named because `SetPreviewing` swaps it out and has to put back exactly this string.
+--- What `Condition` below returns when neither `previewing` nor `inert` is set.
 ---
 --- Bare `[group]` is `[group:party]`, true in a party *and* in a raid -- the same set the headers render
 --- for. Solo is excluded deliberately: no header resolves a kind outside a group.
 local VISIBILITY_CONDITION = "[group] show; hide"
+
+--- Whether a preview or the unlocked mover currently wants the container shown regardless of `[group]`
+--- or the load condition. See `SetPreviewing`.
+---@type boolean
+local previewing = false
+
+--- Whether the load condition currently denies the player's spec. See `SetInert`.
+---@type boolean
+local inert = false
+
+--- The driver condition for the current combination of `previewing` and `inert`.
+---@return string
+local function Condition()
+	if previewing then
+		return "show"
+	end
+
+	if inert then
+		return "hide"
+	end
+
+	return VISIBILITY_CONDITION
+end
+
+--- Publishes `Condition()` to the driver, deferring under combat lockdown. The one place `SetPreviewing`
+--- and `SetInert` both funnel through, so a re-register triggered by either input always reflects the
+--- other's current flag instead of overwriting it with a value read before that input's own write.
+local function ApplyVisibility()
+	-- Never creates the container: a load-condition pass at login must not be what conjures the frame for
+	-- a user with no slots. Nothing to hide before there is a frame to hide it on.
+	if not container then
+		return
+	end
+
+	if Private.Events.DeferIfInCombat(DeferralKey.Visibility) then
+		return
+	end
+
+	RegisterStateDriver(container, "visibility", Condition())
+end
+
+Private.Events.RegisterHandler(DeferralKey.Visibility, ApplyVisibility)
 
 --- The anchor frame every slot header hangs off. Created unprotected -- but it does **not stay** that way,
 --- and code that mutates it must not assume otherwise.
@@ -44,34 +86,47 @@ function Private.Container.Get()
 	container:SetClampedToScreen(true)
 
 	-- WARNING: never call Show or Hide on this frame; the next driver evaluation would override it. To hide
-	-- it for other reasons, compose the condition or unregister the driver for the duration.
+	-- it for other reasons, flip `previewing` or `inert` and go through ApplyVisibility -- see SetPreviewing
+	-- and SetInert.
+	--
+	-- Registered with Condition() rather than the bare VISIBILITY_CONDITION, since ApplyVisibility never
+	-- creates the container (see below) -- a container first created while inert must be born hidden, not
+	-- flash the default condition until something else happens to call ApplyVisibility.
 	--
 	-- The driver performs the show from inside the restricted environment, so each header's OnShow -- which
 	-- *is* SecureGroupHeader_Update -- runs untainted, and joining a group mid-combat populates the frames
 	-- immediately. It also collapses every header's roster scan while ungrouped, since
 	-- SecureGroupHeader_OnEvent early-outs when the header is not visible.
-	RegisterStateDriver(container, "visibility", VISIBILITY_CONDITION)
+	RegisterStateDriver(container, "visibility", Condition())
 
 	return container
 end
 
 --- Takes the container's visibility over for the duration of a preview, and gives it back.
 ---
---- The driver's *condition* is what changes, since `Show()` would be overridden by the next evaluation
---- (see `Get`). Re-registering replaces the previous registration rather than stacking, so restoring the
---- original string needs no cleanup.
+--- Only writes the flag; `ApplyVisibility` composes it with `inert` into the driver's condition and owns
+--- the combat guard (`RegisterStateDriver` errors under lockdown, `SecureHandlers.lua:435`) -- previously
+--- this function's own out-of-combat early return, now shared with `SetInert` since a second input
+--- composing into the same string means neither can afford to skip recording its half.
+---@param value boolean
+function Private.Container.SetPreviewing(value)
+	previewing = value
+
+	ApplyVisibility()
+end
+
+--- Takes the container's visibility over for the load condition, and gives it back. Same shape as
+--- `SetPreviewing`, and `previewing` wins when both are set: configuring a spec to be played later must
+--- not look like it is broken.
 ---
---- Out of combat only: `RegisterStateDriver` errors under lockdown (`SecureHandlers.lua:435`). Both callers
---- are already out-of-combat paths, but that is not a property that survives a third caller.
----@param previewing boolean
-function Private.Container.SetPreviewing(previewing)
-	if InCombatLockdown() then
-		return
-	end
+--- Re-enabling needs no rebuild: hiding the container hides the headers, `SecureGroupHeader_OnEvent`
+--- early-outs while hidden, and showing it fires `OnShow` -- `SecureGroupHeader_Update` -- which
+--- repopulates from inside the restricted environment.
+---@param value boolean
+function Private.Container.SetInert(value)
+	inert = value
 
-	local frame = Private.Container.Get()
-
-	RegisterStateDriver(frame, "visibility", previewing and "show" or VISIBILITY_CONDITION)
+	ApplyVisibility()
 end
 
 --- The saved position, or nil before the database has loaded.
@@ -142,7 +197,44 @@ local function ScreenSize()
 	return UIParent:GetWidth() * ratio, UIParent:GetHeight() * ratio
 end
 
---- Turns the container's current rectangle into a corner-relative point and offset.
+--- A point's position on each axis as a fraction of the rectangle: 0 is the left or bottom edge, 1 the
+--- right or top, 0.5 the centre. Covers all nine points, because a saved position may name any of them.
+---@param point AnchorPoint
+---@return number horizontal, number vertical
+local function Factors(point)
+	local horizontal = point:find("LEFT") and 0 or point:find("RIGHT") and 1 or 0.5
+	local vertical = point:find("BOTTOM") and 0 or point:find("TOP") and 1 or 0.5
+
+	return horizontal, vertical
+end
+
+--- How far corner `to` sits from corner `from` on a rectangle of the given size.
+---
+--- Exported for the version 7 migration step, which cannot be re-run to correct a divergence and so must
+--- not carry a copy of this arithmetic.
+---@param from AnchorPoint
+---@param to AnchorPoint
+---@param width number
+---@param height number
+---@return number x, number y
+function Private.Container.CornerDelta(from, to, width, height)
+	local fromH, fromV = Factors(from)
+	local toH, toV = Factors(to)
+
+	return (toH - fromH) * width, (toV - fromV) * height
+end
+
+--- The corner the grid grows from, or nil before the database has loaded. Every saved offset measures this
+--- corner rather than one of the rectangle's, which is what keeps the grid still when a slot count adds a
+--- column and `Layout.ApplyContainer` resizes the container around it.
+---@return AnchorPoint?
+local function GrowthPoint()
+	local config = Private.Layout.GetConfig()
+
+	return config and Private.Layout.AnchorPoint(config)
+end
+
+--- Turns the container's current growth corner into a corner-relative point and offset.
 ---
 --- The screen is split into vertical halves and horizontal thirds; the offset is measured from the corner
 --- of whichever region holds the grid's centre, so a grid dropped near the top right stays there at another
@@ -152,9 +244,11 @@ local function CalcPoint()
 	local frame = Private.Container.Get()
 	local screenWidth, screenHeight = ScreenSize()
 	local centerX, centerY = frame:GetCenter()
+	local growth = GrowthPoint()
 
-	-- Nil before the frame has both a size and an anchor; the stored position is still valid.
-	if not centerX or not centerY then
+	-- Nil before the frame has both a size and an anchor, or before the database has loaded; the stored
+	-- position is still valid.
+	if not centerX or not centerY or not growth then
 		local saved = Private.Container.GetPosition()
 
 		if saved then
@@ -164,28 +258,30 @@ local function CalcPoint()
 		return "CENTER", 0, 0
 	end
 
-	local vertical, y
+	local growthH, growthV = Factors(growth)
+	local growthX = frame:GetLeft() + growthH * frame:GetWidth()
+	local growthY = frame:GetBottom() + growthV * frame:GetHeight()
 
-	if centerY >= screenHeight / 2 then
-		vertical = "TOP"
-		y = frame:GetTop() - screenHeight
-	else
-		vertical = "BOTTOM"
-		y = frame:GetBottom()
-	end
+	local vertical = centerY >= screenHeight / 2 and "TOP" or "BOTTOM"
+	local horizontal = ""
 
 	if centerX >= screenWidth * 2 / 3 then
-		return (vertical .. "RIGHT") --[[@as AnchorPoint]], frame:GetRight() - screenWidth, y
+		horizontal = "RIGHT"
+	elseif centerX <= screenWidth / 3 then
+		horizontal = "LEFT"
 	end
 
-	if centerX <= screenWidth / 3 then
-		return (vertical .. "LEFT") --[[@as AnchorPoint]], frame:GetLeft(), y
-	end
+	local point = (vertical .. horizontal) --[[@as AnchorPoint]]
+	local regionH, regionV = Factors(point)
 
-	return vertical --[[@as AnchorPoint]], centerX - screenWidth / 2, y
+	return point, growthX - regionH * screenWidth, growthY - regionV * screenHeight
 end
 
 --- Nudges a point/offset pair until the container's rectangle lies wholly on screen.
+---
+--- Two-point deliberately: `point` names the UIParent corner the offset is measured from, while the frame
+--- hangs by its growth corner -- the one point `SetSize` leaves where it is, so a slot count that adds a
+--- column cannot move the grid.
 ---
 --- Works in deltas, which keeps it independent of which corner `point` names: a SetPoint offset means right
 --- and up no matter what it is measured from. A container larger than the screen cannot satisfy both edges,
@@ -196,9 +292,10 @@ end
 ---@return AnchorPoint point, number x, number y
 local function Clamp(point, x, y)
 	local frame = Private.Container.Get()
+	local growth = GrowthPoint() or point
 
 	frame:ClearAllPoints()
-	PixelUtil.SetPoint(frame, point, UIParent, point, x, y)
+	PixelUtil.SetPoint(frame, growth, UIParent, point, x, y)
 
 	local left, bottom = frame:GetLeft(), frame:GetBottom()
 	local right, top = frame:GetRight(), frame:GetTop()
@@ -228,26 +325,31 @@ local function Clamp(point, x, y)
 
 	x, y = x + dx, y + dy
 
-	PixelUtil.SetPoint(frame, point, UIParent, point, x, y)
+	PixelUtil.SetPoint(frame, growth, UIParent, point, x, y)
 
 	return point, x, y
 end
 
 --- Moves the container to an absolute screen position, clamped, and persists the result. Takes a
---- bottom-left corner because that is what cursor tracking produces; `Clamp` and `CalcPoint` turn it back
---- into the corner-relative form the database stores.
+--- bottom-left corner because that is what cursor tracking produces, and walks it across the rectangle to
+--- the growth corner, which is what `Clamp` anchors by; `CalcPoint` then turns it back into the
+--- corner-relative form the database stores.
 ---
 --- Out of combat only: `SetPoint` on this frame is protected from the first header onwards.
 ---@param left number
 ---@param bottom number
 function Private.Container.MoveTo(left, bottom)
 	local position = Private.Container.GetPosition()
+	local growth = GrowthPoint()
 
-	if not position or InCombatLockdown() then
+	if not position or not growth or InCombatLockdown() then
 		return
 	end
 
-	Clamp("BOTTOMLEFT", left, bottom)
+	local width, height = Private.Container.Get():GetSize()
+	local growthH, growthV = Factors(growth)
+
+	Clamp("BOTTOMLEFT", left + growthH * width, bottom + growthV * height)
 
 	position.point, position.x, position.y = CalcPoint()
 end
@@ -287,6 +389,47 @@ Private.Events.RegisterHandler(DeferralKey.Position, ApplyPosition)
 --- Requests a re-clamp and re-apply.
 function Private.Container.Request()
 	Private.Events.Request(DeferralKey.Position)
+end
+
+--- Puts the grid's rectangle back in the middle of the screen. Not `CENTER, 0, 0`, which names the growth
+--- corner and would leave the rectangle hanging off the centre by half its size in each axis.
+---
+--- Combat is the callers' to refuse, since each reports it differently and nothing here is a protected call.
+function Private.Container.Recenter()
+	local position = Private.Container.GetPosition()
+	local growth = GrowthPoint()
+
+	if not position or not growth then
+		return
+	end
+
+	local width, height = Private.Container.Get():GetSize()
+
+	position.point = "CENTER"
+	position.x, position.y = Private.Container.CornerDelta("CENTER", growth, width, height)
+
+	Private.Container.Request()
+end
+
+--- Moves the saved offset onto the growth corner a layout change has just produced, holding **slot 1**
+--- still: it sits at zero offset from that corner, which is why the offset moves by a frame's size and not
+--- the container's.
+---
+--- `previous` is the growth point read *before* the layout was written, and the result has to land before
+--- the passes that write queued.
+---@param previous AnchorPoint
+function Private.Container.Rebase(previous)
+	local position = Private.Container.GetPosition()
+	local config = Private.Layout.GetConfig()
+
+	if not position or not config then
+		return
+	end
+
+	local growth = Private.Layout.AnchorPoint(config)
+	local x, y = Private.Container.CornerDelta(previous, growth, config.frameWidth, config.frameHeight)
+
+	position.x, position.y = position.x + x, position.y + y
 end
 
 -- Both change what "on screen" means without moving the frame, so a position legal a moment ago may not be

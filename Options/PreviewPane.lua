@@ -41,6 +41,25 @@ local function Fit(config)
 		STAGE_HEIGHT / config.frameHeight)
 end
 
+--- Sizes a mini frame to the configured spotlight size, shrunk to fit the stage.
+---
+--- Unguarded, and the pane holds no other protected call either: the mini frame comes off
+--- `SpotlightsUnitFrameBaseTemplate` (see `Private.Preview.CreateFrame`), so nothing here is protected and
+--- nothing here has to wait for the fight to end.
+---@param frame SpotlightsUnitFrame
+local function ApplySize(frame)
+	local config = Private.Layout.GetConfig()
+
+	if not config then
+		return
+	end
+
+	--- Scale first: `PixelUtil` snaps a size against the frame's *effective* scale, so sizing before
+	--- scaling snaps against the scale being replaced.
+	frame:SetScale(Fit(config))
+	PixelUtil.SetSize(frame, config.frameWidth, config.frameHeight)
+end
+
 --- The default caption: the size the frame really is, plus the percentage that keeps it honest once the
 --- frame no longer fits.
 ---@return string
@@ -90,17 +109,9 @@ function Private.PreviewPane.Build(page, options)
 	frame:SetPoint("CENTER", stage, "CENTER", 0, 0)
 
 	function stage:Refresh()
-		local config = Private.Layout.GetConfig()
-
-		if config then
-			--- From `Refresh` rather than `Layout`, so a write to either size field repaints the pane without
-			--- a layout pass -- the fit is decided against two constants.
-			---
-			--- Scale first: `PixelUtil` snaps a size against the frame's *effective* scale, so sizing before
-			--- scaling snaps against the scale being replaced.
-			frame:SetScale(Fit(config))
-			PixelUtil.SetSize(frame, config.frameWidth, config.frameHeight)
-		end
+		--- From `Refresh` rather than `Layout`, so a write to either size field repaints the pane without a
+		--- layout pass -- the fit is decided against two constants.
+		ApplySize(frame)
 
 		Private.Preview.Fill(frame, DUMMY_INDEX, nil, nil, class)
 	end

@@ -18,6 +18,7 @@
   "Lua.diagnostics.globals": [
     "ACCEPT",
     "AddonCompartmentFrame",
+    "ALL_SPECS",
     "AnchorUtil",
     "AuraContainerSortDirection",
     "AuraContainerSortMethod",
@@ -25,6 +26,7 @@
     "BATTLE_PET_UNFAVORITE",
     "BLACK_FONT_COLOR",
     "CANCEL",
+    "CHECK_ALL",
     "Clamp",
     "CLICK_BINDING_OPEN_MENU",
     "CLICK_BINDING_TARGET_UNIT",
@@ -50,8 +52,10 @@
     "LibStub",
     "MakeModifiers",
     "Menu",
+    "MenuResponse",
     "MIDDLE_BUTTON_STRING",
     "MinimalSliderWithSteppersMixin",
+    "NSAPI",
     "NONE",
     "NORMAL_FONT_COLOR",
     "OKAY",
@@ -64,6 +68,8 @@
     "RIGHT_BUTTON_STRING",
     "ScrollUtil",
     "SEARCH",
+    "SecondsFormatter",
+    "SecondsFormatterMixin",
     "SecureButton_GetButtonSuffix",
     "SecureButton_GetModifierPrefix",
     "SecureHandlerWrapScript",
@@ -78,6 +84,7 @@
     "TANK",
     "TextureKitConstants",
     "UISpecialFrames",
+    "UNCHECK_ALL",
     "UnitFrame_OnEnter",
     "UnitFrame_OnLeave",
     "UnitHealthPercent",
@@ -94,7 +101,10 @@
     "SecureHandlerWrapScript",
     "IsKeyPressIgnoredForBinding",
     "CreateKeyChordStringUsingMetaKeyState",
-    "GetBindingName"
+    "GetBindingName",
+    "CHECK_ALL",
+    "UNCHECK_ALL",
+    "MenuResponse"
   ],
   "Lua.workspace.ignoreDir": ["Libs"]
 }

@@ -13,9 +13,10 @@ Private.Preview = {}
 --- Created by us and never touched by a secure header, so **no secret value is involved anywhere in this
 --- file** -- a preview shows a made-up health fraction through `SetValue`.
 ---
---- Parented to the mover overlay (load-bearing; see `Private.Mover.GetOverlay`), the only frame both
---- unprotected and aligned to the grid, so previews inherit positioning, unprotected status and their
---- lifetime from it. Built from the real template, so what you position is what you get.
+--- Parented to the mover overlay (load-bearing; see `Private.Mover.GetOverlay`), which is aligned to the
+--- grid without being the container, so previews inherit positioning and their lifetime from it. Built from
+--- the real template's unprotected half, so what you position is what you get without protecting whatever
+--- the preview hangs in -- see `CreateFrame`.
 
 local shown = false
 
@@ -50,15 +51,20 @@ local PREVIEW_ABSORB = 0.2
 --- An inert spotlight: the real template with no events, no attribute mirror and no unit. Every mixin
 --- updater early-outs on a nil `displayedUnit`, so none can fire on a unitless frame.
 ---
+--- **`SpotlightsUnitFrameBaseTemplate`, not `SpotlightsUnitFrameTemplate`**: the base carries the whole
+--- appearance and the mixin, and leaves out the one thing a stand-in has no use for, the secure OnClick.
+--- Protection travels up the parent chain, so a preview off the secure template would protect its parent
+--- for the session -- the mover overlay, and the settings window, whose own `SetShown` then blocks in
+--- combat.
+---
 --- Exported alongside `Fill` for the options frame's preview pane, which needs the same frame in a
 --- different parent.
 ---@param parent Frame
 ---@return SpotlightsUnitFrame
 function Private.Preview.CreateFrame(parent)
-	local frame = CreateFrame("Button", nil, parent, "SpotlightsUnitFrameTemplate") --[[@as SpotlightsUnitFrame]]
+	local frame = CreateFrame("Button", nil, parent, "SpotlightsUnitFrameBaseTemplate") --[[@as SpotlightsUnitFrame]]
 
-	-- The template inherits SecureUnitButtonTemplate's OnClick and declares UnitFrame_OnEnter, both of which
-	-- read a unit this frame will never have.
+	-- The template declares UnitFrame_OnEnter, which reads a unit this frame will never have.
 	frame:EnableMouse(false)
 	frame:RegisterForClicks()
 
@@ -67,7 +73,6 @@ function Private.Preview.CreateFrame(parent)
 	frame.tempMaxHealthLoss:Hide()
 
 	-- The same layer a live spotlight puts its name in, so a name stacks over an aura display the same way.
-	-- Nothing here is protected, so no deferral is owed.
 	Private.NameStyle.EnsureLayer(frame)
 
 	return frame

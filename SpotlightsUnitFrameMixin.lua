@@ -104,8 +104,10 @@ end
 --- every child frame, so an aura display covered it and no draw-layer change could rescue it. A layer of
 --- our own is a sibling of those child frames, which is what makes `nameStrata` expressible at all.
 ---
---- **Out of combat only on a live spotlight.** The layer is parented to a secure unit button, so
---- `SetAllPoints` and `SetFrameLevel` on it are protected calls. Preview frames are ours.
+--- **Protection travels up the parent chain, not down.** The layer is a child of a secure unit button and
+--- inherits none of its protection, so `SetAllPoints` and `SetFrameLevel` here land under lockdown. On a
+--- preview the question does not arise at all -- that frame is unprotected in its own right, see
+--- `Private.Preview.CreateFrame`.
 ---@param frame SpotlightsUnitFrame
 ---@return Frame
 function Private.NameStyle.EnsureLayer(frame)
@@ -140,8 +142,8 @@ end
 --- have inherited -- one raised once and then set back to inherit has to come back down. Read off the
 --- frame rather than the position block, so the answer is also right for a preview.
 ---
---- **A protected call on a live spotlight.** Callers on that path go through the deferral queue; the
---- preview path may call it outright.
+--- Writes the name layer rather than the frame, so it lands under lockdown on either path -- see
+--- `EnsureLayer`.
 ---@param frame SpotlightsUnitFrame
 ---@param appearance SpotlightsAppearanceConfig
 function Private.NameStyle.ApplyStrata(frame, appearance)
@@ -156,8 +158,9 @@ function Private.NameStyle.ApplyStrata(frame, appearance)
 	layer:SetFrameStrata(Private.Enum.FrameStrata[strata] and strata or frame:GetFrameStrata())
 end
 
---- Deferred rather than run inline because it is a protected call on every frame it touches. The panel
---- refuses to open in combat, but a slash command and an import do not.
+--- Held for combat rather than run inline: `INHERIT` resolves against the strata the Position pass writes,
+--- and that pass defers, so a layer set mid-fight would take the strata the grid is leaving. A slash
+--- command and an import both reach it there.
 local function ApplyNameStrata()
 	if Private.Events.DeferIfInCombat(Private.Enum.DeferralKey.NameStrata) then
 		return
@@ -284,9 +287,28 @@ function SpotlightsUnitFrameMixin:UpdateHealthColor()
 	self.background:SetVertexColor(bgR, bgG, bgB, bgA)
 end
 
---- `UnitName` rather than `GetUnitName`: the realm suffix costs width the frame does not have, and every
---- spotlight is a group member whose bare name is unambiguous in practice.
+--- The text a spotlight draws for a unit: its NorthernSkyRaidTools nickname while the setting is on and
+--- that addon is loaded, else the character name.
 ---
+--- `NSAPI` is read per call rather than captured, since the addon can be gone by the next session, and it
+--- answers for the whole gate: with no nickname on file, with NSRT's own nickname toggle off, or with its
+--- per-addon opt-in for us unticked, `GetName` returns the character name. It is secret-safe too, bailing
+--- out to its argument rather than reading one.
+---@param unit string
+---@return string
+local function DisplayName(unit)
+	local appearance = Appearance()
+
+	if appearance and appearance.nicknamesEnabled and NSAPI then
+		return NSAPI:GetName(unit, "Spotlights")
+	end
+
+	-- `UnitName` rather than `GetUnitName`: the realm suffix costs width the frame does not have, and every
+	-- spotlight is a group member whose bare name is unambiguous in practice. Parenthesised because it
+	-- also returns the realm, and this answers with one name however it was reached.
+	return (UnitName(unit))
+end
+
 --- The name may arrive secret, which is harmless here -- `SetText` accepts it and nothing reads it back.
 --- **Never route a name through this into `Private.Roster`**, which needs real strings to key on.
 function SpotlightsUnitFrameMixin:UpdateName()
@@ -296,8 +318,31 @@ function SpotlightsUnitFrameMixin:UpdateName()
 		return
 	end
 
-	self.name:SetText(UnitName(unit))
+	self.name:SetText(DisplayName(unit))
 end
+
+--- Nicknames arrive over comms, and both the toggle they hang on and NSRT's own are elsewhere entirely, so
+--- nothing this addon watches says a drawn name has gone stale. The payload is ignored: every frame
+--- re-derives its own name, as the other fan-outs here do.
+local function RefreshNames()
+	Private.SlotHeader.ForEachChild(function(child)
+		child:UpdateName()
+	end)
+end
+
+--- At login rather than at load: `## OptionalDeps` orders NSRT ahead of us where it is installed, but the
+--- feature has to survive it not being.
+Private.Events.RegisterEvent("PLAYER_LOGIN", function()
+	if not NSAPI or not NSAPI.RegisterCallback then
+		return
+	end
+
+	NSAPI.RegisterCallback("Spotlights", "NSRT_NICKNAME_UPDATED", RefreshNames)
+
+	-- Fired by NSRT's options pane when its per-addon opt-in for us is ticked, which changes every answer
+	-- `GetName` gives without touching a nickname.
+	NSAPI.RegisterCallback("Spotlights", "SPOTLIGHTS_NICKNAME_TOGGLE", RefreshNames)
+end)
 
 local function HealthTextLayout(fontString, appearance)
 	fontString:SetFont(Private.Media.Font(appearance.healthTextFont), appearance.healthTextFontSize, "OUTLINE")
