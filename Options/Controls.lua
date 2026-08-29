@@ -118,10 +118,10 @@ local function CreateLabel(parent, text)
 	label:SetWordWrap(false)
 	label:SetText(text)
 
-	-- Motion only, and propagated, so a row that grows a hover of its own later still hears the cursor.
-	-- This is Blizzard's own `TruncatedTooltipFontStringTemplate` (`SharedUIPanelTemplates.xml`).
+	-- Motion only, as in Blizzard's own `TruncatedTooltipFontStringTemplate` (`SharedUIPanelTemplates.xml`).
+	-- Propagation stays off: `SetPropagateMouseMotion` is protected, so a label built while the panel is
+	-- open in combat would be blocked.
 	label:EnableMouseMotion(true)
-	label:SetPropagateMouseMotion(true)
 
 	label:SetScript("OnEnter", ShowLabelTooltip)
 	label:SetScript("OnLeave", HideLabelTooltip)
@@ -910,7 +910,6 @@ function Private.Controls.Caption(parent, text)
 	caption:SetWordWrap(false)
 
 	caption:EnableMouseMotion(true)
-	caption:SetPropagateMouseMotion(true)
 
 	caption:SetScript("OnEnter", ShowLabelTooltip)
 	caption:SetScript("OnLeave", HideLabelTooltip)

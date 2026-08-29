@@ -17,3 +17,4 @@ v1.1.2
 - click-cast bindings still cannot be captured in combat, and pressing Bind now says so
 - closing the settings window part-way through capturing a click binding no longer leaves the capture overlay covering the Click Casting tab when it is re-opened
 - the minimap button and /spotlights now open the settings window in combat again after the Appearance or Auras tab has been visited
+- switching tabs in the settings window during combat no longer throws a blocked-action error

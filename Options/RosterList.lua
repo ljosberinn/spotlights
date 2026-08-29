@@ -63,7 +63,8 @@ local HEIGHTS = {
 ---@field dot Texture the class colour, hidden where there is no class to show
 ---@field role Texture the assigned role, hidden for anyone not currently in the group
 ---@field divider Texture a rule above a heading, hidden on every other row
----@field highlight Texture the hover wash, hidden on a heading
+---@field highlight Texture the hover wash, shown by the row's own hover scripts
+---@field hoverable boolean? whether this row answers the cursor at all, false on a heading
 ---@field buttons SpotlightsRosterButton[]
 ---@field slotIndex integer? which slot this row currently stands for, nil unless it is a slot row
 ---@field dragGuid string? the player this row can be dragged as, nil unless it is a raid member row
@@ -108,10 +109,27 @@ local HEIGHTS = {
 --- Published so a list laying its own rows out does not restate the stride.
 Private.RosterList.RowHeight = ROW_HEIGHT
 
+--- The wash is script-driven rather than a `HIGHLIGHT` texture, because a button sitting on top of the
+--- row takes the mouse and the engine then reads the row itself as unhovered. `SetPropagateMouseMotion`
+--- would answer that, but it is protected and the panel now builds rows in combat, so the buttons
+--- re-fire these by hand instead, as Blizzard's list rows do
+--- (`Blizzard_AuctionHouseTableBuilder.lua:227`).
+---@param row SpotlightsRosterRow
+local function ShowRowHighlight(row)
+	row.highlight:SetShown(row.hoverable == true)
+end
+
+---@param row SpotlightsRosterRow
+local function HideRowHighlight(row)
+	row.highlight:Hide()
+end
+
 --- Read off the button rather than captured, because a pooled button stands for a different action after
 --- each rebuild.
 ---@param self SpotlightsRosterButton
 local function ShowButtonTooltip(self)
+	ShowRowHighlight(self:GetParent() --[[@as SpotlightsRosterRow]])
+
 	if not self.tooltip then
 		return
 	end
@@ -125,6 +143,8 @@ end
 --- Owner-checked, because by the time the cursor leaves, something else may have taken the tooltip.
 ---@param self SpotlightsRosterButton
 local function HideButtonTooltip(self)
+	HideRowHighlight(self:GetParent() --[[@as SpotlightsRosterRow]])
+
 	if GameTooltip:GetOwner() == self then
 		GameTooltip:Hide()
 	end
@@ -182,11 +202,14 @@ function Private.RosterList.AcquireRow(parent, rows, index)
 		return nil
 	end)
 
-	--- A `HIGHLIGHT` texture is drawn only while the frame is under the cursor, so the row stays a `Frame`:
-	--- as a `Button` it would take clicks its own buttons sit on top of.
-	row.highlight = row:CreateTexture(nil, "HIGHLIGHT")
+	--- The row stays a `Frame`: as a `Button` it would take clicks its own buttons sit on top of.
+	row.highlight = row:CreateTexture(nil, "OVERLAY")
 	row.highlight:SetAllPoints(row)
 	row.highlight:SetColorTexture(1, 1, 1, Private.Controls.HighlightAlpha)
+	row.highlight:Hide()
+
+	row:SetScript("OnEnter", ShowRowHighlight)
+	row:SetScript("OnLeave", HideRowHighlight)
 
 	-- A rule along the top edge, shown only on headings, to make the list look sectioned.
 	row.divider = row:CreateTexture(nil, "ARTWORK")
@@ -223,11 +246,6 @@ function Private.RosterList.AcquireRow(parent, rows, index)
 
 		button:SetSize(BUTTON_WIDTH, ROW_HEIGHT - 4)
 		button:SetPoint("RIGHT", row, "RIGHT", -((i - 1) * (BUTTON_WIDTH + 2)), 0)
-
-		-- Propagated so the row keeps its hover wash while the cursor is on a button, which is otherwise
-		-- the child stealing the parent's mouse. Blizzard's own list rows re-fire the scripts by hand
-		-- instead (`Blizzard_AuctionHouseTableBuilder.lua:227`).
-		button:SetPropagateMouseMotion(true)
 
 		button.text = button:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
 		button.text:SetPoint("CENTER")
@@ -274,8 +292,10 @@ function Private.RosterList.ConfigureRow(row, spec)
 	row.label:SetText(spec.text)
 	row.divider:SetShown(spec.style == "heading")
 
-	-- A heading is nothing to drag, drop or click, so it does not answer the cursor.
-	row.highlight:SetShown(spec.style ~= "heading")
+	-- A heading is nothing to drag, drop or click, so it does not answer the cursor. Cleared outright as
+	-- well, because a pooled row can be rebuilt with the cursor still standing on it.
+	row.hoverable = spec.style ~= "heading"
+	row.highlight:Hide()
 
 	row:SetHeight(HEIGHTS[spec.style] or ROW_HEIGHT)
 
