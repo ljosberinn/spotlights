@@ -127,6 +127,7 @@ local function DefaultAppearance()
 		healthBgColorA = 1,
 		nameEnabled = true,
 		nameHoverOnly = false,
+		nicknamesEnabled = false,
 
 		-- Not a strata but the absence of one: the name layer sets none of its own and inherits the
 		-- container's, which is how every spotlight has always drawn.

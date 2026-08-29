@@ -200,6 +200,7 @@
 ---@field healthBgColorA number
 ---@field nameEnabled boolean
 ---@field nameHoverOnly boolean
+---@field nicknamesEnabled boolean whether a name is resolved through NorthernSkyRaidTools before it is drawn
 ---@field nameStrata FrameStrata | "INHERIT" the strata the name layer takes, or that it takes its parent's
 ---@field nameUseClassColor boolean
 ---@field nameColorR number
@@ -891,6 +892,16 @@ LibStub = nil
 --- The held modifiers as the client's own bitfield, which is what `C_ClickBindings` accepts.
 ---@type fun(): number
 MakeModifiers = nil
+
+--- NorthernSkyRaidTools' public API, or nil when that addon is not installed. Only the two entry points
+--- this addon uses are declared. `GetName` takes a unit token or a name and returns the character name
+--- whenever a nickname does not apply, so it never answers nil for a non-nil argument.
+---@class NSAPI
+---@field GetName fun(self: NSAPI, unit: string, addonName: string, skipTransliteration: boolean?): string
+---@field RegisterCallback fun(owner: string, event: string, callback: fun(...)): any
+
+---@type NSAPI?
+NSAPI = nil
 
 --- Errors under lockdown -- see `SecureHandlers.lua`.
 ---@type fun(frame: Frame, state: string, values: string)

@@ -44,12 +44,13 @@ end
 
 --- Brings every spotlight and every preview in line with the current appearance block.
 ---
---- One sweep whichever field changed: the four updaters re-read settings and repaint our own frames with no
+--- One sweep whichever field changed: the updaters re-read settings and repaint our own frames with no
 --- protected call, and a field-to-updater table would duplicate what they already know. `UpdateTexture`
 --- ends in `UpdateHealthColor`, so the health colour rides along with it.
 local function ApplyAppearance()
 	Private.SlotHeader.ForEachChild(function(child)
 		child:UpdateTexture()
+		child:UpdateName()
 		child:UpdateNameStyle()
 		child:UpdateHealthText()
 		child:UpdateRangeAlpha()
@@ -273,6 +274,7 @@ local FRAME_FIELDS = {
 local NAME_FIELDS = {
 	"nameEnabled",
 	"nameHoverOnly",
+	"nicknamesEnabled",
 	"nameStrata",
 	"nameUseClassColor",
 	"nameColorR",
@@ -415,6 +417,11 @@ local function BuildNameSubTab(page)
 		--- qualifier instead of a control that comes and goes.
 		Private.Controls.Checkbox(page, L.NameHoverOnly, Getter("nameHoverOnly"),
 			Setter("nameHoverOnly"), IsNameShown),
+
+		--- Gated the same way, so both qualifiers dim as one decision. Whether NorthernSkyRaidTools is
+		--- loaded is deliberately not asked: the setting is the user's answer for whenever it is.
+		Private.Controls.Checkbox(page, L.ShowNicknames, Getter("nicknamesEnabled"),
+			Setter("nicknamesEnabled"), IsNameShown, nil, nil, L.ShowNicknamesTooltip),
 
 		Private.Controls.Dropdown(page, L.NameFont, FontChoices("nameFont"), Getter("nameFont"),
 			Setter("nameFont")),

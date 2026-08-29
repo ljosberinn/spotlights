@@ -287,9 +287,28 @@ function SpotlightsUnitFrameMixin:UpdateHealthColor()
 	self.background:SetVertexColor(bgR, bgG, bgB, bgA)
 end
 
---- `UnitName` rather than `GetUnitName`: the realm suffix costs width the frame does not have, and every
---- spotlight is a group member whose bare name is unambiguous in practice.
+--- The text a spotlight draws for a unit: its NorthernSkyRaidTools nickname while the setting is on and
+--- that addon is loaded, else the character name.
 ---
+--- `NSAPI` is read per call rather than captured, since the addon can be gone by the next session, and it
+--- answers for the whole gate: with no nickname on file, with NSRT's own nickname toggle off, or with its
+--- per-addon opt-in for us unticked, `GetName` returns the character name. It is secret-safe too, bailing
+--- out to its argument rather than reading one.
+---@param unit string
+---@return string
+local function DisplayName(unit)
+	local appearance = Appearance()
+
+	if appearance and appearance.nicknamesEnabled and NSAPI then
+		return NSAPI:GetName(unit, "Spotlights")
+	end
+
+	-- `UnitName` rather than `GetUnitName`: the realm suffix costs width the frame does not have, and every
+	-- spotlight is a group member whose bare name is unambiguous in practice. Parenthesised because it
+	-- also returns the realm, and this answers with one name however it was reached.
+	return (UnitName(unit))
+end
+
 --- The name may arrive secret, which is harmless here -- `SetText` accepts it and nothing reads it back.
 --- **Never route a name through this into `Private.Roster`**, which needs real strings to key on.
 function SpotlightsUnitFrameMixin:UpdateName()
@@ -299,8 +318,31 @@ function SpotlightsUnitFrameMixin:UpdateName()
 		return
 	end
 
-	self.name:SetText(UnitName(unit))
+	self.name:SetText(DisplayName(unit))
 end
+
+--- Nicknames arrive over comms, and both the toggle they hang on and NSRT's own are elsewhere entirely, so
+--- nothing this addon watches says a drawn name has gone stale. The payload is ignored: every frame
+--- re-derives its own name, as the other fan-outs here do.
+local function RefreshNames()
+	Private.SlotHeader.ForEachChild(function(child)
+		child:UpdateName()
+	end)
+end
+
+--- At login rather than at load: `## OptionalDeps` orders NSRT ahead of us where it is installed, but the
+--- feature has to survive it not being.
+Private.Events.RegisterEvent("PLAYER_LOGIN", function()
+	if not NSAPI or not NSAPI.RegisterCallback then
+		return
+	end
+
+	NSAPI.RegisterCallback("Spotlights", "NSRT_NICKNAME_UPDATED", RefreshNames)
+
+	-- Fired by NSRT's options pane when its per-addon opt-in for us is ticked, which changes every answer
+	-- `GetName` gives without touching a nickname.
+	NSAPI.RegisterCallback("Spotlights", "SPOTLIGHTS_NICKNAME_TOGGLE", RefreshNames)
+end)
 
 local function HealthTextLayout(fontString, appearance)
 	fontString:SetFont(Private.Media.Font(appearance.healthTextFont), appearance.healthTextFontSize, "OUTLINE")

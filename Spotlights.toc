@@ -4,7 +4,7 @@
 ## SavedVariables: SpotlightsSaved
 ## Category: Unit Frames
 ## Notes: Singles out individual raid members into their own draggable grid of frames
-## OptionalDeps: LibSharedMedia-3.0, LibDataBroker-1.1, LibDBIcon-1.0
+## OptionalDeps: LibSharedMedia-3.0, LibDataBroker-1.1, LibDBIcon-1.0, NorthernSkyRaidTools
 ## Version: @project-version@
 ## Author: Xephyris-Blackrock-EU
 ## IconTexture: Interface\Icons\inv_misc_tolbaradsearchlight
