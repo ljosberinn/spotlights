@@ -94,7 +94,10 @@
     "SecureHandlerWrapScript",
     "IsKeyPressIgnoredForBinding",
     "CreateKeyChordStringUsingMetaKeyState",
-    "GetBindingName"
+    "GetBindingName",
+    "CHECK_ALL",
+    "UNCHECK_ALL",
+    "MenuResponse"
   ],
   "Lua.workspace.ignoreDir": ["Libs"]
 }
