@@ -142,6 +142,8 @@ L.Settings.GroupBlock = "Block"
 L.Settings.NameHeading = "Name"
 L.Settings.ShowName = "Show Name"
 L.Settings.NameHoverOnly = "Show Name On Hover Only"
+L.Settings.ShowNicknames = "Show Nicknames"
+L.Settings.ShowNicknamesTooltip = "Uses NSRT Nicknames, if available"
 L.Settings.NameStrata = "Name Strata"
 
 -- Not a strata but the absence of one, and named for that rather than "Default", since every other entry
