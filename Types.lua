@@ -105,6 +105,7 @@
 ---@field kind SlotKind
 ---@field guid string?
 ---@field name string? exactly as the roster scan spelled it — never synthesised
+---@field autoAdded boolean? placed by the party role sweep, so leaving the party takes it back out
 
 --- Saved slot layouts, by the name the user gave each one.
 ---

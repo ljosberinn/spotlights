@@ -22,3 +22,7 @@ v1.1.2
 - role icons should now reliably work
 - Sense Power icons should no longer change mid-window
 - the grid no longer changes position based on the former center anchor when a new row or column is added
+
+# Unreviewed
+
+- players added automatically in a party are now ordered tank first and healer last when Tank or Healer is ticked, and are taken back out of the grid when you leave the party
