@@ -150,6 +150,12 @@ Private.Enum.FrameStrataOrder = {
 --- Deliberately not one of `FrameStrataOrder`'s names, so it can never reach `SetFrameStrata`.
 Private.Enum.NameStrataInherit = "INHERIT"
 
+--- `appearance.borderStyle`'s two values that are not a backdrop edge file. `None` is LibSharedMedia's own
+--- key for no border; `Solid` is ours, the pixel-snapped edge the bar insets to meet, and spelled so no
+--- LibSharedMedia key is likely to shadow it.
+Private.Enum.BorderStyleNone = "None"
+Private.Enum.BorderStyleSolid = "SOLID"
+
 --- The same strata as a set, for validating a stored one before `SetFrameStrata`, which errors outright on
 --- a name it does not know. Derived rather than hand-kept, since the order above *is* the meaning.
 ---@type table<string, boolean>

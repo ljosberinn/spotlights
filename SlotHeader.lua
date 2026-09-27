@@ -81,8 +81,8 @@ function Private.SlotHeader.ApplyChildConfig(child)
 
 	child:SetSize(size.frameWidth, size.frameHeight)
 
-	-- The one region whose anchor is computed rather than declared, so also the one a resize invalidates.
-	child:UpdateTempMaxHealthLoss()
+	-- The regions whose anchors are computed rather than declared, so also the ones a resize invalidates.
+	child:UpdateBorder()
 
 	-- The other, one layer out: an aura bar is stored as a fraction of the spotlight, and its display is
 	-- nested under a frozen aura button, so the rect is recomputed here or never.
