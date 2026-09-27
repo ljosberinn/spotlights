@@ -109,6 +109,20 @@ local function SetClearOnLeave(value)
 	SetLayoutField("clearOnLeave", value)
 end
 
+---@return boolean
+local function GetHideElsewhere()
+	local layout = Layout()
+
+	return layout and layout.hideElsewhere or false
+end
+
+--- Re-resolves on `SetAllowGaps`' grounds: this too changes what cells hold.
+---@param value boolean
+local function SetHideElsewhere(value)
+	SetLayoutField("hideElsewhere", value)
+	Private.Events.Request(Private.Enum.DeferralKey.Registry)
+end
+
 --- The six delays, labelled. Built per call rather than at load, since the localisation table is filled
 --- after this file runs and only the two ends of the list are ours to name.
 ---@return { value: any, label: string }[]
@@ -597,7 +611,7 @@ local function BuildRoster(page)
 	local heading = Private.Controls.HeadingHeight
 	local row = Private.Controls.RowHeight
 
-	local slotsHeight = math.max(page:GetHeight() - heading - row * 7 - PANE_GAP * 8, MIN_LIST_HEIGHT)
+	local slotsHeight = math.max(page:GetHeight() - heading - row * 8 - PANE_GAP * 9, MIN_LIST_HEIGHT)
 
 	--- What the presets block took on this pass, written by the column below before it lays the list out.
 	local reserved = 0
@@ -627,6 +641,8 @@ local function BuildRoster(page)
 			CHECKBOX_LABEL_WIDTH),
 		Private.Controls.Checkbox(page, L.ClearOnLeave, GetClearOnLeave, SetClearOnLeave, nil, true,
 			CHECKBOX_LABEL_WIDTH),
+		Private.Controls.Checkbox(page, L.HideElsewhere, GetHideElsewhere, SetHideElsewhere, nil, true,
+			CHECKBOX_LABEL_WIDTH, L.HideElsewhereTooltip),
 
 		-- All three in the label column the checkboxes above establish, so the run reads as the tail of the
 		-- block; the column is wide enough that a role dropdown still shows two names at once.

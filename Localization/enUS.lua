@@ -209,6 +209,10 @@ L.Settings.FillOrderCaption = "%s · wraps every %d · grows %s, %s"
 
 L.Settings.AllowGaps = "Render Empty Cells"
 L.Settings.ClearOnLeave = "Clear Roster When Leaving The Group"
+L.Settings.HideElsewhere = "Hide Members Outside The Instance"
+-- The combat clause is here for the same reason as the offline one: an arrival mid-pull stays hidden.
+L.Settings.HideElsewhereTooltip =
+"In a raid, while you are in an instance, members who are not in it are hidden until they arrive. Applied when you leave combat."
 L.Settings.AutoAddPartyRoles = "Automatically Add These Roles In A Party"
 -- Says what it does to the grid rather than to the list, because it is destructive: these roles are taken
 -- out and kept out, not hidden.
