@@ -139,6 +139,11 @@ end
 ---@type table<string, boolean>
 local autoAdded = {}
 
+--- Slot order for auto-added members. Healer last, unlike the default raid frames' role sort: the setting is
+--- for focusing the tank and damage dealers, and a ticked healer is the least of that. Unlisted ranks 2.
+---@type table<string, integer>
+local autoAddRank = { TANK = 1, HEALER = 3 }
+
 --- Appends every party member playing a selected role who is not in the grid, once each.
 ---
 --- **On arrival, not on every pass**, which is the whole difference from `AutoRemoveRoles`: a removal sweep
@@ -204,11 +209,45 @@ local function AutoAddPartyRoles()
 				and not (blankOffline and Private.Offline.SecondsOffline(member.guid))
 				and not FindOccupant(member.guid, member.name)
 			then
-				slots[#slots + 1] = { kind = "player", guid = member.guid, name = member.name }
+				-- Flagged on the slot as well as in `autoAdded`, which cannot say who to take back out on leave: it
+				-- also holds guids `BlankOffline` marked, is pruned per departing member, and is lost on reload.
+				slots[#slots + 1] = { kind = "player", guid = member.guid, name = member.name, autoAdded = true }
 				autoAdded[member.guid] = true
 
 				added = true
 			end
+		end
+	end
+
+	-- Across every flagged slot rather than this batch, so a tank joining after the damage dealers still lands
+	-- first. The flagged slots trade places among their own indices; nothing unflagged moves.
+	if added and (roles.TANK or roles.HEALER) then
+		---@type integer[]
+		local indices = {}
+
+		---@type { slot: SpotlightsSlot, rank: integer, index: integer }[]
+		local entries = {}
+
+		for i = 1, #slots do
+			local slot = slots[i]
+
+			if slot.autoAdded and slot.kind == "player" then
+				indices[#indices + 1] = i
+				entries[#entries + 1] = { slot = slot, rank = autoAddRank[SlotRole(slot)] or 2, index = i }
+			end
+		end
+
+		-- The index breaks ties because `table.sort` is unstable, and it is what keeps damage dealers in order.
+		table.sort(entries, function(a, b)
+			if a.rank ~= b.rank then
+				return a.rank < b.rank
+			end
+
+			return a.index < b.index
+		end)
+
+		for i = 1, #indices do
+			slots[indices[i]] = entries[i].slot
 		end
 	end
 
@@ -339,7 +378,8 @@ local function BlankOffline()
 					names = names or {}
 					names[#names + 1] = slot.name or guid
 
-					slots[i] = { kind = "blank" }
+					-- Keeps the flag, or an auto-added member who went offline leaves a stray spacer after the party.
+					slots[i] = { kind = "blank", autoAdded = slot.autoAdded }
 
 					-- Marked as already offered, or a reconnect appends them at the *end* of the grid: their
 					-- slot is a spacer now, so `FindOccupant` no longer sees them and the offline veto has
@@ -928,10 +968,14 @@ local lastGroupKind = "none"
 ---
 --- Announced, because a settings-driven deletion the user did not watch happen is indistinguishable from
 --- data loss.
----@return boolean cleared
+---
+--- Leaving a party also takes out every slot the party role sweep placed, whatever the setting says. That
+--- one is silent, like `AutoRemoveRoles`: it undoes an addition the user did not make either.
+---@return boolean changed
 local function ClearOnLeave()
 	local kind = GroupKind()
-	local left = lastGroupKind ~= "none" and kind ~= lastGroupKind
+	local previous = lastGroupKind
+	local left = previous ~= "none" and kind ~= previous
 
 	lastGroupKind = kind
 
@@ -946,16 +990,28 @@ local function ClearOnLeave()
 
 	local layout = Private.Layout.GetConfig()
 	local slots = Slots()
+	local removed = false
+
+	-- Ungated by `LoadCondition` too: stranding them while inert would only defer this to some later party.
+	if previous == "party" and slots then
+		for i = #slots, 1, -1 do
+			if slots[i].autoAdded then
+				table.remove(slots, i)
+
+				removed = true
+			end
+		end
+	end
 
 	if not layout or not layout.clearOnLeave or not slots or #slots == 0 then
-		return false
+		return removed
 	end
 
 	-- Only the wipe is gated, not `lastGroupKind` or the two table.wipes above: leaving those running is what
 	-- keeps the edge accurate, so re-enabling mid-session does not read a stale kind as a change happening now
 	-- and fire a phantom clear.
 	if not Private.LoadCondition.IsActive() then
-		return false
+		return removed
 	end
 
 	table.wipe(slots)
