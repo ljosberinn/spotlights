@@ -28,6 +28,10 @@ local function DefaultLayout()
 		-- layout (like `allowGaps`) because it is a grid behaviour the Roster tab surfaces.
 		clearOnLeave = false,
 
+		-- On by default, unlike its destructive neighbours: it hides nothing that does not come back when the
+		-- player zones in.
+		hideElsewhere = true,
+
 		-- Never by default, on `clearOnLeave`'s grounds: this discards a slot the user arranged.
 		offlineBlankDelay = Private.Enum.OfflineBlankNever,
 

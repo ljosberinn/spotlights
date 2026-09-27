@@ -538,6 +538,16 @@ function Private.Registry.SlotOfCell(cell)
 	return slotByCell[cell] or cell
 end
 
+--- Resolved by name, the key the header matches on, so this and the header agree on who the slot is.
+---@param name string
+---@param layout SpotlightsLayoutConfig
+---@return boolean
+local function IsElsewhere(name, layout)
+	local guid = layout.hideElsewhere and Private.Roster.GetGuid(name)
+
+	return guid and Private.Roster.IsElsewhere(guid) or false
+end
+
 --- What each grid cell should hold. This is where `allowGaps` lives, and the reason it is here
 --- rather than in Private.Layout: both modes use identical geometry. Headers are pinned to their
 --- cells out of combat and never move again; only which name lands in which cell differs.
@@ -549,9 +559,14 @@ end
 --- spacers collapse with the holes. Presence means roster presence, so a player who has left is
 --- skipped.
 ---
+--- **`hideElsewhere`** makes a raid member outside our instance absent in both modes: an empty cell with
+--- gaps on, skipped with gaps off. Decided here and never written to `slots`, so they come back the moment
+--- they zone in.
+---
 --- Compaction cannot disturb the in-combat rejoin catch: Refresh is out-of-combat only, so no cell
 --- is ever rewritten during a pull. A player who leaves mid-combat keeps their cell and the header
---- keeps scanning for them in both modes; compaction happens only after the fight.
+--- keeps scanning for them in both modes; compaction happens only after the fight. The exception is a
+--- member hidden as elsewhere before the pull: their header is hidden too, so they show only after it.
 ---@param slots SpotlightsSlot[]
 ---@param layout SpotlightsLayoutConfig
 ---@return (string|false)[] byCell
@@ -564,8 +579,9 @@ local function ResolveCells(slots, layout)
 	if layout.allowGaps then
 		for i = 1, #slots do
 			local slot = slots[i]
+			local shown = slot.kind == "player" and slot.name and not IsElsewhere(slot.name, layout)
 
-			byCell[i] = slot.kind == "player" and slot.name or false
+			byCell[i] = shown and slot.name or false
 			slotByCell[i] = i
 		end
 
@@ -577,7 +593,12 @@ local function ResolveCells(slots, layout)
 	for i = 1, #slots do
 		local slot = slots[i]
 
-		if slot.kind == "player" and slot.name and Private.Roster.GetGuid(slot.name) then
+		if
+			slot.kind == "player"
+			and slot.name
+			and Private.Roster.GetGuid(slot.name)
+			and not IsElsewhere(slot.name, layout)
+		then
 			byCell[cell] = slot.name
 			slotByCell[cell] = i
 			cell = cell + 1

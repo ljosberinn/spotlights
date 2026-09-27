@@ -463,6 +463,7 @@
 ---@field frameHeight number
 ---@field allowGaps boolean
 ---@field clearOnLeave boolean wipe every configured slot when the kind of group changes
+---@field hideElsewhere boolean in a raid, while we are in an instance, treat a member the roster places in another zone as absent. Resolve-time only: nothing is written to the slots
 ---@field offlineBlankDelay number seconds a spotlighted player may be offline before their slot becomes a blank spacer, or `Enum.OfflineBlankNever`. Destructive like `autoRemoveRoles`, but keeps the cell: the slot is blanked in place rather than removed
 ---@field unrosteredRoles table<string, boolean> which roles the Unrostered list offers, keyed by the tokens `UnitGroupRolesAssigned` answers with. A display filter on that list, and the one gate the favourites sweep reads: a favourite whose role the list does not offer is not added. `autoAddPartyRoles` still ignores it
 ---@field autoRemoveRoles table<string, boolean> which roles are kept out of the grid, keyed the same way. Destructive, unlike `unrosteredRoles`: a slot whose player plays one of these is taken out and stays out
