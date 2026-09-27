@@ -148,6 +148,7 @@ L.Settings.GrowLeft = "Links"
 L.Settings.GrowY = "Vertikal wachsen"
 L.Settings.GrowDown = "Abwärts"
 L.Settings.GrowUp = "Aufwärts"
+L.Settings.GrowCenter = "Zentriert"
 
 L.Settings.FillHeading = "Füllung"
 L.Settings.Spacing = "Abstand"

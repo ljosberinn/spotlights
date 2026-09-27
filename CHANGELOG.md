@@ -26,3 +26,4 @@ v1.1.2
 # Unreviewed
 
 - players added automatically in a party are now ordered tank first and healer last when Tank or Healer is ticked, and are taken back out of the grid when you leave the party
+- Grow Horizontally and Grow Vertically can now be Centered, growing the grid evenly around its position with a short last row or column centered on the rest
