@@ -133,6 +133,8 @@ function Private.Preview.Fill(frame, index, slot, dim, class)
 		frame.background:SetTexture(path)
 	end
 
+	frame:UpdateBorder()
+
 	--- `showAbsorb` is an appearance setting like the others, so the preview draws one rather than leave
 	--- that checkbox with nothing to show. A live absorb is the same shape -- the bar spans the health bar's
 	--- rectangle and fills from its left edge -- so a fabricated fraction reads as a real shield would.

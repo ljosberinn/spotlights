@@ -17,6 +17,12 @@ local COLUMN_LABEL_WIDTH = 120
 local FRAME_WIDTH_MIN, FRAME_WIDTH_MAX = 40, 300
 local FRAME_HEIGHT_MIN, FRAME_HEIGHT_MAX = 20, 200
 
+--- Capped against `FRAME_HEIGHT_MIN`: a 5px solid border on the shortest frame still leaves the bar 10px.
+local BORDER_SIZE_MIN, BORDER_SIZE_MAX = 1, 5
+
+--- A LibSharedMedia edge moves nothing, so only the aura borders' range bounds it.
+local BORDER_EDGE_SIZE_MIN, BORDER_EDGE_SIZE_MAX = 1, 32
+
 --- Never fully transparent: a spotlight at zero opacity is indistinguishable from a bug, and the floor is
 --- where one is still visible enough to be turned back up. The step matches `Controls`' `FRACTION_STEP`.
 local ALPHA_MIN, ALPHA_MAX, ALPHA_STEP = 0.1, 1, 0.01
@@ -50,6 +56,7 @@ end
 local function ApplyAppearance()
 	Private.SlotHeader.ForEachChild(function(child)
 		child:UpdateTexture()
+		child:UpdateBorder()
 		child:UpdateName()
 		child:UpdateNameStyle()
 		child:UpdateHealthText()
@@ -173,6 +180,24 @@ local function IsStaticColor(field)
 	end
 end
 
+--- Whether there is a border for the colour to paint.
+---@return boolean
+local function HasBorder()
+	return Appearance().borderStyle ~= Private.Enum.BorderStyleNone
+end
+
+--- Which of the two thickness sliders applies. They measure different things -- a solid edge in pixels
+--- the bar gives up, a LibSharedMedia edge in `edgeSize` -- so each keeps its own value.
+---@return boolean
+local function IsSolidBorder()
+	return Appearance().borderStyle == Private.Enum.BorderStyleSolid
+end
+
+---@return boolean
+local function IsMediaBorder()
+	return HasBorder() and not IsSolidBorder()
+end
+
 --- Whether there is a name to qualify. Hover-only decides *when* the name shows, so with the name off
 --- it is a setting for nothing.
 ---@return boolean
@@ -223,6 +248,31 @@ local function SizeSetter(field)
 	end
 end
 
+--- `None`, `Solid`, then every other registered border. LibSharedMedia lists `None` among its own keys, so
+--- it is lifted out of the list rather than appearing twice.
+---@return { value: any, label: string }[]
+local function BorderStyleChoices()
+	local L = Private.L.Settings
+	local none = Private.Enum.BorderStyleNone
+	local solid = Private.Enum.BorderStyleSolid
+	local stored = Appearance().borderStyle
+	local media = Private.Controls.MediaChoices(Private.Media.BorderList(), Private.Media.IsBorderRegistered,
+		stored ~= solid and stored or nil)
+
+	local choices = {
+		{ value = none,  label = L.BorderStyleNone },
+		{ value = solid, label = L.BorderStyleSolid },
+	}
+
+	for i = 1, #media do
+		if media[i].value ~= none then
+			choices[#choices + 1] = media[i]
+		end
+	end
+
+	return choices
+end
+
 ---@return { value: any, label: string }[]
 local function TextureChoices()
 	return Private.Controls.MediaChoices(Private.Media.StatusBarList(), Private.Media.IsRegistered,
@@ -269,6 +319,13 @@ local FRAME_FIELDS = {
 	"healthBgColorG",
 	"healthBgColorB",
 	"healthBgColorA",
+	"borderStyle",
+	"borderSize",
+	"borderEdgeSize",
+	"borderColorR",
+	"borderColorG",
+	"borderColorB",
+	"borderColorA",
 }
 
 local NAME_FIELDS = {
@@ -387,6 +444,20 @@ local function BuildFrameSubTab(page)
 			ColorSetter("healthBgColor"), IsStaticColor("healthUseClassColor")),
 
 		Private.Controls.Checkbox(page, L.ShowAbsorb, Getter("showAbsorb"), Setter("showAbsorb")),
+
+		Private.Controls.SubHeading(page, L.GroupBorder),
+
+		-- Gating: the style decides which slider shows and whether the colour paints anything.
+		Private.Controls.Dropdown(page, L.BorderStyle, BorderStyleChoices, Getter("borderStyle"),
+			GatingSetter("borderStyle")),
+
+		Private.Node.OnlyWhen(Private.Controls.Slider(page, L.BorderSize, BORDER_SIZE_MIN, BORDER_SIZE_MAX, 1,
+			Getter("borderSize"), Setter("borderSize")), IsSolidBorder),
+		Private.Node.OnlyWhen(Private.Controls.Slider(page, L.BorderEdgeSize, BORDER_EDGE_SIZE_MIN,
+			BORDER_EDGE_SIZE_MAX, 1, Getter("borderEdgeSize"), Setter("borderEdgeSize")), IsMediaBorder),
+
+		Private.Controls.ColorSwatch(page, L.BorderColor, ColorGetter("borderColor"),
+			ColorSetter("borderColor"), HasBorder),
 
 		Private.Controls.SubHeading(page, L.GroupOpacity),
 

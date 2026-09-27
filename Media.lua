@@ -112,19 +112,23 @@ LSM.RegisterCallback(Private.Media, "LibSharedMedia_Registered", function(_, med
 	-- container to change nothing.
 	Private.Auras.OnMediaRegistered(mediatype, key)
 
-	if mediatype ~= STATUSBAR then
-		return
-	end
-
 	local appearance = db.appearance
 
-	if not appearance or appearance.barTexture ~= key then
+	if not appearance then
 		return
 	end
 
-	Private.SlotHeader.ForEachChild(function(child)
-		child:UpdateTexture()
-	end)
+	if mediatype == STATUSBAR and appearance.barTexture == key then
+		Private.SlotHeader.ForEachChild(function(child)
+			child:UpdateTexture()
+		end)
+	elseif mediatype == BORDER and appearance.borderStyle == key then
+		Private.SlotHeader.ForEachChild(function(child)
+			child:UpdateBorder()
+		end)
+	else
+		return
+	end
 
 	Private.Preview.Restyle()
 end)

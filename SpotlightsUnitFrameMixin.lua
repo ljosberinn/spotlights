@@ -28,8 +28,9 @@ local GLOBAL_EVENTS = {
 local DISCONNECTED_COLOR = { r = 0.5, g = 0.5, b = 0.5 }
 local BACKGROUND_MULTIPLIER = 0.2
 
---- The health bar's inset on every side. Must match the template's healthBar anchors, which hold until
---- UpdateTempMaxHealthLoss first runs and re-anchors the bar in pixels rather than in units.
+--- The health bar's inset on every side while no solid border is set. Must match the template's healthBar
+--- anchors, which hold until UpdateTempMaxHealthLoss first runs and re-anchors the bar in pixels rather
+--- than in units.
 local HEALTH_BAR_INSET = 1
 
 --- The absorb overlay's opacity.
@@ -53,6 +54,26 @@ end
 ---@return SpotlightsAppearanceConfig?
 local function Appearance()
 	return Private.DB and Private.DB.appearance
+end
+
+--- The solid border's thickness, 0 under any other style: only a solid edge moves the bar in to meet it.
+---@return number
+local function SolidBorderSize()
+	local appearance = Appearance()
+
+	if appearance and appearance.borderStyle == Private.Enum.BorderStyleSolid then
+		return appearance.borderSize
+	end
+
+	return 0
+end
+
+--- `minPixels` for every snapped call that has to land on the border's thickness. Without it a 1px border
+--- rounds to nothing under the preview pane's reduced scale, and the bar and edges could round apart.
+---@param borderSize number
+---@return number?
+local function BorderMinPixels(borderSize)
+	return borderSize > 0 and 1 or nil
 end
 
 --- Whether `unit` is close enough to matter, for alpha purposes only.
@@ -492,46 +513,50 @@ end
 --- Restoring the anchor when the CVar is off matters: the health bar keeps whatever edge the last update
 --- gave it, so disabling the feature mid-session would otherwise leave a permanently short bar. That is
 --- also why the callback below redraws rather than only updating the cache.
+---
+--- A frame with no unit is anchored at zero loss rather than skipped, since this is also what moves the
+--- bar in to meet the border, and a preview or a released child wears one too.
 function SpotlightsUnitFrameMixin:UpdateTempMaxHealthLoss()
 	local unit = self.displayedUnit
-
-	if not unit then
-		return
-	end
-
 	local lost = 0
 
-	if showTempMaxHealthLoss then
+	if unit and showTempMaxHealthLoss then
 		-- Loss only, never gain, which is also why a negative clamps away to nothing.
 		lost = Clamp(GetUnitTotalModifiedMaxHealthPercent(unit), 0, 1)
 	end
 
+	local borderSize = SolidBorderSize()
+	local inset = math.max(HEALTH_BAR_INSET, borderSize)
+	local minPixels = BorderMinPixels(borderSize)
+
 	-- Measured off the frame rather than the health bar, whose width is the very thing this is about
 	-- to change -- reading it back would compound the inset on every update.
-	local fullWidth = self:GetWidth() - (HEALTH_BAR_INSET * 2)
+	local fullWidth = self:GetWidth() - (inset * 2)
 
 	-- Both corners, though only the second carries the loss: `PixelUtil` snaps against the effective
 	-- scale *at the call* and the template's raw offsets are not snapped at all, so a bar with one
 	-- corner from each wears a border a pixel thicker on one side. Re-run whenever that scale changes
 	-- -- see `Container.ApplyDisplay`.
-	PixelUtil.SetPoint(self.healthBar, "TOPLEFT", self, "TOPLEFT", HEALTH_BAR_INSET, -HEALTH_BAR_INSET)
+	PixelUtil.SetPoint(self.healthBar, "TOPLEFT", self, "TOPLEFT", inset, -inset, minPixels, minPixels)
 
 	PixelUtil.SetPoint(
 		self.healthBar,
 		"BOTTOMRIGHT",
 		self,
 		"BOTTOMRIGHT",
-		-HEALTH_BAR_INSET - (fullWidth * lost),
-		HEALTH_BAR_INSET
+		-inset - (fullWidth * lost),
+		inset,
+		minPixels,
+		minPixels
 	)
 
 	-- The same rectangle, snapped the same way. Only this bar's right edge is ever visible, but it is
 	-- the edge the loss reveals, and an unsnapped one changes the frame's border thickness the moment a
 	-- loss lands.
-	PixelUtil.SetPoint(self.tempMaxHealthLoss, "TOPLEFT", self, "TOPLEFT", HEALTH_BAR_INSET,
-		-HEALTH_BAR_INSET)
-	PixelUtil.SetPoint(self.tempMaxHealthLoss, "BOTTOMRIGHT", self, "BOTTOMRIGHT", -HEALTH_BAR_INSET,
-		HEALTH_BAR_INSET)
+	PixelUtil.SetPoint(self.tempMaxHealthLoss, "TOPLEFT", self, "TOPLEFT", inset, -inset, minPixels,
+		minPixels)
+	PixelUtil.SetPoint(self.tempMaxHealthLoss, "BOTTOMRIGHT", self, "BOTTOMRIGHT", -inset, inset, minPixels,
+		minPixels)
 
 	self.tempMaxHealthLoss:SetValue(lost)
 	self.tempMaxHealthLoss:SetShown(lost > 0)
@@ -593,6 +618,70 @@ function SpotlightsUnitFrameMixin:UpdateTexture()
 	end
 
 	self:UpdateHealthColor()
+end
+
+--- The border's edges, and the bar and background moved in to meet them. Not per-unit, like
+--- `UpdateTexture`, so safe on a child with nothing assigned and on a preview.
+---
+--- The background moves in with the bar rather than staying under the edges, where a translucent border
+--- would blend with it instead of showing what is behind the frame. With no border it stays full-frame:
+--- the strip it shows around the bar is the edge a spotlight has always had.
+---
+--- Edge thickness and the insets go through the same snap with the same `minPixels`, so they resolve to
+--- the same pixel count and no sliver opens between border and bar.
+---
+--- A LibSharedMedia style is a backdrop over the frame instead, and moves nothing: see the template.
+function SpotlightsUnitFrameMixin:UpdateBorder()
+	local appearance = Appearance()
+	local style = appearance and appearance.borderStyle or Private.Enum.BorderStyleNone
+
+	-- An unregistered key fetches LibSharedMedia's default, which is `None`'s empty path, and `SetBackdrop`
+	-- errors on a backdrop with neither a background nor an edge.
+	local edgeFile = style ~= Private.Enum.BorderStyleSolid and Private.Media.Border(style) or ""
+
+	if appearance and edgeFile ~= "" then
+		local backdrop = self.borderBackdrop
+
+		backdrop:SetBackdrop({ edgeFile = edgeFile, edgeSize = appearance.borderEdgeSize })
+		backdrop:SetBackdropBorderColor(appearance.borderColorR, appearance.borderColorG,
+			appearance.borderColorB, appearance.borderColorA)
+
+		-- Above the absorb overlay, which sits one over the health bar's level.
+		backdrop:SetFrameLevel(self:GetFrameLevel() + 2)
+		backdrop:Show()
+	else
+		self.borderBackdrop:Hide()
+	end
+
+	local size = SolidBorderSize()
+	local shown = size > 0
+	local minPixels = BorderMinPixels(size)
+
+	self.borderTop:SetShown(shown)
+	self.borderBottom:SetShown(shown)
+	self.borderLeft:SetShown(shown)
+	self.borderRight:SetShown(shown)
+
+	if shown and appearance then
+		local r, g, b, a = appearance.borderColorR, appearance.borderColorG, appearance.borderColorB,
+			appearance.borderColorA
+
+		PixelUtil.SetHeight(self.borderTop, size, minPixels)
+		PixelUtil.SetHeight(self.borderBottom, size, minPixels)
+		PixelUtil.SetWidth(self.borderLeft, size, minPixels)
+		PixelUtil.SetWidth(self.borderRight, size, minPixels)
+
+		self.borderTop:SetColorTexture(r, g, b, a)
+		self.borderBottom:SetColorTexture(r, g, b, a)
+		self.borderLeft:SetColorTexture(r, g, b, a)
+		self.borderRight:SetColorTexture(r, g, b, a)
+	end
+
+	self.background:ClearAllPoints()
+	PixelUtil.SetPoint(self.background, "TOPLEFT", self, "TOPLEFT", size, -size, minPixels, minPixels)
+	PixelUtil.SetPoint(self.background, "BOTTOMRIGHT", self, "BOTTOMRIGHT", -size, size, minPixels, minPixels)
+
+	self:UpdateTempMaxHealthLoss()
 end
 
 --- Everything a freshly assigned unit needs.

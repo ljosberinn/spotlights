@@ -199,6 +199,13 @@
 ---@field healthBgColorG number
 ---@field healthBgColorB number
 ---@field healthBgColorA number
+---@field borderStyle string `Enum.BorderStyleNone`, `Enum.BorderStyleSolid`, or a LibSharedMedia border key
+---@field borderSize number the solid edge's thickness
+---@field borderEdgeSize number a LibSharedMedia edge's `edgeSize`
+---@field borderColorR number
+---@field borderColorG number
+---@field borderColorB number
+---@field borderColorA number
 ---@field nameEnabled boolean
 ---@field nameHoverOnly boolean
 ---@field nicknamesEnabled boolean whether a name is resolved through NorthernSkyRaidTools before it is drawn
@@ -480,6 +487,11 @@
 ---@field healthText FontString
 ---@field selectionHighlight Texture
 ---@field healthBar StatusBar
+---@field borderTop Texture
+---@field borderBottom Texture
+---@field borderLeft Texture
+---@field borderRight Texture
+---@field borderBackdrop Frame|BackdropTemplate
 ---@field tempMaxHealthLoss StatusBar
 ---@field spotlightsAbsorbBar StatusBar?
 ---@field spotlightsNameLayer Frame? the frame the name is drawn in, so `nameStrata` has something to raise
@@ -497,6 +509,7 @@
 ---@field UpdateNameVisibility fun(self: SpotlightsUnitFrame)
 ---@field UpdateHealthText fun(self: SpotlightsUnitFrame)
 ---@field UpdateTexture fun(self: SpotlightsUnitFrame)
+---@field UpdateBorder fun(self: SpotlightsUnitFrame)
 ---@field UpdateSelectionHighlight fun(self: SpotlightsUnitFrame)
 ---@field UpdateAbsorb fun(self: SpotlightsUnitFrame)
 ---@field UpdateTempMaxHealthLoss fun(self: SpotlightsUnitFrame)

@@ -181,7 +181,7 @@ local function ApplyDisplay(position)
 		anchoredScale = scale
 
 		Private.SlotHeader.ForEachChild(function(child)
-			child:UpdateTempMaxHealthLoss()
+			child:UpdateBorder()
 		end)
 	end
 end
