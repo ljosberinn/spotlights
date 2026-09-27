@@ -146,6 +146,7 @@ L.Settings.GrowLeft = "Влево"
 L.Settings.GrowY = "Расти по вертикали"
 L.Settings.GrowDown = "Вниз"
 L.Settings.GrowUp = "Вверх"
+L.Settings.GrowCenter = "По центру"
 
 L.Settings.FillHeading = "Заполнение"
 L.Settings.Spacing = "Интервал"

@@ -14,17 +14,20 @@ Private.Enum.Orientation = {
 }
 
 --- Which way the grid grows from its anchor. Directions, not frame points: Layout maps them to an
---- anchor corner, since growing right means anchoring left.
+--- anchor corner, since growing right means anchoring left. `Center` grows both ways and fills in reading
+--- order.
 ---@enum GrowX
 Private.Enum.GrowX = {
 	Right = "RIGHT",
 	Left = "LEFT",
+	Center = "CENTER",
 }
 
 ---@enum GrowY
 Private.Enum.GrowY = {
 	Down = "DOWN",
 	Up = "UP",
+	Center = "CENTER",
 }
 
 --- Which way a pooled category's icons flow from the first one. One enum rather than the grid's pair

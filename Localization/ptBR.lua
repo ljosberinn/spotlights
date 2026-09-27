@@ -147,6 +147,7 @@ L.Settings.GrowLeft = "Esquerda"
 L.Settings.GrowY = "Crescer verticalmente"
 L.Settings.GrowDown = "Baixo"
 L.Settings.GrowUp = "Cima"
+L.Settings.GrowCenter = "Centralizado"
 
 L.Settings.FillHeading = "Preenchimento"
 L.Settings.Spacing = "Espaçamento"

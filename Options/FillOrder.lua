@@ -32,8 +32,8 @@ end
 
 ---@class FillOrderCellState
 ---@field kind "filled" | "next" | "unused"
----@field row integer 1-based, top-left origin of the drawn rectangle
----@field column integer
+---@field row number 1-based, top-left origin of the drawn rectangle; fractional in a centered line
+---@field column number
 
 --- A cell acquired from the pool below. `postCreate` builds the regions once; the pool only hides and
 --- repositions the frame itself.
@@ -202,10 +202,14 @@ local function Recompute()
 	local count = #Private.Registry.GetSlots()
 	local nextIndex = count + 1
 	local stride = math.max(config.stride, 1)
+	local horizontal = config.orientation == Orientation.Horizontal
+	local centered = horizontal and config.growX == GrowX.Center
+		or not horizontal and config.growY == GrowY.Center
 
 	-- Exactly what `Extent` says `nextIndex` cells need, rounded up to a whole number of major lines. The
-	-- leftovers in the final line are the unused cells; no line is added purely to have some.
-	local total = math.ceil(nextIndex / stride) * stride
+	-- leftovers in the final line are the unused cells; no line is added purely to have some. A centered
+	-- line has no leftover positions to mark, so it ends at the next slot.
+	local total = centered and nextIndex or math.ceil(nextIndex / stride) * stride
 	local rows, columns = Private.Layout.Extent(total, config)
 
 	computed.total, computed.rows, computed.columns = total, rows, columns
@@ -217,6 +221,18 @@ local function Recompute()
 		-- corner matches the screen corner the real grid grows from.
 		local guiRow = config.growY == GrowY.Up and (rows - row + 1) or row
 		local guiColumn = config.growX == GrowX.Left and (columns - column + 1) or column
+
+		if centered then
+			local major = horizontal and row or column
+			local line = math.min(stride, total - (major - 1) * stride)
+			local shift = ((horizontal and columns or rows) - line) / 2
+
+			if horizontal then
+				guiColumn = guiColumn + shift
+			else
+				guiRow = guiRow + shift
+			end
+		end
 
 		local kind
 
@@ -242,8 +258,12 @@ local function Caption()
 	end
 
 	local orientationLabel = config.orientation == Orientation.Horizontal and L.Horizontal or L.Vertical
-	local growXLabel = config.growX == GrowX.Right and L.GrowRight or L.GrowLeft
-	local growYLabel = config.growY == GrowY.Down and L.GrowDown or L.GrowUp
+	local growXLabel = config.growX == GrowX.Center and L.GrowCenter
+		or config.growX == GrowX.Right and L.GrowRight
+		or L.GrowLeft
+	local growYLabel = config.growY == GrowY.Center and L.GrowCenter
+		or config.growY == GrowY.Down and L.GrowDown
+		or L.GrowUp
 
 	return string.format(L.FillOrderCaption, orientationLabel, config.stride, growXLabel, growYLabel)
 end

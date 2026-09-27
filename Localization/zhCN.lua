@@ -145,6 +145,7 @@ L.Settings.GrowLeft = "向左"
 L.Settings.GrowY = "垂直扩展"
 L.Settings.GrowDown = "向下"
 L.Settings.GrowUp = "向上"
+L.Settings.GrowCenter = "居中"
 
 L.Settings.FillHeading = "填充"
 L.Settings.Spacing = "间距"

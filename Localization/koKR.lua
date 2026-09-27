@@ -145,6 +145,7 @@ L.Settings.GrowLeft = "왼쪽"
 L.Settings.GrowY = "세로로 확장"
 L.Settings.GrowDown = "아래로"
 L.Settings.GrowUp = "위로"
+L.Settings.GrowCenter = "가운데"
 
 L.Settings.FillHeading = "채우기"
 L.Settings.Spacing = "간격"
