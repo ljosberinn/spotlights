@@ -63,29 +63,60 @@ end
 --- The frame point every header anchors by. Growth directions are inverted to get there -- growing *right*
 --- means anchoring each cell's *left* edge -- so the grid extends away from a corner that stays put.
 ---
+--- A centered axis contributes no edge, so the point becomes an edge centre, or `CENTER` with both centered;
+--- `SetSize` holding that point still is what grows the grid symmetrically.
+---
 --- Exported because the container's saved position measures this same corner: it is the one point on the
 --- rectangle a `SetSize` cannot move.
 ---@param config SpotlightsLayoutConfig
 ---@return AnchorPoint point
 function Private.Layout.AnchorPoint(config)
-	local vertical = config.growY == GrowY.Down and "TOP" or "BOTTOM"
-	local horizontal = config.growX == GrowX.Right and "LEFT" or "RIGHT"
+	local vertical = config.growY == GrowY.Center and "" or config.growY == GrowY.Down and "TOP" or "BOTTOM"
+	local horizontal = config.growX == GrowX.Center and "" or config.growX == GrowX.Right and "LEFT" or "RIGHT"
+	local point = vertical .. horizontal
 
-	return (vertical .. horizontal) --[[@as AnchorPoint]]
+	return (point == "" and "CENTER" or point) --[[@as AnchorPoint]]
 end
 
---- Pixel offset from the container's anchor corner for a slot index.
+--- Pixel offset from the container's anchor point for a slot index, in a grid of `count` configured slots.
 ---@param index integer
+---@param count integer
 ---@param config SpotlightsLayoutConfig
 ---@return number x, number y
-function Private.Layout.OffsetOf(index, config)
+function Private.Layout.OffsetOf(index, count, config)
 	local row, column = Private.Layout.CellOf(index, config)
-
-	local x = (column - 1) * (config.frameWidth + config.spacingX)
-	local y = (row - 1) * (config.frameHeight + config.spacingY)
+	local stepX = config.frameWidth + config.spacingX
+	local stepY = config.frameHeight + config.spacingY
 
 	-- Signs follow the growth direction, since both offsets are measured from the anchor corner.
-	return config.growX == GrowX.Right and x or -x, config.growY == GrowY.Down and -y or y
+	local x = config.growX == GrowX.Right and (column - 1) * stepX or -(column - 1) * stepX
+	local y = config.growY == GrowY.Down and -(row - 1) * stepY or (row - 1) * stepY
+
+	if config.growX ~= GrowX.Center and config.growY ~= GrowY.Center then
+		return x, y
+	end
+
+	-- Retired headers past the configured count are placed too, and need a positive line length.
+	count = math.max(count, index)
+
+	local rows, columns = Private.Layout.Extent(count, config)
+	local horizontal = config.orientation == Orientation.Horizontal
+	local major = horizontal and row or column
+
+	-- Along the fill axis a line centres on its own length, which is what puts a short last line in the
+	-- middle. Across it every line shares the grid's extent, or the lines would fall out of alignment.
+	local line = math.min(config.stride, count - (major - 1) * config.stride)
+
+	if config.growX == GrowX.Center then
+		x = (column - ((horizontal and line or columns) + 1) / 2) * stepX
+	end
+
+	-- Negated, since a centered axis fills top to bottom.
+	if config.growY == GrowY.Center then
+		y = -(row - ((horizontal and rows or line) + 1) / 2) * stepY
+	end
+
+	return x, y
 end
 
 --- The container's size for a given slot count, from the **configured** count and never the present one: a
@@ -121,8 +152,9 @@ local applied = { width = 0, height = 0 }
 --- headers are visible, and geometry runs after it in DeferralOrder.
 ---@param header Frame
 ---@param index integer
+---@param count integer
 ---@param config SpotlightsLayoutConfig
-local function PlaceHeader(header, index, config)
+local function PlaceHeader(header, index, count, config)
 	local wasShown = header:IsShown()
 
 	header:Hide()
@@ -132,7 +164,7 @@ local function PlaceHeader(header, index, config)
 	header:ClearAllPoints()
 
 	local point = Private.Layout.AnchorPoint(config)
-	local x, y = Private.Layout.OffsetOf(index, config)
+	local x, y = Private.Layout.OffsetOf(index, count, config)
 
 	PixelUtil.SetPoint(header, point, Private.Container.Get(), point, x, y)
 
@@ -158,16 +190,18 @@ local function ApplyGeometry()
 	-- created later, so existing ones are resized by the pass below, which reads this.
 	Private.FrameConfig.Get(config.frameWidth, config.frameHeight)
 
-	local count = Private.SlotHeader.Count()
+	-- The pool, which outlasts the configured count: removed slots leave retired headers behind.
+	local pool = Private.SlotHeader.Count()
+	local count = #Private.Registry.GetSlots()
 
-	for i = 1, count do
+	for i = 1, pool do
 		if Private.Events.DeferIfInCombat(DeferralKey.Geometry) then
 			return
 		end
 
 		local header = Private.SlotHeader.Get(i) --[[@as Frame]]
 
-		PlaceHeader(header, i, config)
+		PlaceHeader(header, i, count, config)
 	end
 
 	-- Only when the size moved: geometry is requested on every roster event and zone change, while
@@ -207,7 +241,7 @@ local function ApplyContainer()
 	local point = Private.Layout.AnchorPoint(config)
 
 	for i = 1, #slots do
-		local x, y = Private.Layout.OffsetOf(i, config)
+		local x, y = Private.Layout.OffsetOf(i, #slots, config)
 
 		Private.Preview.Place(i, point, x, y, config, slots[i])
 

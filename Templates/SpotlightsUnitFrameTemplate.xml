@@ -23,6 +23,34 @@
 				<!-- White by design: UpdateHealthColor tints it to a fifth of the class colour. -->
 				<Texture parentKey="background" atlas="raidframe-hp-bg-white" hWrapMode="REPEAT" vWrapMode="REPEAT" setAllPoints="true"/>
 			</Layer>
+			<Layer level="BORDER">
+				<!-- Thickness and colour are UpdateBorder's. Left and Right run only between Top and
+				     Bottom, so a translucent colour does not double up in the corners. -->
+				<Texture parentKey="borderTop" hidden="true">
+					<Anchors>
+						<Anchor point="TOPLEFT"/>
+						<Anchor point="TOPRIGHT"/>
+					</Anchors>
+				</Texture>
+				<Texture parentKey="borderBottom" hidden="true">
+					<Anchors>
+						<Anchor point="BOTTOMLEFT"/>
+						<Anchor point="BOTTOMRIGHT"/>
+					</Anchors>
+				</Texture>
+				<Texture parentKey="borderLeft" hidden="true">
+					<Anchors>
+						<Anchor point="TOPLEFT" relativeKey="$parent.borderTop" relativePoint="BOTTOMLEFT"/>
+						<Anchor point="BOTTOMLEFT" relativeKey="$parent.borderBottom" relativePoint="TOPLEFT"/>
+					</Anchors>
+				</Texture>
+				<Texture parentKey="borderRight" hidden="true">
+					<Anchors>
+						<Anchor point="TOPRIGHT" relativeKey="$parent.borderTop" relativePoint="BOTTOMRIGHT"/>
+						<Anchor point="BOTTOMRIGHT" relativeKey="$parent.borderBottom" relativePoint="TOPRIGHT"/>
+					</Anchors>
+				</Texture>
+			</Layer>
 			<Layer level="OVERLAY">
 				<!-- OVERLAY rather than Blizzard's ARTWORK: the health bar is a child frame at the
 				     parent's frame level, so its fill texture and an ARTWORK FontString here would
@@ -56,8 +84,8 @@
 			</Layer>
 		</Layers>
 		<Frames>
-			<!-- Inset by one pixel on every side, which is what makes the background read as a border.
-			     The absorb overlay is created against this bar in Lua because it has to mirror the
+			<!-- Inset by one pixel on every side, which is what makes the background read as a border
+			     while no solid border is set; UpdateBorder moves it in to meet one. The absorb overlay is created against this bar in Lua because it has to mirror the
 			     bar's orientation and fill direction. -->
 			<StatusBar parentKey="healthBar" useParentLevel="true">
 				<BarTexture atlas="RaidFrame-Hp-Fill" hWrapMode="REPEAT" vWrapMode="REPEAT" horizTile="true" vertTile="true"/>
@@ -78,6 +106,9 @@
 					<Anchor point="BOTTOMRIGHT" x="-1" y="1"/>
 				</Anchors>
 			</StatusBar>
+			<!-- A LibSharedMedia border style's edge, drawn over the bar rather than inset against:
+			     those edge files are mostly transparent on the inside. UpdateBorder owns its level. -->
+			<Frame parentKey="borderBackdrop" inherits="BackdropTemplate" hidden="true" setAllPoints="true"/>
 		</Frames>
 		<Scripts>
 			<!-- Mainline/UnitFrame.lua:380-387. Both read `self.unit`, which the attribute mirror owns,

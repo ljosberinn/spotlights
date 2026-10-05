@@ -105,6 +105,7 @@
 ---@field kind SlotKind
 ---@field guid string?
 ---@field name string? exactly as the roster scan spelled it — never synthesised
+---@field autoAdded boolean? placed by the party role sweep, so leaving the party takes it back out
 
 --- Saved slot layouts, by the name the user gave each one.
 ---
@@ -198,6 +199,13 @@
 ---@field healthBgColorG number
 ---@field healthBgColorB number
 ---@field healthBgColorA number
+---@field borderStyle string `Enum.BorderStyleNone`, `Enum.BorderStyleSolid`, or a LibSharedMedia border key
+---@field borderSize number the solid edge's thickness
+---@field borderEdgeSize number a LibSharedMedia edge's `edgeSize`
+---@field borderColorR number
+---@field borderColorG number
+---@field borderColorB number
+---@field borderColorA number
 ---@field nameEnabled boolean
 ---@field nameHoverOnly boolean
 ---@field nicknamesEnabled boolean whether a name is resolved through NorthernSkyRaidTools before it is drawn
@@ -455,6 +463,7 @@
 ---@field frameHeight number
 ---@field allowGaps boolean
 ---@field clearOnLeave boolean wipe every configured slot when the kind of group changes
+---@field hideElsewhere boolean in a raid, while we are in an instance, treat a member the roster places in another zone as absent. Resolve-time only: nothing is written to the slots
 ---@field offlineBlankDelay number seconds a spotlighted player may be offline before their slot becomes a blank spacer, or `Enum.OfflineBlankNever`. Destructive like `autoRemoveRoles`, but keeps the cell: the slot is blanked in place rather than removed
 ---@field unrosteredRoles table<string, boolean> which roles the Unrostered list offers, keyed by the tokens `UnitGroupRolesAssigned` answers with. A display filter on that list, and the one gate the favourites sweep reads: a favourite whose role the list does not offer is not added. `autoAddPartyRoles` still ignores it
 ---@field autoRemoveRoles table<string, boolean> which roles are kept out of the grid, keyed the same way. Destructive, unlike `unrosteredRoles`: a slot whose player plays one of these is taken out and stays out
@@ -479,6 +488,11 @@
 ---@field healthText FontString
 ---@field selectionHighlight Texture
 ---@field healthBar StatusBar
+---@field borderTop Texture
+---@field borderBottom Texture
+---@field borderLeft Texture
+---@field borderRight Texture
+---@field borderBackdrop Frame|BackdropTemplate
 ---@field tempMaxHealthLoss StatusBar
 ---@field spotlightsAbsorbBar StatusBar?
 ---@field spotlightsNameLayer Frame? the frame the name is drawn in, so `nameStrata` has something to raise
@@ -496,6 +510,7 @@
 ---@field UpdateNameVisibility fun(self: SpotlightsUnitFrame)
 ---@field UpdateHealthText fun(self: SpotlightsUnitFrame)
 ---@field UpdateTexture fun(self: SpotlightsUnitFrame)
+---@field UpdateBorder fun(self: SpotlightsUnitFrame)
 ---@field UpdateSelectionHighlight fun(self: SpotlightsUnitFrame)
 ---@field UpdateAbsorb fun(self: SpotlightsUnitFrame)
 ---@field UpdateTempMaxHealthLoss fun(self: SpotlightsUnitFrame)

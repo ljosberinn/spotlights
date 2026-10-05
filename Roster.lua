@@ -24,6 +24,15 @@ local classByGuid = {}
 ---@type table<string, integer>
 local raidIndexByGuid = {}
 
+--- guid -> the zone `GetRaidRosterInfo` reports for an online member, raid scans only. The player is kept
+--- apart in `ownZone` so both sides of the comparison come off the same roster and lag together after a
+--- loading screen.
+---@type table<string, string>
+local zoneByGuid = {}
+
+---@type string?
+local ownZone
+
 local scanned = 0
 local skipped = 0
 
@@ -87,6 +96,18 @@ local function PartyMember(unit)
 	return name, class
 end
 
+--- A roster zone worth comparing, or nil. `GetRaidRosterInfo` is absent from the generated API docs, so
+--- its secrecy is unknown and a secret reads as unknown.
+---@param zone any
+---@return string?
+local function KnownZone(zone)
+	if issecretvalue(zone) or type(zone) ~= "string" or zone == "" then
+		return nil
+	end
+
+	return zone
+end
+
 --- Rescans the group. Plain table work, so legal in combat and cheap enough to run on every roster event.
 ---
 --- The two branches mirror `GetGroupHeaderType` (SecureGroupHeaders.lua:261-287): a raid wins over a party
@@ -97,16 +118,31 @@ function Private.Roster.Rebuild()
 	table.wipe(guidByName)
 	table.wipe(classByGuid)
 	table.wipe(raidIndexByGuid)
+	table.wipe(zoneByGuid)
 
+	ownZone = nil
 	scanned = 0
 	skipped = 0
 
 	if IsInRaid() then
+		local playerGuid = UnitGUID("player")
+
 		for i = 1, GetNumGroupMembers() do
 			-- Sixth return is `fileName`; the fifth is the localised class name and would key nothing.
-			local name, _, _, _, _, class = GetRaidRosterInfo(i)
+			local name, _, _, _, _, class, zone, online = GetRaidRosterInfo(i)
+			local guid = UnitGUID("raid" .. i)
 
-			Record(name, UnitGUID("raid" .. i), class, nil, i)
+			Record(name, guid, class, nil, i)
+
+			-- Our row found by GUID rather than `UnitIsUnit`, which goes secret under unit comparison
+			-- restriction. An offline member's zone is left out: offline blanking owns them.
+			if guid and not issecretvalue(guid) then
+				if guid == playerGuid then
+					ownZone = KnownZone(zone)
+				elseif not issecretvalue(online) and online then
+					zoneByGuid[guid] = KnownZone(zone)
+				end
+			end
 		end
 
 		return
@@ -161,6 +197,25 @@ end
 ---@return string? guid
 function Private.Roster.GetGuid(name)
 	return guidByName[name]
+end
+
+--- Whether a raid member is known to be outside the instance we are in. Fails open: anything unknown reads
+--- as here.
+---
+--- Outside an instance nobody is elsewhere, since forming up in a city scatters the raid across zones.
+---
+--- **Our own row is checked against `GetRealZoneText`** because it can lag a loading screen while members
+--- already inside report the new zone -- trusting it then would hide everyone here and show everyone not.
+---@param guid string
+---@return boolean
+function Private.Roster.IsElsewhere(guid)
+	local zone = zoneByGuid[guid]
+
+	if not zone or not ownZone or zone == ownZone or not IsInRaid() or not IsInInstance() then
+		return false
+	end
+
+	return ownZone == GetRealZoneText()
 end
 
 --- The English class token for a GUID, or nil. Roster first, then the client's name cache, so a slot

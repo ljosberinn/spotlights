@@ -28,6 +28,10 @@ local function DefaultLayout()
 		-- layout (like `allowGaps`) because it is a grid behaviour the Roster tab surfaces.
 		clearOnLeave = false,
 
+		-- On by default, unlike its destructive neighbours: it hides nothing that does not come back when the
+		-- player zones in.
+		hideElsewhere = true,
+
 		-- Never by default, on `clearOnLeave`'s grounds: this discards a slot the user arranged.
 		offlineBlankDelay = Private.Enum.OfflineBlankNever,
 
@@ -125,6 +129,16 @@ local function DefaultAppearance()
 		healthBgColorG = 0.14,
 		healthBgColorB = 0.02,
 		healthBgColorA = 1,
+
+		-- No border: the background's strip around the bar, as every spotlight always has.
+		borderStyle = Private.Enum.BorderStyleNone,
+		borderSize = 1,
+		borderEdgeSize = 12,
+		borderColorR = 0,
+		borderColorG = 0,
+		borderColorB = 0,
+		borderColorA = 1,
+
 		nameEnabled = true,
 		nameHoverOnly = false,
 		nicknamesEnabled = false,

@@ -14,17 +14,20 @@ Private.Enum.Orientation = {
 }
 
 --- Which way the grid grows from its anchor. Directions, not frame points: Layout maps them to an
---- anchor corner, since growing right means anchoring left.
+--- anchor corner, since growing right means anchoring left. `Center` grows both ways and fills in reading
+--- order.
 ---@enum GrowX
 Private.Enum.GrowX = {
 	Right = "RIGHT",
 	Left = "LEFT",
+	Center = "CENTER",
 }
 
 ---@enum GrowY
 Private.Enum.GrowY = {
 	Down = "DOWN",
 	Up = "UP",
+	Center = "CENTER",
 }
 
 --- Which way a pooled category's icons flow from the first one. One enum rather than the grid's pair
@@ -146,6 +149,12 @@ Private.Enum.FrameStrataOrder = {
 --- than a nil, which would be indistinguishable from a field that never arrived and re-filled every load.
 --- Deliberately not one of `FrameStrataOrder`'s names, so it can never reach `SetFrameStrata`.
 Private.Enum.NameStrataInherit = "INHERIT"
+
+--- `appearance.borderStyle`'s two values that are not a backdrop edge file. `None` is LibSharedMedia's own
+--- key for no border; `Solid` is ours, the pixel-snapped edge the bar insets to meet, and spelled so no
+--- LibSharedMedia key is likely to shadow it.
+Private.Enum.BorderStyleNone = "None"
+Private.Enum.BorderStyleSolid = "SOLID"
 
 --- The same strata as a set, for validating a stored one before `SetFrameStrata`, which errors outright on
 --- a name it does not know. Derived rather than hand-kept, since the order above *is* the meaning.

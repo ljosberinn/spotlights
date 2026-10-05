@@ -34,8 +34,9 @@ local function GrowXChoices()
 	local L = Private.L.Settings
 
 	return {
-		{ value = GrowX.Left,  label = L.GrowLeft },
-		{ value = GrowX.Right, label = L.GrowRight },
+		{ value = GrowX.Left,   label = L.GrowLeft },
+		{ value = GrowX.Center, label = L.GrowCenter },
+		{ value = GrowX.Right,  label = L.GrowRight },
 	}
 end
 
@@ -44,8 +45,9 @@ local function GrowYChoices()
 	local L = Private.L.Settings
 
 	return {
-		{ value = GrowY.Up,   label = L.GrowUp },
-		{ value = GrowY.Down, label = L.GrowDown },
+		{ value = GrowY.Up,     label = L.GrowUp },
+		{ value = GrowY.Center, label = L.GrowCenter },
+		{ value = GrowY.Down,   label = L.GrowDown },
 	}
 end
 
@@ -99,7 +101,7 @@ local function GetGrowX()
 end
 
 --- Not `SetLayoutField` alone: the flip moves the corner the saved position measures, and
---- `Container.Rebase` walks the position with it so slot 1 stays where it is.
+--- `Container.Rebase` walks the position with it so the grid stays where it is.
 ---@param value GrowX
 local function SetGrowX(value)
 	local layout = Layout()

@@ -181,7 +181,7 @@ local function ApplyDisplay(position)
 		anchoredScale = scale
 
 		Private.SlotHeader.ForEachChild(function(child)
-			child:UpdateTempMaxHealthLoss()
+			child:UpdateBorder()
 		end)
 	end
 end
@@ -415,6 +415,10 @@ end
 --- still: it sits at zero offset from that corner, which is why the offset moves by a frame's size and not
 --- the container's.
 ---
+--- An axis flipping into or out of centered holds the **rectangle** still instead, by the container's size:
+--- with full lines, a centered axis places every cell where the opposite-edge growth does, so trying the
+--- option does not move the grid.
+---
 --- `previous` is the growth point read *before* the layout was written, and the result has to land before
 --- the passes that write queued.
 ---@param previous AnchorPoint
@@ -427,7 +431,19 @@ function Private.Container.Rebase(previous)
 	end
 
 	local growth = Private.Layout.AnchorPoint(config)
-	local x, y = Private.Container.CornerDelta(previous, growth, config.frameWidth, config.frameHeight)
+	local previousH, previousV = Factors(previous)
+	local growthH, growthV = Factors(growth)
+	local width, height = Private.Layout.ContainerSize(#Private.Registry.GetSlots(), config)
+
+	if previousH ~= 0.5 and growthH ~= 0.5 then
+		width = config.frameWidth
+	end
+
+	if previousV ~= 0.5 and growthV ~= 0.5 then
+		height = config.frameHeight
+	end
+
+	local x, y = Private.Container.CornerDelta(previous, growth, width, height)
 
 	position.x, position.y = position.x + x, position.y + y
 end

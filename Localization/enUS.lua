@@ -116,6 +116,12 @@ L.Settings.TextureMissing = "%s (not loaded)"
 L.Settings.ShowAbsorb = "Show Absorbs"
 L.Settings.OutOfRangeAlpha = "Out Of Range Alpha"
 L.Settings.DeadAlpha = "Dead Alpha"
+L.Settings.BorderStyle = "Border Style"
+L.Settings.BorderStyleNone = "None"
+L.Settings.BorderStyleSolid = "Solid"
+L.Settings.BorderSize = "Border Size"
+L.Settings.BorderEdgeSize = "Edge Size"
+L.Settings.BorderColor = "Border Color"
 
 L.Settings.ColorClass = "Class Color"
 L.Settings.ColorStatic = "Static Color"
@@ -129,6 +135,7 @@ L.Settings.ResetFrame = "Reset Frame Settings"
 --- `Text`, `Color` and `Positioning` stay spelled the same way wherever they appear.
 L.Settings.GroupSize = "Size"
 L.Settings.GroupHealthBar = "Health Bar"
+L.Settings.GroupBorder = "Border"
 L.Settings.GroupOpacity = "Opacity"
 L.Settings.GroupText = "Text"
 L.Settings.GroupColor = "Color"
@@ -191,6 +198,7 @@ L.Settings.GrowLeft = "Left"
 L.Settings.GrowY = "Grow Vertically"
 L.Settings.GrowDown = "Down"
 L.Settings.GrowUp = "Up"
+L.Settings.GrowCenter = "Centered"
 
 L.Settings.FillHeading = "Fill"
 L.Settings.Spacing = "Spacing"
@@ -201,6 +209,10 @@ L.Settings.FillOrderCaption = "%s · wraps every %d · grows %s, %s"
 
 L.Settings.AllowGaps = "Render Empty Cells"
 L.Settings.ClearOnLeave = "Clear Roster When Leaving The Group"
+L.Settings.HideElsewhere = "Hide Members Outside The Instance"
+-- The combat clause is here for the same reason as the offline one: an arrival mid-pull stays hidden.
+L.Settings.HideElsewhereTooltip =
+"In a raid, while you are in an instance, members who are not in it are hidden until they arrive. Applied when you leave combat."
 L.Settings.AutoAddPartyRoles = "Automatically Add These Roles In A Party"
 -- Says what it does to the grid rather than to the list, because it is destructive: these roles are taken
 -- out and kept out, not hidden.
