@@ -46,7 +46,7 @@ local ANY_FILTER = AuraUtil.CreateFilterString(AuraUtil.AuraFilters.Helpful)
 --- stand-in spotlight has no health bar to tint.
 ---@class SpotlightsAuraKind
 ---@field key SpotlightsAuraDisplayKey
----@field Create fun(host: Frame|table, config: table, spellID: integer, everything: boolean, frame: SpotlightsUnitFrame?): SpotlightsAuraRegions
+---@field Create fun(host: Frame|table, config: table, spellID: integer, everything: boolean, frame: SpotlightsUnitFrame?, pooled: boolean): SpotlightsAuraRegions
 ---@field Style fun(regions: SpotlightsAuraRegions, anchor: Frame, config: table)
 ---@field Register fun(button: table, regions: SpotlightsAuraRegions)
 ---@field Preview fun(regions: SpotlightsAuraRegions, config: table)
@@ -785,6 +785,39 @@ local function StyleBorder(regions, config)
 	border:Show()
 end
 
+--- `AddAuraShownAnimation` and `MarchingAntsTemplate` arrive in the same build, so one check covers both.
+--- Neither can be probed from the options panel: the aura container's Lua runs in the secure
+--- environment, so its mixins are not globals.
+local SUPPORTS_GLOW = select(4, GetBuildInfo()) >= 120105
+
+--- The raid frames' animated dispel border, copied so the glow reads as the same thing.
+local GLOW_START_COLOR = CreateColor(1, 1, 0.557)
+local GLOW_END_COLOR = CreateColor(1, 0.792, 0.188)
+local GLOW_SPEED = 1.25
+
+--- Final before registration, which locks the animation group and makes the edges' colour and texture
+--- coordinates secret.
+---
+--- The template's scripts are cleared because each would run under the aura button once it is restricted:
+--- `OnShow` plays the group off a visibility query, and playing is Blizzard's job after registration. For
+--- the same reason the speed goes on the group directly rather than through `SetSpeed`, which asks
+--- `IsVisible` too.
+---@param host Frame|table
+---@return SpotlightsAuraGlow
+local function CreateGlow(host)
+	local glow = CreateFrame("Frame", nil, host, "MarchingAntsTemplate, SpotlightsAuraGlowTemplate") --[[@as SpotlightsAuraGlow]]
+
+	glow:SetAllPoints()
+	glow:SetFrameLevel(host:GetFrameLevel() + 6)
+	glow:SetScript("OnShow", nil)
+	glow:SetScript("OnHide", nil)
+	glow:SetScript("OnEvent", nil)
+	glow:SetGradient("VERTICAL", GLOW_START_COLOR, GLOW_END_COLOR)
+	glow.MarchingAnim:SetAnimationSpeedMultiplier(GLOW_SPEED)
+
+	return glow
+end
+
 --- The swipe and the countdown text, which an icon and a square draw identically.
 ---@param host Frame|table
 ---@param config SpotlightsAuraIconConfig|SpotlightsAuraSquareConfig
@@ -815,7 +848,7 @@ local function CreateDuration(host, config, regions, everything)
 		local layer = CreateFrame("Frame", nil, host)
 
 		layer:SetAllPoints()
-		layer:SetFrameLevel(host:GetFrameLevel() + 6)
+		layer:SetFrameLevel(host:GetFrameLevel() + 7)
 
 		regions.text = layer:CreateFontString(nil, "OVERLAY")
 		regions.text:SetPoint("CENTER")
@@ -1053,8 +1086,10 @@ end
 ---@param config SpotlightsAuraIconConfig
 ---@param spellID integer
 ---@param everything boolean
+---@param _ SpotlightsUnitFrame? the spotlight, which only the tint reads
+---@param pooled boolean the glow is offered to pooled features alone
 ---@return SpotlightsAuraRegions
-local function CreateIcon(host, config, spellID, everything)
+local function CreateIcon(host, config, spellID, everything, _, pooled)
 	---@type SpotlightsAuraRegions
 	local regions = { icon = host:CreateTexture(nil, "ARTWORK") }
 
@@ -1068,6 +1103,10 @@ local function CreateIcon(host, config, spellID, everything)
 
 	-- Last, so it draws over the icon art and the swipe both.
 	regions.border = CreateBorder(host)
+
+	if pooled and SUPPORTS_GLOW and (config.glow or everything) then
+		regions.glow = CreateGlow(host)
+	end
 
 	return regions
 end
@@ -1087,14 +1126,36 @@ end
 local function StyleIcon(regions, _, config)
 	StyleDuration(regions, config)
 	StyleBorder(regions, config)
+
+	if regions.glow then
+		regions.glow:SetShown(config.glow)
+	end
 end
 
---- Hands the art, the swipe and the countdown to the aura button, after which none is ours.
+--- Hands the art, the swipe, the countdown and the glow to the aura button, after which none is ours.
 ---@param button table
 ---@param regions SpotlightsAuraRegions
 local function RegisterIcon(button, regions)
 	SetAuraIcon(button, regions.icon --[[@as Texture]])
 	RegisterDuration(button, regions)
+
+	if regions.glow then
+		button:AddAuraShownAnimation(regions.glow.MarchingAnim)
+	end
+end
+
+--- The glow is started here because its `OnShow` was cleared in `CreateGlow`. Guarded, because this runs
+--- on every settings change and a restart would visibly jump the ants.
+---@param regions SpotlightsAuraRegions
+---@param config SpotlightsAuraIconConfig
+local function PreviewIcon(regions, config)
+	PreviewDuration(regions, config)
+
+	local glow = regions.glow
+
+	if glow and not glow.MarchingAnim:IsPlaying() then
+		glow.MarchingAnim:Play()
+	end
 end
 
 --- No spell art and therefore **no `SetIcon`**, which is the whole difference from an icon: this says an
@@ -1324,6 +1385,7 @@ local ICON_INVALIDATION = Classification(ANCHOR_INVALIDATION, BORDER_INVALIDATIO
 	height = "live",
 	gap = "live",
 	growDirection = "live",
+	glow = "rebuild",
 })
 
 --- A square's own half is the block's colour, which is a texture under the button. `size` is the
@@ -1410,7 +1472,7 @@ local DISPLAYS = {
 		Create = CreateIcon,
 		Style = StyleIcon,
 		Register = RegisterIcon,
-		Preview = PreviewDuration,
+		Preview = PreviewIcon,
 		PreviewArt = PreviewIconArt,
 		Size = function(config)
 			return config.width, config.height
@@ -1684,7 +1746,8 @@ local function AttachContainer(child, feature, display, config, anchor)
 		-- Styling has to precede registration: it sets `Shown` on the optional regions, and
 		-- `SetDurationCooldown` makes that aspect secret the moment it returns. `everything` is false,
 		-- so only the regions this config asks for exist -- an unwanted one could never be reclaimed.
-		local regions = display.Create(button, config, spellID or feature.spellID, false, child)
+		local regions = display.Create(button, config, spellID or feature.spellID, false, child,
+			feature.multiple)
 
 		display.Style(regions, anchor, config)
 		display.Register(button, regions)
@@ -2043,7 +2106,7 @@ function Private.Auras.CreatePreviews(parent, featureKey, displayKey)
 						previews[#previews + 1] = {
 							anchor = anchor,
 							regions = display.Create(anchor, auras[feature.key][display.key], feature.spellID, true,
-								frame),
+								frame, feature.multiple),
 							feature = feature,
 							display = display,
 							slotIndex = slotIndex,
@@ -2574,6 +2637,12 @@ function Private.Auras.IsPooled(featureKey)
 	local feature = FeatureByKey(featureKey)
 
 	return feature ~= nil and feature.multiple
+end
+
+--- Whether this client can glow a pooled icon. Where it cannot, a stored `glow = true` builds nothing.
+---@return boolean
+function Private.Auras.SupportsGlow()
+	return SUPPORTS_GLOW
 end
 
 --- Whether a feature draws a given kind of display, so the panel can leave out a section for one

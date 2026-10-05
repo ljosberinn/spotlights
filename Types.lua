@@ -345,6 +345,7 @@
 ---@field fontSize number
 ---@field gap number in pixels between multiple icons
 ---@field growDirection SpotlightsAuraGrowDirection which way pooled icons flow from the first
+---@field glow boolean pooled icons only, and inert before 12.1.5; see `Private.Auras.SupportsGlow`
 
 --- A coloured block, optionally with a cooldown swipe and remaining duration across it.
 ---
@@ -573,6 +574,12 @@
 ---@field swipe Cooldown?
 ---@field text FontString?
 ---@field border SpotlightsAuraBorder?
+---@field glow SpotlightsAuraGlow?
+
+--- A `Frame` composed from `MarchingAntsTemplate`, whose mixin the annotations do not know.
+---@class SpotlightsAuraGlow : Frame
+---@field MarchingAnim AnimationGroup
+---@field SetGradient fun(self: SpotlightsAuraGlow, orientation: string, startColor: ColorMixin, endColor: ColorMixin)
 
 --- A `Frame` inheriting `BackdropTemplate`, which the annotations model as two unrelated types
 --- rather than as a frame that gained two methods. Declared here so a border can be both hidden and

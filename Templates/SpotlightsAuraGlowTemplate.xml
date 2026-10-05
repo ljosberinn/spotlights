@@ -1,0 +1,17 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+	<!-- Offsets only, composed with `MarchingAntsTemplate` at `CreateFrame` rather than inheriting it:
+	     that template ships in 12.1.5, and an inherit would dangle on 12.1.0 while the glow is dormant.
+	     The values are `CompactUnitFrameAnimatedDispelBorderTemplate`'s. -->
+	<Frame name="SpotlightsAuraGlowTemplate" virtual="true">
+		<KeyValues>
+			<KeyValue key="leftOffsetP1X" value="-3" type="number"/>
+			<KeyValue key="leftOffsetP2X" value="-3" type="number"/>
+			<KeyValue key="rightOffsetP1X" value="3" type="number"/>
+			<KeyValue key="rightOffsetP2X" value="3" type="number"/>
+			<KeyValue key="topOffsetP1Y" value="3" type="number"/>
+			<KeyValue key="topOffsetP2Y" value="3" type="number"/>
+			<KeyValue key="bottomOffsetP1Y" value="-3" type="number"/>
+			<KeyValue key="bottomOffsetP2Y" value="-3" type="number"/>
+		</KeyValues>
+	</Frame>
+</Ui>
