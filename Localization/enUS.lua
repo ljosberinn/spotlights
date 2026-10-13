@@ -329,6 +329,7 @@ L.Settings.AuraShowIcon = "Inline Icon"
 L.Settings.AuraIconSide = "Icon Side"
 L.Settings.AuraGap = "Gap"
 L.Settings.AuraGrowDirection = "Grow Direction"
+L.Settings.AuraGlow = "Animated Border"
 L.Settings.AuraIconLeft = "Left Of The Bar"
 L.Settings.AuraIconRight = "Right Of The Bar"
 

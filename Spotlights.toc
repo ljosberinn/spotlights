@@ -1,4 +1,4 @@
-## Interface: 120100
+## Interface: 120100, 120105
 ## Title: Spotlights
 ## DefaultState: Enabled
 ## SavedVariables: SpotlightsSaved
@@ -67,3 +67,4 @@ Options\ImportExport.lua
 SpotlightsUnitFrameMixin.lua
 
 Templates\SpotlightsUnitFrameTemplate.xml
+Templates\SpotlightsAuraGlowTemplate.xml

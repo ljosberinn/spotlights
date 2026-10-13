@@ -260,6 +260,7 @@ local function DefaultAuraIcon(enabled, width, height)
 		-- What the container's flow layout defaults to, so a database written before this field renders
 		-- exactly as it did.
 		growDirection = Private.Enum.AuraGrowDirection.Right,
+		glow = false,
 		borderTexture = "Blizzard Tooltip",
 		borderSize = 4,
 		borderR = 0,
