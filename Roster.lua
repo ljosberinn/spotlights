@@ -260,7 +260,15 @@ local function TokenFor(guid)
 		end
 	end
 
-	return UnitTokenFromGUID(guid)
+	local token = UnitTokenFromGUID(guid)
+
+	-- Secret under unit identity restriction, and a tainted caller cannot pass a secret token on to
+	-- `UnitGroupRolesAssigned` or `UnitIsConnected`.
+	if issecretvalue(token) then
+		return nil
+	end
+
+	return token
 end
 
 --- The assigned role for a GUID, as `UnitGroupRolesAssigned` spells it, or nil.
