@@ -537,6 +537,7 @@
 ---@class SpotlightsAuraContainer : Frame
 ---@field GetUnit fun(self: SpotlightsAuraContainer): string
 ---@field SetUnit fun(self: SpotlightsAuraContainer, unit: string) asserts on a non-string
+---@field SetEditModePreviewEnabled fun(self: SpotlightsAuraContainer, enabled: boolean)
 ---@field AddAuraGroup fun(self: SpotlightsAuraContainer, groupKey: string, filterString: string, options: table)
 ---@field AddAuraSlot fun(self: SpotlightsAuraContainer, slotKey: string, filterString: string, options: table): table
 ---@field SetAuraGroupCandidateFilters fun(self: SpotlightsAuraContainer, groupKey: string, candidateFilters: table)
