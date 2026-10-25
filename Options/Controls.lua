@@ -183,8 +183,10 @@ end
 --- `enabled` is re-read on every `Refresh`: a toggle that does nothing in the current state dims rather
 --- than hides, so the row stays put and no relayout is owed. The caption dims with it, since a greyed
 --- box beside a bright label reads as art. Whoever owns the state it gates has to refresh the tree.
+---
+--- A function `label` is re-read on every `Refresh`, as `SubHeading` does, for a box whose subject moves.
 ---@param parent Frame
----@param label string
+---@param label string | fun(): string
 ---@param get fun(): boolean
 ---@param set fun(value: boolean)
 ---@param enabled (fun(): boolean)? absent means always enabled
@@ -197,7 +199,7 @@ function Private.Controls.Checkbox(parent, label, get, set, enabled, full, label
 
 	row.span = full or nil
 
-	local caption = CreateLabel(row, label, tooltip)
+	local caption = CreateLabel(row, type(label) == "string" and label or "", tooltip)
 	local check = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
 
 	check:SetSize(ROW_HEIGHT, ROW_HEIGHT)
@@ -211,7 +213,7 @@ function Private.Controls.Checkbox(parent, label, get, set, enabled, full, label
 		check:SetMotionScriptsWhileDisabled(true)
 
 		check:SetScript("OnEnter", function(self)
-			ShowDescriptionTooltip(self, label, tooltip)
+			ShowDescriptionTooltip(self, caption:GetText(), tooltip)
 		end)
 
 		check:SetScript("OnLeave", HideLabelTooltip)
@@ -222,6 +224,10 @@ function Private.Controls.Checkbox(parent, label, get, set, enabled, full, label
 	end)
 
 	function row:Refresh()
+		if type(label) == "function" then
+			caption:SetText(label())
+		end
+
 		check:SetChecked(get())
 
 		local on = enabled == nil or enabled()
