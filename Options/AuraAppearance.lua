@@ -618,6 +618,32 @@ local function BuildBody(page, rows, displayKey, label, trailing)
 		{ rightWidth = Private.PreviewPane.Width })
 end
 
+--- The category's own switch, a level above the five displays. Kept out of `sections`, so `SyncSections`
+--- never collapses it and a category switched off stays one click from coming back.
+---@param page Frame
+---@return SpotlightsSectionNode
+local function BuildFeatureSection(page)
+	local L = Private.L.Settings
+
+	local enabled = Private.Controls.Checkbox(page, L.AuraFeatureEnabled, function()
+		return Private.Auras.IsFeatureEnabled(ActiveFeature())
+	end, function(value)
+		Private.Auras.SetFeatureEnabled(ActiveFeature(), value)
+
+		-- The live displays are the write's own business; the previews are this panel's.
+		Private.AuraPreview.Restyle()
+
+		-- Every pane takes the feature's switch as an argument to `ApplyAnchor`, so a refresh rather than a
+		-- relayout. Done here rather than inside `SetFeatureEnabled`, so the write path keeps knowing nothing
+		-- about the panel.
+		Private.Options.Refresh()
+	end, nil, nil, nil, nil, true)
+
+	return Private.Node.Section(page, function()
+		return L.AuraFeatureEnabled
+	end, nil, Private.Node.Grid(page, { enabled }, 2, COLUMN_LABEL_WIDTH))
+end
+
 ---@param page Frame
 ---@return SpotlightsNode
 local function BuildIconBody(page)
@@ -881,6 +907,8 @@ function Private.AuraAppearance.Build(page, GetFeature, GetName, height)
 	ActiveName = GetName
 	panes = {}
 
+	local feature = BuildFeatureSection(page)
+
 	local icon = Private.Node.Section(page, function()
 		return L.AuraIcon
 	end, IconSummary, BuildIconBody(page))
@@ -924,6 +952,7 @@ function Private.AuraAppearance.Build(page, GetFeature, GetName, height)
 	local scrollHeight = math.max(height, MIN_SCROLL_HEIGHT)
 
 	return Private.Node.ScrollPane(page, Private.Node.Column(page, {
+		feature,
 		icon,
 		bar,
 		square,

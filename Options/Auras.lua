@@ -4,7 +4,7 @@ local _, Private = ...
 --- The Auras tab: two axes over one page. *Which* feature is being configured is the icon tabs on the
 --- window's right edge; *what* about it is being configured is the Appearance / Tracked strip at the top.
 --- The two are independent, which is why the selected category lives here rather than inside either
---- sub-tab. The category's own on/off switch heads the column, above the strip.
+--- sub-tab.
 ---
 --- The category tabs are anchored to the *window*, because side tabs hang off its edge. They are parented
 --- to the page all the same, so they follow the tab's own visibility.
@@ -18,18 +18,16 @@ local RAIL_X = 0
 local RAIL_Y = -60
 local RAIL_SPACING = 12
 
---- A spell texture has no size of its own, unlike the atlas icons beside it, so it is sized to match them.
---- The crop takes off the baked-in border every spell icon carries.
-local SPELL_ICON_SIZE = 28
-local SPELL_ICON_CROP = 0.08
+--- Every icon fills the tab's interior rather than sitting at its 32px atlas size. Live has no
+--- `common-sidetab-mask` to clip a spell texture to the tab's shape, so spell icons take the action bar's
+--- rounded mask instead, with the baked-in border cropped off first.
+local ICON_SIZE = 36
+local ICON_CROP = 0.07
+local ICON_MASK = "UI-HUD-ActionBar-IconFrame-Mask"
 
 --- Handed to the tab's column rather than left to its default, so the height both sub-tabs are given
---- cannot drift from the gaps actually laid out above them.
+--- cannot drift from the gap actually laid out above them.
 local CHROME_GAP = 6
-
---- Fits the longest translation, deDE "Benutzerdefinierte Auren überwachen"; anything longer still has the
---- truncation tooltip.
-local TOGGLE_LABEL_WIDTH = 260
 
 --- The categories in tab order. `augmentation` is the whole of the gating rule, restating the partition
 --- `Private.Auras` splits its feature sets on, because a tab has to be taken off the rail for a feature that
@@ -183,7 +181,8 @@ end
 ---@param index integer
 ---@return SpotlightsSideTabFrame
 local function CreateCategoryTab(category, name, index)
-	local tab = CreateFrame("Frame", nil, categoryRail, "LargeSideTabButtonTemplate") --[[@as SpotlightsSideTabFrame]]
+	local tab = CreateFrame("Frame", nil, categoryRail,
+		"LargeSideTabButtonTemplate") --[[@as SpotlightsSideTabFrame]]
 
 	tab.layoutIndex = index
 
@@ -191,12 +190,20 @@ local function CreateCategoryTab(category, name, index)
 	tab.tooltipText = name
 
 	if category.atlas then
-		tab.Icon:SetAtlas(category.atlas, true)
+		tab.Icon:SetAtlas(category.atlas)
 	else
 		tab.Icon:SetTexture(C_Spell.GetSpellTexture(category.spellID))
-		tab.Icon:SetSize(SPELL_ICON_SIZE, SPELL_ICON_SIZE)
-		tab.Icon:SetTexCoord(SPELL_ICON_CROP, 1 - SPELL_ICON_CROP, SPELL_ICON_CROP, 1 - SPELL_ICON_CROP)
+		tab.Icon:SetTexCoord(ICON_CROP, 1 - ICON_CROP, ICON_CROP, 1 - ICON_CROP)
+
+		-- Anchored to the icon rather than the tab, so it follows the icon's nudge on mouse-down.
+		local mask = tab:CreateMaskTexture()
+
+		mask:SetAtlas(ICON_MASK, false, nil, nil, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+		mask:SetAllPoints(tab.Icon)
+		tab.Icon:AddMaskTexture(mask)
 	end
+
+	tab.Icon:SetSize(ICON_SIZE, ICON_SIZE)
 
 	-- The mixin plays the click sound itself, before this runs.
 	tab:SetCustomOnMouseUpHandler(function(_, button, upInside)
@@ -233,29 +240,6 @@ local function ActiveName()
 	return CategoryNames()[activeFeature]
 end
 
----@return string
-local function ToggleLabel()
-	return string.format(Private.L.Settings.AuraFeatureToggle, ActiveName())
-end
-
----@return boolean
-local function ActiveEnabled()
-	return Private.Auras.IsFeatureEnabled(activeFeature)
-end
-
----@param value boolean
-local function SetActiveEnabled(value)
-	Private.Auras.SetFeatureEnabled(activeFeature, value)
-
-	-- The live displays are the write's own business; the previews are this panel's.
-	Private.AuraPreview.Restyle()
-
-	--- The Appearance sub-tab's panes take the feature's switch as an argument to `ApplyAnchor`, so a
-	--- refresh rather than a relayout. Done here rather than inside `SetFeatureEnabled`, so the write
-	--- path keeps knowing nothing about the panel.
-	Private.Options.Refresh()
-end
-
 local function OnPageShown()
 	ApplyPreviewFeature()
 	Private.AuraPreview.SetShown(true)
@@ -281,11 +265,7 @@ local function BuildAuras(page)
 
 	CreateCategoryRail(page)
 
-	-- Above the sub-tab strip rather than inside either, since it switches the category both are about.
-	local toggle = Private.Controls.Checkbox(page, ToggleLabel, ActiveEnabled, SetActiveEnabled, nil, nil,
-		TOGGLE_LABEL_WIDTH)
-
-	local height = page:GetHeight() - Private.Controls.RowHeight - Private.Node.SubTabHeight - CHROME_GAP * 2
+	local height = page:GetHeight() - Private.Node.SubTabHeight - CHROME_GAP
 
 	--- Tracked is a tab only where there is a list behind it: Prescience and Shifting Sands watch one spell
 	--- each, so the pane would be its own chrome and nothing else.
@@ -303,7 +283,7 @@ local function BuildAuras(page)
 		},
 	}, Private.Options.Refresh)
 
-	local root = Private.Node.Column(page, { toggle, subTabs, pages }, CHROME_GAP)
+	local root = Private.Node.Column(page, { subTabs, pages }, CHROME_GAP)
 	local Refresh = root.Refresh
 
 	--- The rail is not in the tree, so the pass that re-reads the tab has to reach it explicitly -- before

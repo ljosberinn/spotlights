@@ -263,7 +263,7 @@
 --- One aura's four displays, independent of each other and all optional, under one switch for the
 --- feature as a whole.
 ---
---- `enabled` is the feature-level switch behind each category's Track checkbox, and it **overrides**
+--- `enabled` is the feature-level switch behind each category's Enabled checkbox, and it **overrides**
 --- every display: a feature switched off renders nothing whatever its bar, icon, square and text say, and
 --- its containers stop listening for auras. Off is not the same as switching every display off -- that is
 --- four decisions the user has to remember to undo, where this is one, and it leaves the display
