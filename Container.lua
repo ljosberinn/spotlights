@@ -203,8 +203,8 @@ end
 ---@param point AnchorPoint
 ---@return number horizontal, number vertical
 local function Factors(point)
-	local horizontal = point:find("LEFT") and 0 or point:find("RIGHT") and 1 or 0.5
-	local vertical = point:find("BOTTOM") and 0 or point:find("TOP") and 1 or 0.5
+	local horizontal = point:contains("LEFT") and 0 or point:contains("RIGHT") and 1 or 0.5
+	local vertical = point:contains("BOTTOM") and 0 or point:contains("TOP") and 1 or 0.5
 
 	return horizontal, vertical
 end

@@ -81,7 +81,7 @@ end
 function Private.Favorites.Clear()
 	local favorites = Map()
 
-	if not favorites or not next(favorites) then
+	if not favorites or table.isempty(favorites) then
 		return false
 	end
 

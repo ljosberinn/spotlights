@@ -357,7 +357,7 @@ function Private.Controls.Slider(parent, label, minimum, maximum, step, get, set
 		local value = tonumber(self:GetText())
 
 		if value then
-			slider:SetValue(math.min(math.max(value, minimumValue), maximumValue))
+			slider:SetValue(math.clamp(value, minimumValue, maximumValue))
 		end
 
 		self:ClearFocus()

@@ -887,10 +887,22 @@ TabSystemOwnerMixin = nil
 ---@field SetRoundLayoutToNearestPixel fun(self: ScriptRegion, enabled: boolean)
 ---@field GetRoundLayoutToNearestPixel fun(self: ScriptRegion): boolean
 
--- Functions
+-- Lua library extensions newer than the API annotations
 
----@type fun(value: number, min: number, max: number): number
-Clamp = nil
+--- 12.1.5.
+---@class mathlib
+---@field clamp fun(value: number, minimum: number, maximum: number): number
+---@field saturate fun(value: number): number
+
+--- 12.1.5.
+---@class stringlib
+---@field contains fun(str: string, substring: string): boolean
+
+--- 12.1.5. Secret when any key is.
+---@class tablelib
+---@field isempty fun(table: table): boolean
+
+-- Functions
 
 --- Aliases `CreateSecureFramePool`.
 ---@type fun(frameType: string, parent: Frame?, template: string?, resetFunc: fun(pool: table, frame: Frame)?, forbidden: boolean?, postCreate: fun(frame: Frame)?, capacity: number?): table

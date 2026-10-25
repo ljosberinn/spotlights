@@ -263,13 +263,13 @@ end
 ---@param query string lowercased by the caller, which owns the box the text came from
 ---@return boolean
 function Private.AuraSpells.SpellMatches(spellID, query)
-	if string.find(tostring(spellID), query, 1, true) then
+	if string.contains(tostring(spellID), query) then
 		return true
 	end
 
 	local name = C_Spell.GetSpellName(spellID)
 
-	return name ~= nil and string.find(name:lower(), query, 1, true) ~= nil
+	return name ~= nil and string.contains(name:lower(), query)
 end
 
 --- The spells in a group the query admits, which is what the pane beside the rail lists. A query naming the
@@ -282,7 +282,7 @@ end
 ---@param query string lowercased by the caller
 ---@return integer[]
 function Private.AuraSpells.MatchingSpells(group, query)
-	if query == "" or string.find(group.heading:lower(), query, 1, true) then
+	if query == "" or string.contains(group.heading:lower(), query) then
 		return group.spellIDs
 	end
 
@@ -320,7 +320,7 @@ end
 ---@param query string
 ---@return boolean
 function Private.AuraSpells.GroupMatches(group, query)
-	if query == "" or string.find(group.heading:lower(), query, 1, true) then
+	if query == "" or string.contains(group.heading:lower(), query) then
 		return true
 	end
 

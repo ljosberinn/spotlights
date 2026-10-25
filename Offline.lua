@@ -43,7 +43,7 @@ local function UpdateTicker()
 	local layout = Private.Layout.GetConfig()
 	local armed = layout ~= nil
 		and layout.offlineBlankDelay ~= Private.Enum.OfflineBlankNever
-		and next(offlineSince) ~= nil
+		and not table.isempty(offlineSince)
 
 	if armed then
 		if not ticker then
