@@ -303,8 +303,8 @@ function Private.Options.Refresh()
 end
 
 --- The window itself, for the one thing a tab cannot anchor inside its own page: the Auras tab's category
---- strip is a *bottom* strip, whose art hangs below the frame it belongs to, so it anchors to the window's
---- bottom edge. Everything else a tab needs is handed to its builder; this is not a general seam.
+--- tabs are *side* tabs, which hang off the window's right edge, so they anchor to it. Everything else a tab
+--- needs is handed to its builder; this is not a general seam.
 ---@return SpotlightsOptionsFrame
 function Private.Options.GetFrame()
 	return Get()

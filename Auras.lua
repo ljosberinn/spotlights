@@ -2442,7 +2442,7 @@ end
 --- Not routed through `SetSetting`: this sits a level above the bar and the icon and has no frozen half
 --- -- off is a `SetShown` on anchors that already exist, on is a build `EnsureDisplays` was going to do
 --- anyway. So nothing here abandons a frame, and **nothing here arms the reload prompt**, which is what
---- makes the dot on the category strip free to click.
+--- makes each category's Track checkbox free to click.
 ---@param featureKey SpotlightsAuraFeatureKey
 ---@param enabled boolean
 ---@return boolean applied

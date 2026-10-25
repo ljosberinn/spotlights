@@ -1,31 +1,27 @@
 ---@type string, Spotlights
 local _, Private = ...
 
---- The Auras tab: two axes over one page. *Which* feature is being configured is the strip along the bottom
---- of the window; *what* about it is being configured is the Appearance / Tracked strip at the top. The two
---- are independent, which is why the selected category lives here rather than inside either sub-tab.
+--- The Auras tab: two axes over one page. *Which* feature is being configured is the icon tabs on the
+--- window's right edge; *what* about it is being configured is the Appearance / Tracked strip at the top.
+--- The two are independent, which is why the selected category lives here rather than inside either
+--- sub-tab. The category's own on/off switch heads the column, above the strip.
 ---
---- The category strip is anchored to the *window*, because a bottom tab strip's art hangs below the frame
---- it belongs to. It is parented to the page all the same, so it follows the tab's own visibility.
+--- The category tabs are anchored to the *window*, because side tabs hang off its edge. They are parented
+--- to the page all the same, so they follow the tab's own visibility.
 ---
 --- Both sub-tabs live in `Options/AuraAppearance.lua` and `Options/AuraTracked.lua`, and each is handed the
 --- selected category as an accessor rather than a copy.
 
---- Small enough that the strip reads as attached to the window rather than floating under it.
-local STRIP_X = 6
-local STRIP_Y = 2
+--- Copied from the Housing dashboard (`Blizzard_HousingDashboard.xml:25-54`), whose window is the same
+--- `PortraitFrameTemplate` as ours.
+local RAIL_X = 0
+local RAIL_Y = -60
+local RAIL_SPACING = 12
 
---- The dot's space is reserved at **both** ends of the tab, because `TabSystemButtonMixin` re-centres its
---- label on every selection change and would snap a nudged label back. `DOT_INSET + DOT_SIZE` has to stay
---- inside `DOT_SPACE`, and the inset clears the button's own left cap art (`TabSystemTemplates.xml`).
-local MAX_TAB_WIDTH = 130
-local DOT_SPACE = 26
-local DOT_SIZE = 16
-local DOT_INSET = 8
-
---- Applied to the label's alpha rather than its colour, because the template owns the font object and swaps
---- it on every selection.
-local OFF_ALPHA = 0.5
+--- A spell texture has no size of its own, unlike the atlas icons beside it, so it is sized to match them.
+--- The crop takes off the baked-in border every spell icon carries.
+local SPELL_ICON_SIZE = 28
+local SPELL_ICON_CROP = 0.08
 
 --- Handed to the tab's column rather than left to its default, so the height both sub-tabs are given
 --- cannot drift from the gaps actually laid out above them.
@@ -35,18 +31,20 @@ local CHROME_GAP = 6
 --- truncation tooltip.
 local TOGGLE_LABEL_WIDTH = 260
 
---- The categories in strip order. `augmentation` is the whole of the gating rule, restating the partition
---- `Private.Auras` splits its feature sets on, because a tab has to be taken off the strip for a feature that
+--- The categories in tab order. `augmentation` is the whole of the gating rule, restating the partition
+--- `Private.Auras` splits its feature sets on, because a tab has to be taken off the rail for a feature that
 --- list has already dropped. Nil is the third state: a feature in **both** sets, which no specialisation
 --- gates.
----@type { key: SpotlightsAuraFeatureKey, augmentation: boolean? }[]
+---
+--- Each names its icon by exactly one of `spellID` or `atlas`.
+---@type { key: SpotlightsAuraFeatureKey, augmentation: boolean?, spellID: integer?, atlas: string? }[]
 local CATEGORIES = {
-	{ key = "prescience",     augmentation = true },
-	{ key = "shiftingSands",  augmentation = true },
-	{ key = "sensePower",     augmentation = true },
-	{ key = "cooldownAuras",  augmentation = false },
-	{ key = "defensiveAuras", augmentation = false },
-	{ key = "customAuras" },
+	{ key = "prescience",     augmentation = true,  spellID = 410089 },
+	{ key = "shiftingSands",  augmentation = true,  spellID = 413984 },
+	{ key = "sensePower",     augmentation = true,  spellID = 361022 },
+	{ key = "cooldownAuras",  augmentation = false, atlas = "icon_cooldownmanager" },
+	{ key = "defensiveAuras", augmentation = false, spellID = 33206 },
+	{ key = "customAuras",                          atlas = "icon_trackedbuffs" },
 }
 
 --- Whether a category is one the given specialisation configures.
@@ -62,17 +60,11 @@ end
 ---@type SpotlightsAuraFeatureKey
 local activeFeature = "cooldownAuras"
 
----@type SpotlightsTabSystemFrame?
-local categoryStrip
+---@type SpotlightsSideTabRailFrame?
+local categoryRail
 
----@type table<SpotlightsAuraFeatureKey, integer>
+---@type table<SpotlightsAuraFeatureKey, SpotlightsSideTabFrame>
 local categoryTabs = {}
-
----@type table<integer, SpotlightsAuraFeatureKey>
-local categoryKeys = {}
-
----@type table<SpotlightsAuraFeatureKey, CheckButton>
-local categoryDots = {}
 
 --- The tab's page, kept because its visibility is the panel's answer to "is the user looking at this".
 ---@type Frame?
@@ -123,18 +115,18 @@ local function FirstApplicable(augmentation)
 	return activeFeature
 end
 
---- Brings the strip in line with the specialisation and with the switches behind its dots.
+--- Brings the tabs in line with the specialisation and with each category's switch.
 ---
---- Gating is `SetTabShown`, which takes the tab out of the strip's layout entirely -- a specialisation's
---- own categories then read as the whole strip rather than as part of a longer one.
+--- Gating hides the tab, which the layout frame then leaves out entirely -- a specialisation's own
+--- categories read as the whole rail rather than as part of a longer one.
 local function RefreshCategories()
-	if not categoryStrip then
+	if not categoryRail then
 		return
 	end
 
 	local augmentation = Private.Utils.IsAugmentation()
 
-	-- The selection is corrected before the tabs are painted, so the strip ends the pass selecting a
+	-- The selection is corrected before the tabs are painted, so the rail ends the pass selecting a
 	-- tab it has just shown rather than one it has just removed.
 	for i = 1, #CATEGORIES do
 		local category = CATEGORIES[i]
@@ -148,105 +140,87 @@ local function RefreshCategories()
 
 	for i = 1, #CATEGORIES do
 		local category = CATEGORIES[i]
-		local applies = Applies(category, augmentation)
-		local enabled = Private.Auras.IsFeatureEnabled(category.key)
+		local tab = categoryTabs[category.key]
 
-		categoryStrip:SetTabShown(categoryTabs[category.key], applies)
-		categoryStrip:GetTabButton(categoryTabs[category.key]).Text:SetAlpha(enabled and 1 or OFF_ALPHA)
-
-		categoryDots[category.key]:SetChecked(enabled)
+		tab:SetShown(Applies(category, augmentation))
+		tab.Icon:SetDesaturated(not Private.Auras.IsFeatureEnabled(category.key))
+		tab.SelectedTexture:SetShown(category.key == activeFeature)
 	end
 
-	-- Painted rather than selected: the selection has not changed here, and `SetTab` would run the
-	-- callback, which refreshes the tree this is part of.
-	categoryStrip:SetTabVisuallySelected(categoryTabs[activeFeature])
+	-- Now rather than through `MarkDirty`, which waits a frame and would draw that frame with a gap.
+	categoryRail:Layout()
 end
 
---- The enable dot on one category's tab. A checkbox rather than an indicator, so a feature can be turned
---- off without first navigating into it.
----@param button TabSystemButtonFrame
 ---@param key SpotlightsAuraFeatureKey
+local function SelectCategory(key)
+	if key == activeFeature then
+		return
+	end
+
+	activeFeature = key
+
+	-- The search box moves between the Tracked rail and its pane depending on the category, so a query
+	-- left behind would filter the incoming list from a box that is no longer on screen.
+	Private.AuraTracked.ResetSearch()
+
+	ApplyPreviewFeature()
+
+	-- Before the refresh: the categories do not agree on which displays are on, so the incoming one has
+	-- to decide the open states the pass below lays out.
+	Private.AuraAppearance.SyncSections()
+
+	-- Both sub-tabs are about the selected category, so the switch is a re-read of the whole tab.
+	Private.Options.Refresh()
+end
+
+--- One category's tab.
+---
+--- **The mixin's `SetChecked` is never called**: on live it repaints `Icon` from `activeAtlas`, which a
+--- spell tab does not have, so it would wipe the texture. The selection is `SelectedTexture` alone, which the
+--- template shows by default and `RefreshCategories` paints on every tab.
+---@param category { key: SpotlightsAuraFeatureKey, spellID: integer?, atlas: string? }
 ---@param name string
----@return CheckButton
-local function CreateDot(button, key, name)
-	local dot = CreateFrame("CheckButton", nil, button, "UICheckButtonTemplate")
+---@param index integer
+---@return SpotlightsSideTabFrame
+local function CreateCategoryTab(category, name, index)
+	local tab = CreateFrame("Frame", nil, categoryRail, "LargeSideTabButtonTemplate") --[[@as SpotlightsSideTabFrame]]
 
-	dot:SetSize(DOT_SIZE, DOT_SIZE)
-	dot:SetPoint("LEFT", button, "LEFT", DOT_INSET, 0)
+	tab.layoutIndex = index
 
-	dot:SetScript("OnClick", function(self)
-		Private.Auras.SetFeatureEnabled(key, self:GetChecked() and true or false)
+	-- Always set: the mixin's `OnEnter` passes it to the tooltip unchecked.
+	tab.tooltipText = name
 
-		-- The live displays are the write's own business; these three are this panel's.
-		Private.AuraPreview.Restyle()
-		RefreshCategories()
+	if category.atlas then
+		tab.Icon:SetAtlas(category.atlas, true)
+	else
+		tab.Icon:SetTexture(C_Spell.GetSpellTexture(category.spellID))
+		tab.Icon:SetSize(SPELL_ICON_SIZE, SPELL_ICON_SIZE)
+		tab.Icon:SetTexCoord(SPELL_ICON_CROP, 1 - SPELL_ICON_CROP, SPELL_ICON_CROP, 1 - SPELL_ICON_CROP)
+	end
 
-		--- The Appearance sub-tab's panes take the feature's switch as an argument to `ApplyAnchor`, so a
-		--- refresh rather than a relayout. Done here rather than inside `SetFeatureEnabled`, so the write
-		--- path keeps knowing nothing about the panel.
-		Private.Options.Refresh()
+	-- The mixin plays the click sound itself, before this runs.
+	tab:SetCustomOnMouseUpHandler(function(_, button, upInside)
+		if button == "LeftButton" and upInside then
+			SelectCategory(category.key)
+		end
 	end)
 
-	-- Its own tooltip: the tab's label names the category without saying what ticking the box does.
-	dot:SetScript("OnEnter", function(self)
-		GameTooltip:SetOwner(self, "ANCHOR_TOP")
-		GameTooltip_SetTitle(GameTooltip, string.format(Private.L.Settings.AuraFeatureToggle, name))
-		GameTooltip:Show()
-	end)
-
-	dot:SetScript("OnLeave", GameTooltip_Hide)
-
-	return dot
+	return tab
 end
 
 ---@param page Frame
-local function CreateCategoryStrip(page)
+local function CreateCategoryRail(page)
 	local names = CategoryNames()
 
-	categoryStrip = Private.Node.TabSystem(page, "TabSystemButtonTemplate", {
-		maxTabWidth = MAX_TAB_WIDTH,
-		spacing = 1,
-	})
-
-	categoryStrip:SetPoint("TOPLEFT", Private.Options.GetFrame(), "BOTTOMLEFT", STRIP_X, STRIP_Y)
+	categoryRail = CreateFrame("Frame", nil, page, "VerticalLayoutFrame") --[[@as SpotlightsSideTabRailFrame]]
+	categoryRail.spacing = RAIL_SPACING
+	categoryRail:SetPoint("TOPLEFT", Private.Options.GetFrame(), "TOPRIGHT", RAIL_X, RAIL_Y)
 
 	for i = 1, #CATEGORIES do
 		local category = CATEGORIES[i]
-		local tabID = categoryStrip:AddTab(names[category.key])
-		local button = categoryStrip:GetTabButton(tabID)
 
-		--- Widened after the template has sized the tab to its label, the one moment the two can be
-		--- separated: the label keeps its measured width and stays centred, so the tab gains `DOT_SPACE` of
-		--- clear space at each end. The strip is already dirty from `AddTab`, so this is the width it reads.
-		button:SetTabWidth(button:GetWidth() + DOT_SPACE * 2)
-
-		categoryTabs[category.key] = tabID
-		categoryKeys[tabID] = category.key
-		categoryDots[category.key] = CreateDot(button, category.key, names[category.key])
+		categoryTabs[category.key] = CreateCategoryTab(category, names[category.key], i)
 	end
-
-	categoryStrip:SetTabSelectedCallback(function(tabID)
-		local key = categoryKeys[tabID]
-
-		if not key or key == activeFeature then
-			return
-		end
-
-		activeFeature = key
-
-		-- The Tracked search box moves between the rail and the pane depending on the category, so a query
-		-- left behind would filter the incoming list from a box that is no longer on screen.
-		Private.AuraTracked.ResetSearch()
-
-		ApplyPreviewFeature()
-
-		-- Before the refresh: the categories do not agree on which displays are on, so the incoming one has
-		-- to decide the open states the pass below lays out.
-		Private.AuraAppearance.SyncSections()
-
-		-- Both sub-tabs are about the selected category, so the switch is a re-read of the whole tab.
-		Private.Options.Refresh()
-	end)
 end
 
 ---@return SpotlightsAuraFeatureKey
@@ -305,7 +279,7 @@ local function BuildAuras(page)
 
 	auraPage = page
 
-	CreateCategoryStrip(page)
+	CreateCategoryRail(page)
 
 	-- Above the sub-tab strip rather than inside either, since it switches the category both are about.
 	local toggle = Private.Controls.Checkbox(page, ToggleLabel, ActiveEnabled, SetActiveEnabled, nil, nil,
@@ -332,9 +306,9 @@ local function BuildAuras(page)
 	local root = Private.Node.Column(page, { toggle, subTabs, pages }, CHROME_GAP)
 	local Refresh = root.Refresh
 
-	--- The strip is not in the tree, so the pass that re-reads the tab has to reach it explicitly -- before
+	--- The rail is not in the tree, so the pass that re-reads the tab has to reach it explicitly -- before
 	--- the children, since it is what corrects the category they are about to draw. This is also what
-	--- carries an imported profile's switches onto the dots.
+	--- carries an imported profile's switches onto the tabs.
 	function root:Refresh()
 		RefreshCategories()
 		Refresh(self)
@@ -351,13 +325,13 @@ local function BuildAuras(page)
 	return root
 end
 
---- A specialisation change is the one thing that moves the strip on its own, and the selected category may
+--- A specialisation change is the one thing that moves the rail on its own, and the selected category may
 --- be among those leaving.
 ---
 --- Registered here rather than called from `Private.Auras`' own handler, so it runs after it -- this file
 --- is loaded later -- and repaints against a feature set that has already been swapped.
 Private.Events.RegisterEvent("PLAYER_SPECIALIZATION_CHANGED", function(unit)
-	if unit ~= "player" or not categoryStrip then
+	if unit ~= "player" or not categoryRail then
 		return
 	end
 
