@@ -184,36 +184,41 @@ end
 --- than hides, so the row stays put and no relayout is owed. The caption dims with it, since a greyed
 --- box beside a bright label reads as art. Whoever owns the state it gates has to refresh the tree.
 ---
---- A function `label` is re-read on every `Refresh`, as `SubHeading` does, for a box whose subject moves.
+--- `minimal` takes the Settings panel's box (`MinimalCheckboxTemplate`) at its own 30x29, which overhangs
+--- the row by a pixel or two each way, as it does in a 26-tall Settings row.
 ---@param parent Frame
----@param label string | fun(): string
+---@param label string
 ---@param get fun(): boolean
 ---@param set fun(value: boolean)
 ---@param enabled (fun(): boolean)? absent means always enabled
 ---@param full boolean?
 ---@param labelWidth number?
 ---@param tooltip string? a description, for a setting whose caption cannot say enough
+---@param minimal boolean?
 ---@return SpotlightsNode
-function Private.Controls.Checkbox(parent, label, get, set, enabled, full, labelWidth, tooltip)
+function Private.Controls.Checkbox(parent, label, get, set, enabled, full, labelWidth, tooltip, minimal)
 	local row = CreateRow(parent)
 
 	row.span = full or nil
 
-	local caption = CreateLabel(row, type(label) == "string" and label or "", tooltip)
-	local check = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
+	local caption = CreateLabel(row, label, tooltip)
+	local check = CreateFrame("CheckButton", nil, row,
+		minimal and "MinimalCheckboxTemplate" or "UICheckButtonTemplate")
 
-	check:SetSize(ROW_HEIGHT, ROW_HEIGHT)
+	if not minimal then
+		check:SetSize(ROW_HEIGHT, ROW_HEIGHT)
+	end
 
 	-- The box carries the description as well as the caption: a checkbox is aimed at rather than read, so
-	-- the words are not where the cursor goes. Free to take both scripts -- `UICheckButtonTemplate` sets
-	-- none of its own (`CheckButtonTemplates.xml:50-64`).
+	-- the words are not where the cursor goes. Free to take both scripts -- neither template sets any of its
+	-- own (`CheckButtonTemplates.xml:50-76`).
 	if tooltip then
 		-- A dimmed box is exactly when the description is worth reading, and a `Button` drops its motion
 		-- scripts while disabled unless told otherwise.
 		check:SetMotionScriptsWhileDisabled(true)
 
 		check:SetScript("OnEnter", function(self)
-			ShowDescriptionTooltip(self, caption:GetText(), tooltip)
+			ShowDescriptionTooltip(self, label, tooltip)
 		end)
 
 		check:SetScript("OnLeave", HideLabelTooltip)
@@ -224,10 +229,6 @@ function Private.Controls.Checkbox(parent, label, get, set, enabled, full, label
 	end)
 
 	function row:Refresh()
-		if type(label) == "function" then
-			caption:SetText(label())
-		end
-
 		check:SetChecked(get())
 
 		local on = enabled == nil or enabled()
