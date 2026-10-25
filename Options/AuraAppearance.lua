@@ -680,11 +680,9 @@ local function BuildIconBody(page)
 			return Private.Auras.IsPooled(ActiveFeature())
 		end),
 
-		-- Hidden rather than disabled before 12.1.5: a greyed-out switch would promise something no setting
-		-- here can unlock.
 		OnlyWhen(Private.Controls.Checkbox(page, L.AuraGlow, Getter("icon", "glow"), Setter("icon", "glow")),
 			function()
-				return Private.Auras.SupportsGlow() and Private.Auras.IsPooled(ActiveFeature())
+				return Private.Auras.IsPooled(ActiveFeature())
 			end),
 
 		Private.Controls.SubHeading(page, L.GroupCooldown),

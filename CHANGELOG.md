@@ -14,4 +14,4 @@ v1.2.1
 - every checkbox in the settings window now uses the same box as the game's own settings
 - spotlights keep showing their units' real auras while Edit Mode is open
 - spotlights, their aura displays and the grid previews now stay on whole pixels when the frame scale or the UI scale changes
-- from patch 12.1.5, Cooldowns, Defensives and Custom Auras icons can show the raid frames' Animated Border while their aura is up
+- Cooldowns, Defensives and Custom Auras icons can show the raid frames' Animated Border while their aura is up

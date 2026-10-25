@@ -785,11 +785,6 @@ local function StyleBorder(regions, config)
 	border:Show()
 end
 
---- `AddAuraShownAnimation` and `MarchingAntsTemplate` arrive in the same build, so one check covers both.
---- Neither can be probed from the options panel: the aura container's Lua runs in the secure
---- environment, so its mixins are not globals.
-local SUPPORTS_GLOW = select(4, GetBuildInfo()) >= 120105
-
 --- The raid frames' animated dispel border, copied so the glow reads as the same thing.
 local GLOW_START_COLOR = CreateColor(1, 1, 0.557)
 local GLOW_END_COLOR = CreateColor(1, 0.792, 0.188)
@@ -805,7 +800,7 @@ local GLOW_SPEED = 1.25
 ---@param host Frame|table
 ---@return SpotlightsAuraGlow
 local function CreateGlow(host)
-	local glow = CreateFrame("Frame", nil, host, "MarchingAntsTemplate, SpotlightsAuraGlowTemplate") --[[@as SpotlightsAuraGlow]]
+	local glow = CreateFrame("Frame", nil, host, "SpotlightsAuraGlowTemplate") --[[@as SpotlightsAuraGlow]]
 
 	glow:SetAllPoints()
 	glow:SetFrameLevel(host:GetFrameLevel() + 6)
@@ -1105,7 +1100,7 @@ local function CreateIcon(host, config, spellID, everything, _, pooled)
 	-- Last, so it draws over the icon art and the swipe both.
 	regions.border = CreateBorder(host)
 
-	if pooled and SUPPORTS_GLOW and (config.glow or everything) then
+	if pooled and (config.glow or everything) then
 		regions.glow = CreateGlow(host)
 	end
 
@@ -2646,12 +2641,6 @@ function Private.Auras.IsPooled(featureKey)
 	local feature = FeatureByKey(featureKey)
 
 	return feature ~= nil and feature.multiple
-end
-
---- Whether this client can glow a pooled icon. Where it cannot, a stored `glow = true` builds nothing.
----@return boolean
-function Private.Auras.SupportsGlow()
-	return SUPPORTS_GLOW
 end
 
 --- Whether a feature draws a given kind of display, so the panel can leave out a section for one
