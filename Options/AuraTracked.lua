@@ -46,7 +46,6 @@ local SPELL_TEXT_GAP = 6
 
 --- The remove width is reserved on every row rather than only where it is used, so the toggles stay in
 --- one column as the rail moves between a class group and the user's own.
-local CHECK_SIZE = 24
 local REMOVE_WIDTH = 20
 
 --- The exit atlas is drawn inside its button rather than filling it, so the target stays comfortable
@@ -482,8 +481,8 @@ local function AcquireSpellRow(list, rows, index)
 	removeHighlight:SetSize(REMOVE_ICON_SIZE, REMOVE_ICON_SIZE)
 	removeHighlight:SetColorTexture(1, 1, 1, REMOVE_HIGHLIGHT_ALPHA)
 
-	row.check = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
-	row.check:SetSize(CHECK_SIZE, CHECK_SIZE)
+	-- The Settings panel's box at its own size, as every checkbox in this panel is.
+	row.check = CreateFrame("CheckButton", nil, row, "MinimalCheckboxTemplate")
 	row.check:SetPoint("RIGHT", row, "RIGHT", -REMOVE_WIDTH, 0)
 
 	-- Both lines anchored at each end, the right one against the toggle rather than the row: a spell name

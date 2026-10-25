@@ -637,7 +637,7 @@ local function BuildFeatureSection(page)
 		-- relayout. Done here rather than inside `SetFeatureEnabled`, so the write path keeps knowing nothing
 		-- about the panel.
 		Private.Options.Refresh()
-	end, nil, nil, nil, nil, true)
+	end)
 
 	return Private.Node.Section(page, function()
 		return L.AuraFeatureEnabled
