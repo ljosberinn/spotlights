@@ -18,12 +18,10 @@ local RAIL_X = 0
 local RAIL_Y = -60
 local RAIL_SPACING = 12
 
---- Every icon fills the tab's interior rather than sitting at its 32px atlas size. Live has no
---- `common-sidetab-mask` to clip a spell texture to the tab's shape, so spell icons take the action bar's
---- rounded mask instead, with the baked-in border cropped off first.
-local ICON_SIZE = 36
-local ICON_CROP = 0.07
-local ICON_MASK = "UI-HUD-ActionBar-IconFrame-Mask"
+--- A spell texture has no size of its own, unlike the atlas icons beside it. The crop takes off the
+--- baked-in border every spell icon carries.
+local SPELL_ICON_SIZE = 28
+local SPELL_ICON_CROP = 0.08
 
 --- Handed to the tab's column rather than left to its default, so the height both sub-tabs are given
 --- cannot drift from the gap actually laid out above them.
@@ -190,20 +188,12 @@ local function CreateCategoryTab(category, name, index)
 	tab.tooltipText = name
 
 	if category.atlas then
-		tab.Icon:SetAtlas(category.atlas)
+		tab.Icon:SetAtlas(category.atlas, true)
 	else
 		tab.Icon:SetTexture(C_Spell.GetSpellTexture(category.spellID))
-		tab.Icon:SetTexCoord(ICON_CROP, 1 - ICON_CROP, ICON_CROP, 1 - ICON_CROP)
-
-		-- Anchored to the icon rather than the tab, so it follows the icon's nudge on mouse-down.
-		local mask = tab:CreateMaskTexture()
-
-		mask:SetAtlas(ICON_MASK, false, nil, nil, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
-		mask:SetAllPoints(tab.Icon)
-		tab.Icon:AddMaskTexture(mask)
+		tab.Icon:SetSize(SPELL_ICON_SIZE, SPELL_ICON_SIZE)
+		tab.Icon:SetTexCoord(SPELL_ICON_CROP, 1 - SPELL_ICON_CROP, SPELL_ICON_CROP, 1 - SPELL_ICON_CROP)
 	end
-
-	tab.Icon:SetSize(ICON_SIZE, ICON_SIZE)
 
 	-- The mixin plays the click sound itself, before this runs.
 	tab:SetCustomOnMouseUpHandler(function(_, button, upInside)
