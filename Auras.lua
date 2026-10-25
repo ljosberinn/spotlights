@@ -896,6 +896,7 @@ local function CreateBar(host, config, spellID, everything)
 
 	if config.showIcon or everything then
 		regions.barIcon = host:CreateTexture(nil, "ARTWORK")
+		regions.barIcon:SetRoundLayoutToNearestPixel(true)
 
 		-- The feature's own spell, which is what a preview wants -- it has no aura and no button. On a
 		-- live display `RegisterBar` hands the texture over and the container repaints it per aura, so
@@ -968,7 +969,7 @@ local function StyleBar(regions, anchor, config)
 
 			icon:SetPoint(side .. "LEFT")
 			icon:SetPoint(side .. "RIGHT")
-			PixelUtil.SetHeight(icon, anchor:GetWidth())
+			icon:SetHeight(anchor:GetWidth())
 
 			bar:SetPoint(opposite .. "LEFT")
 			bar:SetPoint(opposite .. "RIGHT")
@@ -979,7 +980,7 @@ local function StyleBar(regions, anchor, config)
 
 			icon:SetPoint("TOP" .. side)
 			icon:SetPoint("BOTTOM" .. side)
-			PixelUtil.SetWidth(icon, anchor:GetHeight())
+			icon:SetWidth(anchor:GetHeight())
 
 			bar:SetPoint("TOP" .. opposite)
 			bar:SetPoint("BOTTOM" .. opposite)
@@ -1551,8 +1552,8 @@ local function ApplyAnchor(anchor, parent, display, config, size, featureEnabled
 	local width, height = display.Size(config, size)
 
 	anchor:ClearAllPoints()
-	PixelUtil.SetPoint(anchor, point, parent, point, config.x, config.y)
-	PixelUtil.SetSize(anchor, math.max(width, 1), math.max(height, 1))
+	anchor:SetPoint(point, parent, point, config.x, config.y)
+	anchor:SetSize(math.max(width, 1), math.max(height, 1))
 	anchor:SetAlpha(config.alpha)
 	anchor:SetShown(featureEnabled and config.enabled)
 end
@@ -1672,9 +1673,11 @@ local function AttachContainer(child, feature, display, config, anchor)
 	local candidateIDs = feature.multiple and CandidateIDs(feature.Candidates()) or nil
 
 	local function InitializeFrame(button, spellID)
+		button:SetRoundLayoutToNearestPixel(true)
+
 		if feature.multiple then
 			local width, height = display.Size(config, Private.FrameConfig.Get())
-			PixelUtil.SetSize(button, math.max(width, 1), math.max(height, 1))
+			button:SetSize(math.max(width, 1), math.max(height, 1))
 		else
 			button:SetPoint("TOPLEFT", container, "TOPLEFT")
 			button:SetPoint("BOTTOMRIGHT", container, "BOTTOMRIGHT")
@@ -1770,6 +1773,7 @@ end
 ---@return SpotlightsAuraDisplay
 local function CreateDisplay(child, feature, display, config)
 	local anchor = CreateFrame("Frame", nil, child)
+	anchor:SetRoundLayoutToNearestPixel(true)
 
 	-- Enabled unconditionally, because nothing builds a display for a feature that is switched off:
 	-- `EnsureDisplays` is the only caller and gates on it before it gets here.
@@ -2043,6 +2047,7 @@ function Private.Auras.CreatePreviews(parent, featureKey, displayKey)
 
 					if DrawsDisplay(feature, display) and (not displayKey or display.key == displayKey) then
 						local anchor = CreateFrame("Frame", nil, parent)
+						anchor:SetRoundLayoutToNearestPixel(true)
 
 						previews[#previews + 1] = {
 							anchor = anchor,
@@ -2124,8 +2129,8 @@ function Private.Auras.StylePreviews(previews)
 					local gap = config.gap or 0
 
 					preview.anchor:ClearAllPoints()
-					PixelUtil.SetPoint(preview.anchor, grow.chainPoint, anchoredTo, grow.chainRelativePoint,
-						gap * grow.chainX, gap * grow.chainY)
+					preview.anchor:SetPoint(grow.chainPoint, anchoredTo, grow.chainRelativePoint, gap * grow.chainX,
+						gap * grow.chainY)
 				end
 
 				previous[feature.key] = preview.anchor

@@ -112,6 +112,7 @@ local function GetHint()
 	end
 
 	hint = CreateFrame("Frame", nil, UIParent) --[[@as SpotlightsDragHint]]
+	hint:SetRoundLayoutToNearestPixel(true)
 	hint:SetFrameStrata("TOOLTIP")
 	hint:SetHeight(20)
 	hint:Hide()
@@ -139,7 +140,7 @@ local function GetHint()
 		local x, y = GetCursorPosition()
 
 		self:ClearAllPoints()
-		PixelUtil.SetPoint(self, "BOTTOMLEFT", UIParent, "BOTTOMLEFT", x / scale + 16, y / scale - 24)
+		self:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", x / scale + 16, y / scale - 24)
 	end)
 
 	return hint

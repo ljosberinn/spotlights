@@ -139,6 +139,7 @@ function Private.NameStyle.EnsureLayer(frame)
 	end
 
 	layer = CreateFrame("Frame", nil, frame)
+	layer:SetRoundLayoutToNearestPixel(true)
 
 	-- Load-bearing despite being the default: a mouse-enabled frame across the whole spotlight would
 	-- swallow the clicks the secure button exists to receive.
@@ -236,8 +237,8 @@ function Private.NameStyle.ApplyLayout(fontString, appearance)
 	local secondY = vertical == "TOP" and 0 or appearance.nameY
 
 	fontString:ClearAllPoints()
-	PixelUtil.SetPoint(fontString, firstPoint, parent, firstPoint, firstX, firstY)
-	PixelUtil.SetPoint(fontString, secondPoint, parent, secondPoint, secondX, secondY)
+	fontString:SetPoint(firstPoint, parent, firstPoint, firstX, firstY)
+	fontString:SetPoint(secondPoint, parent, secondPoint, secondX, secondY)
 	fontString:SetJustifyH(JustifyForPoint(point))
 end
 
@@ -368,8 +369,7 @@ end)
 local function HealthTextLayout(fontString, appearance)
 	fontString:SetFont(Private.Media.Font(appearance.healthTextFont), appearance.healthTextFontSize, "OUTLINE")
 	fontString:ClearAllPoints()
-	PixelUtil.SetPoint(
-		fontString,
+	fontString:SetPoint(
 		appearance.healthTextPoint,
 		fontString:GetParent(),
 		appearance.healthTextPoint,
@@ -526,37 +526,28 @@ function SpotlightsUnitFrameMixin:UpdateTempMaxHealthLoss()
 	end
 
 	local borderSize = SolidBorderSize()
-	local inset = math.max(HEALTH_BAR_INSET, borderSize)
-	local minPixels = BorderMinPixels(borderSize)
+
+	-- Rounded here rather than by the template's flag, which rounds an offset under half a pixel to nothing
+	-- while the border's edges keep one. Resolved against the effective scale at the call, so re-run
+	-- whenever that scale changes -- see `Container.ApplyDisplay`.
+	local inset = PixelUtil.GetNearestPixelSize(math.max(HEALTH_BAR_INSET, borderSize), self:GetEffectiveScale(),
+		BorderMinPixels(borderSize))
 
 	-- Measured off the frame rather than the health bar, whose width is the very thing this is about
 	-- to change -- reading it back would compound the inset on every update.
 	local fullWidth = self:GetWidth() - (inset * 2)
 
-	-- Both corners, though only the second carries the loss: `PixelUtil` snaps against the effective
-	-- scale *at the call* and the template's raw offsets are not snapped at all, so a bar with one
-	-- corner from each wears a border a pixel thicker on one side. Re-run whenever that scale changes
-	-- -- see `Container.ApplyDisplay`.
-	PixelUtil.SetPoint(self.healthBar, "TOPLEFT", self, "TOPLEFT", inset, -inset, minPixels, minPixels)
+	-- Both corners, though only the second carries the loss: the inset follows the border and its
+	-- `minPixels`, and the template's anchors know neither, so a bar with one corner from each wears a
+	-- border thicker on one side.
+	self.healthBar:SetPoint("TOPLEFT", self, "TOPLEFT", inset, -inset)
+	self.healthBar:SetPoint("BOTTOMRIGHT", self, "BOTTOMRIGHT", -inset - (fullWidth * lost), inset)
 
-	PixelUtil.SetPoint(
-		self.healthBar,
-		"BOTTOMRIGHT",
-		self,
-		"BOTTOMRIGHT",
-		-inset - (fullWidth * lost),
-		inset,
-		minPixels,
-		minPixels
-	)
-
-	-- The same rectangle, snapped the same way. Only this bar's right edge is ever visible, but it is
-	-- the edge the loss reveals, and an unsnapped one changes the frame's border thickness the moment a
-	-- loss lands.
-	PixelUtil.SetPoint(self.tempMaxHealthLoss, "TOPLEFT", self, "TOPLEFT", inset, -inset, minPixels,
-		minPixels)
-	PixelUtil.SetPoint(self.tempMaxHealthLoss, "BOTTOMRIGHT", self, "BOTTOMRIGHT", -inset, inset, minPixels,
-		minPixels)
+	-- The same rectangle, from the same inset. Only this bar's right edge is ever visible, but it is the
+	-- edge the loss reveals, and one left on the template's anchors changes the frame's border thickness
+	-- the moment a loss lands.
+	self.tempMaxHealthLoss:SetPoint("TOPLEFT", self, "TOPLEFT", inset, -inset)
+	self.tempMaxHealthLoss:SetPoint("BOTTOMRIGHT", self, "BOTTOMRIGHT", -inset, inset)
 
 	self.tempMaxHealthLoss:SetValue(lost)
 	self.tempMaxHealthLoss:SetShown(lost > 0)
@@ -655,7 +646,7 @@ function SpotlightsUnitFrameMixin:UpdateBorder()
 
 	local size = SolidBorderSize()
 	local shown = size > 0
-	local minPixels = BorderMinPixels(size)
+	local edge = PixelUtil.GetNearestPixelSize(size, self:GetEffectiveScale(), BorderMinPixels(size))
 
 	self.borderTop:SetShown(shown)
 	self.borderBottom:SetShown(shown)
@@ -666,10 +657,10 @@ function SpotlightsUnitFrameMixin:UpdateBorder()
 		local r, g, b, a = appearance.borderColorR, appearance.borderColorG, appearance.borderColorB,
 			appearance.borderColorA
 
-		PixelUtil.SetHeight(self.borderTop, size, minPixels)
-		PixelUtil.SetHeight(self.borderBottom, size, minPixels)
-		PixelUtil.SetWidth(self.borderLeft, size, minPixels)
-		PixelUtil.SetWidth(self.borderRight, size, minPixels)
+		self.borderTop:SetHeight(edge)
+		self.borderBottom:SetHeight(edge)
+		self.borderLeft:SetWidth(edge)
+		self.borderRight:SetWidth(edge)
 
 		self.borderTop:SetColorTexture(r, g, b, a)
 		self.borderBottom:SetColorTexture(r, g, b, a)
@@ -678,8 +669,8 @@ function SpotlightsUnitFrameMixin:UpdateBorder()
 	end
 
 	self.background:ClearAllPoints()
-	PixelUtil.SetPoint(self.background, "TOPLEFT", self, "TOPLEFT", size, -size, minPixels, minPixels)
-	PixelUtil.SetPoint(self.background, "BOTTOMRIGHT", self, "BOTTOMRIGHT", -size, size, minPixels, minPixels)
+	self.background:SetPoint("TOPLEFT", self, "TOPLEFT", edge, -edge)
+	self.background:SetPoint("BOTTOMRIGHT", self, "BOTTOMRIGHT", -edge, edge)
 
 	self:UpdateTempMaxHealthLoss()
 end
@@ -800,6 +791,7 @@ function SpotlightsUnitFrameMixin:CreateAbsorbBar()
 
 	local healthBar = self.healthBar
 	local absorbBar = CreateFrame("StatusBar", nil, healthBar)
+	absorbBar:SetRoundLayoutToNearestPixel(true)
 
 	absorbBar:SetAllPoints(healthBar)
 	absorbBar:SetFrameLevel(healthBar:GetFrameLevel() + 1)
