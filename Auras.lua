@@ -484,7 +484,7 @@ local function ResetPool(pool)
 
 	-- Already the default state; refreshing every live display to say so would sweep the whole raid
 	-- for no change.
-	if not overrides or next(overrides) == nil then
+	if not overrides or table.isempty(overrides) then
 		return false
 	end
 
@@ -2181,7 +2181,7 @@ function Private.Auras.Apply()
 	-- After the free pass, and only for a batch the debounce has closed. `ApplyChild` can itself
 	-- queue a rebuild -- a resize invalidating an inline icon -- so draining first would act on a
 	-- list this call is still adding to.
-	if not settled or not next(pending) then
+	if not settled or table.isempty(pending) then
 		return
 	end
 
@@ -2694,7 +2694,7 @@ end
 --- the same window prompts for a rebuild that will find nothing.
 ---@return boolean
 function Private.Auras.NeedsReload()
-	return reloadPending or next(pending) ~= nil
+	return reloadPending or not table.isempty(pending)
 end
 
 --- Records that the user has been asked and answered. Called for **both** answers, so the code path

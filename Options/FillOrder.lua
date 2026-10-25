@@ -323,8 +323,8 @@ function Private.FillOrder.Build(page)
 
 		-- Shrunk to fit first, floored at `CELL_MIN` -- a config that still does not fit at the floor
 		-- is left for the scroll pane to clip rather than the grid to shrink past legibility.
-		local size = math.min(math.max((width - (computed.columns - 1) * CELL_GAP) / computed.columns,
-			CELL_MIN), CELL_MAX)
+		local size = math.clamp((width - (computed.columns - 1) * CELL_GAP) / computed.columns, CELL_MIN,
+			CELL_MAX)
 
 		for i = 1, computed.total do
 			local cell = active[i]

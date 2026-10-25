@@ -110,9 +110,9 @@ Private.NameStyle = {}
 ---@param point string
 ---@return string
 local function JustifyForPoint(point)
-	if point:find("LEFT") then
+	if point:contains("LEFT") then
 		return "LEFT"
-	elseif point:find("RIGHT") then
+	elseif point:contains("RIGHT") then
 		return "RIGHT"
 	end
 
@@ -227,8 +227,8 @@ function Private.NameStyle.ApplyLayout(fontString, appearance)
 
 	local point = appearance.namePoint
 	local parent = fontString:GetParent()
-	local horizontal = point:find("LEFT") and "LEFT" or point:find("RIGHT") and "RIGHT" or "CENTER"
-	local vertical = point:find("TOP") and "TOP" or point:find("BOTTOM") and "BOTTOM" or "CENTER"
+	local horizontal = point:contains("LEFT") and "LEFT" or point:contains("RIGHT") and "RIGHT" or "CENTER"
+	local vertical = point:contains("TOP") and "TOP" or point:contains("BOTTOM") and "BOTTOM" or "CENTER"
 	local firstPoint = vertical == "CENTER" and "LEFT" or vertical .. "LEFT"
 	local secondPoint = vertical == "CENTER" and "RIGHT" or vertical .. "RIGHT"
 	local firstX = horizontal == "RIGHT" and 0 or appearance.nameX
@@ -508,7 +508,7 @@ end
 ---
 --- `GetUnitTotalModifiedMaxHealthPercent` carries no secret annotation, which makes the arithmetic
 --- legal. **Never** substitute `UNIT_MAX_HEALTH_MODIFIERS_CHANGED`'s arg2 -- that event is
---- SecretPayloads and the `Clamp` would be comparing a secret.
+--- SecretPayloads and `math.saturate` would be comparing a secret.
 ---
 --- Restoring the anchor when the CVar is off matters: the health bar keeps whatever edge the last update
 --- gave it, so disabling the feature mid-session would otherwise leave a permanently short bar. That is
@@ -522,7 +522,7 @@ function SpotlightsUnitFrameMixin:UpdateTempMaxHealthLoss()
 
 	if unit and showTempMaxHealthLoss then
 		-- Loss only, never gain, which is also why a negative clamps away to nothing.
-		lost = Clamp(GetUnitTotalModifiedMaxHealthPercent(unit), 0, 1)
+		lost = math.saturate(GetUnitTotalModifiedMaxHealthPercent(unit))
 	end
 
 	local borderSize = SolidBorderSize()

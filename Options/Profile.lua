@@ -222,7 +222,7 @@ function Private.Profile.ImportPresetString(text)
 		return nil, reason
 	end
 
-	local name = type(payload.name) == "string" and strtrim(payload.name) or nil
+	local name = type(payload.name) == "string" and string.trim(payload.name) or nil
 
 	-- Counted in letters, not bytes, so the bound and the dialog's `maxLetters` mean the same thing in
 	-- a language whose letters cost more than one byte.

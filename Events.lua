@@ -182,7 +182,7 @@ end
 --- Whether anything is waiting on combat to end. Diagnostics only.
 ---@return boolean
 function Private.Events.HasDeferredWork()
-	return next(deferred) ~= nil
+	return not table.isempty(deferred)
 end
 
 Private.Events.RegisterEvent("PLAYER_REGEN_ENABLED", function()

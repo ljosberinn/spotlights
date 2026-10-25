@@ -39,7 +39,7 @@ end
 
 ---@param importBox SpotlightsTextAreaNode
 local function DoImport(importBox)
-	local success, reason = Private.Profile.ImportString(strtrim(pending))
+	local success, reason = Private.Profile.ImportString(string.trim(pending))
 
 	if not success then
 		ShowImportError(reason)
