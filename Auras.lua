@@ -1656,6 +1656,10 @@ local function AttachContainer(child, feature, display, config, anchor)
 	---@type SpotlightsAuraContainer
 	local container = CreateFrame("AuraContainer", nil, anchor, "CustomAuraContainerTemplate")
 
+	-- Edit Mode would swap in Blizzard's placeholder auras, spell IDs 500-511, which no candidate filter of
+	-- ours accepts -- every display would sit empty until it closed.
+	container:SetEditModePreviewEnabled(false)
+
 	container:SetPoint("TOPLEFT")
 	container:SetPoint("BOTTOMRIGHT")
 
