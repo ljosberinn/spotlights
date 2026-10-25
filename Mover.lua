@@ -35,6 +35,7 @@ local function Get()
 	end
 
 	overlay = CreateFrame("Frame", "SpotlightsMover", UIParent)
+	overlay:SetRoundLayoutToNearestPixel(true)
 	overlay:SetFrameStrata("HIGH")
 	overlay:Hide()
 
@@ -153,7 +154,7 @@ function Private.Mover.Sync()
 	overlay:SetFrameStrata(Private.Container.OverlayStrata())
 
 	overlay:ClearAllPoints()
-	PixelUtil.SetPoint(overlay, "BOTTOMLEFT", UIParent, "BOTTOMLEFT", left, bottom)
+	overlay:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", left, bottom)
 	overlay:SetSize(container:GetSize())
 end
 

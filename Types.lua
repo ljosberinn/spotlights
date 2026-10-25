@@ -848,13 +848,9 @@ Menu = nil
 ---@type MinimalSliderWithSteppersMixin
 MinimalSliderWithSteppersMixin = nil
 
---- `minPixels` defaults to 1 on all four: the point of these over the frame methods is that a value is
---- snapped to a whole physical pixel rather than to a UI unit.
+--- The flag's rounding, plus the `minPixels` floor the flag gives a size but not an offset.
 ---@class PixelUtil
----@field SetPoint fun(region: Region, point: AnchorPoint, relativeTo: Region, relativePoint: AnchorPoint, offsetX: number?, offsetY: number?, minOffsetXPixels: number?, minOffsetYPixels: number?)
----@field SetSize fun(region: Region, width: number, height: number, minWidthPixels: number?, minHeightPixels: number?)
----@field SetWidth fun(region: Region, width: number, minPixels: number?)
----@field SetHeight fun(region: Region, height: number, minPixels: number?)
+---@field GetNearestPixelSize fun(uiUnitSize: number, layoutScale: number, minPixels: number?): number
 
 ---@type PixelUtil
 PixelUtil = nil
@@ -883,6 +879,13 @@ TabSystemMixin = nil
 
 ---@type TabSystemOwnerMixin
 TabSystemOwnerMixin = nil
+
+-- Widget methods newer than the API annotations
+
+--- 12.1.5. Protected, and not inherited by children.
+---@class ScriptRegion
+---@field SetRoundLayoutToNearestPixel fun(self: ScriptRegion, enabled: boolean)
+---@field GetRoundLayoutToNearestPixel fun(self: ScriptRegion): boolean
 
 -- Functions
 

@@ -54,10 +54,8 @@ local function ApplySize(frame)
 		return
 	end
 
-	--- Scale first: `PixelUtil` snaps a size against the frame's *effective* scale, so sizing before
-	--- scaling snaps against the scale being replaced.
 	frame:SetScale(Fit(config))
-	PixelUtil.SetSize(frame, config.frameWidth, config.frameHeight)
+	frame:SetSize(config.frameWidth, config.frameHeight)
 end
 
 --- The default caption: the size the frame really is, plus the percentage that keeps it honest once the

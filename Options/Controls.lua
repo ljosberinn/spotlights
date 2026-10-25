@@ -748,7 +748,8 @@ function Private.Controls.ColorSwatch(parent, label, get, set, enabled, full, la
 	-- enough to clear the bevel wastes half the swatch and anything less leaves gold showing.
 	local button = CreateFrame("Button", nil, row)
 
-	PixelUtil.SetHeight(button, BOX_HEIGHT)
+	button:SetRoundLayoutToNearestPixel(true)
+	button:SetHeight(BOX_HEIGHT)
 
 	local edge = button:CreateTexture(nil, "BORDER")
 
@@ -759,14 +760,16 @@ function Private.Controls.ColorSwatch(parent, label, get, set, enabled, full, la
 	-- mid-pixel rasterises to nothing on that side.
 	local innerEdge = button:CreateTexture(nil, "ARTWORK")
 
-	PixelUtil.SetPoint(innerEdge, "TOPLEFT", button, "TOPLEFT", SWATCH_BORDER, -SWATCH_BORDER)
-	PixelUtil.SetPoint(innerEdge, "BOTTOMRIGHT", button, "BOTTOMRIGHT", -SWATCH_BORDER, SWATCH_BORDER)
+	innerEdge:SetRoundLayoutToNearestPixel(true)
+	innerEdge:SetPoint("TOPLEFT", button, "TOPLEFT", SWATCH_BORDER, -SWATCH_BORDER)
+	innerEdge:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -SWATCH_BORDER, SWATCH_BORDER)
 	innerEdge:SetColorTexture(BLACK_FONT_COLOR:GetRGB())
 
 	local swatch = button:CreateTexture(nil, "OVERLAY")
 
-	PixelUtil.SetPoint(swatch, "TOPLEFT", innerEdge, "TOPLEFT", SWATCH_BORDER, -SWATCH_BORDER)
-	PixelUtil.SetPoint(swatch, "BOTTOMRIGHT", innerEdge, "BOTTOMRIGHT", -SWATCH_BORDER, SWATCH_BORDER)
+	swatch:SetRoundLayoutToNearestPixel(true)
+	swatch:SetPoint("TOPLEFT", innerEdge, "TOPLEFT", SWATCH_BORDER, -SWATCH_BORDER)
+	swatch:SetPoint("BOTTOMRIGHT", innerEdge, "BOTTOMRIGHT", -SWATCH_BORDER, SWATCH_BORDER)
 
 	-- The outer edge turning gold *is* the hover state, as `ColorSwatchMixin:OnEnter` does it. A separate
 	-- highlight texture would sit over the colour and misreport it.
@@ -839,8 +842,8 @@ function Private.Controls.ColorSwatch(parent, label, get, set, enabled, full, la
 		-- column line up. The row still *occupies* only its column: the overhang is art, and the gutter it
 		-- reaches into is 26 wide.
 		button:ClearAllPoints()
-		PixelUtil.SetPoint(button, "LEFT", self, "LEFT", column - SWATCH_OVERHANG, 0)
-		PixelUtil.SetWidth(button, control + SWATCH_OVERHANG * 2)
+		button:SetPoint("LEFT", self, "LEFT", column - SWATCH_OVERHANG, 0)
+		button:SetWidth(control + SWATCH_OVERHANG * 2)
 
 		return ROW_HEIGHT
 	end
