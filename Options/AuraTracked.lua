@@ -46,7 +46,6 @@ local SPELL_TEXT_GAP = 6
 
 --- The remove width is reserved on every row rather than only where it is used, so the toggles stay in
 --- one column as the rail moves between a class group and the user's own.
-local CHECK_SIZE = 24
 local REMOVE_WIDTH = 20
 
 --- The exit atlas is drawn inside its button rather than filling it, so the target stays comfortable
@@ -76,11 +75,7 @@ local MAX_ID_DIGITS = 9
 --- prefixes name nothing, so the preview would otherwise flicker through wrong answers on the way.
 local LOOKUP_DELAY = 0.35
 
---- The gap under the Auras tab's sub-tab strip. Both sides get everything else, so the reset button and
---- the add-spell row end up on the window's bottom edge.
-local CHROME_RESERVE = 6
-
---- Floors for the two sides and the list inside each, in case the window is shorter than this tab's
+--- Floors for the two sides and the list inside each, in case the window is shorter than the Auras tab's
 --- chrome costs: better a cramped list than a negative height Blizzard errors on.
 local MIN_RAIL_HEIGHT = 120
 local MIN_LIST_HEIGHT = 40
@@ -89,8 +84,8 @@ local MIN_LIST_HEIGHT = 40
 --- button was clicked, and a second key would stack a second identical prompt.
 local RESET_POPUP = "SPOTLIGHTS_AURA_RESET"
 
---- Which category the strip has selected, and its localised name for the reset prompt. Both handed in by
---- `Build`, because the strip they come from is not this file's.
+--- Which category tab is selected, and its localised name for the reset prompt. Both handed in by
+--- `Build`, because the tabs they come from are not this file's.
 ---@type fun(): SpotlightsAuraFeatureKey
 local ActiveFeature
 
@@ -333,7 +328,7 @@ local function ConfirmReset()
 	local L = Private.L.Settings
 
 	-- Registered at click time rather than at load: the localisation table is filled by now, and the
-	-- category named in the prompt is whichever the strip has selected at the click.
+	-- category named in the prompt is whichever tab is selected at the click.
 	StaticPopupDialogs[RESET_POPUP] = {
 		text = string.format(L.AuraResetSpellsPrompt, ActiveName()),
 		button1 = L.AuraResetConfirm,
@@ -486,8 +481,8 @@ local function AcquireSpellRow(list, rows, index)
 	removeHighlight:SetSize(REMOVE_ICON_SIZE, REMOVE_ICON_SIZE)
 	removeHighlight:SetColorTexture(1, 1, 1, REMOVE_HIGHLIGHT_ALPHA)
 
-	row.check = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
-	row.check:SetSize(CHECK_SIZE, CHECK_SIZE)
+	-- The Settings panel's box at its own size, as every checkbox in this panel is.
+	row.check = CreateFrame("CheckButton", nil, row, "MinimalCheckboxTemplate")
 	row.check:SetPoint("RIGHT", row, "RIGHT", -REMOVE_WIDTH, 0)
 
 	-- Both lines anchored at each end, the right one against the toggle rather than the row: a spell name
@@ -931,17 +926,17 @@ end
 
 --- The sub-tab.
 ---@param page Frame
----@param GetFeature fun(): SpotlightsAuraFeatureKey which category the strip has selected
+---@param GetFeature fun(): SpotlightsAuraFeatureKey which category tab is selected
 ---@param GetName fun(): string its localised name, for the reset prompt
+---@param height number what the Auras tab leaves below its own chrome
 ---@return SpotlightsNode
-function Private.AuraTracked.Build(page, GetFeature, GetName)
+function Private.AuraTracked.Build(page, GetFeature, GetName, height)
 	ActiveFeature = GetFeature
 	ActiveName = GetName
 
-	local height = math.max(page:GetHeight() - Private.Node.SubTabHeight - CHROME_RESERVE,
-		MIN_RAIL_HEIGHT)
+	local available = math.max(height, MIN_RAIL_HEIGHT)
 
-	local split = Private.Node.Split(page, BuildRail(page, height), BuildPane(page, height),
+	local split = Private.Node.Split(page, BuildRail(page, available), BuildPane(page, available),
 		{ leftWidth = RAIL_WIDTH })
 
 	local Refresh = split.Refresh

@@ -47,11 +47,7 @@ local OFFSET_MIN, OFFSET_MAX = -200, 200
 --- build. The step is what the value box shows -- see `Controls`' `FRACTION_STEP`.
 local ALPHA_MIN, ALPHA_MAX, ALPHA_STEP = 0.05, 1, 0.01
 
---- The gap under the Auras tab's sub-tab strip. The scroll pane gets everything else, so it fills the
---- tab rather than a guess at how tall two sections "usually" are.
-local CHROME_RESERVE = 6
-
---- Floor for the scroll pane, in case the window is shorter than this tab's chrome costs: better a
+--- Floor for the scroll pane, in case the window is shorter than the Auras tab's chrome costs: better a
 --- cramped pane than a negative height Blizzard errors on.
 local MIN_SCROLL_HEIGHT = 80
 
@@ -59,8 +55,8 @@ local MIN_SCROLL_HEIGHT = 80
 --- button was clicked, and two keys would stack two identical prompts.
 local RESET_POPUP = "SPOTLIGHTS_AURA_RESET"
 
---- Which category the strip has selected, and its localised name for the reset prompt. Both handed in by
---- `Build`, because the strip they come from is not this file's.
+--- Which category tab is selected, and its localised name for the reset prompt. Both handed in by
+--- `Build`, because the tabs they come from are not this file's.
 ---@type fun(): SpotlightsAuraFeatureKey
 local ActiveFeature
 
@@ -429,7 +425,7 @@ local COMBINED_STAGE_HEIGHT = 160
 ---
 --- Records are built per category and **kept** rather than rebuilt on every switch: a preview bakes the
 --- spell it is about into its icon when created, so a category change needs new ones, and frames cannot
---- be destroyed -- building a set per switch would strand one per click of the strip.
+--- be destroyed -- building a set per switch would strand one per click of a category tab.
 ---@param page Frame
 ---@param displayKey SpotlightsAuraDisplayKey? every kind the category draws, when omitted
 ---@param options { heading: string?, CaptionText: (string | fun(): string)?, stageHeight: number? }?
@@ -496,7 +492,7 @@ local function ConfirmReset(displayKey, label)
 	local L = Private.L.Settings
 
 	-- Registered at click time rather than at load: the localisation table is filled by now, and the
-	-- category named in the prompt is whichever the strip has selected at the click.
+	-- category named in the prompt is whichever tab is selected at the click.
 	StaticPopupDialogs[RESET_POPUP] = {
 		text = string.format(L.AuraResetDisplayPrompt, label, ActiveName()),
 		button1 = L.AuraResetConfirm,
@@ -620,6 +616,32 @@ local function BuildBody(page, rows, displayKey, label, trailing)
 	return Private.Node.Split(page, Private.Node.Grid(page, rows, 2, COLUMN_LABEL_WIDTH),
 		Private.Node.Column(page, { BuildPreview(page, displayKey), combined }),
 		{ rightWidth = Private.PreviewPane.Width })
+end
+
+--- The category's own switch, a level above the five displays. Kept out of `sections`, so `SyncSections`
+--- never collapses it and a category switched off stays one click from coming back.
+---@param page Frame
+---@return SpotlightsSectionNode
+local function BuildFeatureSection(page)
+	local L = Private.L.Settings
+
+	local enabled = Private.Controls.Checkbox(page, L.AuraFeatureEnabled, function()
+		return Private.Auras.IsFeatureEnabled(ActiveFeature())
+	end, function(value)
+		Private.Auras.SetFeatureEnabled(ActiveFeature(), value)
+
+		-- The live displays are the write's own business; the previews are this panel's.
+		Private.AuraPreview.Restyle()
+
+		-- Every pane takes the feature's switch as an argument to `ApplyAnchor`, so a refresh rather than a
+		-- relayout. Done here rather than inside `SetFeatureEnabled`, so the write path keeps knowing nothing
+		-- about the panel.
+		Private.Options.Refresh()
+	end)
+
+	return Private.Node.Section(page, function()
+		return L.AuraFeatureEnabled
+	end, nil, Private.Node.Grid(page, { enabled }, 2, COLUMN_LABEL_WIDTH))
 end
 
 ---@param page Frame
@@ -874,15 +896,18 @@ end
 
 --- The sub-tab.
 ---@param page Frame
----@param GetFeature fun(): SpotlightsAuraFeatureKey which category the strip has selected
+---@param GetFeature fun(): SpotlightsAuraFeatureKey which category tab is selected
 ---@param GetName fun(): string its localised name, for the reset prompt
+---@param height number what the Auras tab leaves below its own chrome
 ---@return SpotlightsNode
-function Private.AuraAppearance.Build(page, GetFeature, GetName)
+function Private.AuraAppearance.Build(page, GetFeature, GetName, height)
 	local L = Private.L.Settings
 
 	ActiveFeature = GetFeature
 	ActiveName = GetName
 	panes = {}
+
+	local feature = BuildFeatureSection(page)
 
 	local icon = Private.Node.Section(page, function()
 		return L.AuraIcon
@@ -924,10 +949,10 @@ function Private.AuraAppearance.Build(page, GetFeature, GetName)
 
 	sections = { icon, bar, square, text, frameColor }
 
-	local scrollHeight = math.max(page:GetHeight() - Private.Node.SubTabHeight - CHROME_RESERVE,
-		MIN_SCROLL_HEIGHT)
+	local scrollHeight = math.max(height, MIN_SCROLL_HEIGHT)
 
 	return Private.Node.ScrollPane(page, Private.Node.Column(page, {
+		feature,
 		icon,
 		bar,
 		square,

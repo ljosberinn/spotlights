@@ -41,23 +41,29 @@
 ---@field SlashCommands SpotlightsSlashCommands
 ---@field DB SpotlightsDB? nil until ADDON_LOADED has run the migration
 
---- The three XML templates in `Blizzard_SharedXML/TabSystemTemplates.xml` the tab strips inherit from.
---- Declared here because the WoW API annotations model Lua mixins but not XML templates, so inheriting
---- from one is otherwise an undefined class.
+--- The two XML templates in `Blizzard_SharedXML/TabSystemTemplates.xml` the tab strips inherit from, and
+--- the two the Auras tab's category rail is built from. Declared here because the WoW API annotations model
+--- Lua mixins but not XML templates, so inheriting from one is otherwise an undefined class.
 ---@class TabSystemTemplate
 ---@class TabSystemTopButtonTemplate
----@class TabSystemButtonTemplate
+---@class LargeSideTabButtonTemplate
+---@class VerticalLayoutFrame
 
 --- A button acquired by `TabSystemTemplate` for a top-oriented tab strip.
 ---@class TabSystemTopButtonFrame : Button, TabSystemTopButtonTemplate
 
---- A button acquired by `TabSystemTemplate` for a bottom-oriented tab strip.
----
---- `Text` and `SetTabWidth` come from `TabSystemButtonArtTemplate` and are written out because the
---- category strip pads a tab beyond its label to make room for the enable dot beside it.
----@class TabSystemButtonFrame : Button, TabSystemButtonTemplate
----@field Text FontString
----@field SetTabWidth fun(self: TabSystemButtonFrame, width: number)
+--- One of the Auras tab's category tabs (`SharedUIPanelTemplates.xml:981`).
+---@class SpotlightsSideTabFrame : Frame, LargeSideTabButtonTemplate
+---@field Icon Texture
+---@field SelectedTexture Texture
+---@field tooltipText string read by the mixin's `OnEnter`
+---@field layoutIndex integer read by the layout frame holding the tab
+---@field SetCustomOnMouseUpHandler fun(self: SpotlightsSideTabFrame, handler: fun(tab: SpotlightsSideTabFrame, button: string, upInside: boolean))
+
+--- The column the category tabs stack in; a hidden tab takes no space in it.
+---@class SpotlightsSideTabRailFrame : Frame, VerticalLayoutFrame
+---@field spacing number between one tab and the next
+---@field Layout fun(self: SpotlightsSideTabRailFrame)
 
 --- A Lua-created tab system. The button type is selected through `tabTemplate` before `OnLoad` builds
 --- the pool, so the two concrete button frame types above describe the pooled children.
@@ -67,7 +73,6 @@
 ---@field minTabWidth number? absent for a strip whose tabs may be as narrow as their labels
 ---@field spacing number? between one tab and the next, read by the layout frame under the mixin
 ---@field AddTab fun(self: SpotlightsTabSystemFrame, tabText: string): integer
----@field GetTabButton fun(self: SpotlightsTabSystemFrame, tabID: integer): TabSystemButtonFrame
 ---@field SetTabSelectedCallback fun(self: SpotlightsTabSystemFrame, callback: fun(tabID: integer, isUserAction: boolean?): boolean?)
 ---@field SetTab fun(self: SpotlightsTabSystemFrame, tabID: integer, isUserAction: boolean?) runs the selection callback
 ---@field SetTabVisuallySelected fun(self: SpotlightsTabSystemFrame, tabID: integer) paints the selection without running the callback
@@ -258,9 +263,9 @@
 --- One aura's four displays, independent of each other and all optional, under one switch for the
 --- feature as a whole.
 ---
---- `enabled` is the feature-level switch behind the category strip's dot, and it **overrides** every
---- display: a feature switched off renders nothing whatever its bar, icon, square and text say, and its
---- containers stop listening for auras. Off is not the same as switching every display off -- that is
+--- `enabled` is the feature-level switch behind each category's Enabled checkbox, and it **overrides**
+--- every display: a feature switched off renders nothing whatever its bar, icon, square and text say, and
+--- its containers stop listening for auras. Off is not the same as switching every display off -- that is
 --- four decisions the user has to remember to undo, where this is one, and it leaves the display
 --- settings exactly as they were for when the feature comes back.
 ---@class SpotlightsAuraFeatureConfig

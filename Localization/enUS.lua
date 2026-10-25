@@ -287,9 +287,9 @@ L.Settings.Cooldowns = "Cooldowns"
 L.Settings.Defensives = "Defensives"
 L.Settings.CustomAuras = "Custom Auras"
 
--- The Auras tab's second sub-tab, and the tooltip on a category tab's enable dot.
+-- The Auras tab's second sub-tab, and the switch for a whole category.
 L.Settings.AuraTracked = "Tracked"
-L.Settings.AuraFeatureToggle = "Track %s"
+L.Settings.AuraFeatureEnabled = "Enabled"
 
 L.Settings.AuraBar = "Status Bar"
 L.Settings.AuraIcon = "Icon"
