@@ -27,6 +27,14 @@ local DOT_INSET = 8
 --- it on every selection.
 local OFF_ALPHA = 0.5
 
+--- Handed to the tab's column rather than left to its default, so the height both sub-tabs are given
+--- cannot drift from the gaps actually laid out above them.
+local CHROME_GAP = 6
+
+--- Fits the longest translation, deDE "Benutzerdefinierte Auren überwachen"; anything longer still has the
+--- truncation tooltip.
+local TOGGLE_LABEL_WIDTH = 260
+
 --- The categories in strip order. `augmentation` is the whole of the gating rule, restating the partition
 --- `Private.Auras` splits its feature sets on, because a tab has to be taken off the strip for a feature that
 --- list has already dropped. Nil is the third state: a feature in **both** sets, which no specialisation
@@ -251,6 +259,29 @@ local function ActiveName()
 	return CategoryNames()[activeFeature]
 end
 
+---@return string
+local function ToggleLabel()
+	return string.format(Private.L.Settings.AuraFeatureToggle, ActiveName())
+end
+
+---@return boolean
+local function ActiveEnabled()
+	return Private.Auras.IsFeatureEnabled(activeFeature)
+end
+
+---@param value boolean
+local function SetActiveEnabled(value)
+	Private.Auras.SetFeatureEnabled(activeFeature, value)
+
+	-- The live displays are the write's own business; the previews are this panel's.
+	Private.AuraPreview.Restyle()
+
+	--- The Appearance sub-tab's panes take the feature's switch as an argument to `ApplyAnchor`, so a
+	--- refresh rather than a relayout. Done here rather than inside `SetFeatureEnabled`, so the write
+	--- path keeps knowing nothing about the panel.
+	Private.Options.Refresh()
+end
+
 local function OnPageShown()
 	ApplyPreviewFeature()
 	Private.AuraPreview.SetShown(true)
@@ -276,20 +307,29 @@ local function BuildAuras(page)
 
 	CreateCategoryStrip(page)
 
+	-- Above the sub-tab strip rather than inside either, since it switches the category both are about.
+	local toggle = Private.Controls.Checkbox(page, ToggleLabel, ActiveEnabled, SetActiveEnabled, nil, nil,
+		TOGGLE_LABEL_WIDTH)
+
+	local height = page:GetHeight() - Private.Controls.RowHeight - Private.Node.SubTabHeight - CHROME_GAP * 2
+
 	--- Tracked is a tab only where there is a list behind it: Prescience and Shifting Sands watch one spell
 	--- each, so the pane would be its own chrome and nothing else.
 	local subTabs, pages = Private.Node.SubTabs(page, {
-		{ name = L.TabAppearance, node = Private.AuraAppearance.Build(page, ActiveFeature, ActiveName) },
+		{
+			name = L.TabAppearance,
+			node = Private.AuraAppearance.Build(page, ActiveFeature, ActiveName, height),
+		},
 		{
 			name = L.AuraTracked,
-			node = Private.AuraTracked.Build(page, ActiveFeature, ActiveName),
+			node = Private.AuraTracked.Build(page, ActiveFeature, ActiveName, height),
 			Applies = function()
 				return Private.AuraSpells.HasSpells(ActiveFeature())
 			end,
 		},
 	}, Private.Options.Refresh)
 
-	local root = Private.Node.Column(page, { subTabs, pages })
+	local root = Private.Node.Column(page, { toggle, subTabs, pages }, CHROME_GAP)
 	local Refresh = root.Refresh
 
 	--- The strip is not in the tree, so the pass that re-reads the tab has to reach it explicitly -- before

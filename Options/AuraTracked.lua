@@ -76,11 +76,7 @@ local MAX_ID_DIGITS = 9
 --- prefixes name nothing, so the preview would otherwise flicker through wrong answers on the way.
 local LOOKUP_DELAY = 0.35
 
---- The gap under the Auras tab's sub-tab strip. Both sides get everything else, so the reset button and
---- the add-spell row end up on the window's bottom edge.
-local CHROME_RESERVE = 6
-
---- Floors for the two sides and the list inside each, in case the window is shorter than this tab's
+--- Floors for the two sides and the list inside each, in case the window is shorter than the Auras tab's
 --- chrome costs: better a cramped list than a negative height Blizzard errors on.
 local MIN_RAIL_HEIGHT = 120
 local MIN_LIST_HEIGHT = 40
@@ -89,8 +85,8 @@ local MIN_LIST_HEIGHT = 40
 --- button was clicked, and a second key would stack a second identical prompt.
 local RESET_POPUP = "SPOTLIGHTS_AURA_RESET"
 
---- Which category the strip has selected, and its localised name for the reset prompt. Both handed in by
---- `Build`, because the strip they come from is not this file's.
+--- Which category tab is selected, and its localised name for the reset prompt. Both handed in by
+--- `Build`, because the tabs they come from are not this file's.
 ---@type fun(): SpotlightsAuraFeatureKey
 local ActiveFeature
 
@@ -333,7 +329,7 @@ local function ConfirmReset()
 	local L = Private.L.Settings
 
 	-- Registered at click time rather than at load: the localisation table is filled by now, and the
-	-- category named in the prompt is whichever the strip has selected at the click.
+	-- category named in the prompt is whichever tab is selected at the click.
 	StaticPopupDialogs[RESET_POPUP] = {
 		text = string.format(L.AuraResetSpellsPrompt, ActiveName()),
 		button1 = L.AuraResetConfirm,
@@ -931,17 +927,17 @@ end
 
 --- The sub-tab.
 ---@param page Frame
----@param GetFeature fun(): SpotlightsAuraFeatureKey which category the strip has selected
+---@param GetFeature fun(): SpotlightsAuraFeatureKey which category tab is selected
 ---@param GetName fun(): string its localised name, for the reset prompt
+---@param height number what the Auras tab leaves below its own chrome
 ---@return SpotlightsNode
-function Private.AuraTracked.Build(page, GetFeature, GetName)
+function Private.AuraTracked.Build(page, GetFeature, GetName, height)
 	ActiveFeature = GetFeature
 	ActiveName = GetName
 
-	local height = math.max(page:GetHeight() - Private.Node.SubTabHeight - CHROME_RESERVE,
-		MIN_RAIL_HEIGHT)
+	local available = math.max(height, MIN_RAIL_HEIGHT)
 
-	local split = Private.Node.Split(page, BuildRail(page, height), BuildPane(page, height),
+	local split = Private.Node.Split(page, BuildRail(page, available), BuildPane(page, available),
 		{ leftWidth = RAIL_WIDTH })
 
 	local Refresh = split.Refresh
