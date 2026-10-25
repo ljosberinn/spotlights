@@ -41,23 +41,29 @@
 ---@field SlashCommands SpotlightsSlashCommands
 ---@field DB SpotlightsDB? nil until ADDON_LOADED has run the migration
 
---- The three XML templates in `Blizzard_SharedXML/TabSystemTemplates.xml` the tab strips inherit from.
---- Declared here because the WoW API annotations model Lua mixins but not XML templates, so inheriting
---- from one is otherwise an undefined class.
+--- The two XML templates in `Blizzard_SharedXML/TabSystemTemplates.xml` the tab strips inherit from, and
+--- the two the Auras tab's category rail is built from. Declared here because the WoW API annotations model
+--- Lua mixins but not XML templates, so inheriting from one is otherwise an undefined class.
 ---@class TabSystemTemplate
 ---@class TabSystemTopButtonTemplate
----@class TabSystemButtonTemplate
+---@class LargeSideTabButtonTemplate
+---@class VerticalLayoutFrame
 
 --- A button acquired by `TabSystemTemplate` for a top-oriented tab strip.
 ---@class TabSystemTopButtonFrame : Button, TabSystemTopButtonTemplate
 
---- A button acquired by `TabSystemTemplate` for a bottom-oriented tab strip.
----
---- `Text` and `SetTabWidth` come from `TabSystemButtonArtTemplate` and are written out because the
---- category strip pads a tab beyond its label to make room for the enable dot beside it.
----@class TabSystemButtonFrame : Button, TabSystemButtonTemplate
----@field Text FontString
----@field SetTabWidth fun(self: TabSystemButtonFrame, width: number)
+--- One of the Auras tab's category tabs (`SharedUIPanelTemplates.xml:981`).
+---@class SpotlightsSideTabFrame : Frame, LargeSideTabButtonTemplate
+---@field Icon Texture
+---@field SelectedTexture Texture
+---@field tooltipText string read by the mixin's `OnEnter`
+---@field layoutIndex integer read by the layout frame holding the tab
+---@field SetCustomOnMouseUpHandler fun(self: SpotlightsSideTabFrame, handler: fun(tab: SpotlightsSideTabFrame, button: string, upInside: boolean))
+
+--- The column the category tabs stack in; a hidden tab takes no space in it.
+---@class SpotlightsSideTabRailFrame : Frame, VerticalLayoutFrame
+---@field spacing number between one tab and the next
+---@field Layout fun(self: SpotlightsSideTabRailFrame)
 
 --- A Lua-created tab system. The button type is selected through `tabTemplate` before `OnLoad` builds
 --- the pool, so the two concrete button frame types above describe the pooled children.
@@ -67,7 +73,6 @@
 ---@field minTabWidth number? absent for a strip whose tabs may be as narrow as their labels
 ---@field spacing number? between one tab and the next, read by the layout frame under the mixin
 ---@field AddTab fun(self: SpotlightsTabSystemFrame, tabText: string): integer
----@field GetTabButton fun(self: SpotlightsTabSystemFrame, tabID: integer): TabSystemButtonFrame
 ---@field SetTabSelectedCallback fun(self: SpotlightsTabSystemFrame, callback: fun(tabID: integer, isUserAction: boolean?): boolean?)
 ---@field SetTab fun(self: SpotlightsTabSystemFrame, tabID: integer, isUserAction: boolean?) runs the selection callback
 ---@field SetTabVisuallySelected fun(self: SpotlightsTabSystemFrame, tabID: integer) paints the selection without running the callback
@@ -258,9 +263,9 @@
 --- One aura's four displays, independent of each other and all optional, under one switch for the
 --- feature as a whole.
 ---
---- `enabled` is the feature-level switch behind the category strip's dot, and it **overrides** every
---- display: a feature switched off renders nothing whatever its bar, icon, square and text say, and its
---- containers stop listening for auras. Off is not the same as switching every display off -- that is
+--- `enabled` is the feature-level switch behind each category's Enabled checkbox, and it **overrides**
+--- every display: a feature switched off renders nothing whatever its bar, icon, square and text say, and
+--- its containers stop listening for auras. Off is not the same as switching every display off -- that is
 --- four decisions the user has to remember to undo, where this is one, and it leaves the display
 --- settings exactly as they were for when the feature comes back.
 ---@class SpotlightsAuraFeatureConfig
@@ -533,6 +538,7 @@
 ---@class SpotlightsAuraContainer : Frame
 ---@field GetUnit fun(self: SpotlightsAuraContainer): string
 ---@field SetUnit fun(self: SpotlightsAuraContainer, unit: string) asserts on a non-string
+---@field SetEditModePreviewEnabled fun(self: SpotlightsAuraContainer, enabled: boolean)
 ---@field AddAuraGroup fun(self: SpotlightsAuraContainer, groupKey: string, filterString: string, options: table)
 ---@field AddAuraSlot fun(self: SpotlightsAuraContainer, slotKey: string, filterString: string, options: table): table
 ---@field SetAuraGroupCandidateFilters fun(self: SpotlightsAuraContainer, groupKey: string, candidateFilters: table)
@@ -849,13 +855,9 @@ Menu = nil
 ---@type MinimalSliderWithSteppersMixin
 MinimalSliderWithSteppersMixin = nil
 
---- `minPixels` defaults to 1 on all four: the point of these over the frame methods is that a value is
---- snapped to a whole physical pixel rather than to a UI unit.
+--- The flag's rounding, plus the `minPixels` floor the flag gives a size but not an offset.
 ---@class PixelUtil
----@field SetPoint fun(region: Region, point: AnchorPoint, relativeTo: Region, relativePoint: AnchorPoint, offsetX: number?, offsetY: number?, minOffsetXPixels: number?, minOffsetYPixels: number?)
----@field SetSize fun(region: Region, width: number, height: number, minWidthPixels: number?, minHeightPixels: number?)
----@field SetWidth fun(region: Region, width: number, minPixels: number?)
----@field SetHeight fun(region: Region, height: number, minPixels: number?)
+---@field GetNearestPixelSize fun(uiUnitSize: number, layoutScale: number, minPixels: number?): number
 
 ---@type PixelUtil
 PixelUtil = nil
@@ -885,10 +887,29 @@ TabSystemMixin = nil
 ---@type TabSystemOwnerMixin
 TabSystemOwnerMixin = nil
 
--- Functions
+-- Widget methods newer than the API annotations
 
----@type fun(value: number, min: number, max: number): number
-Clamp = nil
+--- 12.1.5. Protected, and not inherited by children.
+---@class ScriptRegion
+---@field SetRoundLayoutToNearestPixel fun(self: ScriptRegion, enabled: boolean)
+---@field GetRoundLayoutToNearestPixel fun(self: ScriptRegion): boolean
+
+-- Lua library extensions newer than the API annotations
+
+--- 12.1.5.
+---@class mathlib
+---@field clamp fun(value: number, minimum: number, maximum: number): number
+---@field saturate fun(value: number): number
+
+--- 12.1.5.
+---@class stringlib
+---@field contains fun(str: string, substring: string): boolean
+
+--- 12.1.5. Secret when any key is.
+---@class tablelib
+---@field isempty fun(table: table): boolean
+
+-- Functions
 
 --- Aliases `CreateSecureFramePool`.
 ---@type fun(frameType: string, parent: Frame?, template: string?, resetFunc: fun(pool: table, frame: Frame)?, forbidden: boolean?, postCreate: fun(frame: Frame)?, capacity: number?): table

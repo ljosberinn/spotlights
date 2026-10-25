@@ -16,35 +16,38 @@
 
 	     No frameStrata, deliberately: one declared here is set once per frame at creation and never
 	     revisited. The strata is the container's now (position.strata), inherited down through the slot
-	     header, so changing the setting restacks the spotlights already on screen. -->
-	<Button name="SpotlightsUnitFrameBaseTemplate" mixin="SpotlightsUnitFrameMixin" virtual="true">
+	     header, so changing the setting restacks the spotlights already on screen.
+
+	     `roundLayoutToNearestPixel` goes on every region and child, because the flag is not inherited
+	     and is a protected call: a spotlight the header spawns in combat could not be given it from Lua. -->
+	<Button name="SpotlightsUnitFrameBaseTemplate" mixin="SpotlightsUnitFrameMixin" roundLayoutToNearestPixel="true" virtual="true">
 		<Layers>
 			<Layer level="BACKGROUND">
 				<!-- White by design: UpdateHealthColor tints it to a fifth of the class colour. -->
-				<Texture parentKey="background" atlas="raidframe-hp-bg-white" hWrapMode="REPEAT" vWrapMode="REPEAT" setAllPoints="true"/>
+				<Texture parentKey="background" roundLayoutToNearestPixel="true" atlas="raidframe-hp-bg-white" hWrapMode="REPEAT" vWrapMode="REPEAT" setAllPoints="true"/>
 			</Layer>
 			<Layer level="BORDER">
 				<!-- Thickness and colour are UpdateBorder's. Left and Right run only between Top and
 				     Bottom, so a translucent colour does not double up in the corners. -->
-				<Texture parentKey="borderTop" hidden="true">
+				<Texture parentKey="borderTop" roundLayoutToNearestPixel="true" hidden="true">
 					<Anchors>
 						<Anchor point="TOPLEFT"/>
 						<Anchor point="TOPRIGHT"/>
 					</Anchors>
 				</Texture>
-				<Texture parentKey="borderBottom" hidden="true">
+				<Texture parentKey="borderBottom" roundLayoutToNearestPixel="true" hidden="true">
 					<Anchors>
 						<Anchor point="BOTTOMLEFT"/>
 						<Anchor point="BOTTOMRIGHT"/>
 					</Anchors>
 				</Texture>
-				<Texture parentKey="borderLeft" hidden="true">
+				<Texture parentKey="borderLeft" roundLayoutToNearestPixel="true" hidden="true">
 					<Anchors>
 						<Anchor point="TOPLEFT" relativeKey="$parent.borderTop" relativePoint="BOTTOMLEFT"/>
 						<Anchor point="BOTTOMLEFT" relativeKey="$parent.borderBottom" relativePoint="TOPLEFT"/>
 					</Anchors>
 				</Texture>
-				<Texture parentKey="borderRight" hidden="true">
+				<Texture parentKey="borderRight" roundLayoutToNearestPixel="true" hidden="true">
 					<Anchors>
 						<Anchor point="TOPRIGHT" relativeKey="$parent.borderTop" relativePoint="BOTTOMRIGHT"/>
 						<Anchor point="BOTTOMRIGHT" relativeKey="$parent.borderBottom" relativePoint="TOPRIGHT"/>
@@ -60,13 +63,13 @@
 				     `wordwrap="false"` has one to truncate against. These offsets are only what a
 				     frame shows before the appearance block lands: `NameStyle.ApplyLayout`
 				     re-anchors the name from `nameX`/`nameY`, which default to them. -->
-				<FontString parentKey="name" inherits="GameFontHighlightSmall" wordwrap="false" justifyH="LEFT">
+				<FontString parentKey="name" roundLayoutToNearestPixel="true" inherits="GameFontHighlightSmall" wordwrap="false" justifyH="LEFT">
 					<Anchors>
 						<Anchor point="TOPLEFT" x="3" y="-3"/>
 						<Anchor point="TOPRIGHT" x="-3" y="-3"/>
 					</Anchors>
 				</FontString>
-				<FontString parentKey="healthText" inherits="GameFontHighlightSmall" wordwrap="false" justifyH="CENTER">
+				<FontString parentKey="healthText" roundLayoutToNearestPixel="true" inherits="GameFontHighlightSmall" wordwrap="false" justifyH="CENTER">
 					<Anchors>
 						<Anchor point="CENTER"/>
 					</Anchors>
@@ -80,14 +83,14 @@
 
 				     ignoreParentAlpha so the target outline stays opaque on a frame the range fade
 				     has dimmed. -->
-				<Texture parentKey="selectionHighlight" atlas="RaidFrame-TargetFrame" ignoreParentAlpha="true" setAllPoints="true" alpha="0"/>
+				<Texture parentKey="selectionHighlight" roundLayoutToNearestPixel="true" atlas="RaidFrame-TargetFrame" ignoreParentAlpha="true" setAllPoints="true" alpha="0"/>
 			</Layer>
 		</Layers>
 		<Frames>
 			<!-- Inset by one pixel on every side, which is what makes the background read as a border
 			     while no solid border is set; UpdateBorder moves it in to meet one. The absorb overlay is created against this bar in Lua because it has to mirror the
 			     bar's orientation and fill direction. -->
-			<StatusBar parentKey="healthBar" useParentLevel="true">
+			<StatusBar parentKey="healthBar" roundLayoutToNearestPixel="true" useParentLevel="true">
 				<BarTexture atlas="RaidFrame-Hp-Fill" hWrapMode="REPEAT" vWrapMode="REPEAT" horizTile="true" vertTile="true"/>
 				<Anchors>
 					<Anchor point="TOPLEFT" x="1" y="-1"/>
@@ -99,7 +102,7 @@
 			     so the two never need to agree on a width. Reverse fill so the loss eats in from the
 			     right to meet it, and a 0..1 scale because UpdateTempMaxHealthLoss drives this with a
 			     *fraction* rather than the health bar's own scale. -->
-			<StatusBar parentKey="tempMaxHealthLoss" hidden="true" drawLayer="ARTWORK" useParentLevel="true" fillStyle="Reverse" minValue="0" maxValue="1">
+			<StatusBar parentKey="tempMaxHealthLoss" roundLayoutToNearestPixel="true" hidden="true" drawLayer="ARTWORK" useParentLevel="true" fillStyle="Reverse" minValue="0" maxValue="1">
 				<BarTexture atlas="_RaidFrame-Resource-Fill" hWrapMode="REPEAT" vWrapMode="REPEAT" horizTile="true" vertTile="true"/>
 				<Anchors>
 					<Anchor point="TOPLEFT" x="1" y="-1"/>
@@ -108,7 +111,7 @@
 			</StatusBar>
 			<!-- A LibSharedMedia border style's edge, drawn over the bar rather than inset against:
 			     those edge files are mostly transparent on the inside. UpdateBorder owns its level. -->
-			<Frame parentKey="borderBackdrop" inherits="BackdropTemplate" hidden="true" setAllPoints="true"/>
+			<Frame parentKey="borderBackdrop" roundLayoutToNearestPixel="true" inherits="BackdropTemplate" hidden="true" setAllPoints="true"/>
 		</Frames>
 		<Scripts>
 			<!-- Mainline/UnitFrame.lua:380-387. Both read `self.unit`, which the attribute mirror owns,

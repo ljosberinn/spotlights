@@ -9,8 +9,7 @@ local DeferralKey = Private.Enum.DeferralKey
 ---@type Frame?
 local container
 
---- The effective scale the spotlights' pixel-snapped anchors were last resolved against. See
---- `ApplyDisplay`.
+--- The effective scale the spotlights' border and bar insets were last rounded against. See `ApplyDisplay`.
 ---@type number?
 local anchoredScale
 
@@ -78,6 +77,7 @@ function Private.Container.Get()
 	end
 
 	container = CreateFrame("Frame", "SpotlightsContainer", UIParent)
+	container:SetRoundLayoutToNearestPixel(true)
 	container:SetSize(1, 1)
 	container:SetPoint("CENTER")
 
@@ -161,9 +161,10 @@ end
 --- header onwards. Both settings reach the spotlights by inheritance -- no header and no unit frame sets a
 --- scale or strata of its own.
 ---
---- **A scale change invalidates every pixel-snapped anchor under this frame**, because `PixelUtil` resolves
---- an offset against the effective scale at the moment of the call and stores a plain number. This path is
---- the only one a scale change takes, so the re-anchor has to happen here.
+--- **A scale change invalidates every spotlight's border thickness and bar insets.** Everything else re-rounds
+--- natively, but the flag rounds an offset under half a pixel to nothing while it keeps a size at one, so
+--- `UpdateBorder` rounds both in Lua and stores plain numbers resolved against the scale at the call. This
+--- path is the only one a scale change takes, so the re-run has to happen here.
 ---
 --- Compared against the last scale actually anchored under, rather than `position.scale` against
 --- `GetScale`, because `UI_SCALE_CHANGED` moves UIParent and leaves both sides of that comparison equal.
@@ -202,8 +203,8 @@ end
 ---@param point AnchorPoint
 ---@return number horizontal, number vertical
 local function Factors(point)
-	local horizontal = point:find("LEFT") and 0 or point:find("RIGHT") and 1 or 0.5
-	local vertical = point:find("BOTTOM") and 0 or point:find("TOP") and 1 or 0.5
+	local horizontal = point:contains("LEFT") and 0 or point:contains("RIGHT") and 1 or 0.5
+	local vertical = point:contains("BOTTOM") and 0 or point:contains("TOP") and 1 or 0.5
 
 	return horizontal, vertical
 end
@@ -295,7 +296,7 @@ local function Clamp(point, x, y)
 	local growth = GrowthPoint() or point
 
 	frame:ClearAllPoints()
-	PixelUtil.SetPoint(frame, growth, UIParent, point, x, y)
+	frame:SetPoint(growth, UIParent, point, x, y)
 
 	local left, bottom = frame:GetLeft(), frame:GetBottom()
 	local right, top = frame:GetRight(), frame:GetTop()
@@ -325,7 +326,7 @@ local function Clamp(point, x, y)
 
 	x, y = x + dx, y + dy
 
-	PixelUtil.SetPoint(frame, growth, UIParent, point, x, y)
+	frame:SetPoint(growth, UIParent, point, x, y)
 
 	return point, x, y
 end

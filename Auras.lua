@@ -484,7 +484,7 @@ local function ResetPool(pool)
 
 	-- Already the default state; refreshing every live display to say so would sweep the whole raid
 	-- for no change.
-	if not overrides or next(overrides) == nil then
+	if not overrides or table.isempty(overrides) then
 		return false
 	end
 
@@ -929,6 +929,7 @@ local function CreateBar(host, config, spellID, everything)
 
 	if config.showIcon or everything then
 		regions.barIcon = host:CreateTexture(nil, "ARTWORK")
+		regions.barIcon:SetRoundLayoutToNearestPixel(true)
 
 		-- The feature's own spell, which is what a preview wants -- it has no aura and no button. On a
 		-- live display `RegisterBar` hands the texture over and the container repaints it per aura, so
@@ -1001,7 +1002,7 @@ local function StyleBar(regions, anchor, config)
 
 			icon:SetPoint(side .. "LEFT")
 			icon:SetPoint(side .. "RIGHT")
-			PixelUtil.SetHeight(icon, anchor:GetWidth())
+			icon:SetHeight(anchor:GetWidth())
 
 			bar:SetPoint(opposite .. "LEFT")
 			bar:SetPoint(opposite .. "RIGHT")
@@ -1012,7 +1013,7 @@ local function StyleBar(regions, anchor, config)
 
 			icon:SetPoint("TOP" .. side)
 			icon:SetPoint("BOTTOM" .. side)
-			PixelUtil.SetWidth(icon, anchor:GetHeight())
+			icon:SetWidth(anchor:GetHeight())
 
 			bar:SetPoint("TOP" .. opposite)
 			bar:SetPoint("BOTTOM" .. opposite)
@@ -1613,8 +1614,8 @@ local function ApplyAnchor(anchor, parent, display, config, size, featureEnabled
 	local width, height = display.Size(config, size)
 
 	anchor:ClearAllPoints()
-	PixelUtil.SetPoint(anchor, point, parent, point, config.x, config.y)
-	PixelUtil.SetSize(anchor, math.max(width, 1), math.max(height, 1))
+	anchor:SetPoint(point, parent, point, config.x, config.y)
+	anchor:SetSize(math.max(width, 1), math.max(height, 1))
 	anchor:SetAlpha(config.alpha)
 	anchor:SetShown(featureEnabled and config.enabled)
 end
@@ -1718,6 +1719,10 @@ local function AttachContainer(child, feature, display, config, anchor)
 	---@type SpotlightsAuraContainer
 	local container = CreateFrame("AuraContainer", nil, anchor, "CustomAuraContainerTemplate")
 
+	-- Edit Mode would swap in Blizzard's placeholder auras, spell IDs 500-511, which no candidate filter of
+	-- ours accepts -- every display would sit empty until it closed.
+	container:SetEditModePreviewEnabled(false)
+
 	container:SetPoint("TOPLEFT")
 	container:SetPoint("BOTTOMRIGHT")
 
@@ -1730,9 +1735,11 @@ local function AttachContainer(child, feature, display, config, anchor)
 	local candidateIDs = feature.multiple and CandidateIDs(feature.Candidates()) or nil
 
 	local function InitializeFrame(button, spellID)
+		button:SetRoundLayoutToNearestPixel(true)
+
 		if feature.multiple then
 			local width, height = display.Size(config, Private.FrameConfig.Get())
-			PixelUtil.SetSize(button, math.max(width, 1), math.max(height, 1))
+			button:SetSize(math.max(width, 1), math.max(height, 1))
 		else
 			button:SetPoint("TOPLEFT", container, "TOPLEFT")
 			button:SetPoint("BOTTOMRIGHT", container, "BOTTOMRIGHT")
@@ -1829,6 +1836,7 @@ end
 ---@return SpotlightsAuraDisplay
 local function CreateDisplay(child, feature, display, config)
 	local anchor = CreateFrame("Frame", nil, child)
+	anchor:SetRoundLayoutToNearestPixel(true)
 
 	-- Enabled unconditionally, because nothing builds a display for a feature that is switched off:
 	-- `EnsureDisplays` is the only caller and gates on it before it gets here.
@@ -2102,6 +2110,7 @@ function Private.Auras.CreatePreviews(parent, featureKey, displayKey)
 
 					if DrawsDisplay(feature, display) and (not displayKey or display.key == displayKey) then
 						local anchor = CreateFrame("Frame", nil, parent)
+						anchor:SetRoundLayoutToNearestPixel(true)
 
 						previews[#previews + 1] = {
 							anchor = anchor,
@@ -2183,8 +2192,8 @@ function Private.Auras.StylePreviews(previews)
 					local gap = config.gap or 0
 
 					preview.anchor:ClearAllPoints()
-					PixelUtil.SetPoint(preview.anchor, grow.chainPoint, anchoredTo, grow.chainRelativePoint,
-						gap * grow.chainX, gap * grow.chainY)
+					preview.anchor:SetPoint(grow.chainPoint, anchoredTo, grow.chainRelativePoint, gap * grow.chainX,
+						gap * grow.chainY)
 				end
 
 				previous[feature.key] = preview.anchor
@@ -2235,7 +2244,7 @@ function Private.Auras.Apply()
 	-- After the free pass, and only for a batch the debounce has closed. `ApplyChild` can itself
 	-- queue a rebuild -- a resize invalidating an inline icon -- so draining first would act on a
 	-- list this call is still adding to.
-	if not settled or not next(pending) then
+	if not settled or table.isempty(pending) then
 		return
 	end
 
@@ -2505,7 +2514,7 @@ end
 --- Not routed through `SetSetting`: this sits a level above the bar and the icon and has no frozen half
 --- -- off is a `SetShown` on anchors that already exist, on is a build `EnsureDisplays` was going to do
 --- anyway. So nothing here abandons a frame, and **nothing here arms the reload prompt**, which is what
---- makes the dot on the category strip free to click.
+--- makes each category's Enabled checkbox free to click.
 ---@param featureKey SpotlightsAuraFeatureKey
 ---@param enabled boolean
 ---@return boolean applied
@@ -2754,7 +2763,7 @@ end
 --- the same window prompts for a rebuild that will find nothing.
 ---@return boolean
 function Private.Auras.NeedsReload()
-	return reloadPending or next(pending) ~= nil
+	return reloadPending or not table.isempty(pending)
 end
 
 --- Records that the user has been asked and answered. Called for **both** answers, so the code path

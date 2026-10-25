@@ -38,6 +38,7 @@ local function Acquire(index)
 	end
 
 	local host = CreateFrame("Frame", nil, Private.Mover.GetOverlay())
+	host:SetRoundLayoutToNearestPixel(true)
 
 	cell = { host = host, previews = Private.Auras.CreatePreviews(host) }
 	cells[index] = cell
@@ -72,8 +73,8 @@ function Private.AuraPreview.Place(index, point, x, y, config)
 	local overlay = Private.Mover.GetOverlay()
 
 	cell.host:ClearAllPoints()
-	PixelUtil.SetSize(cell.host, config.frameWidth, config.frameHeight)
-	PixelUtil.SetPoint(cell.host, point, overlay, point, x, y)
+	cell.host:SetSize(config.frameWidth, config.frameHeight)
+	cell.host:SetPoint(point, overlay, point, x, y)
 	cell.host:Show()
 
 	Private.Auras.StylePreviews(cell.previews)

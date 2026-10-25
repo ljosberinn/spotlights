@@ -183,6 +183,9 @@ end
 --- `enabled` is re-read on every `Refresh`: a toggle that does nothing in the current state dims rather
 --- than hides, so the row stays put and no relayout is owed. The caption dims with it, since a greyed
 --- box beside a bright label reads as art. Whoever owns the state it gates has to refresh the tree.
+---
+--- The box is the Settings panel's (`MinimalCheckboxTemplate`) at its own 30x29, which overhangs the row by
+--- a pixel or two each way, as it does in a 26-tall Settings row.
 ---@param parent Frame
 ---@param label string
 ---@param get fun(): boolean
@@ -198,13 +201,11 @@ function Private.Controls.Checkbox(parent, label, get, set, enabled, full, label
 	row.span = full or nil
 
 	local caption = CreateLabel(row, label, tooltip)
-	local check = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
-
-	check:SetSize(ROW_HEIGHT, ROW_HEIGHT)
+	local check = CreateFrame("CheckButton", nil, row, "MinimalCheckboxTemplate")
 
 	-- The box carries the description as well as the caption: a checkbox is aimed at rather than read, so
-	-- the words are not where the cursor goes. Free to take both scripts -- `UICheckButtonTemplate` sets
-	-- none of its own (`CheckButtonTemplates.xml:50-64`).
+	-- the words are not where the cursor goes. Free to take both scripts -- `MinimalCheckboxTemplate` sets
+	-- none of its own (`CheckButtonTemplates.xml:66-76`).
 	if tooltip then
 		-- A dimmed box is exactly when the description is worth reading, and a `Button` drops its motion
 		-- scripts while disabled unless told otherwise.
@@ -356,7 +357,7 @@ function Private.Controls.Slider(parent, label, minimum, maximum, step, get, set
 		local value = tonumber(self:GetText())
 
 		if value then
-			slider:SetValue(math.min(math.max(value, minimumValue), maximumValue))
+			slider:SetValue(math.clamp(value, minimumValue, maximumValue))
 		end
 
 		self:ClearFocus()
@@ -747,7 +748,8 @@ function Private.Controls.ColorSwatch(parent, label, get, set, enabled, full, la
 	-- enough to clear the bevel wastes half the swatch and anything less leaves gold showing.
 	local button = CreateFrame("Button", nil, row)
 
-	PixelUtil.SetHeight(button, BOX_HEIGHT)
+	button:SetRoundLayoutToNearestPixel(true)
+	button:SetHeight(BOX_HEIGHT)
 
 	local edge = button:CreateTexture(nil, "BORDER")
 
@@ -758,14 +760,16 @@ function Private.Controls.ColorSwatch(parent, label, get, set, enabled, full, la
 	-- mid-pixel rasterises to nothing on that side.
 	local innerEdge = button:CreateTexture(nil, "ARTWORK")
 
-	PixelUtil.SetPoint(innerEdge, "TOPLEFT", button, "TOPLEFT", SWATCH_BORDER, -SWATCH_BORDER)
-	PixelUtil.SetPoint(innerEdge, "BOTTOMRIGHT", button, "BOTTOMRIGHT", -SWATCH_BORDER, SWATCH_BORDER)
+	innerEdge:SetRoundLayoutToNearestPixel(true)
+	innerEdge:SetPoint("TOPLEFT", button, "TOPLEFT", SWATCH_BORDER, -SWATCH_BORDER)
+	innerEdge:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -SWATCH_BORDER, SWATCH_BORDER)
 	innerEdge:SetColorTexture(BLACK_FONT_COLOR:GetRGB())
 
 	local swatch = button:CreateTexture(nil, "OVERLAY")
 
-	PixelUtil.SetPoint(swatch, "TOPLEFT", innerEdge, "TOPLEFT", SWATCH_BORDER, -SWATCH_BORDER)
-	PixelUtil.SetPoint(swatch, "BOTTOMRIGHT", innerEdge, "BOTTOMRIGHT", -SWATCH_BORDER, SWATCH_BORDER)
+	swatch:SetRoundLayoutToNearestPixel(true)
+	swatch:SetPoint("TOPLEFT", innerEdge, "TOPLEFT", SWATCH_BORDER, -SWATCH_BORDER)
+	swatch:SetPoint("BOTTOMRIGHT", innerEdge, "BOTTOMRIGHT", -SWATCH_BORDER, SWATCH_BORDER)
 
 	-- The outer edge turning gold *is* the hover state, as `ColorSwatchMixin:OnEnter` does it. A separate
 	-- highlight texture would sit over the colour and misreport it.
@@ -838,8 +842,8 @@ function Private.Controls.ColorSwatch(parent, label, get, set, enabled, full, la
 		-- column line up. The row still *occupies* only its column: the overhang is art, and the gutter it
 		-- reaches into is 26 wide.
 		button:ClearAllPoints()
-		PixelUtil.SetPoint(button, "LEFT", self, "LEFT", column - SWATCH_OVERHANG, 0)
-		PixelUtil.SetWidth(button, control + SWATCH_OVERHANG * 2)
+		button:SetPoint("LEFT", self, "LEFT", column - SWATCH_OVERHANG, 0)
+		button:SetWidth(control + SWATCH_OVERHANG * 2)
 
 		return ROW_HEIGHT
 	end

@@ -170,6 +170,8 @@ local function CreateHeader(index, parent, nameList, width, height)
 		"SecureRaidGroupHeaderTemplate"
 	)
 
+	header:SetRoundLayoutToNearestPixel(true)
+
 	Private.SlotHeader.ApplyAttributes(header, nameList, width, height)
 
 	-- OnShow is wired straight to SecureGroupHeader_Update in XML, which creates child1.

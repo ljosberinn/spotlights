@@ -168,7 +168,7 @@ function Private.Preview.Fill(frame, index, slot, dim, class)
 		Private.NameStyle.ApplyStrata(frame, appearance)
 		frame.healthText:SetFont(Private.Media.Font(appearance.healthTextFont), appearance.healthTextFontSize, "OUTLINE")
 		frame.healthText:ClearAllPoints()
-		PixelUtil.SetPoint(frame.healthText, appearance.healthTextPoint, frame, appearance.healthTextPoint,
+		frame.healthText:SetPoint(appearance.healthTextPoint, frame, appearance.healthTextPoint,
 			appearance.healthTextX, appearance.healthTextY)
 		frame.healthText:SetJustifyH("CENTER")
 		frame.healthText:SetShown(appearance.healthTextEnabled)
@@ -227,7 +227,7 @@ function Private.Preview.Place(index, point, x, y, config, slot)
 	-- rectangles identical, so a preview lands exactly where its spotlight will.
 	preview:ClearAllPoints()
 	preview:SetSize(config.frameWidth, config.frameHeight)
-	PixelUtil.SetPoint(preview, point, overlay, point, x, y)
+	preview:SetPoint(point, overlay, point, x, y)
 
 	Private.Preview.Fill(preview, index, slot, GRID_DIM)
 

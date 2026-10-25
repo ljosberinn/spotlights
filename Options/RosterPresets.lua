@@ -177,7 +177,7 @@ local function PromptName(slots, selecting, suggested)
 	--- `GameDialogMixin`, which the annotations do not describe.
 	---@param dialog any
 	local function Accept(dialog)
-		local name = strtrim(dialog:GetEditBox():GetText())
+		local name = string.trim(dialog:GetEditBox():GetText())
 
 		if name == "" then
 			return
@@ -301,7 +301,7 @@ end
 --- library and a preset stored under a name nobody was shown is one nobody can find. Nothing is applied to
 --- the grid -- an import fills the shelf; selecting is what puts a preset in play.
 local function DoImport()
-	local preset, reason = Private.Profile.ImportPresetString(strtrim(pending))
+	local preset, reason = Private.Profile.ImportPresetString(string.trim(pending))
 
 	if not preset then
 		ShowImportError(reason)
@@ -328,7 +328,7 @@ function Private.RosterPresets.Build(page)
 	local L = Private.L.Settings
 
 	local function HasPresets()
-		return next(Presets()) ~= nil
+		return not table.isempty(Presets())
 	end
 
 	local function HasSlots()
