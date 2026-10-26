@@ -37,9 +37,9 @@ local ANY_FILTER = AuraUtil.CreateFilterString(AuraUtil.AuraFilters.Helpful)
 ---@alias SpotlightsAuraInvalidation "live" | "rebuild"
 
 --- One kind of display, and the only place the difference between a bar, an icon, a square, a bare
---- countdown and a health-bar tint lives.
+--- countdown, a health-bar tint and a frame glow lives.
 ---
---- `config` is loose because the five kinds are configured by different shapes. The verbs are split
+--- `config` is loose because the six kinds are configured by different shapes. The verbs are split
 --- because a live display runs `Create`/`Style`/`Register` once and is then untouchable, while a
 --- preview runs `Style` on every settings change -- sharing it is what makes a preview show what will
 --- ship. `Create`'s `frame` is read only by `frameColor`, and is nilable because the grid preview's
@@ -54,6 +54,7 @@ local ANY_FILTER = AuraUtil.CreateFilterString(AuraUtil.AuraFilters.Helpful)
 ---@field Size fun(config: table, size: SpotlightsChildSize): number, number
 ---@field Invalidation fun(feature: SpotlightsAuraFeature, field: string): SpotlightsAuraInvalidation which pass one of this kind's settings needs
 ---@field Invalidated? fun(config: table, record: SpotlightsAuraDisplay): boolean whether a resize has broken something built-in
+---@field single? boolean one per category however many of its auras are up, so a pooled feature builds it as a slot
 
 ---@type table<integer, table<integer, boolean>>
 local COOLDOWNS = {
@@ -1240,6 +1241,81 @@ local function StyleFrameColor(regions, _, config)
 	tint:SetColorTexture(config.r, config.g, config.b)
 end
 
+local GLOW_DASH_TEXTURE = [[Interface\AddOns\Spotlights\Media\PixelGlowDash.tga]]
+local GLOW_DASH_COUNT = 8
+local GLOW_SIDES = { "Top", "Right", "Bottom", "Left" }
+
+--- Dashes running around the whole spotlight. Filling the host is filling the frame: this kind's `Size`
+--- is the spotlight's own, so its anchor and the button pinned inside it share the frame's rect.
+---@param host Frame|table
+---@return SpotlightsAuraRegions
+local function CreateFrameGlow(host)
+	local glow = CreateFrame("Frame", nil, host, "SpotlightsAuraFrameGlowTemplate") --[[@as SpotlightsAuraFrameGlow]]
+
+	glow:SetRoundLayoutToNearestPixel(true)
+	glow:SetAllPoints(host)
+
+	for i = 1, #GLOW_SIDES do
+		glow[GLOW_SIDES[i]]:SetTexture(GLOW_DASH_TEXTURE, "REPEAT", "CLAMP", "NEAREST")
+	end
+
+	return { glow = glow }
+end
+
+--- The texcoords are rewritten only when the size changes. The group translates them, so a rewrite has to
+--- stop it, and a preview restyled on every frame of a colour drag would otherwise keep jumping the dashes
+--- back to the corner.
+---@param regions SpotlightsAuraRegions
+---@param anchor Frame
+---@param config SpotlightsAuraFrameGlowConfig
+local function StyleFrameGlow(regions, anchor, config)
+	local glow = regions.glow --[[@as SpotlightsAuraFrameGlow]]
+
+	for i = 1, #GLOW_SIDES do
+		glow[GLOW_SIDES[i]]:SetVertexColor(config.r, config.g, config.b)
+	end
+
+	local width, height = anchor:GetSize()
+
+	if regions.glowWidth == width and regions.glowHeight == height then
+		return
+	end
+
+	regions.glowWidth, regions.glowHeight = width, height
+
+	glow.Animation:Stop()
+
+	-- `u` runs clockwise from the top-left corner in dash spacings, so the pattern continues around corners.
+	local spacing = 2 * (width + height) / GLOW_DASH_COUNT
+	local topRight = width / spacing
+	local bottomRight = (width + height) / spacing
+	local bottomLeft = (2 * width + height) / spacing
+
+	glow.Top:SetTexCoord(0, topRight, 0, 1)
+	glow.Right:SetTexCoord(topRight, 0, bottomRight, 0, topRight, 1, bottomRight, 1)
+	glow.Bottom:SetTexCoord(bottomLeft, bottomRight, 0, 1)
+	glow.Left:SetTexCoord(GLOW_DASH_COUNT, 0, bottomLeft, 0, GLOW_DASH_COUNT, 1, bottomLeft, 1)
+end
+
+--- Started here, before the button locks, rather than handed to `AddAuraShownAnimation`, which refuses a
+--- template's group from addon code. Started now, it runs for the frame's lifetime and is seen only while
+--- the button, and so the aura, is shown.
+---@param _ table the aura button
+---@param regions SpotlightsAuraRegions
+local function RegisterFrameGlow(_, regions)
+	regions.glow.Animation:Play()
+end
+
+--- Guarded, because this runs on every settings change and a restart would jump the dashes.
+---@param regions SpotlightsAuraRegions
+local function PreviewFrameGlow(regions)
+	local animation = regions.glow.Animation
+
+	if not animation:IsPlaying() then
+		animation:Play()
+	end
+end
+
 --- What every kind's anchor carries, and therefore what stays live on all five: the anchor is a plain
 --- frame of ours above the aura button's access restriction, so everything `ApplyAnchor` writes reaches
 --- a built display for free.
@@ -1372,7 +1448,7 @@ local TEXT_WIDTH_PER_POINT, TEXT_HEIGHT_PER_POINT = 4, 1.4
 --- because `SetSize(0, 0)` means "take your size from your anchors".
 local FRAME_COLOR_ANCHOR_SIZE = 1
 
---- The five displays a feature can draw. `Size` is a function rather than a flag because the kinds have
+--- The six displays a feature can draw. `Size` is a function rather than a flag because the kinds have
 --- different config shapes.
 ---@type SpotlightsAuraKind[]
 local DISPLAYS = {
@@ -1500,11 +1576,37 @@ local DISPLAYS = {
 		-- No `Invalidated`. The drawn region is anchored to the health bar rather than sized against the
 		-- anchor, so a spotlight resize moves it rather than breaking it.
 	},
+	{
+		key = "frameGlow",
+		single = true,
+		Create = CreateFrameGlow,
+		Style = StyleFrameGlow,
+		Register = RegisterFrameGlow,
+		Preview = PreviewFrameGlow,
+
+		-- No `PreviewArt`: a glow draws no spell art.
+
+		-- The spotlight's own size, so with the shipped `CENTER` and no offset the anchor is the frame.
+		Size = function(_, size)
+			return size.frameWidth, size.frameHeight
+		end,
+
+		-- The tint's classification exactly: the colour is frozen below the button, the rest is the anchor's.
+		Invalidation = function(_, field)
+			return FRAME_COLOR_INVALIDATION[field] or "rebuild"
+		end,
+
+		-- The dashes are spaced for the size their texcoords were written at.
+		Invalidated = function(_, record)
+			return record.builtWidth ~= record.anchor:GetWidth() or record.builtHeight ~= record.anchor:GetHeight()
+		end,
+	},
 }
 
---- A pooled feature draws icons only. A column of duration bars over one spotlight is unreadable, and
---- the square, the bare countdown and the tint carry no spell art -- several side by side would say only
---- that *some* number of things are up, where a pooled feature is about which cooldown landed.
+--- A pooled feature draws icons, plus the kinds marked `single`, which it builds once for the whole pool.
+--- A column of duration bars over one spotlight is unreadable, and the square, the bare countdown and the
+--- tint carry no spell art -- several side by side would say only that *some* number of things are up,
+--- where a pooled feature is about which cooldown landed.
 ---
 --- The tint is the strongest case: two pooled cooldowns tinting the same bar would stack two colours
 --- with nothing able to arbitrate, since neither display knows the other is showing.
@@ -1512,7 +1614,17 @@ local DISPLAYS = {
 ---@param display SpotlightsAuraKind
 ---@return boolean
 local function DrawsDisplay(feature, display)
-	return not feature.multiple or display.key == "icon"
+	return not feature.multiple or display.key == "icon" or display.single == true
+end
+
+--- Whether a display is laid out as a pool, one button per aura. A pooled feature's `single` kinds are not:
+--- one slot holding the whole candidate set shows one button while any of them is up, where a group's
+--- buttons come from a pool and are handed out per aura, so none of them is reliably the first.
+---@param feature SpotlightsAuraFeature
+---@param display SpotlightsAuraKind
+---@return boolean
+local function IsPooledDisplay(feature, display)
+	return feature.multiple and not display.single
 end
 
 --- Answers for a kind a feature does not draw: this is the lookup, not the rule. `DrawsDisplay` is the
@@ -1670,12 +1782,13 @@ local function AttachContainer(child, feature, display, config, anchor)
 		container:SetUnit(child.unit)
 	end
 
-	local candidateIDs = feature.multiple and CandidateIDs(feature.Candidates()) or nil
+	local pooled = IsPooledDisplay(feature, display)
+	local candidateIDs = pooled and CandidateIDs(feature.Candidates()) or nil
 
 	local function InitializeFrame(button, spellID)
 		button:SetRoundLayoutToNearestPixel(true)
 
-		if feature.multiple then
+		if pooled then
 			local width, height = display.Size(config, Private.FrameConfig.Get())
 			button:SetSize(math.max(width, 1), math.max(height, 1))
 		else
@@ -1697,7 +1810,7 @@ local function AttachContainer(child, feature, display, config, anchor)
 		display.Register(button, regions)
 	end
 
-	if feature.multiple then
+	if pooled then
 		ApplyContainerFlow(container, config.growDirection)
 
 		container:AddAuraGroup(feature.key, feature.filter, {
@@ -2012,7 +2125,7 @@ end
 --- something that already exists. Live displays cannot afford that; a preview is bounded by the visible
 --- grid and thrown away by a reload.
 ---
---- A pooled feature gets `MAX_PREVIEW_AURAS` items **whatever its pool currently holds**, with which
+--- A pooled display gets `MAX_PREVIEW_AURAS` items **whatever its pool currently holds**, with which
 --- spell each shows left to `StylePreviews`. Sizing the set to the pool is what made a preview go stale
 --- -- a spell switched on afterwards had no item to appear in.
 ---@param parent Frame|SpotlightsUnitFrame a real spotlight in the panel's panes, a stand-in in the grid
@@ -2045,7 +2158,8 @@ function Private.Auras.CreatePreviews(parent, featureKey, displayKey)
 				for j = 1, #DISPLAYS do
 					local display = DISPLAYS[j]
 
-					if DrawsDisplay(feature, display) and (not displayKey or display.key == displayKey) then
+					if DrawsDisplay(feature, display) and (not displayKey or display.key == displayKey)
+						and (slotIndex == 1 or IsPooledDisplay(feature, display)) then
 						local anchor = CreateFrame("Frame", nil, parent)
 						anchor:SetRoundLayoutToNearestPixel(true)
 
@@ -2089,8 +2203,8 @@ function Private.Auras.StylePreviews(previews)
 	local size = Private.FrameConfig.Get()
 
 	-- Both per call: the candidate set is walked once however many items read from it, and `previous`
-	-- carries the item the next one hangs off. A pooled feature draws one kind of display, so the
-	-- feature key alone identifies a chain.
+	-- carries the item the next one hangs off. A pooled feature has one pooled display, so the feature
+	-- key alone identifies a chain.
 	---@type table<string, integer[]>
 	local candidates = {}
 
@@ -2121,7 +2235,12 @@ function Private.Auras.StylePreviews(previews)
 			auras[feature.key].enabled)
 
 		if feature.multiple then
-			if spellID then
+			if not spellID then
+				-- A pool shorter than `MAX_PREVIEW_AURAS` leaves the tail items with no spell to be
+				-- about; an empty one hides them all, which is the honest preview of a category
+				-- tracking nothing.
+				preview.anchor:Hide()
+			elseif IsPooledDisplay(feature, display) then
 				local anchoredTo = previous[feature.key]
 
 				if anchoredTo then
@@ -2134,11 +2253,6 @@ function Private.Auras.StylePreviews(previews)
 				end
 
 				previous[feature.key] = preview.anchor
-			else
-				-- A pool shorter than `MAX_PREVIEW_AURAS` leaves the tail items with no spell to be
-				-- about; an empty one hides them all, which is the honest preview of a category
-				-- tracking nothing.
-				preview.anchor:Hide()
 			end
 		end
 
@@ -2515,8 +2629,8 @@ end
 --- See docs/notes/AuraRebuildVsFilters.md for the rejected `RequestRebuild` path.
 function Private.Auras.RefreshCandidates()
 	Private.SlotHeader.ForEachChild(function(child)
-		ForEachDisplay(child, function(record, feature)
-			if feature.multiple then
+		ForEachDisplay(child, function(record, feature, display)
+			if IsPooledDisplay(feature, display) then
 				local candidates = feature.Candidates()
 
 				record.container:SetAuraGroupCandidateFilters(feature.key, { includeSpellIDs = candidates })
@@ -2525,7 +2639,8 @@ function Private.Auras.RefreshCandidates()
 				return
 			end
 
-			if feature.key ~= SENSE_POWER_KEY then
+			-- A pooled feature's `single` kinds hold its whole pool in one slot, as Sense Power's does.
+			if feature.key ~= SENSE_POWER_KEY and not feature.multiple then
 				return
 			end
 

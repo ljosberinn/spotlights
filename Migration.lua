@@ -372,6 +372,31 @@ local function DefaultAuraFrameColor(r, g, b)
 	}
 end
 
+--- One aura display drawn as dashes around the spotlight. The same colour for every feature, unlike the
+--- other kinds: a glow is told apart by being there, not by its colour.
+---
+--- `CENTER` with no offset is load-bearing rather than a default: the anchor is sized to the spotlight, so
+--- only this placement makes it the spotlight's rect, and the panel offers no control to move it.
+---@return SpotlightsAuraFrameGlowConfig
+local function DefaultAuraFrameGlow()
+	return {
+		enabled = false,
+		r = 242 / 255,
+		g = 242 / 255,
+		b = 82 / 255,
+		alpha = 1,
+		point = "CENTER",
+		x = 0,
+		y = 0,
+		borderTexture = BORDER_NONE,
+		borderSize = 4,
+		borderR = 0,
+		borderG = 0,
+		borderB = 0,
+		borderA = 1,
+	}
+end
+
 --- One feature's set of displays at their shipped values, all freshly built, so a reset cannot alias one
 --- feature's block onto another's.
 ---
@@ -396,6 +421,7 @@ function Private.Migration.DefaultAuraFeature(featureKey)
 			square = DefaultAuraSquare("TOPRIGHT", 0.2, 0.8, 1),
 			text = DefaultAuraText("BOTTOMLEFT", 0.2, 0.8, 1),
 			frameColor = DefaultAuraFrameColor(0.2, 0.8, 1),
+			frameGlow = DefaultAuraFrameGlow(),
 		}
 	end
 
@@ -410,6 +436,7 @@ function Private.Migration.DefaultAuraFeature(featureKey)
 			square = DefaultAuraSquare("TOPRIGHT", 1, 1, 1),
 			text = DefaultAuraText("BOTTOMLEFT", 1, 1, 1),
 			frameColor = DefaultAuraFrameColor(1, 1, 1),
+			frameGlow = DefaultAuraFrameGlow(),
 		}
 	end
 
@@ -420,6 +447,7 @@ function Private.Migration.DefaultAuraFeature(featureKey)
 		square = DefaultAuraSquare("TOPRIGHT", 1, 1, 0),
 		text = DefaultAuraText("BOTTOMLEFT", 1, 1, 0),
 		frameColor = DefaultAuraFrameColor(1, 1, 0),
+		frameGlow = DefaultAuraFrameGlow(),
 	}
 end
 

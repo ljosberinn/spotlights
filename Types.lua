@@ -275,6 +275,7 @@
 ---@field square SpotlightsAuraSquareConfig
 ---@field text SpotlightsAuraTextConfig
 ---@field frameColor SpotlightsAuraFrameColorConfig
+---@field frameGlow SpotlightsAuraFrameGlowConfig
 
 --- What every aura display shares, and the half of it that costs nothing to change.
 ---
@@ -412,6 +413,16 @@
 --- and defaulted because `SetSetting` refuses a write to a field the block lacks, and the panel offers
 --- no control for any of them.
 ---@class SpotlightsAuraFrameColorConfig : SpotlightsAuraDisplayConfig
+---@field r number
+---@field g number
+---@field b number
+
+--- Dashes running around the whole spotlight while the aura is up.
+---
+--- `r`/`g`/`b` are build-time, like the tint's: the dashes are textures below the aura button. `alpha` is
+--- the anchor's and stays live. `point`, `x`, `y` and the border fields are stored for `SetSetting`'s sake
+--- and offered nowhere: the shipped `CENTER` with no offset is what makes the anchor the spotlight's rect.
+---@class SpotlightsAuraFrameGlowConfig : SpotlightsAuraDisplayConfig
 ---@field r number
 ---@field g number
 ---@field b number
@@ -579,6 +590,17 @@
 ---@field swipe Cooldown?
 ---@field text FontString?
 ---@field border SpotlightsAuraBorder?
+---@field glow SpotlightsAuraFrameGlow?
+---@field glowWidth number? the size the glow's texcoords were last written for
+---@field glowHeight number?
+
+--- A `Frame` from `SpotlightsAuraFrameGlowTemplate`, whose parentKeys the annotations do not know.
+---@class SpotlightsAuraFrameGlow : Frame
+---@field Top Texture
+---@field Right Texture
+---@field Bottom Texture
+---@field Left Texture
+---@field Animation AnimationGroup
 
 --- A `Frame` inheriting `BackdropTemplate`, which the annotations model as two unrelated types
 --- rather than as a frame that gained two methods. Declared here so a border can be both hidden and
