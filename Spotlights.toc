@@ -67,3 +67,4 @@ Options\ImportExport.lua
 SpotlightsUnitFrameMixin.lua
 
 Templates\SpotlightsUnitFrameTemplate.xml
+Templates\SpotlightsAuraFrameGlowTemplate.xml

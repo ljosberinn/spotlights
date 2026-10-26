@@ -50,7 +50,7 @@ Private.Enum.AuraGrowDirection = {
 ---| "absValue"
 ---| "absValueAbbreviated"
 
----@alias SpotlightsAuraDisplayKey "bar" | "icon" | "square" | "text" | "frameColor"
+---@alias SpotlightsAuraDisplayKey "bar" | "icon" | "square" | "text" | "frameColor" | "frameGlow"
 ---@alias SpotlightsAuraFeatureKey "prescience" | "shiftingSands" | "sensePower" | "cooldownAuras" | "defensiveAuras" | "customAuras"
 
 --- Work deferred past combat, and the throttle keys used out of combat. Both queues drain through

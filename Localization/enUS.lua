@@ -317,6 +317,16 @@ L.Settings.AuraFrameColorNote =
 -- The shortest of the five summaries, because opacity is all this display has.
 L.Settings.AuraSummaryFrameColor = "%d%% opacity"
 
+-- The sixth display: dashes around the whole spotlight while the aura is up. Its rect is the frame's, so
+-- like the tint it has no size, anchor or border to offer, and its summary reuses the tint's.
+L.Settings.AuraFrameGlow = "Frame Glow"
+L.Settings.AuraFrameGlowColor = "Glow Color"
+
+-- Shown when a second category's glow is switched on. Revert switches the one just turned on back off.
+L.Settings.AuraFrameGlowOverlap = "Multiple glows are active and may overlap."
+L.Settings.AuraFrameGlowAcknowledge = "Acknowledged"
+L.Settings.AuraFrameGlowRevert = "Revert"
+
 L.Settings.AuraEnabled = "Show"
 L.Settings.AuraColor = "Bar Color"
 L.Settings.AuraAlpha = "Opacity"

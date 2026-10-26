@@ -14,3 +14,4 @@ v1.2.1
 - every checkbox in the settings window now uses the same box as the game's own settings
 - spotlights keep showing their units' real auras while Edit Mode is open
 - spotlights, their aura displays and the grid previews now stay on whole pixels when the frame scale or the UI scale changes
+- spotlights can glow around their frame while an aura is up, set per category under Auras > Appearance > Frame Glow, with a warning when more than one glow is on
