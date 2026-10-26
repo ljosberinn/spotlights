@@ -230,6 +230,8 @@ L.Settings.AuraFrameColorColor = "Colore della barra della salute"
 L.Settings.AuraFrameColorNote =
 "Colora la barra della salute mentre l'aura è attiva. Alla massima opacità il colore della classe resta nascosto finché l'aura non svanisce; abbassala per lasciar trasparire il colore della classe. Disegnato sopra il nome, a meno che non alzi lo strato del nome."
 L.Settings.AuraSummaryFrameColor = "%d%% di opacità"
+L.Settings.AuraFrameGlow = "Frame Glow"
+L.Settings.AuraFrameGlowColor = "Glow Color"
 L.Settings.AuraEnabled = "Mostra"
 L.Settings.AuraColor = "Colore barra"
 L.Settings.AuraAlpha = "Opacità"

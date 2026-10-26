@@ -229,6 +229,8 @@ L.Settings.AuraFrameColorColor = "Цвет полосы здоровья"
 L.Settings.AuraFrameColorNote =
 "Окрашивает полосу здоровья, пока аура активна. При полной непрозрачности цвет класса скрыт до окончания ауры; уменьшите её, чтобы цвет класса просматривался. Рисуется поверх имени, если не поднять слой имени."
 L.Settings.AuraSummaryFrameColor = "непрозрачность %d%%"
+L.Settings.AuraFrameGlow = "Frame Glow"
+L.Settings.AuraFrameGlowColor = "Glow Color"
 L.Settings.AuraEnabled = "Показывать"
 L.Settings.AuraColor = "Цвет полосы"
 L.Settings.AuraAlpha = "Непрозрачность"

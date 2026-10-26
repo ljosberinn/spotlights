@@ -225,6 +225,8 @@ L.Settings.AuraFrameColorColor = "生命条颜色"
 L.Settings.AuraFrameColorNote =
 "光环存在期间为生命条着色。不透明度为满时，职业颜色会被完全遮住，直到光环消失；降低不透明度可让职业颜色透出。除非提高名称层级，否则会绘制在名称之上。"
 L.Settings.AuraSummaryFrameColor = "不透明度 %d%%"
+L.Settings.AuraFrameGlow = "Frame Glow"
+L.Settings.AuraFrameGlowColor = "Glow Color"
 L.Settings.AuraEnabled = "显示"
 L.Settings.AuraColor = "状态条颜色"
 L.Settings.AuraAlpha = "不透明度"

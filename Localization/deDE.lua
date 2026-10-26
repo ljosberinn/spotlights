@@ -231,6 +231,8 @@ L.Settings.AuraFrameColorColor = "Farbe der Lebensleiste"
 L.Settings.AuraFrameColorNote =
 "Färbt die Lebensleiste, solange die Aura aktiv ist. Bei voller Deckkraft bleibt die Klassenfarbe verborgen, bis die Aura ausläuft; verringere sie, damit die Klassenfarbe durchscheint. Wird über dem Namen gezeichnet, sofern die Namensebene nicht erhöht wird."
 L.Settings.AuraSummaryFrameColor = "%d%% Deckkraft"
+L.Settings.AuraFrameGlow = "Frame Glow"
+L.Settings.AuraFrameGlowColor = "Glow Color"
 L.Settings.AuraEnabled = "Anzeigen"
 L.Settings.AuraColor = "Balkenfarbe"
 L.Settings.AuraAlpha = "Deckkraft"

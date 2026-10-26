@@ -231,6 +231,8 @@ L.Settings.AuraFrameColorColor = "Color de la barra de vida"
 L.Settings.AuraFrameColorNote =
 "Colorea la barra de vida mientras el aura está activa. Con opacidad máxima el color de clase queda oculto hasta que el aura desaparece; redúcela para que el color de clase se transparente. Se dibuja sobre el nombre a menos que subas el estrato del nombre."
 L.Settings.AuraSummaryFrameColor = "%d%% de opacidad"
+L.Settings.AuraFrameGlow = "Frame Glow"
+L.Settings.AuraFrameGlowColor = "Glow Color"
 L.Settings.AuraEnabled = "Mostrar"
 L.Settings.AuraColor = "Color de la barra"
 L.Settings.AuraAlpha = "Opacidad"

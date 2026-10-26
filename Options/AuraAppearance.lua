@@ -69,10 +69,10 @@ local ActiveName
 local sections = {}
 
 --- Which display each entry of `sections` is about, by position. **The two are built apart and have to
---- stay in step** -- `Build` assembles `sections` from five locals, and `SyncSections` pairs them off
+--- stay in step** -- `Build` assembles `sections` from six locals, and `SyncSections` pairs them off
 --- against this.
 ---@type SpotlightsAuraDisplayKey[]
-local SECTION_DISPLAY_KEYS = { "icon", "bar", "square", "text", "frameColor" }
+local SECTION_DISPLAY_KEYS = { "icon", "bar", "square", "text", "frameColor", "frameGlow" }
 
 ---@type SpotlightsPreviewPaneNode[]
 local panes = {}
@@ -113,6 +113,11 @@ local function FrameColor()
 	return Feature().frameColor
 end
 
+---@return SpotlightsAuraFrameGlowConfig
+local function FrameGlow()
+	return Feature().frameGlow
+end
+
 --- Any display's block by key, for the read/write factories below. The typed accessors above are what
 --- the summaries use, since those read named fields.
 ---@param displayKey SpotlightsAuraDisplayKey
@@ -132,6 +137,10 @@ local function Display(displayKey)
 
 	if displayKey == "frameColor" then
 		return FrameColor()
+	end
+
+	if displayKey == "frameGlow" then
+		return FrameGlow()
 	end
 
 	return Icon()
@@ -369,12 +378,22 @@ local function TextSummary()
 		AnchorName(config), BorderPhrase(config))
 end
 
---- The shortest of the five: no size, anchor or border, because the rect is the health bar's. What is
---- left is the opacity, which decides whether the class colour shows through.
+--- The shortest summary, with the glow's: no size, anchor or border, because the rect is the health bar's.
+--- What is left is the opacity, which decides whether the class colour shows through.
 ---@return string
 local function FrameColorSummary()
 	local L = Private.L.Settings
 	local config = FrameColor()
+
+	return HiddenSummary(config)
+		or string.format(L.AuraSummaryFrameColor, math.floor(config.alpha * 100 + 0.5))
+end
+
+--- The tint's string, which names nothing but the opacity: the glow's rect is fixed to the frame too.
+---@return string
+local function FrameGlowSummary()
+	local L = Private.L.Settings
+	local config = FrameGlow()
 
 	return HiddenSummary(config)
 		or string.format(L.AuraSummaryFrameColor, math.floor(config.alpha * 100 + 0.5))
@@ -393,8 +412,8 @@ local function Full(node)
 	return node
 end
 
---- Counted through `HasDisplay` rather than over the five `enabled` flags: every feature stores a block
---- for all five kinds whatever it renders, and a profile import arrives with whatever the exporter had,
+--- Counted through `HasDisplay` rather than over the six `enabled` flags: every feature stores a block
+--- for all six kinds whatever it renders, and a profile import arrives with whatever the exporter had,
 --- so a flag on a kind the category never draws must not count.
 ---@return integer
 local function EnabledDisplayCount()
@@ -618,7 +637,7 @@ local function BuildBody(page, rows, displayKey, label, trailing)
 		{ rightWidth = Private.PreviewPane.Width })
 end
 
---- The category's own switch, a level above the five displays. Kept out of `sections`, so `SyncSections`
+--- The category's own switch, a level above the six displays. Kept out of `sections`, so `SyncSections`
 --- never collapses it and a category switched off stays one click from coming back.
 ---@param page Frame
 ---@return SpotlightsSectionNode
@@ -875,6 +894,28 @@ local function BuildFrameColorBody(page)
 	}, "frameColor", L.AuraFrameColor, {})
 end
 
+---@param page Frame
+---@return SpotlightsNode
+local function BuildFrameGlowBody(page)
+	local L = Private.L.Settings
+
+	-- Neither shared group, for the tint's reason: the rect is the spotlight's own, with no edge of its
+	-- own to draw and nowhere to move it to.
+	return BuildBody(page, {
+		Private.Controls.SubHeading(page, L.GroupDisplay),
+
+		Private.Controls.Checkbox(page, L.AuraEnabled, Getter("frameGlow", "enabled"),
+			EnabledSetter("frameGlow")),
+
+		Private.Controls.ColorSwatch(page, L.AuraFrameGlowColor,
+			ColorGetter("frameGlow", "r", "g", "b", "alpha"),
+			ColorSetter("frameGlow", "r", "g", "b", "alpha")),
+
+		Full(Private.Controls.Slider(page, L.AuraAlpha, ALPHA_MIN, ALPHA_MAX, ALPHA_STEP,
+			Getter("frameGlow", "alpha"), Setter("frameGlow", "alpha"))),
+	}, "frameGlow", L.AuraFrameGlow, {})
+end
+
 --- Opens the sections whose display is switched on and collapses the rest. The open state is transient
 --- and stays that way: remembering it would persist something the user changes by looking at the panel.
 ---
@@ -929,7 +970,12 @@ function Private.AuraAppearance.Build(page, GetFeature, GetName, height)
 		return L.AuraFrameColor
 	end, FrameColorSummary, BuildFrameColorBody(page))
 
-	-- A pooled category draws icons only, so the other four have no section. Asked of `Private.Auras`
+	-- No `OnlyWhen`: every category draws a glow, pooled ones as one slot for the whole pool.
+	local frameGlow = Private.Node.Section(page, function()
+		return L.AuraFrameGlow
+	end, FrameGlowSummary, BuildFrameGlowBody(page))
+
+	-- A pooled category draws icons and the glow only, so the other four have no section. Asked of `Private.Auras`
 	-- rather than decided here: a second copy of the build path's rule could only be wrong.
 	OnlyWhen(bar, function()
 		return Private.Auras.HasDisplay(ActiveFeature(), "bar")
@@ -947,7 +993,7 @@ function Private.AuraAppearance.Build(page, GetFeature, GetName, height)
 		return Private.Auras.HasDisplay(ActiveFeature(), "frameColor")
 	end)
 
-	sections = { icon, bar, square, text, frameColor }
+	sections = { icon, bar, square, text, frameColor, frameGlow }
 
 	local scrollHeight = math.max(height, MIN_SCROLL_HEIGHT)
 
@@ -958,6 +1004,7 @@ function Private.AuraAppearance.Build(page, GetFeature, GetName, height)
 		square,
 		text,
 		frameColor,
+		frameGlow,
 
 		-- Last, and the explanation of everything above it: the one place the cost of a frozen setting
 		-- is visible to the user.
