@@ -1,0 +1,82 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+	<!-- No scripts: `Animation` is started once while the aura button initialises and runs for the
+	     frame's lifetime, since nothing of ours may touch it after that. -->
+	<Frame name="SpotlightsAuraFrameGlowTemplate" virtual="true">
+		<Layers>
+			<Layer level="ARTWORK" textureSubLevel="6">
+				<Texture parentKey="BackgroundTop" roundLayoutToNearestPixel="true">
+					<Color r="0.1" g="0.1" b="0.1" a="0.8"/>
+					<Size x="0" y="2"/>
+					<Anchors>
+						<Anchor point="TOPLEFT"/>
+						<Anchor point="TOPRIGHT"/>
+					</Anchors>
+				</Texture>
+				<Texture parentKey="BackgroundBottom" roundLayoutToNearestPixel="true">
+					<Color r="0.1" g="0.1" b="0.1" a="0.8"/>
+					<Size x="0" y="2"/>
+					<Anchors>
+						<Anchor point="BOTTOMLEFT"/>
+						<Anchor point="BOTTOMRIGHT"/>
+					</Anchors>
+				</Texture>
+				<!-- Short of the top and bottom strips, so the translucent corners are not blended twice. -->
+				<Texture parentKey="BackgroundLeft" roundLayoutToNearestPixel="true">
+					<Color r="0.1" g="0.1" b="0.1" a="0.8"/>
+					<Size x="2" y="0"/>
+					<Anchors>
+						<Anchor point="TOPLEFT" y="-2"/>
+						<Anchor point="BOTTOMLEFT" y="2"/>
+					</Anchors>
+				</Texture>
+				<Texture parentKey="BackgroundRight" roundLayoutToNearestPixel="true">
+					<Color r="0.1" g="0.1" b="0.1" a="0.8"/>
+					<Size x="2" y="0"/>
+					<Anchors>
+						<Anchor point="TOPRIGHT" y="-2"/>
+						<Anchor point="BOTTOMRIGHT" y="2"/>
+					</Anchors>
+				</Texture>
+			</Layer>
+			<Layer level="ARTWORK" textureSubLevel="7">
+				<Texture parentKey="Top" roundLayoutToNearestPixel="true">
+					<Size x="0" y="1"/>
+					<Anchors>
+						<Anchor point="TOPLEFT"/>
+						<Anchor point="TOPRIGHT"/>
+					</Anchors>
+				</Texture>
+				<Texture parentKey="Right" roundLayoutToNearestPixel="true">
+					<Size x="1" y="0"/>
+					<Anchors>
+						<Anchor point="TOPRIGHT"/>
+						<Anchor point="BOTTOMRIGHT"/>
+					</Anchors>
+				</Texture>
+				<Texture parentKey="Bottom" roundLayoutToNearestPixel="true">
+					<Size x="0" y="1"/>
+					<Anchors>
+						<Anchor point="BOTTOMLEFT"/>
+						<Anchor point="BOTTOMRIGHT"/>
+					</Anchors>
+				</Texture>
+				<Texture parentKey="Left" roundLayoutToNearestPixel="true">
+					<Size x="1" y="0"/>
+					<Anchors>
+						<Anchor point="TOPLEFT"/>
+						<Anchor point="BOTTOMLEFT"/>
+					</Anchors>
+				</Texture>
+			</Layer>
+		</Layers>
+		<Animations>
+			<!-- One dash spacing per 0.5s: a lap every 4s with 8 dashes. -->
+			<AnimationGroup parentKey="Animation" looping="REPEAT">
+				<TextureCoordTranslation childKey="Top" duration="0.5" offsetU="-1" offsetV="0"/>
+				<TextureCoordTranslation childKey="Right" duration="0.5" offsetU="-1" offsetV="0"/>
+				<TextureCoordTranslation childKey="Bottom" duration="0.5" offsetU="-1" offsetV="0"/>
+				<TextureCoordTranslation childKey="Left" duration="0.5" offsetU="-1" offsetV="0"/>
+			</AnimationGroup>
+		</Animations>
+	</Frame>
+</Ui>
