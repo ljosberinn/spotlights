@@ -55,6 +55,8 @@ local MIN_SCROLL_HEIGHT = 80
 --- button was clicked, and two keys would stack two identical prompts.
 local RESET_POPUP = "SPOTLIGHTS_AURA_RESET"
 
+local GLOW_OVERLAP_POPUP = "SPOTLIGHTS_FRAME_GLOW_OVERLAP"
+
 --- Which category tab is selected, and its localised name for the reset prompt. Both handed in by
 --- `Build`, because the tabs they come from are not this file's.
 ---@type fun(): SpotlightsAuraFeatureKey
@@ -212,6 +214,74 @@ local function EnabledSetter(displayKey)
 	return function(value)
 		SetAura(displayKey, "enabled", value)
 		Private.Node.Relayout()
+	end
+end
+
+--- Glows that can draw at the same time as the active category's: tracked ones in this specialisation's
+--- set, since Prescience's and the Cooldowns' never share a spotlight.
+---@return integer
+local function OtherActiveGlowCount()
+	local auras = Private.DB and Private.DB.auras
+	local active = ActiveFeature()
+	local count = 0
+
+	if not auras then
+		return 0
+	end
+
+	for _, key in ipairs(Private.Auras.FeatureKeys()) do
+		if key ~= active and Private.Auras.IsFeatureEnabled(key) and auras[key].frameGlow.enabled then
+			count = count + 1
+		end
+	end
+
+	return count
+end
+
+--- Revert is `OnButton2` behind `selectCallbackByIndex`, not `OnCancel`: StaticPopup also fires `OnCancel`
+--- on Escape, when a second warning reuses this one, and when no dialog frame is free, and each of those
+--- would switch a glow off unasked. The category travels as `data`, so a tab changed while the prompt is
+--- up does not redirect it.
+---@param featureKey SpotlightsAuraFeatureKey whose glow was just switched on
+local function WarnGlowOverlap(featureKey)
+	local L = Private.L.Settings
+
+	StaticPopupDialogs[GLOW_OVERLAP_POPUP] = {
+		text = L.AuraFrameGlowOverlap,
+		button1 = L.AuraFrameGlowAcknowledge,
+		button2 = L.AuraFrameGlowRevert,
+		selectCallbackByIndex = true,
+
+		-- Present for the click alone: under `selectCallbackByIndex` a button with no callback leaves the
+		-- dialog open.
+		OnButton1 = function() end,
+
+		OnButton2 = function(_, data)
+			Private.Auras.SetSetting(data, "frameGlow", "enabled", false)
+			Private.Options.Refresh()
+			Private.AuraPreview.Restyle()
+		end,
+
+		timeout = 0,
+		whileDead = true,
+		hideOnEscape = true,
+		preferredIndex = 3,
+	}
+
+	StaticPopup_Show(GLOW_OVERLAP_POPUP, nil, nil, featureKey)
+end
+
+--- The glow's switch, which warns when the glow it turns on joins another.
+---@return fun(value: boolean)
+local function GlowEnabledSetter()
+	local write = EnabledSetter("frameGlow")
+
+	return function(value)
+		write(value)
+
+		if value and Private.Auras.IsFeatureEnabled(ActiveFeature()) and OtherActiveGlowCount() > 0 then
+			WarnGlowOverlap(ActiveFeature())
+		end
 	end
 end
 
@@ -904,8 +974,7 @@ local function BuildFrameGlowBody(page)
 	return BuildBody(page, {
 		Private.Controls.SubHeading(page, L.GroupDisplay),
 
-		Private.Controls.Checkbox(page, L.AuraEnabled, Getter("frameGlow", "enabled"),
-			EnabledSetter("frameGlow")),
+		Private.Controls.Checkbox(page, L.AuraEnabled, Getter("frameGlow", "enabled"), GlowEnabledSetter()),
 
 		Private.Controls.ColorSwatch(page, L.AuraFrameGlowColor,
 			ColorGetter("frameGlow", "r", "g", "b", "alpha"),

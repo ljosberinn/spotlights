@@ -322,6 +322,11 @@ L.Settings.AuraSummaryFrameColor = "%d%% opacity"
 L.Settings.AuraFrameGlow = "Frame Glow"
 L.Settings.AuraFrameGlowColor = "Glow Color"
 
+-- Shown when a second category's glow is switched on. Revert switches the one just turned on back off.
+L.Settings.AuraFrameGlowOverlap = "Multiple glows are active and may overlap."
+L.Settings.AuraFrameGlowAcknowledge = "Acknowledged"
+L.Settings.AuraFrameGlowRevert = "Revert"
+
 L.Settings.AuraEnabled = "Show"
 L.Settings.AuraColor = "Bar Color"
 L.Settings.AuraAlpha = "Opacity"
