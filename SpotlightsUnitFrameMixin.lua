@@ -770,6 +770,22 @@ function SpotlightsUnitFrameMixin:OnEvent(event)
 	end
 end
 
+--- `UnitFrame_OnEnter` behind a unit check, and the template's OnEnter rather than Blizzard's own.
+---
+--- `UnitFrame_UpdateTooltip` hands `self.unit` to `GameTooltip:SetUnit` unconditionally, and
+--- `C_TooltipInfo.GetUnit` declares that argument non-nilable, so hovering a frame whose mirror has not
+--- run throws. Two frames reach that state: a `Private.Preview` stand-in, whose unit is nil for good, and
+--- a header child the container's state driver showed before `SlotHeader.EnsureChild` could initialise it.
+---
+--- Hooks on this script still fire -- `SlotHeader.InitChild` wires the name's hover state to one.
+function SpotlightsUnitFrameMixin:OnEnter()
+	if not self.unit then
+		return
+	end
+
+	UnitFrame_OnEnter(self)
+end
+
 --- Registers the events that are not unit-filtered. Called once at child setup; the mirror handles
 --- the unit-filtered set, which has to be re-registered per unit.
 function SpotlightsUnitFrameMixin:RegisterGlobalEvents()

@@ -5,6 +5,7 @@ local _, Private = ...
 Private.SlotHeader = {}
 
 local SENTINEL = Private.Enum.NameListSentinel
+local DeferralKey = Private.Enum.DeferralKey
 
 --- Every attribute write on a *visible* header runs SecureGroupHeader_Update synchronously, which
 --- scans the whole roster with a C call per member. There is no throttle or dirty flag anywhere in
@@ -102,8 +103,8 @@ function Private.SlotHeader.InitChild(child)
 	Private.NameStyle.EnsureLayer(child)
 	Private.NameStyle.Request()
 
-	--- Hooked rather than set: the template wires `OnEnter` to `UnitFrame_OnEnter`, which is what puts the
-	--- unit tooltip up, so replacing it would trade the name setting for the tooltip.
+	--- Hooked rather than set: the template's `OnEnter` is what puts the unit tooltip up, so replacing it
+	--- would trade the name setting for the tooltip.
 	child:HookScript("OnEnter", function(self)
 		self.spotlightsHovered = true
 
@@ -152,6 +153,24 @@ function Private.SlotHeader.InitChild(child)
 	child:OnUnitAttributeChanged(child:GetAttribute("unit"))
 end
 
+--- Catches a child the header created on its own. `SecureGroupHeader_Update` *is* the header's OnShow,
+--- and the container's visibility driver performs that show from inside the restricted environment with
+--- no Lua of ours on the stack -- so this hook is the only thing that sees such a child appear before the
+--- next build pass does. Until then it renders unstyled and its `unit` is unmirrored, which is the state
+--- `SpotlightsUnitFrameMixin:OnEnter` has to guard the unit tooltip against.
+---
+--- Hooked, not set: OnShow is the header's whole mechanism and must keep running first.
+---@param header Frame
+local function OnHeaderShow(header)
+	-- `InitChild` writes attributes, so a show under lockdown -- joining a group mid-combat -- hands the
+	-- initialisation to `Build`, which `EnsureChild`es every header once the fight ends.
+	if Private.Events.DeferIfInCombat(DeferralKey.Build) then
+		return
+	end
+
+	Private.SlotHeader.EnsureChild(header)
+end
+
 --- Creates one slot header, pinned by the caller. Out of combat only: CreateFrame is legal in
 --- combat but SetAttribute, SetPoint and Show on a protected frame are not.
 ---@param index integer
@@ -174,7 +193,11 @@ local function CreateHeader(index, parent, nameList, width, height)
 
 	Private.SlotHeader.ApplyAttributes(header, nameList, width, height)
 
-	-- OnShow is wired straight to SecureGroupHeader_Update in XML, which creates child1.
+	header:HookScript("OnShow", OnHeaderShow)
+
+	-- OnShow is wired straight to SecureGroupHeader_Update in XML, which creates child1. The explicit
+	-- pass below is not covered by the hook: a header created while the container is already visible is
+	-- shown from birth, so `Show` is a no-op and child1 came out of ApplyAttributes' own update instead.
 	header:Show()
 
 	Private.SlotHeader.EnsureChild(header)
@@ -186,8 +209,9 @@ end
 --- every build pass.
 ---
 --- Creating a header while the container is hidden does **not** create a child, because the child is made
---- by the OnShow that never fires. It appears later when the state driver shows the container, so without
---- this pass the frame would render unstyled with `unit` never mirrored.
+--- by the OnShow that never fires. It appears later when the state driver shows the container, which is
+--- what `OnHeaderShow` is for; every build pass calls this too, since a child can also be left behind by
+--- a show the deferral held for combat.
 ---@param header Frame
 ---@return boolean initialised
 function Private.SlotHeader.EnsureChild(header)

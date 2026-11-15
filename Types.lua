@@ -516,6 +516,7 @@
 ---@field spotlightsAuras table<string, table<string, SpotlightsAuraDisplay>>? feature key -> display key -> display, built lazily
 ---@field spotlightsClickCasts table<string, string>? the click-cast attributes this child currently holds, so a removed binding can be cleared from the name it actually took
 ---@field spotlightsKeyProxy SpotlightsClickCastProxy? the button a key binding's click lands on, so press can be had without firing every mouse click twice
+---@field OnEnter fun(self: SpotlightsUnitFrame)
 ---@field OnEvent fun(self: SpotlightsUnitFrame, event: string)
 ---@field OnUnitAttributeChanged fun(self: SpotlightsUnitFrame, value: string?)
 ---@field UpdateAll fun(self: SpotlightsUnitFrame)
@@ -988,12 +989,12 @@ StaticPopup_Show = nil
 ---@type fun(editBox: EditBox)
 StaticPopup_StandardNonEmptyTextHandler = nil
 
---- Wired by the unit frame template's `OnEnter`, which is what puts the unit in the tooltip. Referenced
---- from XML only, so the LSP never sees a call site.
+--- What puts the unit in the tooltip, called by `SpotlightsUnitFrameMixin:OnEnter` once it has a unit to
+--- put there.
 ---@type fun(self: Button)
 UnitFrame_OnEnter = nil
 
---- The `OnLeave` half of the pair above, likewise XML-only.
+--- The `OnLeave` half of the pair above, wired by the template and so referenced from XML only.
 ---@type fun(self: Button)
 UnitFrame_OnLeave = nil
 

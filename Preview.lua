@@ -64,7 +64,8 @@ local PREVIEW_ABSORB = 0.2
 function Private.Preview.CreateFrame(parent)
 	local frame = CreateFrame("Button", nil, parent, "SpotlightsUnitFrameBaseTemplate") --[[@as SpotlightsUnitFrame]]
 
-	-- The template declares UnitFrame_OnEnter, which reads a unit this frame will never have.
+	-- Nothing here is ever hovered or clicked: the mixin's own OnEnter early-outs on the unit this frame
+	-- will never have, and no spotlight behaviour makes sense on a stand-in anyway.
 	frame:EnableMouse(false)
 	frame:RegisterForClicks()
 
