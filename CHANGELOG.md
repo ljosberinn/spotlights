@@ -15,3 +15,5 @@ v1.2.1
 - spotlights keep showing their units' real auras while Edit Mode is open
 - spotlights, their aura displays and the grid previews now stay on whole pixels when the frame scale or the UI scale changes
 - spotlights can glow around their frame while an aura is up, set per category under Auras > Appearance > Frame Glow, with a warning when more than one glow is on
+- hovering a spotlight that has just appeared no longer throws a Lua error about `C_TooltipInfo.GetUnit`
+- a spotlight the grid shows on its own is now styled right away rather than on the next roster change
